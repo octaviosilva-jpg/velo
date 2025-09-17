@@ -1488,53 +1488,58 @@ ${conhecimentoFeedback}
 
 ⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
 
-1. LEITURA INICIAL:
-- Identificar o que o cliente alegou (problema, acusação, pedido)
-- Verificar se a empresa já respondeu e de que forma
-- Checar a consideração final: se o cliente aceitou a solução, insistiu no problema ou trouxe novas alegações
+1. ANÁLISE DO CONTEÚDO REAL:
+- Analise a SOLICITAÇÃO DO CLIENTE: identifique o problema alegado, acusações feitas, pedidos solicitados
+- Analise a RESPOSTA DA EMPRESA: verifique se a empresa respondeu adequadamente, se ofereceu solução, se esclareceu fatos
+- Analise a CONSIDERAÇÃO FINAL DO CONSUMIDOR: verifique se o cliente aceitou a solução, se insistiu no problema, se trouxe novas alegações, se omitiu informações
 
 2. CONSULTA E VALIDAÇÃO NORMATIVA (etapa obrigatória):
-Sempre verificar os 3 manuais oficiais do RA:
+Com base no conteúdo analisado, verifique os 3 manuais oficiais do RA:
 - Manual Geral de Moderação
 - Manual de Moderação RA Reviews  
 - Manual de Moderação – Bancos, Instituições Financeiras e Meios
 
-Pontos a validar:
-- Há informações falsas ou divergentes da realidade?
+Identifique violações específicas:
+- Há informações falsas ou divergentes da realidade no conteúdo?
 - O caso já estava resolvido antes da abertura da reclamação?
-- Houve omissão da solução aplicada na plataforma?
+- Houve omissão da solução aplicada na plataforma pelo cliente?
 - Há linguagem ofensiva, acusações genéricas ou sem provas?
 - Existe duplicidade (mesmo cliente, mesmo caso)?
 - Para bancos/financeiras: há citação incorreta de cláusula contratual, ou omissão de previsão contratual aceita pelo cliente?
 
 3. REVISÃO CONTRATUAL E FACTUAL:
-- Conferir se a reclamação ou consideração do cliente contradiz o que está na Cédula de Crédito Bancário (CCB), nos Termos de Uso ou em cláusulas previamente aceitas
-- Validar registros internos (datas de contratação, movimentações financeiras, Pix, eCAC, Receita Federal, etc.)
-- Checar se a solução já foi implementada (ex.: reagendamento BB concluído, Pix portabilizado, liquidação realizada)
+- Confronte o conteúdo da reclamação/consideração com registros internos e cláusulas contratuais
+- Identifique divergências entre o que foi alegado e os fatos reais
+- Verifique se há omissão de informações importantes pelo cliente
+- Confirme se a solução já foi implementada e não foi mencionada pelo cliente
 
 4. CONSTRUÇÃO DA LINHA DE RACIOCÍNIO INTERNA:
 Esse bloco não vai para o RA, mas é obrigatório na saída. Estrutura:
+- Análise do conteúdo: resuma o que o cliente alegou, como a empresa respondeu, e o que o cliente disse na consideração final
 - Fatos reais comprovados: descreva o que realmente ocorreu, com datas, registros e documentos (internos ou oficiais)
-- Divergência/violação: aponte onde a reclamação ou consideração do cliente foge da realidade, está desatualizada ou infringe regras do RA
+- Divergência/violação identificada: aponte especificamente onde o conteúdo (solicitação, resposta ou consideração) foge da realidade, está desatualizado ou infringe regras do RA
 - Base normativa: indique explicitamente:
   * Qual manual do RA dá respaldo (citar manual + seção, se aplicável)
   * Qual cláusula contratual ou termo aceito pelo cliente fundamenta o pedido
+  * Qual regra específica foi violada pelo conteúdo analisado
 
 5. CONSTRUÇÃO DA RESPOSTA FINAL DE MODERAÇÃO:
 Esse é o texto que vai ser enviado ao RA. Deve ser:
+- Baseado na análise real do conteúdo (solicitação, resposta, consideração)
 - Objetivo e técnico
 - Impessoal (sem "eu", "nós sentimos", etc.)
 - Sem tom emocional
 - Estruturado em 3 parágrafos curtos
+- Focado nas violações específicas identificadas no conteúdo analisado
 
 MODELO FIXO OBRIGATÓRIO - USE EXATAMENTE ESTA ESTRUTURA:
 
 TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA):
 "Prezados,
 
-Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo, ex.: a informação apresentada não condiz com os fatos verificados nos registros oficiais].
+Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo baseado na análise do conteúdo real - solicitação, resposta e consideração final do consumidor].
 
-Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos, ex.: a restituição foi disponibilizada para agendamento no Banco do Brasil, procedimento já concluído junto ao cliente]. Ressaltamos que a alegação feita diverge da realidade, enquadrando-se nas hipóteses de moderação previstas no Manual Geral de Moderação e no Manual de Bancos e Instituições Financeiras.
+Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos que divergem do que foi apresentado pelo cliente]. Ressaltamos que [especificar qual parte do conteúdo - solicitação, resposta ou consideração - diverge da realidade], enquadrando-se nas hipóteses de moderação previstas no [manual aplicável específico].
 
 Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
 
@@ -1604,7 +1609,9 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 (2) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
 [Texto seguindo EXATAMENTE o modelo fixo de 3 parágrafos acima]
 
-⚠️ CRÍTICO: O texto final DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.`;
+⚠️ CRÍTICO: O texto final DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.
+
+🚫 PROIBIDO: NÃO cite os dados de entrada (solicitação do cliente, resposta da empresa, consideração final) literalmente. Analise o conteúdo e formule baseado na análise, não na citação dos dados.`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -2278,8 +2285,9 @@ ${conhecimentoFeedback}
 
 1. ANÁLISE DA NEGATIVA:
 - Identifique por que o RA negou (ex.: "Resposta não condizente", "sem relação com os fatos", "tom inadequado")
+- Analise o conteúdo original (solicitação, resposta, consideração) que gerou a negativa
 - Compare com os manuais de moderação e detecte onde o texto falhou
-- Analise o texto negado e identifique os pontos problemáticos
+- Identifique os pontos problemáticos na análise anterior
 
 2. CONSULTA AOS MANUAIS:
 Sempre verificar os 3 manuais oficiais do RA:
@@ -2318,6 +2326,8 @@ Forneça APENAS o texto reformulado seguindo EXATAMENTE o modelo fixo de 3 pará
 
 ⚠️ CRÍTICO: O texto DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.
 
+🚫 PROIBIDO: NÃO cite os dados de entrada literalmente. Analise o conteúdo original e formule baseado na análise, não na citação dos dados.
+
 📋 DICAS CRÍTICAS PARA REFORMULAÇÃO DE MODERAÇÃO:
 
 1. CONSULTE SEMPRE OS MANUAIS DO RA:
@@ -2340,8 +2350,9 @@ Forneça APENAS o texto reformulado seguindo EXATAMENTE o modelo fixo de 3 pará
 
 4. NA REFORMULAÇÃO, CORRIJA ESPECIFICAMENTE:
 - O motivo da negativa identificado pelo RA
+- Analise novamente o conteúdo original (solicitação, resposta, consideração) com foco na negativa
 - Mantenha fatos reais comprovados → cite data, registro, operação
-- Aponte divergência clara → onde o cliente erra ou omite
+- Aponte divergência clara → onde o conteúdo analisado erra ou omite informações
 - Base normativa → diga "conforme Manual Geral de Moderação", "conforme Cláusula 7 da CCB", etc.
 
 5. NA REDAÇÃO FINAL (TEXTO AO RA), SIGA O TOM:
