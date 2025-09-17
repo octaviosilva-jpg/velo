@@ -1659,35 +1659,8 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
             if (temAprendizado) {
                 console.log('✅ Moderação gerada com aprendizado aplicado - mantendo resposta da IA');
             } else {
-                console.log('⚠️ Moderação genérica detectada - NUNCA usar resposta genérica para RA/Moderações');
-                console.log('📝 Formulando moderação específica baseada nos dados fornecidos pelo usuário...');
-                
-                // Criar moderação específica baseada nos dados fornecidos
-                const solicitacao = dadosModeracao.solicitacaoCliente;
-                const respostaEmpresa = dadosModeracao.respostaEmpresa;
-                const motivo = dadosModeracao.motivoModeracao;
-                const consideracao = dadosModeracao.consideracaoFinal;
-                
-                let moderacaoEspecifica = `Prezados Senhores,
-
-Solicitamos a moderação do conteúdo em questão pelos seguintes motivos:
-
-**DADOS DO CASO:**
-- Solicitação do Cliente: ${solicitacao}
-- Resposta da Empresa: ${respostaEmpresa}
-- Motivo da Moderação: ${motivo}
-- Consideração Final do Consumidor: ${consideracao}
-
-**FUNDAMENTAÇÃO:**
-${motivo ? `O conteúdo viola as diretrizes do Reclame Aqui conforme ${motivo}.` : 'O conteúdo não está em conformidade com as diretrizes da plataforma.'}
-
-**SOLICITAÇÃO:**
-Diante do exposto, solicitamos a moderação do conteúdo, em conformidade com as diretrizes da plataforma.
-
-Atenciosamente,
-Equipe Velotax`;
-                
-                resposta = moderacaoEspecifica;
+                console.log('⚠️ Moderação genérica detectada - usando resposta da IA mesmo assim');
+                console.log('📝 A IA deve seguir o script estruturado definido no prompt');
             }
             
             res.json({
