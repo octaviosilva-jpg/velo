@@ -2042,6 +2042,15 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
                     feedback,
                     respostaReformulada
                 );
+                
+                // Também salvar no arquivo de feedbacks de respostas para histórico completo
+                console.log('📝 Salvando feedback no arquivo de feedbacks de respostas');
+                addRespostaFeedback(
+                    dadosFormulario,
+                    respostaAnterior,
+                    feedback,
+                    respostaReformulada
+                );
             }
             
             res.json({
