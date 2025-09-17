@@ -1527,7 +1527,9 @@ Esse é o texto que vai ser enviado ao RA. Deve ser:
 - Sem tom emocional
 - Estruturado em 3 parágrafos curtos
 
-MODELO FIXO OBRIGATÓRIO:
+MODELO FIXO OBRIGATÓRIO - USE EXATAMENTE ESTA ESTRUTURA:
+
+TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA):
 "Prezados,
 
 Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo, ex.: a informação apresentada não condiz com os fatos verificados nos registros oficiais].
@@ -1535,6 +1537,8 @@ Solicitamos a moderação da reclamação em questão, tendo em vista que [expli
 Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos, ex.: a restituição foi disponibilizada para agendamento no Banco do Brasil, procedimento já concluído junto ao cliente]. Ressaltamos que a alegação feita diverge da realidade, enquadrando-se nas hipóteses de moderação previstas no Manual Geral de Moderação e no Manual de Bancos e Instituições Financeiras.
 
 Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
+
+⚠️ IMPORTANTE: O texto final DEVE seguir EXATAMENTE esta estrutura de 3 parágrafos. NÃO use outros formatos como "Prezados Senhores", "Atenciosamente", ou estruturas diferentes.
 
 6. SAÍDA FINAL OBRIGATÓRIA:
 A resposta deve conter EXATAMENTE dois blocos:
@@ -1591,7 +1595,16 @@ A resposta deve conter EXATAMENTE dois blocos:
 
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para gerar um texto de moderação de alta qualidade desde o início, evitando negativas do RA.
 
-Execute o fluxo completo e forneça os dois blocos solicitados.`;
+Execute o fluxo completo e forneça os dois blocos solicitados.
+
+FORMATO DE SAÍDA OBRIGATÓRIO:
+(1) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
+[Conteúdo da linha de raciocínio interna]
+
+(2) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
+[Texto seguindo EXATAMENTE o modelo fixo de 3 parágrafos acima]
+
+⚠️ CRÍTICO: O texto final DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -2280,7 +2293,8 @@ Sempre verificar os 3 manuais oficiais do RA:
 - Mantenha texto objetivo, técnico e impessoal
 - Direcione sempre ao RA (não ao consumidor)
 
-4. MODELO FIXO OBRIGATÓRIO PARA REFORMULAÇÃO:
+4. MODELO FIXO OBRIGATÓRIO PARA REFORMULAÇÃO - USE EXATAMENTE ESTA ESTRUTURA:
+
 "Prezados,
 
 Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo corrigido, baseado no feedback da negativa].
@@ -2288,6 +2302,8 @@ Solicitamos a moderação da reclamação em questão, tendo em vista que [expli
 Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos]. Ressaltamos que a alegação feita diverge da realidade, enquadrando-se nas hipóteses de moderação previstas no [manual aplicável específico].
 
 Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
+
+⚠️ IMPORTANTE: O texto reformulado DEVE seguir EXATAMENTE esta estrutura de 3 parágrafos. NÃO use outros formatos.
 
 5. REGRAS INQUEBRÁVEIS:
 - Não inventar fatos
@@ -2298,7 +2314,9 @@ Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme re
 - Manter tom impessoal e formal
 
 6. SAÍDA FINAL:
-Forneça APENAS o texto reformulado seguindo o modelo fixo acima, corrigindo especificamente o motivo da negativa.
+Forneça APENAS o texto reformulado seguindo EXATAMENTE o modelo fixo de 3 parágrafos acima, corrigindo especificamente o motivo da negativa.
+
+⚠️ CRÍTICO: O texto DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.
 
 📋 DICAS CRÍTICAS PARA REFORMULAÇÃO DE MODERAÇÃO:
 
