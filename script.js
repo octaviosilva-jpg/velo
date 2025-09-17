@@ -1208,6 +1208,83 @@ function limparEdicao() {
 
 // ===== FUNÇÕES DE MODERAÇÃO =====
 
+// Função para separar os dois blocos da resposta do servidor
+function separarBlocosModeracao(resposta) {
+    if (!resposta) return { linhaRaciocinio: '', textoFinal: '' };
+    
+    // Procurar por marcadores que indicam os blocos
+    const marcadores = [
+        '(1) LINHA DE RACIOCÍNIO INTERNA',
+        '(2) TEXTO FINAL DE MODERAÇÃO',
+        'LINHA DE RACIOCÍNIO INTERNA',
+        'TEXTO FINAL DE MODERAÇÃO',
+        '1. LINHA DE RACIOCÍNIO INTERNA',
+        '2. TEXTO FINAL DE MODERAÇÃO'
+    ];
+    
+    let linhaRaciocinio = '';
+    let textoFinal = '';
+    
+    // Tentar separar por marcadores
+    for (let i = 0; i < marcadores.length; i += 2) {
+        const marcador1 = marcadores[i];
+        const marcador2 = marcadores[i + 1];
+        
+        const index1 = resposta.indexOf(marcador1);
+        const index2 = resposta.indexOf(marcador2);
+        
+        if (index1 !== -1 && index2 !== -1) {
+            linhaRaciocinio = resposta.substring(index1 + marcador1.length, index2).trim();
+            textoFinal = resposta.substring(index2 + marcador2.length).trim();
+            break;
+        }
+    }
+    
+    // Se não encontrou marcadores, tentar separar por quebras de linha duplas
+    if (!linhaRaciocinio && !textoFinal) {
+        const partes = resposta.split('\n\n');
+        if (partes.length >= 2) {
+            linhaRaciocinio = partes[0].trim();
+            textoFinal = partes.slice(1).join('\n\n').trim();
+        } else {
+            // Se não conseguiu separar, usar toda a resposta como texto final
+            textoFinal = resposta;
+        }
+    }
+    
+    return { linhaRaciocinio, textoFinal };
+}
+
+// Função para formatar a linha de raciocínio interna do servidor
+function formatarLinhaRaciocinioServidor(linhaRaciocinio) {
+    if (!linhaRaciocinio) return '';
+    
+    let linha = '<div class="linha-raciocinio servidor">';
+    linha += '<h6 class="text-info mb-3"><i class="fas fa-brain me-2"></i>Linha de Raciocínio Interna (Gerada pelo Servidor):</h6>';
+    
+    // Formatar o conteúdo da linha de raciocínio
+    let conteudoFormatado = linhaRaciocinio
+        .replace(/\n\n/g, '</p><p>')  // Dupla quebra de linha = novo parágrafo
+        .replace(/\n/g, '<br>')       // Quebra simples = <br>
+        .replace(/^/, '<p>')          // Iniciar com <p>
+        .replace(/$/, '</p>');        // Terminar com </p>
+    
+    // Destacar elementos importantes
+    conteudoFormatado = conteudoFormatado
+        .replace(/Fatos reais comprovados:/gi, '<strong class="text-success">Fatos reais comprovados:</strong>')
+        .replace(/Divergência\/violação:/gi, '<strong class="text-danger">Divergência/violação:</strong>')
+        .replace(/Base normativa:/gi, '<strong class="text-primary">Base normativa:</strong>')
+        .replace(/Manual Geral/g, '<em class="text-info">Manual Geral</em>')
+        .replace(/Manual de Reviews/g, '<em class="text-info">Manual de Reviews</em>')
+        .replace(/Manual de Bancos/g, '<em class="text-info">Manual de Bancos</em>')
+        .replace(/Manual de Moderação/g, '<em class="text-info">Manual de Moderação</em>');
+    
+    linha += `<div class="alert alert-light border-start border-info border-4">${conteudoFormatado}</div>`;
+    linha += '</div>';
+    
+    return linha;
+}
+
 // Função para formatar o texto de moderação com melhor apresentação
 function formatarTextoModeracao(texto) {
     if (!texto) return '';
@@ -1221,8 +1298,10 @@ function formatarTextoModeracao(texto) {
     
     // Destacar frases importantes
     textoFormatado = textoFormatado
-        .replace(/Conforme o apontamento acima/g, '<strong>Conforme o apontamento acima</strong>')
-        .replace(/Diante do exposto/g, '<strong>Diante do exposto</strong>')
+        .replace(/Prezados,/g, '<strong>Prezados,</strong>')
+        .replace(/Solicitamos a moderação/g, '<strong>Solicitamos a moderação</strong>')
+        .replace(/Conforme registros internos/g, '<strong>Conforme registros internos</strong>')
+        .replace(/Dessa forma, solicitamos/g, '<strong>Dessa forma, solicitamos</strong>')
         .replace(/Manual Geral/g, '<em>Manual Geral</em>')
         .replace(/Manual de Reviews/g, '<em>Manual de Reviews</em>')
         .replace(/Manual de Bancos/g, '<em>Manual de Bancos</em>')
@@ -1266,12 +1345,17 @@ async function gerarModeracao() {
         const data = await response.json();
         
         if (data.success) {
-            // Gerar linha de raciocínio interna
-            const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
+            // Processar a resposta que agora vem com dois blocos
+            const resposta = data.result;
             
-            // Formatar o texto gerado pelo servidor com melhor apresentação
-            const textoFormatado = formatarTextoModeracao(data.result);
-            const textoModeracao = `<div class="moderacao-texto">${textoFormatado}</div>`;
+            // Separar os dois blocos da resposta
+            const blocos = separarBlocosModeracao(resposta);
+            
+            // Usar a linha de raciocínio interna gerada pelo servidor
+            const linhaRaciocinio = formatarLinhaRaciocinioServidor(blocos.linhaRaciocinio);
+            
+            // Usar o texto final de moderação gerado pelo servidor
+            const textoModeracao = formatarTextoModeracao(blocos.textoFinal);
             
             document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
             document.getElementById('texto-moderacao').innerHTML = textoModeracao;
@@ -1280,7 +1364,7 @@ async function gerarModeracao() {
             stats.moderacoes++;
             updateStats();
             
-            showSuccessMessage('Solicitação de moderação gerada com modelo pré-definido!');
+            showSuccessMessage('Solicitação de moderação gerada com script estruturado!');
         } else {
             throw new Error(data.error || 'Erro ao gerar moderação');
         }
@@ -2158,18 +2242,21 @@ async function processarFeedbackModeracao() {
         const data = await response.json();
         
         if (data.success) {
-            // Gerar linha de raciocínio reformulada
-            const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
+            // Processar a resposta reformulada
+            const resposta = data.result;
             
-            // Formatar o texto reformulado pelo servidor
-            const textoFormatado = formatarTextoModeracao(data.result);
+            // Para reformulação, o servidor retorna apenas o texto reformulado
+            const textoFormatado = formatarTextoModeracao(resposta);
             const textoModeracaoReformulado = `<div class="moderacao-texto reformulado">${textoFormatado}</div>`;
+            
+            // Gerar linha de raciocínio reformulada local
+            const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
             
             // Atualizar interface
             document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinioReformulada;
             document.getElementById('texto-moderacao').innerHTML = textoModeracaoReformulado;
             
-            showSuccessMessage('Solicitação de moderação reformulada com modelo pré-definido!');
+            showSuccessMessage('Solicitação de moderação reformulada com script estruturado!');
         } else {
             throw new Error(data.error || 'Erro ao reformular moderação');
         }

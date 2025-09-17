@@ -1474,57 +1474,76 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
         }
         
         const prompt = `
-DADOS PARA MODERAÇÃO:
-- Solicitação do Cliente: ${dadosModeracao.solicitacaoCliente}
-- Resposta da Empresa: ${dadosModeracao.respostaEmpresa}
-- Motivo da Moderação: ${dadosModeracao.motivoModeracao}
-- Consideração Final do Consumidor: ${dadosModeracao.consideracaoFinal}
+📌 SCRIPT ESTRUTURADO PARA FORMULAÇÃO DE MODERAÇÃO RA
 
-INSTRUÇÕES ESPECIALIZADAS:
-Você é um especialista em Reclame Aqui, com foco em formulação de textos de moderação. Seu papel é redigir solicitações técnicas e objetivas, em nome da empresa Velotax, com base nos manuais oficiais de moderação do Reclame Aqui.
+Você é responsável por elaborar solicitações de moderação no Reclame Aqui seguindo o fluxo lógico estruturado abaixo.
 
-IMPORTANTE: Seu texto deve ser endereçado ao time de moderação do RA, nunca ao consumidor.
-
-DIRETRIZES OBRIGATÓRIAS:
-
-1. TOM E ESTILO:
-- Técnico, impessoal, formal e objetivo
-- Sem linguagem comercial, promocional ou emocional
-- Clareza > quantidade. Não usar floreios, apenas fatos e base normativa
-- Evite repetições desnecessárias
-
-2. ESTRUTURA PADRÃO:
-a) Introdução curta e técnica:
-SEMPRE iniciar com: "Conforme o apontamento acima, solicitamos a moderação desta publicação…"
-
-b) Exposição dos fatos:
-- Contextualize em ordem cronológica e objetiva
-- Explique o ponto de divergência ou motivo que torna a publicação indevida
-- Use registros internos (datas, atendimentos, exclusões, quitações, etc.)
-
-c) Fundamentação normativa:
-- Relacione o motivo com os manuais oficiais do RA
-- Cite especificamente: Manual Geral, Manual de Reviews ou Manual de Bancos/Instituições Financeiras/Meios
-
-d) Encerramento formal:
-SEMPRE finalizar com: "Diante do exposto, solicitamos a exclusão/moderação do conteúdo, em conformidade com as diretrizes da plataforma."
-
-3. MOTIVOS DE MODERAÇÃO ACEITOS:
-- Informação falsa ou incorreta (Manual Geral)
-- Caso já resolvido antes da abertura no RA (Manual Geral)
-- Ofensa a empresa ou colaboradores (Manual Bancos/Meios)
-- Divulgação de dados pessoais/sensíveis (Manual Geral)
-- Reclamação duplicada (Manual de Reviews)
-- Reclamação de outra empresa (Manual de Reviews)
-- Reclamação trabalhista (Manual de Reviews)
-- Caso de fraude (Manual Bancos/Meios)
-- A empresa não violou o direito do consumidor (Manual Bancos/Meios)
+INFORMAÇÕES DISPONÍVEIS:
+- Solicitação do cliente: ${dadosModeracao.solicitacaoCliente}
+- Resposta da empresa: ${dadosModeracao.respostaEmpresa}
+- Consideração final do consumidor: ${dadosModeracao.consideracaoFinal}
+- Motivo da moderação: ${dadosModeracao.motivoModeracao}
 
 ${conhecimentoFeedback}
 
+⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
+
+1. LEITURA INICIAL:
+- Identificar o que o cliente alegou (problema, acusação, pedido)
+- Verificar se a empresa já respondeu e de que forma
+- Checar a consideração final: se o cliente aceitou a solução, insistiu no problema ou trouxe novas alegações
+
+2. CONSULTA E VALIDAÇÃO NORMATIVA (etapa obrigatória):
+Sempre verificar os 3 manuais oficiais do RA:
+- Manual Geral de Moderação
+- Manual de Moderação RA Reviews  
+- Manual de Moderação – Bancos, Instituições Financeiras e Meios
+
+Pontos a validar:
+- Há informações falsas ou divergentes da realidade?
+- O caso já estava resolvido antes da abertura da reclamação?
+- Houve omissão da solução aplicada na plataforma?
+- Há linguagem ofensiva, acusações genéricas ou sem provas?
+- Existe duplicidade (mesmo cliente, mesmo caso)?
+- Para bancos/financeiras: há citação incorreta de cláusula contratual, ou omissão de previsão contratual aceita pelo cliente?
+
+3. REVISÃO CONTRATUAL E FACTUAL:
+- Conferir se a reclamação ou consideração do cliente contradiz o que está na Cédula de Crédito Bancário (CCB), nos Termos de Uso ou em cláusulas previamente aceitas
+- Validar registros internos (datas de contratação, movimentações financeiras, Pix, eCAC, Receita Federal, etc.)
+- Checar se a solução já foi implementada (ex.: reagendamento BB concluído, Pix portabilizado, liquidação realizada)
+
+4. CONSTRUÇÃO DA LINHA DE RACIOCÍNIO INTERNA:
+Esse bloco não vai para o RA, mas é obrigatório na saída. Estrutura:
+- Fatos reais comprovados: descreva o que realmente ocorreu, com datas, registros e documentos (internos ou oficiais)
+- Divergência/violação: aponte onde a reclamação ou consideração do cliente foge da realidade, está desatualizada ou infringe regras do RA
+- Base normativa: indique explicitamente:
+  * Qual manual do RA dá respaldo (citar manual + seção, se aplicável)
+  * Qual cláusula contratual ou termo aceito pelo cliente fundamenta o pedido
+
+5. CONSTRUÇÃO DA RESPOSTA FINAL DE MODERAÇÃO:
+Esse é o texto que vai ser enviado ao RA. Deve ser:
+- Objetivo e técnico
+- Impessoal (sem "eu", "nós sentimos", etc.)
+- Sem tom emocional
+- Estruturado em 3 parágrafos curtos
+
+MODELO FIXO OBRIGATÓRIO:
+"Prezados,
+
+Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo, ex.: a informação apresentada não condiz com os fatos verificados nos registros oficiais].
+
+Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos, ex.: a restituição foi disponibilizada para agendamento no Banco do Brasil, procedimento já concluído junto ao cliente]. Ressaltamos que a alegação feita diverge da realidade, enquadrando-se nas hipóteses de moderação previstas no Manual Geral de Moderação e no Manual de Bancos e Instituições Financeiras.
+
+Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
+
+6. SAÍDA FINAL OBRIGATÓRIA:
+A resposta deve conter EXATAMENTE dois blocos:
+(1) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
+(2) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
+
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para gerar um texto de moderação de alta qualidade desde o início, evitando negativas do RA.
 
-Gere uma solicitação de moderação seguindo EXATAMENTE esta estrutura e tom técnico.`;
+Execute o fluxo completo e forneça os dois blocos solicitados.`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -2184,45 +2203,54 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
         }
         
         const prompt = `
-TAREFA: Reformular texto de moderação negado pelo Reclame Aqui
+📌 REFORMULAÇÃO DE TEXTO DE MODERAÇÃO NEGADO PELO RA
+
+Você é responsável por reformular textos de moderação negados pelo Reclame Aqui seguindo o script estruturado.
 
 DADOS DE ENTRADA:
 - Motivo da negativa: ${motivoNegativa}
 - Texto de moderação negado: ${textoNegado}
 
-INSTRUÇÕES ESPECIALIZADAS:
-Você é um especialista em Reclame Aqui, com foco em reformulação de textos de moderação negados. Sua função é reformular textos de moderação negados pelo RA, garantindo aderência total aos manuais oficiais de moderação (Manual Geral, Manual de Reviews e Manual de Bancos/Instituições Financeiras/Meios).
+${conhecimentoFeedback}
 
-🔹 ANÁLISE OBRIGATÓRIA:
-1. Identifique por que o RA negou (ex.: "Resposta não condizente", "sem relação com os fatos", "tom inadequado")
-2. Compare com os manuais de moderação e detecte onde o texto falhou
-3. Analise o texto negado e identifique os pontos problemáticos
+⚙️ FLUXO DE REFORMULAÇÃO OBRIGATÓRIO:
 
-🔹 REFORMULAÇÃO OBRIGATÓRIA:
-1. Ajuste apenas o necessário para alinhar ao motivo da negativa
-2. Reforce com base no manual aplicável (sempre citar)
-3. Mantenha texto objetivo, técnico e impessoal
-4. Direcione sempre ao RA (não ao consumidor)
+1. ANÁLISE DA NEGATIVA:
+- Identifique por que o RA negou (ex.: "Resposta não condizente", "sem relação com os fatos", "tom inadequado")
+- Compare com os manuais de moderação e detecte onde o texto falhou
+- Analise o texto negado e identifique os pontos problemáticos
 
-🔹 ESTRUTURA PADRÃO OBRIGATÓRIA:
-"Conforme o apontamento acima, solicitamos a moderação desta publicação [inserir motivo reformulado]. Tal situação está em desacordo com o [manual aplicável]. Diante disso, solicitamos a exclusão/moderação do conteúdo."
+2. CONSULTA AOS MANUAIS:
+Sempre verificar os 3 manuais oficiais do RA:
+- Manual Geral de Moderação
+- Manual de Moderação RA Reviews  
+- Manual de Moderação – Bancos, Instituições Financeiras e Meios
 
-🔹 REGRAS INQUEBRÁVEIS:
+3. REFORMULAÇÃO ESTRUTURADA:
+- Ajuste apenas o necessário para alinhar ao motivo da negativa
+- Reforce com base no manual aplicável (sempre citar)
+- Mantenha texto objetivo, técnico e impessoal
+- Direcione sempre ao RA (não ao consumidor)
+
+4. MODELO FIXO OBRIGATÓRIO PARA REFORMULAÇÃO:
+"Prezados,
+
+Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo corrigido, baseado no feedback da negativa].
+
+Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos]. Ressaltamos que a alegação feita diverge da realidade, enquadrando-se nas hipóteses de moderação previstas no [manual aplicável específico].
+
+Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
+
+5. REGRAS INQUEBRÁVEIS:
 - Não inventar fatos
 - Usar somente registros fornecidos + manuais
-- Sempre citar manual aplicável
+- Sempre citar manual aplicável específico
 - Texto deve ser curto, objetivo e técnico
 - Pedido sempre direcionado ao RA
 - Manter tom impessoal e formal
 
-🔹 MANUAIS APLICÁVEIS:
-- Manual Geral de Moderação do RA
-- Manual de Moderação de Reviews do RA
-- Manual de Moderação – Bancos, Instituições Financeiras e Meios
-
-Gere uma versão reformulada que corrija especificamente o motivo da negativa, mantendo aderência total aos manuais oficiais.
-
-${conhecimentoFeedback}
+6. SAÍDA FINAL:
+Forneça APENAS o texto reformulado seguindo o modelo fixo acima, corrigindo especificamente o motivo da negativa.
 
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros similares e melhorar a qualidade da reformulação de moderação.`;
 
