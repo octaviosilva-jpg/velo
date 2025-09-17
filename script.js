@@ -2134,15 +2134,65 @@ function avaliarModeracao(tipoAvaliacao) {
     }
     
     if (tipoAvaliacao === 'coerente') {
-        // Marcar como aprovada
-        showSuccessMessage('Solicitação de moderação marcada como coerente!');
-        
-        // Aqui você pode adicionar lógica para salvar como modelo
-        console.log('✅ Solicitação de moderação aprovada');
+        // Marcar como aprovada e salvar como modelo
+        salvarModeracaoComoModelo();
         
     } else if (tipoAvaliacao === 'incoerente') {
         // Solicitar feedback para reformulação
         solicitarFeedbackModeracao();
+    }
+}
+
+// Função para salvar moderação como modelo
+async function salvarModeracaoComoModelo() {
+    try {
+        // Obter dados da moderação atual
+        const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+        const respostaEmpresa = document.getElementById('resposta-empresa').value;
+        const motivoModeracao = document.getElementById('motivo-moderacao').value;
+        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        
+        const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
+        const textoModeracao = document.getElementById('texto-moderacao').innerText;
+        
+        if (!solicitacaoCliente || !respostaEmpresa || !motivoModeracao || !consideracaoFinal) {
+            showErrorMessage('Dados incompletos para salvar como modelo.');
+            return;
+        }
+        
+        // Mostrar loading
+        showLoadingMessage('Salvando moderação como modelo...');
+        
+        // Chamar endpoint para salvar modelo
+        const response = await fetch('/api/save-modelo-moderacao', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                dadosModeracao: {
+                    solicitacaoCliente: solicitacaoCliente,
+                    respostaEmpresa: respostaEmpresa,
+                    motivoModeracao: motivoModeracao,
+                    consideracaoFinal: consideracaoFinal
+                },
+                linhaRaciocinio: linhaRaciocinio,
+                textoModeracao: textoModeracao
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSuccessMessage('✅ Moderação salva como modelo para futuras solicitações!');
+            console.log('📝 Modelo de moderação salvo:', data.modelo);
+        } else {
+            showErrorMessage('Erro ao salvar modelo: ' + data.error);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar modelo de moderação:', error);
+        showErrorMessage('Erro ao salvar modelo de moderação.');
     }
 }
 

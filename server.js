@@ -352,6 +352,9 @@ const FEEDBACKS_EXPLICACOES_FILE = path.join(__dirname, 'data', 'feedbacks_expli
 // Arquivo para modelos de respostas aprovadas
 const MODELOS_RESPOSTAS_FILE = path.join(__dirname, 'data', 'modelos_respostas.json');
 
+// Arquivo para modelos de moderações aprovadas
+const MODELOS_MODERACOES_FILE = path.join(__dirname, 'data', 'modelos_moderacoes.json');
+
 // Arquivo para aprendizado direto no script de formulação
 const APRENDIZADO_SCRIPT_FILE = path.join(__dirname, 'data', 'aprendizado_script.json');
 
@@ -521,6 +524,87 @@ function getModelosRelevantes(tipoSituacao, motivoSolicitacao) {
         if (modelo.motivo_solicitacao && motivoSolicitacao) {
             if (modelo.motivo_solicitacao.toLowerCase().includes(motivoSolicitacao.toLowerCase()) ||
                 motivoSolicitacao.toLowerCase().includes(modelo.motivo_solicitacao.toLowerCase())) {
+                isRelevante = true;
+            }
+        }
+        
+        if (isRelevante) {
+            relevantes.push(modelo);
+        }
+    });
+    
+    // Ordenar por timestamp mais recente e retornar os últimos 3
+    return relevantes
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 3);
+}
+
+// ===== FUNÇÕES PARA MODELOS DE MODERAÇÕES APROVADAS =====
+
+// Carregar modelos de moderações
+function loadModelosModeracoes() {
+    try {
+        if (fs.existsSync(MODELOS_MODERACOES_FILE)) {
+            const data = fs.readFileSync(MODELOS_MODERACOES_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar modelos de moderações:', error);
+    }
+    return {
+        modelos: [],
+        lastUpdated: obterTimestampBrasil()
+    };
+}
+
+// Salvar modelos de moderações
+function saveModelosModeracoes(modelos) {
+    try {
+        fs.writeFileSync(MODELOS_MODERACOES_FILE, JSON.stringify(modelos, null, 2), 'utf8');
+        console.log('📝 Modelos de moderações salvos:', modelos.modelos.length);
+    } catch (error) {
+        console.error('Erro ao salvar modelos de moderações:', error);
+    }
+}
+
+// Adicionar modelo de moderação aprovada
+function addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao) {
+    const modelos = loadModelosModeracoes();
+    
+    const novoModelo = {
+        id: Date.now(),
+        timestamp: obterTimestampBrasil(),
+        motivoModeracao: dadosModeracao.motivoModeracao,
+        dadosModeracao: dadosModeracao,
+        linhaRaciocinio: linhaRaciocinio,
+        textoModeracao: textoModeracao,
+        contexto: {
+            motivoModeracao: dadosModeracao.motivoModeracao,
+            solicitacaoCliente: dadosModeracao.solicitacaoCliente,
+            respostaEmpresa: dadosModeracao.respostaEmpresa,
+            consideracaoFinal: dadosModeracao.consideracaoFinal
+        }
+    };
+    
+    modelos.modelos.push(novoModelo);
+    modelos.lastUpdated = obterTimestampBrasil();
+    
+    saveModelosModeracoes(modelos);
+    console.log('📝 Modelo de moderação aprovada adicionado:', novoModelo.id);
+    return novoModelo;
+}
+
+// Obter modelos de moderação relevantes
+function getModelosModeracaoRelevantes(motivoModeracao) {
+    const modelos = loadModelosModeracoes();
+    const relevantes = [];
+    
+    modelos.modelos.forEach(modelo => {
+        let isRelevante = false;
+        
+        // Verificar correspondência de motivo de moderação
+        if (modelo.motivoModeracao && motivoModeracao) {
+            if (modelo.motivoModeracao.toLowerCase() === motivoModeracao.toLowerCase()) {
                 isRelevante = true;
             }
         }
@@ -1462,9 +1546,34 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
             motivoNegativa: dadosModeracao.motivoModeracao
         });
         
+        // Obter modelos de moderação aprovados
+        const modelosRelevantes = getModelosModeracaoRelevantes(dadosModeracao.motivoModeracao);
+        
         let conhecimentoFeedback = '';
+        
+        // PRIORIDADE 1: MODELOS APROVADOS (seguir este padrão)
+        if (modelosRelevantes.length > 0) {
+            conhecimentoFeedback = '\n\n✅ MODELOS DE MODERAÇÃO APROVADOS (SEGUIR ESTE PADRÃO):\n';
+            conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} moderações aprovadas para "${dadosModeracao.motivoModeracao}":\n\n`;
+            
+            modelosRelevantes.forEach((modelo, index) => {
+                conhecimentoFeedback += `${index + 1}. 📅 Data: ${modelo.timestamp}\n`;
+                conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivoModeracao}\n`;
+                conhecimentoFeedback += `   📝 Linha de raciocínio: "${modelo.linhaRaciocinio.substring(0, 200)}..."\n`;
+                conhecimentoFeedback += `   ✅ Texto aprovado: "${modelo.textoModeracao.substring(0, 200)}..."\n\n`;
+            });
+            
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos aprovados como referência para gerar uma moderação de alta qualidade, seguindo a mesma estrutura e abordagem.\n';
+        }
+        
+        // PRIORIDADE 2: FEEDBACKS DE ERROS (evitar estes problemas)
         if (feedbacksRelevantes.length > 0) {
-            conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
+            if (conhecimentoFeedback) {
+                conhecimentoFeedback += '\n\n⚠️ ERROS IDENTIFICADOS (EVITAR):\n';
+            } else {
+                conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
+            }
+            
             conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} moderações negadas anteriormente, evite os seguintes erros:\n\n`;
             
             feedbacksRelevantes.forEach((fb, index) => {
@@ -1473,7 +1582,7 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                 conhecimentoFeedback += `   ✅ Texto reformulado aprovado: "${fb.textoReformulado.substring(0, 200)}..."\n\n`;
             });
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento para gerar um texto de moderação de alta qualidade desde o início, aplicando as correções identificadas e evitando os erros documentados.\n';
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento para evitar erros similares e aplicar as correções identificadas.\n';
         }
         
         const prompt = `
@@ -3063,6 +3172,42 @@ app.post('/api/save-modelo-resposta', (req, res) => {
         
     } catch (error) {
         console.error('Erro ao salvar modelo de resposta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
+// Endpoint para salvar moderação como modelo (quando clicar em "Coerente")
+app.post('/api/save-modelo-moderacao', (req, res) => {
+    console.log('🎯 Endpoint /api/save-modelo-moderacao chamado');
+    try {
+        const { dadosModeracao, linhaRaciocinio, textoModeracao } = req.body;
+        
+        if (!dadosModeracao || !linhaRaciocinio || !textoModeracao) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dados de moderação, linha de raciocínio e texto de moderação são obrigatórios'
+            });
+        }
+        
+        // Salvar como modelo de moderação aprovada
+        const modelo = addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
+        
+        res.json({
+            success: true,
+            message: 'Modelo de moderação salvo com sucesso!',
+            modelo: {
+                id: modelo.id,
+                timestamp: modelo.timestamp,
+                motivoModeracao: modelo.motivoModeracao
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao salvar modelo de moderação:', error);
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor',
