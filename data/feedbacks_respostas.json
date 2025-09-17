@@ -1,0 +1,404 @@
+{
+  "respostas": [
+    {
+      "id": 1758053028693,
+      "timestamp": "2025-09-16T20:03:48.693Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-16T20:03:40.765Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusao-cadastro.\n\nConfirmamos que Cadastro excluído no sistema em 12/08/2025 conforme solicitação..\n\nO processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza, nao-empatico",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e lamentamos qualquer inconveniente que possa ter enfrentado. Compreendemos a importância de sua solicitação para a exclusão de seu cadastro e interromper o recebimento de comunicações da Velotax.\n\nGostaríamos de informar que já atendemos ao seu pedido e todos os seus dados foram removidos do nosso sistema em 12/08/2025. Este processo foi realizado de acordo com sua solicitação para garantir sua tranquilidade e privacidade.\n\nEstamos comprometidos em melhorar continuamente nossos serviços e garantir a satisfação dos nossos clientes. Caso tenha mais alguma dúvida ou necessite de assistência adicional, por favor, não hesite em nos contatar. Nossa equipe está sempre à disposição para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758053057042,
+      "timestamp": "2025-09-16T20:04:17.042Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-16T20:04:00.141Z"
+      },
+      "respostaAnterior": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e lamentamos qualquer inconveniente que possa ter enfrentado. Compreendemos a importância de sua solicitação para a exclusão de seu cadastro e interromper o recebimento de comunicações da Velotax.\n\nGostaríamos de informar que já atendemos ao seu pedido e todos os seus dados foram removidos do nosso sistema em 12/08/2025. Este processo foi realizado de acordo com sua solicitação para garantir sua tranquilidade e privacidade.\n\nEstamos comprometidos em melhorar continuamente nossos serviços e garantir a satisfação dos nossos clientes. Caso tenha mais alguma dúvida ou necessite de assistência adicional, por favor, não hesite em nos contatar. Nossa equipe está sempre à disposição para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "feedback": "faltou citar a lei lgpd de exclusão de dados",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por nos contatar e lamentamos qualquer inconveniente que possa ter enfrentado. Entendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção de comunicações da Velotax.\n\nGostaríamos de informá-lo que já atendemos ao seu pedido, e todos os seus dados foram removidos do nosso sistema em 12/08/2025. Este procedimento foi realizado em conformidade com a Lei Geral de Proteção de Dados (LGPD), garantindo a proteção de sua privacidade e a segurança de suas informações pessoais.\n\nEstamos comprometidos em melhorar continuamente nossos serviços e em garantir a satisfação dos nossos clientes. Caso tenha mais alguma dúvida ou precise de assistência adicional, por favor, não hesite em nos contatar. Nossa equipe está sempre disponível para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758053083233,
+      "timestamp": "2025-09-16T20:04:43.233Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-16T20:04:30.607Z"
+      },
+      "respostaAnterior": "Prezado(a) Cliente,\n\nAgradecemos por nos contatar e lamentamos qualquer inconveniente que possa ter enfrentado. Entendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção de comunicações da Velotax.\n\nGostaríamos de informá-lo que já atendemos ao seu pedido, e todos os seus dados foram removidos do nosso sistema em 12/08/2025. Este procedimento foi realizado em conformidade com a Lei Geral de Proteção de Dados (LGPD), garantindo a proteção de sua privacidade e a segurança de suas informações pessoais.\n\nEstamos comprometidos em melhorar continuamente nossos serviços e em garantir a satisfação dos nossos clientes. Caso tenha mais alguma dúvida ou precise de assistência adicional, por favor, não hesite em nos contatar. Nossa equipe está sempre disponível para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "feedback": "nunca pedir desculpas em nome da empresa",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco. Entendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção das comunicações da Velotax.\n\nGostaríamos de informá-lo que seu pedido foi devidamente atendido, e todos os seus dados foram removidos do nosso sistema em 12/08/2025, conforme solicitado. Este procedimento foi realizado em conformidade com a Lei Geral de Proteção de Dados (LGPD), assegurando a proteção de sua privacidade e a segurança de suas informações pessoais.\n\nEstamos comprometidos em aprimorar continuamente nossos serviços e garantir a satisfação de nossos clientes. Caso tenha mais alguma dúvida ou precise de assistência adicional, por favor, não hesite em nos contatar. Nossa equipe está sempre à disposição para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758053381193,
+      "timestamp": "2025-09-16T20:09:41.193Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-16T20:09:32.932Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusao-cadastro.\n\nConfirmamos que Cadastro excluído no sistema em 12/08/2025 conforme solicitação..\n\nO processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza, nao-empatico",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e entendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção das comunicações da Velotax. \n\nGostaríamos de informar que, em conformidade com a Lei Geral de Proteção de Dados (LGPD), realizamos a exclusão completa de seu cadastro em nosso sistema no dia 12/08/2025, conforme solicitado. Este processo assegura que todos os seus dados pessoais foram removidos e que você não receberá mais comunicações da nossa parte.\n\nNossa equipe está comprometida em garantir a sua satisfação e, por isso, estamos à disposição para esclarecer quaisquer dúvidas adicionais que você possa ter. \n\nPor favor, não hesite em nos contatar diretamente caso precise de mais informações ou de qualquer outra assistência.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758053560861,
+      "timestamp": "2025-09-16T20:12:40.861Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-16T20:12:04.785Z"
+      },
+      "respostaAnterior": "Prezado Cliente,\n\nAgradecemos por entrar em contato conosco. Entendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção das comunicações da Velotax.\n\nGostaríamos de informar que seu pedido foi devidamente atendido. Em conformidade com a Lei Geral de Proteção de Dados (LGPD), todos os seus dados foram removidos do nosso sistema no dia 12 de agosto de 2025. A Cláusula 14 da CCB, que trata da Proteção de Dados, reforça nosso compromisso em garantir a privacidade e a segurança das informações pessoais de nossos clientes, assegurando que seus dados sejam excluídos conforme solicitado.\n\nFicamos satisfeitos em saber que você demonstrou contentamento com o atendimento recebido. Caso tenha qualquer outra dúvida ou necessite de mais esclarecimentos, por favor, não hesite em nos contatar.\n\nAgradecemos pela confiança e nos colocamos à disposição para auxiliá-lo sempre que precisar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "feedback": "não citar a ccd nesse caso, apenas a lgpd, especifique a lei que trata sobre exclusão de dados",
+      "respostaReformulada": "Prezado Cliente,\n\nAgradecemos por entrar em contato conosco e por nos dar a oportunidade de atender à sua solicitação. Compreendemos a importância da exclusão do seu cadastro e da interrupção das comunicações da Velotax.\n\nGostaríamos de informá-lo que sua solicitação foi completamente atendida. Em conformidade com a Lei Geral de Proteção de Dados (LGPD), especificamente o artigo que aborda o direito à exclusão de dados pessoais, todos os seus dados foram removidos do nosso sistema no dia 12 de agosto de 2025.\n\nEstamos satisfeitos por saber que você ficou contente com o atendimento recebido. Caso tenha qualquer outra dúvida ou precise de mais esclarecimentos, por favor, não hesite em nos contatar. Nossa equipe está sempre pronta para auxiliá-lo no que for necessário.\n\nAgradecemos pela confiança depositada em nós e reafirmamos nosso compromisso em garantir a proteção e privacidade de seus dados.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758053620239,
+      "timestamp": "2025-09-16T20:13:40.239Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-16T20:13:02.094Z"
+      },
+      "respostaAnterior": "Prezado Cliente,\n\nAgradecemos por entrar em contato conosco e por nos dar a oportunidade de atender à sua solicitação. Compreendemos a importância da exclusão do seu cadastro e da interrupção das comunicações da Velotax.\n\nGostaríamos de informá-lo que sua solicitação foi completamente atendida. Em conformidade com a Lei Geral de Proteção de Dados (LGPD), especificamente o artigo que aborda o direito à exclusão de dados pessoais, todos os seus dados foram removidos do nosso sistema no dia 12 de agosto de 2025.\n\nEstamos satisfeitos por saber que você ficou contente com o atendimento recebido. Caso tenha qualquer outra dúvida ou precise de mais esclarecimentos, por favor, não hesite em nos contatar. Nossa equipe está sempre pronta para auxiliá-lo no que for necessário.\n\nAgradecemos pela confiança depositada em nós e reafirmamos nosso compromisso em garantir a proteção e privacidade de seus dados.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "feedback": "em casos de exclusão de cadastro onde na solução implementada pontuamos que foi excluido de fato, cite a Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018)",
+      "respostaReformulada": "Prezado Cliente,\n\nAgradecemos por entrar em contato conosco e por nos permitir atender sua solicitação. Entendemos a importância da exclusão de seu cadastro e da interrupção das comunicações da Velotax, conforme solicitado.\n\nGostaríamos de informá-lo que sua solicitação foi completamente atendida. Em conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018), todos os seus dados foram removidos do nosso sistema no dia 12 de agosto de 2025. Estamos comprometidos em garantir a proteção e privacidade de todas as informações pessoais dos nossos clientes.\n\nEstamos satisfeitos em saber que você ficou contente com o atendimento recebido. Caso tenha qualquer outra dúvida ou precise de mais esclarecimentos, por favor, não hesite em nos contatar. Nossa equipe está sempre pronta para auxiliá-lo no que for necessário.\n\nAgradecemos pela confiança e reafirmamos nosso compromisso em continuar aprimorando nossos serviços para melhor atendê-lo.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758053833947,
+      "timestamp": "2025-09-16T20:17:13.947Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
+        "historico_atendimento": "Cliente possui operação em andamento que impede a exclusão.",
+        "observacoes_internas": "Explicar ao cliente sobre as pendências e como resolver.",
+        "timestamp": "2025-09-16T20:17:05.773Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusao-cadastro.\n\nConfirmamos que Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas..\n\nO processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza, nao-empatico",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e entendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção das comunicações da Velotax.\n\nGostaríamos de esclarecer que, atualmente, não conseguimos concluir a exclusão do seu cadastro devido a pendências contratuais ativas. Essas pendências precisam ser resolvidas antes que possamos proceder com a exclusão completa dos seus dados, conforme prevê a Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018). \n\nPara ajudá-lo(a) a resolver essas pendências, nossa equipe está à disposição para fornecer todas as informações necessárias e orientações específicas. Nosso objetivo é garantir que o processo seja o mais transparente e eficiente possível.\n\nPor favor, entre em contato diretamente com nossa equipe de atendimento ao cliente para que possamos auxiliá-lo(a) de forma personalizada.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758054078610,
+      "timestamp": "2025-09-16T20:21:18.611Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
+        "historico_atendimento": "Cliente possui operação em andamento que impede a exclusão.",
+        "observacoes_internas": "Explicar ao cliente sobre as pendências e como resolver.",
+        "timestamp": "2025-09-16T20:21:09.683Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusao-cadastro.\n\nConfirmamos que Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas..\n\nO processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza, nao-empatico",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua preocupação em relação à exclusão de seu cadastro na Velotax. Entendemos a importância dessa solicitação e gostaríamos de fornecer mais detalhes sobre a situação.\n\nAtualmente, não podemos realizar a exclusão completa de seu cadastro devido a pendências contratuais ativas em nosso sistema. Essas pendências precisam ser resolvidas antes que possamos proceder com a remoção definitiva dos seus dados. Estamos comprometidos em ajudá-lo a resolver essas questões o mais rápido possível.\n\nPara avançarmos, pedimos que entre em contato com nossa equipe de atendimento ao cliente. Eles estão à disposição para esclarecer quaisquer dúvidas e orientar sobre os próximos passos necessários para regularizar sua situação.\n\nNosso compromisso é garantir sua satisfação e respeitar seus direitos em conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018). \n\nFicamos à disposição para qualquer outra assistência que você possa precisar.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758054110871,
+      "timestamp": "2025-09-16T20:21:50.871Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
+        "historico_atendimento": "Cliente possui operação em andamento que impede a exclusão.",
+        "observacoes_internas": "Explicar ao cliente sobre as pendências e como resolver.",
+        "timestamp": "2025-09-16T20:21:32.311Z"
+      },
+      "respostaAnterior": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua preocupação em relação à exclusão de seu cadastro na Velotax. Entendemos a importância dessa solicitação e gostaríamos de fornecer mais detalhes sobre a situação.\n\nAtualmente, não podemos realizar a exclusão completa de seu cadastro devido a pendências contratuais ativas em nosso sistema. Essas pendências precisam ser resolvidas antes que possamos proceder com a remoção definitiva dos seus dados. Estamos comprometidos em ajudá-lo a resolver essas questões o mais rápido possível.\n\nPara avançarmos, pedimos que entre em contato com nossa equipe de atendimento ao cliente. Eles estão à disposição para esclarecer quaisquer dúvidas e orientar sobre os próximos passos necessários para regularizar sua situação.\n\nNosso compromisso é garantir sua satisfação e respeitar seus direitos em conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD – Lei nº 13.709/2018). \n\nFicamos à disposição para qualquer outra assistência que você possa precisar.\n\nAtenciosamente,  \nEquipe Velotax",
+      "feedback": "em casos de negativa de exclusão de cadastro, não cite a lgpd",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua preocupação em relação à exclusão de seu cadastro na Velotax. Compreendemos a importância dessa solicitação e queremos esclarecer a situação para você.\n\nAtualmente, não podemos proceder com a exclusão completa do seu cadastro devido a pendências contratuais ativas em nosso sistema. Essas pendências precisam ser resolvidas antes de podermos avançar com a remoção definitiva dos seus dados. Queremos apoiá-lo nesse processo e garantir que tudo seja resolvido da melhor forma possível.\n\nPara que possamos ajudá-lo a resolver essas pendências, solicitamos que entre em contato com nossa equipe de atendimento ao cliente. Eles estão prontos para esclarecer suas dúvidas e orientar sobre os próximos passos necessários para regularizar sua situação.\n\nNosso objetivo é garantir sua satisfação e resolver essa questão de maneira eficaz. Estamos à disposição para qualquer assistência adicional que você possa necessitar.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758054834488,
+      "timestamp": "2025-09-16T20:33:54.488Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
+        "historico_atendimento": "Cliente possui operação em andamento que impede a exclusão.",
+        "observacoes_internas": "Explicar ao cliente sobre as pendências e como resolver.",
+        "timestamp": "2025-09-16T20:33:45.444Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nConsiderando seu histórico de atendimento (Cliente possui operação em andamento que impede a exclusão.), o processo foi concluído conforme solicitado. Observamos que Explicar ao cliente sobre as pendências e como resolver.. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de exclusão de cadastro. Compreendemos a importância desse pedido e gostaríamos de esclarecer a situação atual.\n\nAtualmente, não podemos proceder com a exclusão completa de seu cadastro devido a pendências contratuais ativas relacionadas a uma operação em andamento. Isso significa que, enquanto essas pendências não forem resolvidas, seu cadastro precisa permanecer em nosso sistema para garantir o cumprimento de nossas obrigações contratuais e legais.\n\nPara que possamos auxiliá-lo na resolução dessas pendências e, assim, viabilizar a exclusão de seu cadastro, por favor, entre em contato com nossa equipe de atendimento ao cliente. Estamos à disposição para fornecer todas as informações necessárias e orientações sobre como proceder.\n\nReiteramos nosso compromisso em respeitar sua privacidade e garantir que você não receba mais comunicações não solicitadas da Velotax. Assim que as pendências forem resolvidas, trabalharemos prontamente para atender à sua solicitação.\n\nAgradecemos pela sua compreensão e paciência. Caso tenha qualquer dúvida ou precise de mais assistência, não hesite em nos contatar diretamente.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055151970,
+      "timestamp": "2025-09-16T20:39:11.970Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
+        "historico_atendimento": "Cliente possui operação em andamento que impede a exclusão.",
+        "observacoes_internas": "Explicar ao cliente sobre as pendências e como resolver.",
+        "timestamp": "2025-09-16T20:39:05.051Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nConsiderando seu histórico de atendimento (Cliente possui operação em andamento que impede a exclusão.), o processo foi concluído conforme solicitado. Observamos que Explicar ao cliente sobre as pendências e como resolver.. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua solicitação de exclusão de cadastro na Velotax. Compreendemos a importância desse pedido e gostaríamos de oferecer um esclarecimento detalhado sobre a situação.\n\nAtualmente, não conseguimos realizar a exclusão completa de seu cadastro devido a pendências contratuais ativas, que estão relacionadas a operações em andamento. Essas pendências precisam ser resolvidas antes que possamos proceder com a exclusão total dos seus dados.\n\nEnquanto isso, podemos garantir que sua preferência de não receber mais comunicações de marketing da Velotax foi respeitada, e você não receberá mais mensagens promocionais ou informativas.\n\nPara resolver as pendências mencionadas, sugerimos que entre em contato diretamente com nossa equipe de suporte, que está pronta para ajudá-lo a entender melhor o que é necessário e como podemos resolver isso juntos o mais rápido possível.\n\nAgradecemos sua compreensão e estamos à disposição para qualquer dúvida ou assistência adicional que possa necessitar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055207717,
+      "timestamp": "2025-09-16T20:40:07.717Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "Cliente já havia tentado fazer a portabilidade anteriormente.",
+        "observacoes_internas": "Processo realizado em 2 dias úteis conforme previsto.",
+        "timestamp": "2025-09-16T20:40:00.184Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Portabilidade da chave Pix concluída e confirmada em contato com o cliente..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nConsiderando seu histórico de atendimento (Cliente já havia tentado fazer a portabilidade anteriormente.), o processo foi concluído conforme solicitado. Observamos que Processo realizado em 2 dias úteis conforme previsto.. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua preocupação em relação à portabilidade da sua chave Pix. Entendemos a importância dessa solicitação e estamos aqui para ajudar.\n\nGostaríamos de esclarecer que a portabilidade da sua chave Pix CPF foi concluída com sucesso. Entramos em contato com você para confirmar que todo o processo foi realizado dentro do prazo previsto de 2 dias úteis.\n\nReconhecemos que você já havia tentado realizar a portabilidade anteriormente, e lamentamos qualquer inconveniente que isso possa ter causado. Estamos comprometidos em garantir que suas experiências com a Velotax sejam satisfatórias.\n\nCaso tenha outras dúvidas ou precise de mais esclarecimentos, por favor, entre em contato diretamente com nossa equipe de atendimento. Estamos à disposição para assisti-lo(a) no que for necessário.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055256506,
+      "timestamp": "2025-09-16T20:40:56.506Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "Cliente já havia tentado fazer a portabilidade anteriormente.",
+        "observacoes_internas": "Processo realizado em 2 dias úteis conforme previsto.",
+        "timestamp": "2025-09-16T20:40:25.418Z"
+      },
+      "respostaAnterior": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua preocupação em relação à portabilidade da sua chave Pix. Entendemos a importância dessa solicitação e estamos aqui para ajudar.\n\nGostaríamos de esclarecer que a portabilidade da sua chave Pix CPF foi concluída com sucesso. Entramos em contato com você para confirmar que todo o processo foi realizado dentro do prazo previsto de 2 dias úteis.\n\nReconhecemos que você já havia tentado realizar a portabilidade anteriormente, e lamentamos qualquer inconveniente que isso possa ter causado. Estamos comprometidos em garantir que suas experiências com a Velotax sejam satisfatórias.\n\nCaso tenha outras dúvidas ou precise de mais esclarecimentos, por favor, entre em contato diretamente com nossa equipe de atendimento. Estamos à disposição para assisti-lo(a) no que for necessário.\n\nAtenciosamente,  \nEquipe Velotax",
+      "feedback": "jamias peça desculpas em nome da empresa, como já foi informado em solução implementada, a chave pix foi retirada e confirmado a portabilidade em nosso contato\n\nProblemas identificados: informacoes-incorretas",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua preocupação em relação à portabilidade da sua chave Pix CPF. Entendemos a importância dessa solicitação e estamos aqui para fornecer os esclarecimentos necessários.\n\nGostaríamos de informar que o processo de portabilidade da sua chave Pix foi concluído com sucesso. Confirmamos essa ação em um contato recente, garantindo que tudo foi realizado conforme o prazo previsto de 2 dias úteis.\n\nSabemos que você já havia tentado realizar a portabilidade anteriormente e valorizamos sua paciência durante o processo. Nosso compromisso é assegurar que suas interações com a Velotax sejam sempre positivas e satisfatórias.\n\nSe você tiver mais dúvidas ou precisar de assistência adicional, por favor, não hesite em entrar em contato com nossa equipe de atendimento. Estamos à disposição para ajudá-lo(a) no que for necessário.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055304684,
+      "timestamp": "2025-09-16T20:41:44.684Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "Cliente já havia tentado fazer a portabilidade anteriormente.",
+        "observacoes_internas": "Processo realizado em 2 dias úteis conforme previsto.",
+        "timestamp": "2025-09-16T20:41:14.570Z"
+      },
+      "respostaAnterior": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua preocupação em relação à portabilidade da sua chave Pix CPF. Entendemos a importância dessa solicitação e estamos aqui para fornecer os esclarecimentos necessários.\n\nGostaríamos de informar que o processo de portabilidade da sua chave Pix foi concluído com sucesso. Confirmamos essa ação em um contato recente, garantindo que tudo foi realizado conforme o prazo previsto de 2 dias úteis.\n\nSabemos que você já havia tentado realizar a portabilidade anteriormente e valorizamos sua paciência durante o processo. Nosso compromisso é assegurar que suas interações com a Velotax sejam sempre positivas e satisfatórias.\n\nSe você tiver mais dúvidas ou precisar de assistência adicional, por favor, não hesite em entrar em contato com nossa equipe de atendimento. Estamos à disposição para ajudá-lo(a) no que for necessário.\n\nAtenciosamente,  \nEquipe Velotax",
+      "feedback": "não estipular prazos sem estar presente em solução implementada\n\nProblemas identificados: nao-condiz-solucao",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por ter entrado em contato e por expressar sua preocupação em relação à portabilidade da sua chave Pix CPF. Compreendemos a importância dessa solicitação e queremos assegurar que seu pedido foi tratado com a devida atenção.\n\nInformamos que a portabilidade da sua chave Pix foi concluída com sucesso. Nossa equipe entrou em contato diretamente com você para confirmar essa ação, garantindo que tudo foi executado conforme o esperado.\n\nReconhecemos que você já havia tentado realizar a portabilidade anteriormente e agradecemos sua paciência durante este processo. Estamos comprometidos em proporcionar uma experiência positiva com a Velotax e estamos sempre disponíveis para ajudar.\n\nCaso tenha mais dúvidas ou precise de assistência adicional, por favor, entre em contato com nossa equipe de atendimento. Estamos à disposição para apoiá-lo(a) no que for necessário.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055368439,
+      "timestamp": "2025-09-16T20:42:48.439Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "Cliente já havia tentado fazer a portabilidade anteriormente.",
+        "observacoes_internas": "\n",
+        "timestamp": "2025-09-16T20:42:39.007Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Portabilidade da chave Pix concluída e confirmada em contato com o cliente..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nConsiderando seu histórico de atendimento (Cliente já havia tentado fazer a portabilidade anteriormente.), o processo foi concluído conforme solicitado. Observamos que \n. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de portabilidade da chave Pix CPF. Compreendemos a importância desse processo para você e estamos aqui para esclarecer a situação.\n\nGostaríamos de informar que a portabilidade da sua chave Pix foi concluída com sucesso. Entramos em contato diretamente para confirmar essa ação e garantir que tudo esteja conforme o esperado. Sabemos que você já havia tentado realizar a portabilidade anteriormente, e nos empenhamos para assegurar que desta vez o procedimento fosse finalizado sem contratempos.\n\nNosso compromisso é com a sua satisfação e, por isso, estamos disponíveis para responder a quaisquer dúvidas adicionais que você possa ter. Por favor, não hesite em nos contatar diretamente para qualquer outra questão ou necessidade de suporte.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055499507,
+      "timestamp": "2025-09-16T20:44:59.507Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "Cliente já havia tentado fazer a portabilidade anteriormente.",
+        "observacoes_internas": "",
+        "timestamp": "2025-09-16T20:44:50.420Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Portabilidade da chave Pix concluída e confirmada em contato com o cliente..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nConsiderando seu histórico de atendimento (Cliente já havia tentado fazer a portabilidade anteriormente.), o processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de portabilidade da chave Pix CPF. Compreendemos a importância desse processo para você.\n\nGostaríamos de informar que a portabilidade da sua chave Pix foi concluída com sucesso. Entramos em contato para confirmar a conclusão do processo, garantindo que você possa agora gerir sua chave Pix no banco de sua escolha sem qualquer dificuldade.\n\nReconhecemos que você já havia tentado realizar essa portabilidade anteriormente, e estamos satisfeitos por ter conseguido resolver a questão conforme solicitado. Se houver qualquer dúvida ou necessidade de mais esclarecimentos, nossa equipe está à disposição para ajudar.\n\nEstamos comprometidos com a sua satisfação e continuamos à disposição para qualquer assistência adicional.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758055719054,
+      "timestamp": "2025-09-16T20:48:39.054Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "",
+        "observacoes_internas": "",
+        "timestamp": "2025-09-16T20:48:28.491Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Portabilidade da chave Pix concluída e confirmada em contato com o cliente..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nCaso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de portabilidade da chave Pix CPF. Entendemos a importância desse processo para você e estamos aqui para esclarecer a situação.\n\nGostaríamos de informar que a portabilidade da sua chave Pix CPF foi concluída com sucesso. Durante o nosso contato, confirmamos que todos os procedimentos foram devidamente realizados, permitindo que você transfira sua chave para o banco de sua escolha sem qualquer impedimento.\n\nCaso tenha mais dúvidas ou precise de assistência adicional, nossa equipe está à disposição para ajudar. A sua satisfação é nossa prioridade, e estamos comprometidos em garantir que suas necessidades sejam atendidas.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758056031022,
+      "timestamp": "2025-09-16T20:53:51.022Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "",
+        "observacoes_internas": "",
+        "timestamp": "2025-09-16T20:53:44.889Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Portabilidade da chave Pix concluída e confirmada em contato com o cliente..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nCaso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de portabilidade da chave Pix CPF. Entendemos a importância desse processo e estamos aqui para ajudar.\n\nGostaríamos de informar que a portabilidade da sua chave Pix foi devidamente concluída. Entramos em contato com você para confirmar que todas as etapas foram realizadas com sucesso, permitindo a transferência da chave para o banco desejado.\n\nSe tiver quaisquer dúvidas adicionais ou precisar de mais esclarecimentos, nossa equipe está à disposição para auxiliá-lo. Por favor, não hesite em nos contatar diretamente.\n\nAgradecemos novamente por nos dar a oportunidade de resolver sua solicitação.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758056453617,
+      "timestamp": "2025-09-16T21:00:53.617Z",
+      "tipo": "resposta",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-chave-pix-cpf",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+        "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+        "historico_atendimento": "",
+        "observacoes_internas": "",
+        "timestamp": "2025-09-16T21:00:46.474Z"
+      },
+      "respostaAnterior": "Prezado(a) cliente,\n\nAgradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro.\n\nConfirmamos que Portabilidade da chave Pix concluída e confirmada em contato com o cliente..\n\nTodos os seus dados foram completamente removidos de nossos sistemas e você não receberá mais comunicações da Velotax. O processo foi concluído conforme solicitado.\n\nCaso tenha dúvidas, nossa equipe está disponível para esclarecimentos.\n\nAtenciosamente,\nEquipe Velotax",
+      "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
+      "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de portabilidade da chave Pix CPF. Entendemos a importância desse processo para você e queremos assegurar que tudo foi tratado da melhor maneira possível.\n\nGostaríamos de esclarecer que a portabilidade da sua chave Pix foi devidamente concluída, conforme solicitado. Entramos em contato com você para confirmar que o procedimento foi realizado com sucesso, transferindo sua chave Pix CPF para o banco desejado.\n\nCaso ainda tenha alguma dúvida ou necessite de mais informações, nossa equipe está à disposição para ajudar. Não hesite em nos contatar diretamente para qualquer esclarecimento adicional.\n\nEstamos comprometidos em garantir a sua satisfação e esperamos ter atendido sua solicitação de forma eficaz.\n\nAtenciosamente,  \nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-chave-pix-cpf",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    }
+  ],
+  "lastUpdated": "2025-09-16T21:00:53.618Z"
+}
