@@ -35,21 +35,6 @@
       ],
       "respostasCoerentes": [
         {
-          "id": 1758054989972,
-          "timestamp": "2025-09-16T20:36:29.972Z",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de exclusão de cadastro. Compreendemos a importância desse pedido e gostaríamos de esclarecer a situação atual.\n\nAtualmente, não podemos proceder com a exclusão completa de seu cadastro devido a pendências contratuais ativas relacionadas a uma operação em andamento. Isso significa que, enquanto essas pendências não forem resolvidas, seu cadastro precisa permanecer em nosso sistema para garantir o cumprimento de nossas obrigações contratuais e legais.\n\nPara que possamos auxiliá-lo na resolução dessas pendências e, assim, viabilizar a exclusão de seu cadastro, por favor, entre em contato com nossa equipe de atendimento ao cliente. Estamos à disposição para fornecer todas as informações necessárias e orientações sobre como proceder.\n\nReiteramos nosso compromisso em respeitar sua privacidade e garantir que você não receba mais comunicações não solicitadas da Velotax. Assim que as pendências forem resolvidas, trabalharemos prontamente para atender à sua solicitação.\n\nAgradecemos pela sua compreensão e paciência. Caso tenha qualquer dúvida ou precise de mais assistência, não hesite em nos contatar diretamente.\n\nAtenciosamente,\n\nEquipe Velotax",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-cadastro",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
-            "solucao_implementada": "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
-            "historico_atendimento": "Cliente possui operação em andamento que impede a exclusão.",
-            "observacoes_internas": "Explicar ao cliente sobre as pendências e como resolver.",
-            "timestamp": "2025-09-16T20:36:29.957Z"
-          }
-        },
-        {
           "id": 1758055002994,
           "timestamp": "2025-09-16T20:36:42.994Z",
           "motivoSolicitacao": "esclarecimento",
@@ -107,6 +92,21 @@
             "historico_atendimento": "",
             "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
             "timestamp": "2025-09-17T15:49:16.314Z"
+          }
+        },
+        {
+          "id": 1758135476853,
+          "timestamp": "17/09/2025 15:57:56",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua solicitação de exclusão de cadastro na Velotax. Compreendemos a importância desse pedido e respeitamos plenamente sua decisão de não querer mais receber comunicações de nossa parte.\n\nGostaríamos de confirmar que, conforme solicitado, todos os seus dados foram removidos de nossos sistemas no dia 12 de agosto de 2025. Esta ação foi realizada em conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD), que garante a você o direito de solicitar a exclusão de seus dados pessoais. A Cláusula 14 de nossa CCB, que trata da Proteção de Dados, também reforça nosso compromisso com a privacidade e segurança das informações de nossos clientes.\n\nSeus dados foram excluídos do nosso banco de dados, garantindo que você não receberá mais comunicações de nossa empresa. Estamos satisfeitos em saber, pelas nossas observações internas, que você ficou satisfeito com o atendimento prestado.\n\nCaso necessite de mais alguma informação ou tenha qualquer outra dúvida, estamos à disposição para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-cadastro",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+            "historico_atendimento": "",
+            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+            "timestamp": "2025-09-17T18:57:56.837Z"
           }
         }
       ],
@@ -328,5 +328,5 @@
       "clausulasUsadas": []
     }
   },
-  "lastUpdated": "2025-09-17T15:49:16.348Z"
+  "lastUpdated": "17/09/2025 15:57:56"
 }

@@ -10,6 +10,27 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ===== SISTEMA DE APRENDIZADO BASEADO EM FEEDBACK SEPARADO POR ABA =====
+// ===== FUNÇÕES UTILITÁRIAS PARA DATAS =====
+
+// Função para formatar data no padrão brasileiro (DD/MM/AAAA HH:MM:SS)
+function formatarDataBrasil(data = new Date()) {
+    const dataBrasil = new Date(data.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    
+    const dia = String(dataBrasil.getDate()).padStart(2, '0');
+    const mes = String(dataBrasil.getMonth() + 1).padStart(2, '0');
+    const ano = dataBrasil.getFullYear();
+    const horas = String(dataBrasil.getHours()).padStart(2, '0');
+    const minutos = String(dataBrasil.getMinutes()).padStart(2, '0');
+    const segundos = String(dataBrasil.getSeconds()).padStart(2, '0');
+    
+    return `${dia}/${mes}/${ano} ${horas}:${minutos}:${segundos}`;
+}
+
+// Função para obter timestamp no formato brasileiro
+function obterTimestampBrasil() {
+    return formatarDataBrasil();
+}
+
 // ===== SISTEMA DE VERIFICAÇÃO AUTOMÁTICA DE FEEDBACKS =====
 
 // Verificar feedbacks duplicados ou similares
@@ -354,14 +375,14 @@ function loadFeedbacksRespostas() {
     }
     return {
         respostas: [],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: obterTimestampBrasil()
     };
 }
 
 // Salvar feedbacks de respostas
 function saveFeedbacksRespostas(feedbacks) {
     try {
-        feedbacks.lastUpdated = new Date().toISOString();
+        feedbacks.lastUpdated = obterTimestampBrasil();
         fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
         console.log('✅ Feedbacks de respostas salvos com sucesso');
     } catch (error) {
@@ -383,14 +404,14 @@ function loadFeedbacksModeracoes() {
     }
     return {
         moderacoes: [],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: obterTimestampBrasil()
     };
 }
 
 // Salvar feedbacks de moderações
 function saveFeedbacksModeracoes(feedbacks) {
     try {
-        feedbacks.lastUpdated = new Date().toISOString();
+        feedbacks.lastUpdated = obterTimestampBrasil();
         fs.writeFileSync(FEEDBACKS_MODERACOES_FILE, JSON.stringify(feedbacks, null, 2));
         console.log('✅ Feedbacks de moderações salvos com sucesso');
     } catch (error) {
@@ -412,14 +433,14 @@ function loadFeedbacksExplicacoes() {
     }
     return {
         explicacoes: [],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: obterTimestampBrasil()
     };
 }
 
 // Salvar feedbacks de explicações
 function saveFeedbacksExplicacoes(feedbacks) {
     try {
-        feedbacks.lastUpdated = new Date().toISOString();
+        feedbacks.lastUpdated = obterTimestampBrasil();
         fs.writeFileSync(FEEDBACKS_EXPLICACOES_FILE, JSON.stringify(feedbacks, null, 2));
         console.log('✅ Feedbacks de explicações salvos com sucesso');
     } catch (error) {
@@ -441,14 +462,14 @@ function loadModelosRespostas() {
     }
     return {
         modelos: [],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: obterTimestampBrasil()
     };
 }
 
 // Salvar modelos de respostas
 function saveModelosRespostas(modelos) {
     try {
-        modelos.lastUpdated = new Date().toISOString();
+        modelos.lastUpdated = obterTimestampBrasil();
         fs.writeFileSync(MODELOS_RESPOSTAS_FILE, JSON.stringify(modelos, null, 2));
         console.log('✅ Modelos de respostas salvos com sucesso');
     } catch (error) {
@@ -462,7 +483,7 @@ function addModeloResposta(dadosFormulario, respostaAprovada) {
     
     const novoModelo = {
         id: Date.now(),
-        timestamp: new Date().toISOString(),
+        timestamp: obterTimestampBrasil(),
         tipo_situacao: dadosFormulario.tipo_solicitacao,
         motivo_solicitacao: dadosFormulario.motivo_solicitacao,
         dadosFormulario: dadosFormulario,
@@ -529,14 +550,14 @@ function loadAprendizadoScript() {
     }
     return {
         tiposSituacao: {},
-        lastUpdated: new Date().toISOString()
+        lastUpdated: obterTimestampBrasil()
     };
 }
 
 // Salvar aprendizado do script
 function saveAprendizadoScript(aprendizado) {
     try {
-        aprendizado.lastUpdated = new Date().toISOString();
+        aprendizado.lastUpdated = obterTimestampBrasil();
         fs.writeFileSync(APRENDIZADO_SCRIPT_FILE, JSON.stringify(aprendizado, null, 2));
         console.log('✅ Aprendizado do script salvo com sucesso');
     } catch (error) {
@@ -559,7 +580,7 @@ function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada) {
     
     const novoFeedback = {
         id: Date.now(),
-        timestamp: new Date().toISOString(),
+        timestamp: obterTimestampBrasil(),
         feedback: feedback,
         respostaReformulada: respostaReformulada
     };
@@ -602,7 +623,7 @@ function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respost
     
     const novaResposta = {
         id: Date.now(),
-        timestamp: new Date().toISOString(),
+        timestamp: obterTimestampBrasil(),
         motivoSolicitacao: motivoSolicitacao,
         respostaAprovada: respostaAprovada,
         dadosFormulario: dadosFormulario
@@ -806,7 +827,7 @@ function loadFeedbacks() {
     return {
         respostas: respostas.respostas || [],
         moderacoes: moderacoes.moderacoes || [],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: obterTimestampBrasil()
     };
 }
 
@@ -816,7 +837,7 @@ function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respos
     
     const novoFeedback = {
         id: Date.now(),
-        timestamp: new Date().toISOString(),
+        timestamp: obterTimestampBrasil(),
         tipo: 'resposta',
         dadosFormulario: dadosFormulario,
         respostaAnterior: respostaAnterior,
@@ -844,7 +865,7 @@ function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado) {
     
     const novoFeedback = {
         id: Date.now(),
-        timestamp: new Date().toISOString(),
+        timestamp: obterTimestampBrasil(),
         tipo: 'moderacao',
         textoNegado: textoNegado,
         motivoNegativa: motivoNegativa,
@@ -1799,6 +1820,70 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para gerar uma resposta de alta qualidade desde o início, aplicando os padrões identificados e a cláusula CCB correta para cada tipo de situação.\n';
         }
         
+        // PRIORIDADE 3: CONSULTAR FEEDBACKS_RESPOSTAS.JSON COMO BASE DE CONHECIMENTO
+        const feedbacksRespostas = loadFeedbacksRespostas();
+        if (feedbacksRespostas.respostas && feedbacksRespostas.respostas.length > 0) {
+            const feedbacksRelevantesRespostas = feedbacksRespostas.respostas.filter(fb => {
+                const tipoSituacao = fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao || '';
+                return tipoSituacao.toLowerCase() === dadosFormulario.tipo_solicitacao.toLowerCase();
+            });
+            
+            if (feedbacksRelevantesRespostas.length > 0) {
+                if (!conhecimentoFeedback) {
+                    conhecimentoFeedback = '\n\n🧠 BASE DE CONHECIMENTO - FEEDBACKS DE RESPOSTAS RA:\n';
+                } else {
+                    conhecimentoFeedback += '\n\n📚 CONHECIMENTO COMPLEMENTAR - FEEDBACKS DE RESPOSTAS RA:\n';
+                }
+                
+                conhecimentoFeedback += `Baseado em ${feedbacksRelevantesRespostas.length} feedbacks de respostas RA para "${dadosFormulario.tipo_solicitacao}":\n\n`;
+                
+                // Analisar problemas mais comuns
+                const problemasComuns = {};
+                const exemplosRespostas = [];
+                
+                feedbacksRelevantesRespostas.forEach(fb => {
+                    if (fb.feedback) {
+                        // Extrair problemas identificados
+                        const problemas = fb.feedback.match(/informacoes-incorretas|nao-condiz-solucao|falta-clareza|nao-empatico|tom-inadequado/g);
+                        if (problemas) {
+                            problemas.forEach(problema => {
+                                problemasComuns[problema] = (problemasComuns[problema] || 0) + 1;
+                            });
+                        }
+                        
+                        exemplosRespostas.push({
+                            feedback: fb.feedback,
+                            respostaReformulada: fb.respostaReformulada,
+                            timestamp: fb.timestamp
+                        });
+                    }
+                });
+                
+                // Adicionar problemas mais comuns
+                if (Object.keys(problemasComuns).length > 0) {
+                    conhecimentoFeedback += '⚠️ PROBLEMAS MAIS COMUNS IDENTIFICADOS:\n';
+                    Object.entries(problemasComuns)
+                        .sort(([,a], [,b]) => b - a)
+                        .forEach(([problema, count]) => {
+                            conhecimentoFeedback += `- ${problema.replace(/-/g, ' ').toUpperCase()}: ${count} ocorrências\n`;
+                        });
+                    conhecimentoFeedback += '\n';
+                }
+                
+                // Adicionar exemplos de correções
+                if (exemplosRespostas.length > 0) {
+                    conhecimentoFeedback += '✅ EXEMPLOS DE CORREÇÕES APLICADAS:\n';
+                    exemplosRespostas.slice(0, 3).forEach((exemplo, index) => {
+                        conhecimentoFeedback += `${index + 1}. Data: ${exemplo.timestamp}\n`;
+                        conhecimentoFeedback += `   Problema: "${exemplo.feedback}"\n`;
+                        conhecimentoFeedback += `   Correção aplicada: "${exemplo.respostaReformulada.substring(0, 200)}..."\n\n`;
+                    });
+                }
+                
+                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento dos feedbacks de respostas RA para evitar os problemas identificados e aplicar as correções já validadas.\n';
+            }
+        }
+        
         // Adicionar modelos de respostas aprovadas
         if (modelosRelevantes.length > 0) {
             conhecimentoFeedback += '\n\n🏆 MODELOS DE RESPOSTAS APROVADAS:\n';
@@ -2298,6 +2383,70 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             conhecimentoFeedback += 'Use este conhecimento para evitar erros similares e melhorar a qualidade da reformulação.\n';
         }
         
+        // PRIORIDADE 3: CONSULTAR FEEDBACKS_RESPOSTAS.JSON COMO BASE DE CONHECIMENTO (REFORMULAÇÃO)
+        const feedbacksRespostasReformulacao = loadFeedbacksRespostas();
+        if (feedbacksRespostasReformulacao.respostas && feedbacksRespostasReformulacao.respostas.length > 0) {
+            const feedbacksRelevantesReformulacao = feedbacksRespostasReformulacao.respostas.filter(fb => {
+                const tipoSituacao = fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao || '';
+                return tipoSituacao.toLowerCase() === dadosFormulario.tipo_solicitacao.toLowerCase();
+            });
+            
+            if (feedbacksRelevantesReformulacao.length > 0) {
+                if (!conhecimentoFeedback) {
+                    conhecimentoFeedback = '\n\n🧠 BASE DE CONHECIMENTO - FEEDBACKS DE RESPOSTAS RA:\n';
+                } else {
+                    conhecimentoFeedback += '\n\n📚 CONHECIMENTO COMPLEMENTAR - FEEDBACKS DE RESPOSTAS RA:\n';
+                }
+                
+                conhecimentoFeedback += `Baseado em ${feedbacksRelevantesReformulacao.length} feedbacks de respostas RA para "${dadosFormulario.tipo_solicitacao}":\n\n`;
+                
+                // Analisar problemas mais comuns para reformulação
+                const problemasComunsReformulacao = {};
+                const exemplosReformulacao = [];
+                
+                feedbacksRelevantesReformulacao.forEach(fb => {
+                    if (fb.feedback) {
+                        // Extrair problemas identificados
+                        const problemas = fb.feedback.match(/informacoes-incorretas|nao-condiz-solucao|falta-clareza|nao-empatico|tom-inadequado/g);
+                        if (problemas) {
+                            problemas.forEach(problema => {
+                                problemasComunsReformulacao[problema] = (problemasComunsReformulacao[problema] || 0) + 1;
+                            });
+                        }
+                        
+                        exemplosReformulacao.push({
+                            feedback: fb.feedback,
+                            respostaReformulada: fb.respostaReformulada,
+                            timestamp: fb.timestamp
+                        });
+                    }
+                });
+                
+                // Adicionar problemas mais comuns
+                if (Object.keys(problemasComunsReformulacao).length > 0) {
+                    conhecimentoFeedback += '⚠️ PROBLEMAS MAIS COMUNS IDENTIFICADOS:\n';
+                    Object.entries(problemasComunsReformulacao)
+                        .sort(([,a], [,b]) => b - a)
+                        .forEach(([problema, count]) => {
+                            conhecimentoFeedback += `- ${problema.replace(/-/g, ' ').toUpperCase()}: ${count} ocorrências\n`;
+                        });
+                    conhecimentoFeedback += '\n';
+                }
+                
+                // Adicionar exemplos de correções
+                if (exemplosReformulacao.length > 0) {
+                    conhecimentoFeedback += '✅ EXEMPLOS DE CORREÇÕES APLICADAS:\n';
+                    exemplosReformulacao.slice(0, 3).forEach((exemplo, index) => {
+                        conhecimentoFeedback += `${index + 1}. Data: ${exemplo.timestamp}\n`;
+                        conhecimentoFeedback += `   Problema: "${exemplo.feedback}"\n`;
+                        conhecimentoFeedback += `   Correção aplicada: "${exemplo.respostaReformulada.substring(0, 200)}..."\n\n`;
+                    });
+                }
+                
+                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento dos feedbacks de respostas RA para evitar os problemas identificados e aplicar as correções já validadas na reformulação.\n';
+            }
+        }
+        
         const prompt = `
 TAREFA: ${feedback ? 'GERAR NOVA RESPOSTA' : 'REFORMULAR RESPOSTA'} do Reclame Aqui
 
@@ -2673,7 +2822,7 @@ app.delete('/api/feedbacks/respostas', (req, res) => {
     try {
         const feedbacksVazios = {
             respostas: [],
-            lastUpdated: new Date().toISOString()
+            lastUpdated: obterTimestampBrasil()
         };
         saveFeedbacksRespostas(feedbacksVazios);
         res.json({
@@ -2694,7 +2843,7 @@ app.delete('/api/feedbacks/moderacoes', (req, res) => {
     try {
         const feedbacksVazios = {
             moderacoes: [],
-            lastUpdated: new Date().toISOString()
+            lastUpdated: obterTimestampBrasil()
         };
         saveFeedbacksModeracoes(feedbacksVazios);
         res.json({
@@ -2715,7 +2864,7 @@ app.delete('/api/feedbacks/explicacoes', (req, res) => {
     try {
         const feedbacksVazios = {
             explicacoes: [],
-            lastUpdated: new Date().toISOString()
+            lastUpdated: obterTimestampBrasil()
         };
         saveFeedbacksExplicacoes(feedbacksVazios);
         res.json({
@@ -2737,7 +2886,7 @@ app.delete('/api/feedbacks', (req, res) => {
         const feedbacksVazios = {
             respostas: [],
             moderacoes: [],
-            lastUpdated: new Date().toISOString()
+            lastUpdated: obterTimestampBrasil()
         };
         saveFeedbacks(feedbacksVazios);
         res.json({
@@ -2933,6 +3082,8 @@ app.listen(PORT, () => {
     console.log('📁 Arquivo .env carregado da raiz do projeto');
     console.log('🧠 Sistema de aprendizado baseado em feedback ativo');
     console.log('🔍 Sistema de verificação automática de feedbacks ativo');
+    console.log('✅ Integração de feedbacks_respostas.json como base de conhecimento ativa');
+    console.log('📅 Formatação de datas em padrão brasileiro (DD/MM/AAAA HH:MM:SS) ativa');
     
     // Verificar se arquivo .env existe
     const envPath = path.join(__dirname, '.env');
