@@ -7,7 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles.css?v=20250117" rel="stylesheet">
+    <link href="styles.css?v=20250117b" rel="stylesheet">
 </head>
 <body>
     <div class="container-fluid">
@@ -626,5 +626,83 @@
     <script src="script.js?v=2"></script>
     <script src="env-loader-simple.js"></script>
     <script src="openai-config.js"></script>
+    
+    <!-- Sistema de ajuste automático do nome da interface -->
+    <script>
+        // Função para ajustar automaticamente o nome da interface
+        function adjustInterfaceName() {
+            const interfaceName = document.querySelector('.interface-name');
+            if (!interfaceName) return;
+            
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            
+            // Calcular tamanho baseado na tela
+            let fontSize, padding, maxWidth, top, right;
+            
+            if (screenWidth >= 1400) {
+                // Telas muito grandes
+                fontSize = '1.1rem';
+                padding = '8px 16px';
+                maxWidth = '180px';
+                top = '20px';
+                right = '30px';
+            } else if (screenWidth >= 1200) {
+                // Desktop padrão
+                fontSize = '1rem';
+                padding = '7px 14px';
+                maxWidth = '160px';
+                top = '18px';
+                right = '25px';
+            } else if (screenWidth >= 992) {
+                // Laptop/Tablet grande
+                fontSize = '0.9rem';
+                padding = '6px 12px';
+                maxWidth = '140px';
+                top = '15px';
+                right = '20px';
+            } else if (screenWidth >= 768) {
+                // Tablet
+                fontSize = '0.8rem';
+                padding = '5px 10px';
+                maxWidth = '120px';
+                top = '12px';
+                right = '15px';
+            } else if (screenWidth >= 576) {
+                // Mobile grande
+                fontSize = '0.75rem';
+                padding = '4px 8px';
+                maxWidth = '100px';
+                top = '10px';
+                right = '10px';
+            } else {
+                // Mobile pequeno
+                fontSize = '0.7rem';
+                padding = '3px 6px';
+                maxWidth = '80px';
+                top = '8px';
+                right = '8px';
+            }
+            
+            // Aplicar estilos
+            interfaceName.style.fontSize = fontSize;
+            interfaceName.style.padding = padding;
+            interfaceName.style.maxWidth = maxWidth;
+            interfaceName.style.top = top;
+            interfaceName.style.right = right;
+            
+            // Log para debug (remover em produção)
+            console.log(`🖥️ Tela: ${screenWidth}x${screenHeight}px - Interface ajustada: ${fontSize}`);
+        }
+        
+        // Executar na carga da página
+        document.addEventListener('DOMContentLoaded', adjustInterfaceName);
+        
+        // Executar no redimensionamento da janela
+        window.addEventListener('resize', adjustInterfaceName);
+        
+        // Executar após um pequeno delay para garantir que tudo carregou
+        setTimeout(adjustInterfaceName, 100);
+    </script>
 </body>
 </html> 
