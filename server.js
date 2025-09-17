@@ -1464,13 +1464,16 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
         
         let conhecimentoFeedback = '';
         if (feedbacksRelevantes.length > 0) {
-            conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
-            conhecimentoFeedback += 'Com base em moderações negadas anteriormente, evite os seguintes erros:\n\n';
+            conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
+            conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} moderações negadas anteriormente, evite os seguintes erros:\n\n`;
+            
             feedbacksRelevantes.forEach((fb, index) => {
-                conhecimentoFeedback += `${index + 1}. Motivo da negativa: "${fb.motivoNegativa}"\n`;
-                conhecimentoFeedback += `   Texto reformulado: "${fb.textoReformulado.substring(0, 150)}..."\n\n`;
+                conhecimentoFeedback += `${index + 1}. ❌ ERRO IDENTIFICADO: "${fb.motivoNegativa}"\n`;
+                conhecimentoFeedback += `   📝 Texto original negado: "${fb.textoNegado.substring(0, 200)}..."\n`;
+                conhecimentoFeedback += `   ✅ Texto reformulado aprovado: "${fb.textoReformulado.substring(0, 200)}..."\n\n`;
             });
-            conhecimentoFeedback += 'Use este conhecimento para gerar um texto de moderação de alta qualidade desde o início, evitando negativas do RA.\n';
+            
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento para gerar um texto de moderação de alta qualidade desde o início, aplicando as correções identificadas e evitando os erros documentados.\n';
         }
         
         const prompt = `
