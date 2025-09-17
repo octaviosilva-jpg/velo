@@ -1209,19 +1209,18 @@ function limparEdicao() {
 // ===== FUNÇÕES DE MODERAÇÃO =====
 
 function gerarModeracao() {
-    const conteudo = document.getElementById('conteudo-moderar').value;
-    const tipoViolacao = document.getElementById('tipo-violacao').value;
-    const fatosRegistrados = document.getElementById('fatos-registrados').value;
-    const divergencias = document.getElementById('divergencias').value;
-    const regraViolada = document.getElementById('regra-violada').value;
+    const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+    const respostaEmpresa = document.getElementById('resposta-empresa').value;
+    const motivoModeracao = document.getElementById('motivo-moderacao').value;
+    const consideracaoFinal = document.getElementById('consideracao-final').value;
     
-    if (!conteudo.trim() || !tipoViolacao) {
-        showErrorMessage('Por favor, preencha o conteúdo e selecione o tipo de violação.');
+    if (!solicitacaoCliente.trim() || !motivoModeracao) {
+        showErrorMessage('Por favor, preencha a solicitação do cliente e selecione o motivo da moderação.');
         return;
     }
     
-    const linhaRaciocinio = gerarLinhaRaciocinioModeracao(tipoViolacao, fatosRegistrados, divergencias);
-    const textoModeracao = gerarTextoModeracao(tipoViolacao, regraViolada);
+    const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
+    const textoModeracao = gerarTextoModeracao(motivoModeracao, consideracaoFinal);
     
     document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
     document.getElementById('texto-moderacao').innerHTML = textoModeracao;
@@ -1233,70 +1232,71 @@ function gerarModeracao() {
     showSuccessMessage('Solicitação de moderação gerada com sucesso!');
 }
 
-function gerarLinhaRaciocinioModeracao(tipoViolacao, fatosRegistrados, divergencias) {
+function gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa) {
     let linha = '<p><strong>Linha de Raciocínio Interna:</strong></p>';
     
     linha += '<p>O conteúdo em questão apresenta violação às regras do Reclame Aqui pelos seguintes motivos:</p>';
     
-    switch (tipoViolacao) {
-        case 'informacoes-falsas':
-            linha += '<p>• Informações falsas ou inverídicas foram apresentadas</p>';
+    switch (motivoModeracao) {
+        case 'reclamacao-outra-empresa':
+            linha += '<p>• A reclamação é direcionada a outra empresa, não à Velotax</p>';
             break;
-        case 'caso-resolvido':
-            linha += '<p>• O caso foi resolvido antes do registro na plataforma</p>';
+        case 'reclamacao-trabalhista':
+            linha += '<p>• Trata-se de questão trabalhista, não de relação de consumo</p>';
             break;
-        case 'linguagem-ofensiva':
-            linha += '<p>• Linguagem ofensiva ou inadequada foi utilizada</p>';
+        case 'conteudo-improprio':
+            linha += '<p>• O conteúdo contém linguagem inadequada ou ofensiva</p>';
             break;
-        case 'omissao-solucao':
-            linha += '<p>• Houve omissão de solução já realizada</p>';
+        case 'reclamacao-duplicidade':
+            linha += '<p>• Esta é uma reclamação duplicada já registrada anteriormente</p>';
             break;
-        case 'reclamacao-duplicada':
-            linha += '<p>• Reclamação duplicada identificada</p>';
+        case 'reclamacao-terceiros':
+            linha += '<p>• A reclamação é feita por terceiros não autorizados</p>';
             break;
-        case 'nao-pertence':
-            linha += '<p>• O conteúdo não pertence à empresa</p>';
+        case 'caso-fraude':
+            linha += '<p>• Este é um caso comprovado de fraude</p>';
             break;
-        case 'nota-inadequada':
-            linha += '<p>• A nota não condiz com a solução real</p>';
+        case 'nao-violou-direito':
+            linha += '<p>• A empresa não violou o direito do consumidor</p>';
             break;
-        case 'sem-violacao':
-            linha += '<p>• A empresa não violou os direitos do consumidor</p>';
-            break;
+        default:
+            linha += '<p>• Violação às regras do Reclame Aqui</p>';
     }
     
-    if (fatosRegistrados.trim()) {
-        linha += '<p><strong>Fatos Registrados:</strong> ' + fatosRegistrados + '</p>';
+    if (solicitacaoCliente && solicitacaoCliente.trim()) {
+        linha += '<p><strong>Solicitação do Cliente:</strong></p>';
+        linha += `<p>${solicitacaoCliente}</p>`;
     }
     
-    if (divergencias.trim()) {
-        linha += '<p><strong>Divergências:</strong> ' + divergencias + '</p>';
+    if (respostaEmpresa && respostaEmpresa.trim()) {
+        linha += '<p><strong>Resposta da Empresa:</strong></p>';
+        linha += `<p>${respostaEmpresa}</p>`;
     }
     
     return linha;
 }
 
-function gerarTextoModeracao(tipoViolacao, regraViolada) {
+function gerarTextoModeracao(motivoModeracao, consideracaoFinal) {
     let texto = '<p><strong>Texto para Moderação:</strong></p>';
     
     texto += '<p>Prezados,</p>';
     texto += '<p>Solicitamos a moderação do conteúdo acima pelos seguintes motivos:</p>';
     
     const motivos = {
-        'informacoes-falsas': 'Informações falsas ou inverídicas foram apresentadas no relato.',
-        'caso-resolvido': 'O caso foi devidamente resolvido antes do registro na plataforma.',
-        'linguagem-ofensiva': 'Linguagem ofensiva ou inadequada foi utilizada no conteúdo.',
-        'omissao-solucao': 'Houve omissão de solução já realizada pela empresa.',
-        'reclamacao-duplicada': 'Reclamação duplicada identificada.',
-        'nao-pertence': 'O conteúdo não pertence à nossa empresa.',
-        'nota-inadequada': 'A nota atribuída não condiz com a solução real implementada.',
-        'sem-violacao': 'A empresa não violou os direitos do consumidor.'
+        'reclamacao-outra-empresa': 'A reclamação é direcionada a outra empresa, não à Velotax.',
+        'reclamacao-trabalhista': 'Trata-se de questão trabalhista, não de relação de consumo.',
+        'conteudo-improprio': 'O conteúdo contém linguagem inadequada ou ofensiva.',
+        'reclamacao-duplicidade': 'Esta é uma reclamação duplicada já registrada anteriormente.',
+        'reclamacao-terceiros': 'A reclamação é feita por terceiros não autorizados.',
+        'caso-fraude': 'Este é um caso comprovado de fraude.',
+        'nao-violou-direito': 'A empresa não violou o direito do consumidor.'
     };
     
-    texto += '<p>' + (motivos[tipoViolacao] || 'Violação às regras da plataforma.') + '</p>';
+    texto += '<p>' + (motivos[motivoModeracao] || 'Violação às regras da plataforma.') + '</p>';
     
-    if (regraViolada.trim()) {
-        texto += '<p><strong>Regra Violada:</strong> ' + regraViolada + '</p>';
+    if (consideracaoFinal && consideracaoFinal.trim()) {
+        texto += '<p><strong>Consideração Final:</strong></p>';
+        texto += `<p>${consideracaoFinal}</p>`;
     }
     
     texto += '<p>Agradecemos a atenção.</p>';
