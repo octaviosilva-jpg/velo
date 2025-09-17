@@ -1208,6 +1208,30 @@ function limparEdicao() {
 
 // ===== FUNÇÕES DE MODERAÇÃO =====
 
+// Função para formatar o texto de moderação com melhor apresentação
+function formatarTextoModeracao(texto) {
+    if (!texto) return '';
+    
+    // Quebrar o texto em parágrafos baseado em quebras de linha
+    let textoFormatado = texto
+        .replace(/\n\n/g, '</p><p>')  // Dupla quebra de linha = novo parágrafo
+        .replace(/\n/g, '<br>')       // Quebra simples = <br>
+        .replace(/^/, '<p>')          // Iniciar com <p>
+        .replace(/$/, '</p>');        // Terminar com </p>
+    
+    // Destacar frases importantes
+    textoFormatado = textoFormatado
+        .replace(/Conforme o apontamento acima/g, '<strong>Conforme o apontamento acima</strong>')
+        .replace(/Diante do exposto/g, '<strong>Diante do exposto</strong>')
+        .replace(/Manual Geral/g, '<em>Manual Geral</em>')
+        .replace(/Manual de Reviews/g, '<em>Manual de Reviews</em>')
+        .replace(/Manual de Bancos/g, '<em>Manual de Bancos</em>')
+        .replace(/Manual de Moderação/g, '<em>Manual de Moderação</em>');
+    
+    // Adicionar título
+    return `<h6 class="text-primary mb-3"><i class="fas fa-shield-alt me-2"></i>Texto para Moderação:</h6>${textoFormatado}`;
+}
+
 async function gerarModeracao() {
     const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
     const respostaEmpresa = document.getElementById('resposta-empresa').value;
@@ -1245,8 +1269,9 @@ async function gerarModeracao() {
             // Gerar linha de raciocínio interna
             const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
             
-            // Usar o texto gerado pelo servidor (modelo pré-definido)
-            const textoModeracao = `<p><strong>Texto para Moderação:</strong></p><p>${data.result}</p>`;
+            // Formatar o texto gerado pelo servidor com melhor apresentação
+            const textoFormatado = formatarTextoModeracao(data.result);
+            const textoModeracao = `<div class="moderacao-texto">${textoFormatado}</div>`;
             
             document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
             document.getElementById('texto-moderacao').innerHTML = textoModeracao;
@@ -1279,46 +1304,97 @@ async function gerarModeracao() {
 }
 
 function gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa) {
-    let linha = '<p><strong>Linha de Raciocínio Interna:</strong></p>';
+    let linha = '<div class="linha-raciocinio">';
+    linha += '<h6 class="text-info mb-3"><i class="fas fa-brain me-2"></i>Linha de Raciocínio Interna:</h6>';
     
-    linha += '<p>O conteúdo em questão apresenta violação às regras do Reclame Aqui pelos seguintes motivos:</p>';
+    linha += '<div class="alert alert-light border-start border-info border-4 mb-3">';
+    linha += '<p class="mb-2"><strong>Análise do Conteúdo:</strong></p>';
+    linha += '<p class="mb-0">O conteúdo em questão apresenta violação às regras do Reclame Aqui pelos seguintes motivos:</p>';
+    linha += '</div>';
     
-    switch (motivoModeracao) {
-        case 'reclamacao-outra-empresa':
-            linha += '<p>• A reclamação é direcionada a outra empresa, não à Velotax</p>';
-            break;
-        case 'reclamacao-trabalhista':
-            linha += '<p>• Trata-se de questão trabalhista, não de relação de consumo</p>';
-            break;
-        case 'conteudo-improprio':
-            linha += '<p>• O conteúdo contém linguagem inadequada ou ofensiva</p>';
-            break;
-        case 'reclamacao-duplicidade':
-            linha += '<p>• Esta é uma reclamação duplicada já registrada anteriormente</p>';
-            break;
-        case 'reclamacao-terceiros':
-            linha += '<p>• A reclamação é feita por terceiros não autorizados</p>';
-            break;
-        case 'caso-fraude':
-            linha += '<p>• Este é um caso comprovado de fraude</p>';
-            break;
-        case 'nao-violou-direito':
-            linha += '<p>• A empresa não violou o direito do consumidor</p>';
-            break;
-        default:
-            linha += '<p>• Violação às regras do Reclame Aqui</p>';
-    }
+    // Mapear motivos com descrições mais detalhadas
+    const motivosDetalhados = {
+        'reclamacao-outra-empresa': {
+            titulo: 'Reclamação Direcionada a Outra Empresa',
+            descricao: 'A reclamação é direcionada a outra empresa, não à Velotax',
+            manual: 'Manual de Reviews',
+            fundamento: 'Reclamações devem ser direcionadas à empresa correta'
+        },
+        'reclamacao-trabalhista': {
+            titulo: 'Questão Trabalhista',
+            descricao: 'Trata-se de questão trabalhista, não de relação de consumo',
+            manual: 'Manual de Reviews',
+            fundamento: 'O RA não é o canal adequado para questões trabalhistas'
+        },
+        'conteudo-improprio': {
+            titulo: 'Conteúdo Inadequado',
+            descricao: 'O conteúdo contém linguagem inadequada ou ofensiva',
+            manual: 'Manual Geral',
+            fundamento: 'Violação às diretrizes de conduta da plataforma'
+        },
+        'reclamacao-duplicidade': {
+            titulo: 'Reclamação Duplicada',
+            descricao: 'Esta é uma reclamação duplicada já registrada anteriormente',
+            manual: 'Manual de Reviews',
+            fundamento: 'Evita spam e duplicação de conteúdo'
+        },
+        'reclamacao-terceiros': {
+            titulo: 'Reclamação por Terceiros',
+            descricao: 'A reclamação é feita por terceiros não autorizados',
+            manual: 'Manual Geral',
+            fundamento: 'Apenas o consumidor direto pode reclamar'
+        },
+        'caso-fraude': {
+            titulo: 'Caso de Fraude',
+            descricao: 'Este é um caso comprovado de fraude',
+            manual: 'Manual de Bancos/Instituições Financeiras/Meios',
+            fundamento: 'Fraude não constitui relação de consumo válida'
+        },
+        'nao-violou-direito': {
+            titulo: 'Não Houve Violação',
+            descricao: 'A empresa não violou o direito do consumidor',
+            manual: 'Manual de Bancos/Instituições Financeiras/Meios',
+            fundamento: 'A empresa agiu em conformidade com a legislação'
+        }
+    };
+    
+    const motivo = motivosDetalhados[motivoModeracao] || {
+        titulo: 'Violação às Regras',
+        descricao: 'Violação às regras do Reclame Aqui',
+        manual: 'Manual Geral',
+        fundamento: 'Conteúdo não adequado à plataforma'
+    };
+    
+    linha += '<div class="card mb-3">';
+    linha += '<div class="card-header bg-warning text-dark">';
+    linha += `<h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>${motivo.titulo}</h6>`;
+    linha += '</div>';
+    linha += '<div class="card-body">';
+    linha += `<p class="mb-2"><strong>Descrição:</strong> ${motivo.descricao}</p>`;
+    linha += `<p class="mb-2"><strong>Manual Aplicável:</strong> <em>${motivo.manual}</em></p>`;
+    linha += `<p class="mb-0"><strong>Fundamento:</strong> ${motivo.fundamento}</p>`;
+    linha += '</div>';
+    linha += '</div>';
     
     if (solicitacaoCliente && solicitacaoCliente.trim()) {
-        linha += '<p><strong>Solicitação do Cliente:</strong></p>';
-        linha += `<p>${solicitacaoCliente}</p>`;
+        linha += '<div class="mb-3">';
+        linha += '<h6 class="text-secondary"><i class="fas fa-user me-2"></i>Solicitação do Cliente:</h6>';
+        linha += `<div class="bg-light p-3 rounded border-start border-secondary border-4">`;
+        linha += `<p class="mb-0">${solicitacaoCliente}</p>`;
+        linha += '</div>';
+        linha += '</div>';
     }
     
     if (respostaEmpresa && respostaEmpresa.trim()) {
-        linha += '<p><strong>Resposta da Empresa:</strong></p>';
-        linha += `<p>${respostaEmpresa}</p>`;
+        linha += '<div class="mb-3">';
+        linha += '<h6 class="text-success"><i class="fas fa-building me-2"></i>Resposta da Empresa:</h6>';
+        linha += `<div class="bg-light p-3 rounded border-start border-success border-4">`;
+        linha += `<p class="mb-0">${respostaEmpresa}</p>`;
+        linha += '</div>';
+        linha += '</div>';
     }
     
+    linha += '</div>';
     return linha;
 }
 
@@ -2085,8 +2161,9 @@ async function processarFeedbackModeracao() {
             // Gerar linha de raciocínio reformulada
             const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
             
-            // Usar o texto reformulado pelo servidor
-            const textoModeracaoReformulado = `<p><strong>Texto para Moderação (Reformulado):</strong></p><p>${data.result}</p>`;
+            // Formatar o texto reformulado pelo servidor
+            const textoFormatado = formatarTextoModeracao(data.result);
+            const textoModeracaoReformulado = `<div class="moderacao-texto reformulado">${textoFormatado}</div>`;
             
             // Atualizar interface
             document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinioReformulada;
@@ -2118,49 +2195,56 @@ async function processarFeedbackModeracao() {
 
 // Função para gerar linha de raciocínio reformulada
 function gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedback) {
-    let linha = '<p><strong>Linha de Raciocínio Interna (Reformulada):</strong></p>';
+    let linha = '<div class="linha-raciocinio reformulada">';
+    linha += '<h6 class="text-warning mb-3"><i class="fas fa-redo me-2"></i>Linha de Raciocínio Interna (Reformulada):</h6>';
     
-    linha += '<p>Com base no feedback recebido, a análise foi reformulada:</p>';
-    linha += `<p><strong>Feedback recebido:</strong> ${feedback}</p>`;
+    linha += '<div class="alert alert-warning border-start border-warning border-4 mb-3">';
+    linha += '<p class="mb-2"><strong>Análise da Reformulação:</strong></p>';
+    linha += '<p class="mb-0">Com base no feedback fornecido, a reformulação foi realizada considerando os pontos identificados.</p>';
+    linha += '</div>';
     
-    linha += '<p>O conteúdo em questão apresenta violação às regras do Reclame Aqui pelos seguintes motivos:</p>';
+    linha += '<div class="card mb-3">';
+    linha += '<div class="card-header bg-danger text-white">';
+    linha += '<h6 class="mb-0"><i class="fas fa-comment-dots me-2"></i>Feedback Recebido</h6>';
+    linha += '</div>';
+    linha += '<div class="card-body">';
+    linha += `<p class="mb-0">${feedback}</p>`;
+    linha += '</div>';
+    linha += '</div>';
     
-    switch (motivoModeracao) {
-        case 'reclamacao-outra-empresa':
-            linha += '<p>• A reclamação é direcionada a outra empresa, não à Velotax</p>';
-            break;
-        case 'reclamacao-trabalhista':
-            linha += '<p>• Trata-se de questão trabalhista, não de relação de consumo</p>';
-            break;
-        case 'conteudo-improprio':
-            linha += '<p>• O conteúdo contém linguagem inadequada ou ofensiva</p>';
-            break;
-        case 'reclamacao-duplicidade':
-            linha += '<p>• Esta é uma reclamação duplicada já registrada anteriormente</p>';
-            break;
-        case 'reclamacao-terceiros':
-            linha += '<p>• A reclamação é feita por terceiros não autorizados</p>';
-            break;
-        case 'caso-fraude':
-            linha += '<p>• Este é um caso comprovado de fraude</p>';
-            break;
-        case 'nao-violou-direito':
-            linha += '<p>• A empresa não violou o direito do consumidor</p>';
-            break;
-        default:
-            linha += '<p>• Violação às regras do Reclame Aqui</p>';
-    }
+    linha += '<div class="card mb-3">';
+    linha += '<div class="card-header bg-success text-white">';
+    linha += '<h6 class="mb-0"><i class="fas fa-check-circle me-2"></i>Ajustes Realizados</h6>';
+    linha += '</div>';
+    linha += '<div class="card-body">';
+    linha += '<ul class="mb-0">';
+    linha += '<li>Corrigir os pontos identificados no feedback</li>';
+    linha += '<li>Manter a estrutura técnica e formal</li>';
+    linha += '<li>Seguir as diretrizes dos manuais do RA</li>';
+    linha += '<li>Garantir aderência aos padrões de moderação</li>';
+    linha += '</ul>';
+    linha += '</div>';
+    linha += '</div>';
     
     if (solicitacaoCliente && solicitacaoCliente.trim()) {
-        linha += '<p><strong>Solicitação do Cliente:</strong></p>';
-        linha += `<p>${solicitacaoCliente}</p>`;
+        linha += '<div class="mb-3">';
+        linha += '<h6 class="text-secondary"><i class="fas fa-user me-2"></i>Solicitação do Cliente:</h6>';
+        linha += `<div class="bg-light p-3 rounded border-start border-secondary border-4">`;
+        linha += `<p class="mb-0">${solicitacaoCliente}</p>`;
+        linha += '</div>';
+        linha += '</div>';
     }
     
     if (respostaEmpresa && respostaEmpresa.trim()) {
-        linha += '<p><strong>Resposta da Empresa:</strong></p>';
-        linha += `<p>${respostaEmpresa}</p>`;
+        linha += '<div class="mb-3">';
+        linha += '<h6 class="text-success"><i class="fas fa-building me-2"></i>Resposta da Empresa:</h6>';
+        linha += `<div class="bg-light p-3 rounded border-start border-success border-4">`;
+        linha += `<p class="mb-0">${respostaEmpresa}</p>`;
+        linha += '</div>';
+        linha += '</div>';
     }
     
+    linha += '</div>';
     return linha;
 }
 
