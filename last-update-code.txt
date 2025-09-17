@@ -3,24 +3,26 @@
 ║                           🚀 ATUALIZAÇÃO VERCEL                            ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                              ║
-║  📋 ID da Atualização: VU-1758139082992-CWZLQ                                    ║
-║  📝 Descrição: Melhoria na apresentação dos textos de moderação e linha de raciocínio
+║  📋 ID da Atualização: VU-1758140562753-ZC7HL                                    ║
+║  📝 Descrição: Correção da análise de conteúdo para formulação de moderação
 
-- Criada função formatarTextoModeracao() para melhor formatação do texto
-- Melhorada função gerarLinhaRaciocinioModeracao() com apresentação estruturada
-- Adicionados cards, alertas e ícones para melhor visualização
-- Implementada formatação com destaque para frases importantes
-- Melhorada função gerarLinhaRaciocinioModeracaoReformulada() com layout aprimorado
-- Adicionados detalhes dos manuais aplicáveis e fundamentos
-- Implementada apresentação visual com cores e bordas para diferentes seções
-- Agora os textos seguem o modelo pré-definido com apresentação profissional ║
-║  ⏰ Data/Hora: 17/09/2025, 16:58:02                    ║
-║  📦 Commit Hash: e6ccd0a2dbe978a15aaf7f7181cef314efb0ee86                                    ║
+- Corrigido fluxo lógico para analisar conteúdo real (solicitação, resposta, consideração)
+- Removida citação literal dos dados de entrada
+- Implementada análise específica do conteúdo apresentado
+- Adicionada instrução para identificar violações específicas no conteúdo
+- Melhorada linha de raciocínio interna com análise do conteúdo real
+- Atualizado modelo fixo para basear-se na análise, não na citação
+- Adicionada instrução proibindo citação literal dos dados
+- Aplicado mesmo padrão para prompt de reformulação
+- Foco em analisar o que foi solicitado, respondido e considerado
+- Baseado nos manuais de moderação para identificar violações reais ║
+║  ⏰ Data/Hora: 17/09/2025, 17:22:42                    ║
+║  📦 Commit Hash: 78b751843aad1e581941edcda6b3b541f847b5b0                                    ║
 ║  🌐 URL Vercel: https://velo-xxx.vercel.app                                    ║
 ║  📁 Arquivos Modificados: 1 arquivo(s)                                        ║
 ║                                                                              ║
 ║  📄 Lista de Arquivos:                                                      ║
-║     • script.js                                                         ║
+║     • server.js                                                         ║
 ║                                                                              ║
 ║  🔄 Status: ⏳ DEPLOY EM ANDAMENTO                                          ║
 ║                                                                              ║

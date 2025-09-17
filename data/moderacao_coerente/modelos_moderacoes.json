@@ -1,0 +1,14 @@
+{
+  "modelos": [],
+  "lastUpdated": "17/01/2025 18:00:00",
+  "descricao": "Modelos de moderações aprovadas como coerentes - utilizados para aprendizado automático",
+  "estrutura": {
+    "id": "Timestamp único",
+    "timestamp": "Data/hora no formato brasileiro (DD/MM/AAAA HH:MM:SS)",
+    "motivoModeracao": "Motivo da moderação (ex: nao-violou-direito, reclamacao-outra-empresa)",
+    "dadosModeracao": "Dados originais da moderação",
+    "linhaRaciocinio": "Linha de raciocínio interna gerada",
+    "textoModeracao": "Texto final de moderação aprovado",
+    "contexto": "Contexto adicional para referência"
+  }
+}

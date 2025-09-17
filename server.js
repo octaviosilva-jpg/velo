@@ -352,16 +352,22 @@ const FEEDBACKS_EXPLICACOES_FILE = path.join(__dirname, 'data', 'feedbacks_expli
 // Arquivo para modelos de respostas aprovadas
 const MODELOS_RESPOSTAS_FILE = path.join(__dirname, 'data', 'modelos_respostas.json');
 
-// Arquivo para modelos de moderações aprovadas
-const MODELOS_MODERACOES_FILE = path.join(__dirname, 'data', 'modelos_moderacoes.json');
+// Arquivo para modelos de moderações aprovadas (pasta específica)
+const MODELOS_MODERACOES_FILE = path.join(__dirname, 'data', 'moderacao_coerente', 'modelos_moderacoes.json');
 
 // Arquivo para aprendizado direto no script de formulação
 const APRENDIZADO_SCRIPT_FILE = path.join(__dirname, 'data', 'aprendizado_script.json');
 
-// Garantir que o diretório data existe
+// Garantir que os diretórios data existem
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Garantir que o diretório moderacao_coerente existe
+const moderacaoCoerenteDir = path.join(__dirname, 'data', 'moderacao_coerente');
+if (!fs.existsSync(moderacaoCoerenteDir)) {
+    fs.mkdirSync(moderacaoCoerenteDir, { recursive: true });
 }
 
 // ===== FUNÇÕES PARA FEEDBACKS DE RESPOSTAS RA =====
