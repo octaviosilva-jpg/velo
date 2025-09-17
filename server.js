@@ -1541,6 +1541,54 @@ A resposta deve conter EXATAMENTE dois blocos:
 (1) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
 (2) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
 
+📋 DICAS CRÍTICAS PARA FORMULAÇÃO DE MODERAÇÃO:
+
+1. CONSULTE SEMPRE OS MANUAIS DO RA:
+- Manual Geral de Moderação → regras universais (informação falsa, ofensas, duplicidade)
+- Manual RA Reviews → foco em avaliações e comentários de reputação
+- Manual de Bancos, Instituições Financeiras e Meios → regras específicas para operações financeiras, contratos, CCB, termos aceitos
+⚠️ NÃO PULE ESSA PARTE: o RA pode negar a moderação se o pedido não se apoiar nas regras deles
+
+2. VERIFIQUE OS REGISTROS INTERNOS ANTES DE ESCREVER:
+- Data da contratação ou operação
+- Status real da solicitação (ex.: quitação antecipada, reagendamento BB, restituição no eCAC)
+- Situação da chave Pix (se estava vinculada, portabilizada, ou desvinculada)
+- Evidências objetivas: prints, protocolos, comprovantes
+
+3. COMPARE A RECLAMAÇÃO COM OS FATOS:
+- O cliente alegou algo que já foi resolvido antes da abertura no RA?
+- Há omissão da solução aplicada?
+- A descrição do cliente contraria cláusulas aceitas em contrato (ex.: vínculo da chave Pix na CCB)?
+- O texto contém linguagem ofensiva ou acusação sem prova?
+
+4. NA LINHA DE RACIOCÍNIO INTERNA, NUNCA ESQUEÇA:
+- Fatos reais comprovados → cite data, registro, operação
+- Divergência clara → onde o cliente erra ou omite
+- Base normativa → diga "conforme Manual Geral de Moderação", "conforme Cláusula 7 da CCB", etc.
+
+5. NA REDAÇÃO FINAL (TEXTO AO RA), SIGA O TOM:
+- Técnico, claro e objetivo
+- Impessoal (nada de "entendemos sua frustração")
+- Estrutura em 3 parágrafos curtos:
+  * Motivo objetivo do pedido
+  * Fatos internos que comprovam a divergência
+  * Solicitação de adequação/exclusão conforme regras do RA
+
+6. NUNCA PEÇA MODERAÇÃO POR MOTIVO FRÁGIL:
+- Não basta "não gostar" do comentário
+- Só peça moderação se:
+  * Violou regra do RA
+  * Está em desacordo com fatos comprováveis
+  * Houve solução omitida
+  * Houve quebra de diretriz contratual clara
+
+7. CITE O MANUAL/CAPÍTULO SEMPRE QUE POSSÍVEL:
+- Exemplo: "conforme previsto no Manual Geral de Moderação (item de informações falsas)"
+- Exemplo: "em linha com o Manual de Bancos, que prevê correção de informações contratuais incorretas"
+- Isso mostra base sólida e aumenta as chances de aprovação
+
+🎯 TRIPÉ DA MODERAÇÃO: registre fatos + aponte divergência + fundamente em manual/contrato
+
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para gerar um texto de moderação de alta qualidade desde o início, evitando negativas do RA.
 
 Execute o fluxo completo e forneça os dois blocos solicitados.`;
@@ -2251,6 +2299,55 @@ Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme re
 
 6. SAÍDA FINAL:
 Forneça APENAS o texto reformulado seguindo o modelo fixo acima, corrigindo especificamente o motivo da negativa.
+
+📋 DICAS CRÍTICAS PARA REFORMULAÇÃO DE MODERAÇÃO:
+
+1. CONSULTE SEMPRE OS MANUAIS DO RA:
+- Manual Geral de Moderação → regras universais (informação falsa, ofensas, duplicidade)
+- Manual RA Reviews → foco em avaliações e comentários de reputação
+- Manual de Bancos, Instituições Financeiras e Meios → regras específicas para operações financeiras, contratos, CCB, termos aceitos
+⚠️ NÃO PULE ESSA PARTE: o RA pode negar a moderação se o pedido não se apoiar nas regras deles
+
+2. VERIFIQUE OS REGISTROS INTERNOS ANTES DE ESCREVER:
+- Data da contratação ou operação
+- Status real da solicitação (ex.: quitação antecipada, reagendamento BB, restituição no eCAC)
+- Situação da chave Pix (se estava vinculada, portabilizada, ou desvinculada)
+- Evidências objetivas: prints, protocolos, comprovantes
+
+3. COMPARE A RECLAMAÇÃO COM OS FATOS:
+- O cliente alegou algo que já foi resolvido antes da abertura no RA?
+- Há omissão da solução aplicada?
+- A descrição do cliente contraria cláusulas aceitas em contrato (ex.: vínculo da chave Pix na CCB)?
+- O texto contém linguagem ofensiva ou acusação sem prova?
+
+4. NA REFORMULAÇÃO, CORRIJA ESPECIFICAMENTE:
+- O motivo da negativa identificado pelo RA
+- Mantenha fatos reais comprovados → cite data, registro, operação
+- Aponte divergência clara → onde o cliente erra ou omite
+- Base normativa → diga "conforme Manual Geral de Moderação", "conforme Cláusula 7 da CCB", etc.
+
+5. NA REDAÇÃO FINAL (TEXTO AO RA), SIGA O TOM:
+- Técnico, claro e objetivo
+- Impessoal (nada de "entendemos sua frustração")
+- Estrutura em 3 parágrafos curtos:
+  * Motivo objetivo do pedido
+  * Fatos internos que comprovam a divergência
+  * Solicitação de adequação/exclusão conforme regras do RA
+
+6. NUNCA PEÇA MODERAÇÃO POR MOTIVO FRÁGIL:
+- Não basta "não gostar" do comentário
+- Só peça moderação se:
+  * Violou regra do RA
+  * Está em desacordo com fatos comprováveis
+  * Houve solução omitida
+  * Houve quebra de diretriz contratual clara
+
+7. CITE O MANUAL/CAPÍTULO SEMPRE QUE POSSÍVEL:
+- Exemplo: "conforme previsto no Manual Geral de Moderação (item de informações falsas)"
+- Exemplo: "em linha com o Manual de Bancos, que prevê correção de informações contratuais incorretas"
+- Isso mostra base sólida e aumenta as chances de aprovação
+
+🎯 TRIPÉ DA MODERAÇÃO: registre fatos + aponte divergência + fundamente em manual/contrato
 
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros similares e melhorar a qualidade da reformulação de moderação.`;
 
