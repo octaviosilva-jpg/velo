@@ -777,9 +777,36 @@ function gerarExplicacaoPadrao(tema) {
 
 // Middleware de segurança
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'file://'],
+    origin: [
+        'http://localhost:3000', 
+        'http://127.0.0.1:3000', 
+        'file://',
+        'https://velo-xxx.vercel.app',
+        'https://velo.vercel.app',
+        'https://velotax-bot.vercel.app'
+    ],
     credentials: true
 }));
+
+// Headers de segurança
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
+// Forçar HTTPS em produção
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    app.use((req, res, next) => {
+        if (req.header('x-forwarded-proto') !== 'https') {
+            res.redirect(`https://${req.header('host')}${req.url}`);
+        } else {
+            next();
+        }
+    });
+}
 
 app.use(express.json());
 app.use(express.static('.'));
@@ -928,13 +955,28 @@ function decryptSensitiveData(encryptedData, key) {
 // ===== ROTAS DE API =====
 
 // Rota para verificar status do servidor
-app.get('/api/status', (req, res) => {
-    res.json({
-        status: 'online',
-        timestamp: new Date().toISOString(),
-        version: '2.0.0',
-        environment: 'production'
-    });
+app.get('/api/status', rateLimitMiddleware, (req, res) => {
+    try {
+        const envVars = loadEnvFile();
+        const hasApiKey = validateApiKey(envVars.OPENAI_API_KEY);
+        
+        res.json({
+            success: true,
+            status: 'online',
+            apiKeyConfigured: hasApiKey,
+            environment: process.env.NODE_ENV || 'development',
+            vercel: !!process.env.VERCEL,
+            timestamp: new Date().toISOString(),
+            version: '2.0.0'
+        });
+        
+    } catch (error) {
+        console.error('Erro ao verificar status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
 });
 
 // Rota para obter configurações públicas (sem dados sensíveis)
@@ -952,7 +994,8 @@ app.get('/api/config/public', rateLimitMiddleware, (req, res) => {
             APP_NAME: envVars.APP_NAME || 'Velotax Bot',
             APP_VERSION: envVars.APP_VERSION || '2.0.0',
             DEBUG_MODE: envVars.DEBUG_MODE || 'false',
-            LOG_LEVEL: envVars.LOG_LEVEL || 'info'
+            LOG_LEVEL: envVars.LOG_LEVEL || 'info',
+            apiKeyConfigured: validateApiKey(envVars.OPENAI_API_KEY)
         };
         
         res.json({
