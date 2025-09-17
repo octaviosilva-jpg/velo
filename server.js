@@ -1904,14 +1904,73 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             console.log('🔄 REFORMULANDO RESPOSTA (sem feedback)');
         }
         
-        // Obter feedbacks relevantes para melhorar a reformulação
+        // Obter aprendizado direto do script para este tipo de situação (PRIORITÁRIO)
+        const aprendizadoScript = getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao);
+        
+        // Obter feedbacks relevantes para melhorar a reformulação (COMPLEMENTAR)
         const feedbacksRelevantes = getRelevantFeedbacks('resposta', {
             tipoSituacao: dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao,
             motivoSolicitacao: dadosFormulario.motivo_solicitacao || dadosFormulario.motivoSolicitacao
         });
         
+        console.log(`🔄 REFORMULAÇÃO - Buscando aprendizado para: ${dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao}`);
+        console.log(`🧠 APRENDIZADO DO SCRIPT: ${aprendizadoScript.feedbacks.length} feedbacks, ${aprendizadoScript.respostasCoerentes.length} respostas coerentes`);
+        console.log(`📚 Feedbacks complementares: ${feedbacksRelevantes.length}`);
+        
         let conhecimentoFeedback = '';
-        if (feedbacksRelevantes.length > 0) {
+        
+        // PRIORIDADE 1: APRENDIZADO DIRETO DO SCRIPT (mais recente e específico)
+        if (aprendizadoScript.feedbacks.length > 0 || aprendizadoScript.respostasCoerentes.length > 0 || aprendizadoScript.padroesIdentificados.length > 0) {
+            conhecimentoFeedback = '\n\n🎓 APRENDIZADO DIRETO DO SCRIPT DE FORMULAÇÃO (PRIORITÁRIO):\n';
+            conhecimentoFeedback += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas coerentes para "${dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao}":\n\n`;
+            
+            console.log('🧠 Aplicando aprendizado do script na reformulação:', {
+                feedbacks: aprendizadoScript.feedbacks.length,
+                respostasCoerentes: aprendizadoScript.respostasCoerentes.length,
+                padroes: aprendizadoScript.padroesIdentificados.length
+            });
+            
+            // Adicionar padrões identificados
+            if (aprendizadoScript.padroesIdentificados.length > 0) {
+                conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (OBRIGATÓRIOS):\n';
+                aprendizadoScript.padroesIdentificados.forEach((padrao, index) => {
+                    conhecimentoFeedback += `${index + 1}. ${padrao}\n`;
+                });
+                conhecimentoFeedback += '\n';
+            }
+            
+            // Adicionar cláusulas usadas
+            if (aprendizadoScript.clausulasUsadas.length > 0) {
+                conhecimentoFeedback += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
+                aprendizadoScript.clausulasUsadas.forEach(clausula => {
+                    conhecimentoFeedback += `• ${clausula}\n`;
+                });
+                conhecimentoFeedback += '\n';
+            }
+            
+            // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
+            if (aprendizadoScript.feedbacks.length > 0) {
+                conhecimentoFeedback += '⚠️ FEEDBACKS RECENTES (EVITAR ESTES ERROS):\n';
+                aprendizadoScript.feedbacks.slice(-5).forEach((fb, index) => {
+                    conhecimentoFeedback += `${index + 1}. ERRO: "${fb.feedback}"\n`;
+                    conhecimentoFeedback += `   RESPOSTA CORRIGIDA: "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
+                });
+            }
+            
+            // Adicionar respostas coerentes recentes (SEGUIR ESTE PADRÃO)
+            if (aprendizadoScript.respostasCoerentes.length > 0) {
+                conhecimentoFeedback += '✅ RESPOSTAS COERENTES RECENTES (SEGUIR ESTE PADRÃO):\n';
+                aprendizadoScript.respostasCoerentes.slice(-3).forEach((resp, index) => {
+                    conhecimentoFeedback += `${index + 1}. Motivo: ${resp.motivoSolicitacao}\n`;
+                    conhecimentoFeedback += `   RESPOSTA APROVADA: "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
+                });
+            }
+            
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este aprendizado direto do script para gerar uma resposta de alta qualidade, aplicando os padrões identificados e evitando os erros documentados.\n';
+        }
+        
+        // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
+        else if (feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
             feedbacksRelevantes.forEach((fb, index) => {
                 conhecimentoFeedback += `${index + 1}. Feedback: "${fb.feedback}"\n`;
