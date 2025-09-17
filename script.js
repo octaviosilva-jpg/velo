@@ -1849,6 +1849,258 @@ function copiarModeracao() {
     });
 }
 
+// Função para gerar feedback de moderação
+function gerarFeedbackModeracao() {
+    const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+    const respostaEmpresa = document.getElementById('resposta-empresa').value;
+    const motivoModeracao = document.getElementById('motivo-moderacao').value;
+    
+    if (!solicitacaoCliente.trim() || !motivoModeracao) {
+        showErrorMessage('Por favor, preencha a solicitação do cliente e selecione o motivo da moderação.');
+        return;
+    }
+    
+    // Gerar análise de feedback
+    const feedback = gerarAnaliseFeedbackModeracao(solicitacaoCliente, respostaEmpresa, motivoModeracao);
+    
+    document.getElementById('feedback-conteudo').innerHTML = feedback;
+    document.getElementById('feedback-moderacao').style.display = 'block';
+    
+    showSuccessMessage('Análise de feedback gerada com sucesso!');
+}
+
+// Função para gerar análise de feedback
+function gerarAnaliseFeedbackModeracao(solicitacaoCliente, respostaEmpresa, motivoModeracao) {
+    let feedback = '<p><strong>Análise de Feedback - Moderação RA</strong></p>';
+    
+    feedback += '<p><strong>Situação Analisada:</strong></p>';
+    feedback += `<p>• Motivo da moderação: ${motivoModeracao}</p>`;
+    feedback += `<p>• Solicitação do cliente: ${solicitacaoCliente.substring(0, 100)}...</p>`;
+    
+    if (respostaEmpresa && respostaEmpresa.trim()) {
+        feedback += `<p>• Resposta da empresa: ${respostaEmpresa.substring(0, 100)}...</p>`;
+    }
+    
+    feedback += '<p><strong>Análise:</strong></p>';
+    
+    switch (motivoModeracao) {
+        case 'reclamacao-outra-empresa':
+            feedback += '<p>✅ <strong>Moderação Justificada:</strong> A reclamação é direcionada a outra empresa, não à Velotax. Recomenda-se solicitar a moderação para redirecionamento correto.</p>';
+            break;
+        case 'reclamacao-trabalhista':
+            feedback += '<p>✅ <strong>Moderação Justificada:</strong> Questão trabalhista não é de competência do Reclame Aqui. Recomenda-se solicitar a moderação.</p>';
+            break;
+        case 'conteudo-improprio':
+            feedback += '<p>⚠️ <strong>Atenção:</strong> Verificar se o conteúdo realmente contém linguagem inadequada. Se confirmado, solicitar moderação.</p>';
+            break;
+        case 'reclamacao-duplicidade':
+            feedback += '<p>✅ <strong>Moderação Justificada:</strong> Reclamação duplicada identificada. Recomenda-se solicitar a moderação para remoção.</p>';
+            break;
+        case 'reclamacao-terceiros':
+            feedback += '<p>✅ <strong>Moderação Justificada:</strong> Reclamação feita por terceiros não autorizados. Recomenda-se solicitar a moderação.</p>';
+            break;
+        case 'caso-fraude':
+            feedback += '<p>✅ <strong>Moderação Justificada:</strong> Caso comprovado de fraude. Recomenda-se solicitar a moderação imediatamente.</p>';
+            break;
+        case 'nao-violou-direito':
+            feedback += '<p>⚠️ <strong>Análise Necessária:</strong> Verificar se realmente não houve violação de direitos. Se confirmado, solicitar moderação.</p>';
+            break;
+        default:
+            feedback += '<p>❓ <strong>Análise Necessária:</strong> Motivo de moderação não identificado. Revisar a situação antes de solicitar moderação.</p>';
+    }
+    
+    feedback += '<p><strong>Recomendação:</strong></p>';
+    feedback += '<p>• Documentar todos os fatos e evidências</p>';
+    feedback += '<p>• Preparar justificativa clara para a moderação</p>';
+    feedback += '<p>• Manter registro da solicitação para acompanhamento</p>';
+    
+    return feedback;
+}
+
+// Função para avaliar moderação
+function avaliarModeracao(tipoAvaliacao) {
+    const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
+    const textoModeracao = document.getElementById('texto-moderacao').innerText;
+    
+    if (!linhaRaciocinio.trim() || !textoModeracao.trim()) {
+        showErrorMessage('Não há solicitação de moderação para avaliar.');
+        return;
+    }
+    
+    if (tipoAvaliacao === 'coerente') {
+        // Marcar como aprovada
+        showSuccessMessage('Solicitação de moderação marcada como coerente!');
+        
+        // Aqui você pode adicionar lógica para salvar como modelo
+        console.log('✅ Solicitação de moderação aprovada');
+        
+    } else if (tipoAvaliacao === 'incoerente') {
+        // Solicitar feedback para reformulação
+        solicitarFeedbackModeracao();
+    }
+}
+
+// Função para solicitar feedback de moderação
+function solicitarFeedbackModeracao() {
+    const modalHtml = `
+        <div class="modal fade" id="feedbackModalModeracao" tabindex="-1" aria-labelledby="feedbackModalModeracaoLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="feedbackModalModeracaoLabel">
+                            <i class="fas fa-comment-dots me-2"></i>
+                            Feedback para Reformulação
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="feedback-moderacao-text" class="form-label">
+                                <strong>Por que a solicitação está incoerente?</strong>
+                            </label>
+                            <p class="text-muted small">Descreva o que está errado para que o sistema aprenda e melhore futuras solicitações.</p>
+                            <textarea class="form-control" id="feedback-moderacao-text" rows="4" 
+                                placeholder="Ex: Motivo inadequado, falta de clareza, informações incorretas..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>
+                            Cancelar
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="processarFeedbackModeracao()">
+                            <i class="fas fa-redo me-2"></i>
+                            Reformular com Feedback
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal anterior se existir
+    const modalAnterior = document.getElementById('feedbackModalModeracao');
+    if (modalAnterior) {
+        modalAnterior.remove();
+    }
+    
+    // Adicionar modal ao body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('feedbackModalModeracao'));
+    modal.show();
+}
+
+// Função para processar feedback de moderação
+function processarFeedbackModeracao() {
+    const feedbackText = document.getElementById('feedback-moderacao-text').value.trim();
+    
+    if (!feedbackText) {
+        showErrorMessage('Por favor, forneça um feedback para a reformulação.');
+        return;
+    }
+    
+    // Fechar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModalModeracao'));
+    modal.hide();
+    
+    // Gerar nova solicitação com base no feedback
+    const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+    const respostaEmpresa = document.getElementById('resposta-empresa').value;
+    const motivoModeracao = document.getElementById('motivo-moderacao').value;
+    const consideracaoFinal = document.getElementById('consideracao-final').value;
+    
+    // Aplicar feedback e reformular
+    const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
+    const textoModeracaoReformulado = gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedbackText);
+    
+    // Atualizar interface
+    document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinioReformulada;
+    document.getElementById('texto-moderacao').innerHTML = textoModeracaoReformulado;
+    
+    showSuccessMessage('Solicitação de moderação reformulada com base no seu feedback!');
+}
+
+// Função para gerar linha de raciocínio reformulada
+function gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedback) {
+    let linha = '<p><strong>Linha de Raciocínio Interna (Reformulada):</strong></p>';
+    
+    linha += '<p>Com base no feedback recebido, a análise foi reformulada:</p>';
+    linha += `<p><strong>Feedback recebido:</strong> ${feedback}</p>`;
+    
+    linha += '<p>O conteúdo em questão apresenta violação às regras do Reclame Aqui pelos seguintes motivos:</p>';
+    
+    switch (motivoModeracao) {
+        case 'reclamacao-outra-empresa':
+            linha += '<p>• A reclamação é direcionada a outra empresa, não à Velotax</p>';
+            break;
+        case 'reclamacao-trabalhista':
+            linha += '<p>• Trata-se de questão trabalhista, não de relação de consumo</p>';
+            break;
+        case 'conteudo-improprio':
+            linha += '<p>• O conteúdo contém linguagem inadequada ou ofensiva</p>';
+            break;
+        case 'reclamacao-duplicidade':
+            linha += '<p>• Esta é uma reclamação duplicada já registrada anteriormente</p>';
+            break;
+        case 'reclamacao-terceiros':
+            linha += '<p>• A reclamação é feita por terceiros não autorizados</p>';
+            break;
+        case 'caso-fraude':
+            linha += '<p>• Este é um caso comprovado de fraude</p>';
+            break;
+        case 'nao-violou-direito':
+            linha += '<p>• A empresa não violou o direito do consumidor</p>';
+            break;
+        default:
+            linha += '<p>• Violação às regras do Reclame Aqui</p>';
+    }
+    
+    if (solicitacaoCliente && solicitacaoCliente.trim()) {
+        linha += '<p><strong>Solicitação do Cliente:</strong></p>';
+        linha += `<p>${solicitacaoCliente}</p>`;
+    }
+    
+    if (respostaEmpresa && respostaEmpresa.trim()) {
+        linha += '<p><strong>Resposta da Empresa:</strong></p>';
+        linha += `<p>${respostaEmpresa}</p>`;
+    }
+    
+    return linha;
+}
+
+// Função para gerar texto de moderação reformulado
+function gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedback) {
+    let texto = '<p><strong>Texto para Moderação (Reformulado):</strong></p>';
+    
+    texto += '<p>Prezados,</p>';
+    texto += '<p>Solicitamos a moderação do conteúdo acima pelos seguintes motivos:</p>';
+    
+    const motivos = {
+        'reclamacao-outra-empresa': 'A reclamação é direcionada a outra empresa, não à Velotax.',
+        'reclamacao-trabalhista': 'Trata-se de questão trabalhista, não de relação de consumo.',
+        'conteudo-improprio': 'O conteúdo contém linguagem inadequada ou ofensiva.',
+        'reclamacao-duplicidade': 'Esta é uma reclamação duplicada já registrada anteriormente.',
+        'reclamacao-terceiros': 'A reclamação é feita por terceiros não autorizados.',
+        'caso-fraude': 'Este é um caso comprovado de fraude.',
+        'nao-violou-direito': 'A empresa não violou o direito do consumidor.'
+    };
+    
+    texto += '<p>' + (motivos[motivoModeracao] || 'Violação às regras da plataforma.') + '</p>';
+    
+    if (consideracaoFinal && consideracaoFinal.trim()) {
+        texto += '<p><strong>Consideração Final:</strong></p>';
+        texto += `<p>${consideracaoFinal}</p>`;
+    }
+    
+    texto += '<p><strong>Observação:</strong> Esta solicitação foi reformulada com base em feedback interno para maior clareza e precisão.</p>';
+    
+    texto += '<p>Agradecemos a atenção.</p>';
+    
+    return texto;
+}
+
 function updateStats() {
     document.querySelectorAll('.stat-value')[0].textContent = stats.respostasHoje;
     document.querySelectorAll('.stat-value')[1].textContent = stats.moderacoes;
