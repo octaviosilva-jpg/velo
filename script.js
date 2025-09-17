@@ -1208,7 +1208,7 @@ function limparEdicao() {
 
 // ===== FUNÇÕES DE MODERAÇÃO =====
 
-function gerarModeracao() {
+async function gerarModeracao() {
     const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
     const respostaEmpresa = document.getElementById('resposta-empresa').value;
     const motivoModeracao = document.getElementById('motivo-moderacao').value;
@@ -1219,17 +1219,63 @@ function gerarModeracao() {
         return;
     }
     
-    const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
-    const textoModeracao = gerarTextoModeracao(motivoModeracao, consideracaoFinal);
+    // Mostrar loading
+    showLoadingMessage('Gerando solicitação de moderação com modelo pré-definido...');
     
-    document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
-    document.getElementById('texto-moderacao').innerHTML = textoModeracao;
-    document.getElementById('moderacao-resultado').style.display = 'block';
-    
-    stats.moderacoes++;
-    updateStats();
-    
-    showSuccessMessage('Solicitação de moderação gerada com sucesso!');
+    try {
+        // Chamar o endpoint do servidor que usa o modelo pré-definido
+        const response = await fetch('/api/generate-moderation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                dadosModeracao: {
+                    solicitacaoCliente: solicitacaoCliente,
+                    respostaEmpresa: respostaEmpresa,
+                    motivoModeracao: motivoModeracao,
+                    consideracaoFinal: consideracaoFinal
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Gerar linha de raciocínio interna
+            const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
+            
+            // Usar o texto gerado pelo servidor (modelo pré-definido)
+            const textoModeracao = `<p><strong>Texto para Moderação:</strong></p><p>${data.result}</p>`;
+            
+            document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
+            document.getElementById('texto-moderacao').innerHTML = textoModeracao;
+            document.getElementById('moderacao-resultado').style.display = 'block';
+            
+            stats.moderacoes++;
+            updateStats();
+            
+            showSuccessMessage('Solicitação de moderação gerada com modelo pré-definido!');
+        } else {
+            throw new Error(data.error || 'Erro ao gerar moderação');
+        }
+    } catch (error) {
+        console.error('Erro ao gerar moderação:', error);
+        showErrorMessage('Erro ao gerar moderação. Usando modelo local como fallback.');
+        
+        // Fallback para o modelo local
+        const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
+        const textoModeracao = gerarTextoModeracao(motivoModeracao, consideracaoFinal);
+        
+        document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
+        document.getElementById('texto-moderacao').innerHTML = textoModeracao;
+        document.getElementById('moderacao-resultado').style.display = 'block';
+        
+        stats.moderacoes++;
+        updateStats();
+        
+        showSuccessMessage('Solicitação de moderação gerada (modelo local)!');
+    }
 }
 
 function gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa) {
@@ -1993,7 +2039,7 @@ function solicitarFeedbackModeracao() {
 }
 
 // Função para processar feedback de moderação
-function processarFeedbackModeracao() {
+async function processarFeedbackModeracao() {
     const feedbackText = document.getElementById('feedback-moderacao-text').value.trim();
     
     if (!feedbackText) {
@@ -2005,21 +2051,69 @@ function processarFeedbackModeracao() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModalModeracao'));
     modal.hide();
     
-    // Gerar nova solicitação com base no feedback
-    const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
-    const respostaEmpresa = document.getElementById('resposta-empresa').value;
-    const motivoModeracao = document.getElementById('motivo-moderacao').value;
-    const consideracaoFinal = document.getElementById('consideracao-final').value;
+    // Mostrar loading
+    showLoadingMessage('Reformulando solicitação de moderação com base no feedback...');
     
-    // Aplicar feedback e reformular
-    const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
-    const textoModeracaoReformulado = gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedbackText);
-    
-    // Atualizar interface
-    document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinioReformulada;
-    document.getElementById('texto-moderacao').innerHTML = textoModeracaoReformulado;
-    
-    showSuccessMessage('Solicitação de moderação reformulada com base no seu feedback!');
+    try {
+        // Gerar nova solicitação com base no feedback
+        const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+        const respostaEmpresa = document.getElementById('resposta-empresa').value;
+        const motivoModeracao = document.getElementById('motivo-moderacao').value;
+        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        
+        // Chamar o endpoint do servidor para reformulação
+        const response = await fetch('/api/reformulate-moderation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                textoNegado: document.getElementById('texto-moderacao').innerText,
+                motivoNegativa: feedbackText,
+                dadosModeracao: {
+                    solicitacaoCliente: solicitacaoCliente,
+                    respostaEmpresa: respostaEmpresa,
+                    motivoModeracao: motivoModeracao,
+                    consideracaoFinal: consideracaoFinal
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Gerar linha de raciocínio reformulada
+            const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
+            
+            // Usar o texto reformulado pelo servidor
+            const textoModeracaoReformulado = `<p><strong>Texto para Moderação (Reformulado):</strong></p><p>${data.result}</p>`;
+            
+            // Atualizar interface
+            document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinioReformulada;
+            document.getElementById('texto-moderacao').innerHTML = textoModeracaoReformulado;
+            
+            showSuccessMessage('Solicitação de moderação reformulada com modelo pré-definido!');
+        } else {
+            throw new Error(data.error || 'Erro ao reformular moderação');
+        }
+    } catch (error) {
+        console.error('Erro ao reformular moderação:', error);
+        showErrorMessage('Erro ao reformular moderação. Usando modelo local como fallback.');
+        
+        // Fallback para o modelo local
+        const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+        const respostaEmpresa = document.getElementById('resposta-empresa').value;
+        const motivoModeracao = document.getElementById('motivo-moderacao').value;
+        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        
+        const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
+        const textoModeracaoReformulado = gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedbackText);
+        
+        document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinioReformulada;
+        document.getElementById('texto-moderacao').innerHTML = textoModeracaoReformulado;
+        
+        showSuccessMessage('Solicitação de moderação reformulada (modelo local)!');
+    }
 }
 
 // Função para gerar linha de raciocínio reformulada
