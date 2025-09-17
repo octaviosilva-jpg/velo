@@ -819,9 +819,30 @@ function rateLimitMiddleware(req, res, next) {
 
 // ===== FUNÇÕES DE SEGURANÇA =====
 
-// Carregar variáveis de ambiente do arquivo .env
+// Carregar variáveis de ambiente do arquivo .env ou process.env (Vercel)
 function loadEnvFile() {
     try {
+        // Se estiver na Vercel (NODE_ENV=production), usar process.env
+        if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+            console.log('🌐 Carregando variáveis de ambiente da Vercel (process.env)');
+            const envVars = {
+                OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+                OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o',
+                OPENAI_TEMPERATURE: process.env.OPENAI_TEMPERATURE || '0.7',
+                OPENAI_MAX_TOKENS: process.env.OPENAI_MAX_TOKENS || '2000',
+                OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+                MAX_API_CALLS_PER_HOUR: process.env.MAX_API_CALLS_PER_HOUR || '100',
+                APP_NAME: process.env.APP_NAME || 'Velotax Bot',
+                APP_VERSION: process.env.APP_VERSION || '2.0.0',
+                DEBUG_MODE: process.env.DEBUG_MODE || 'false',
+                LOG_LEVEL: process.env.LOG_LEVEL || 'info'
+            };
+            
+            console.log(`✅ ${Object.keys(envVars).filter(k => envVars[k]).length} variáveis carregadas do process.env`);
+            return envVars;
+        }
+        
+        // Para desenvolvimento local, tentar carregar do arquivo .env
         const envPath = path.join(__dirname, '.env');
         
         if (!fs.existsSync(envPath)) {
@@ -856,7 +877,7 @@ function loadEnvFile() {
         return envVars;
         
     } catch (error) {
-        console.error('❌ Erro ao carregar arquivo .env:', error);
+        console.error('❌ Erro ao carregar variáveis de ambiente:', error);
         return {};
     }
 }
