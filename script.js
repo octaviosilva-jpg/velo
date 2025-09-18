@@ -6,6 +6,10 @@ let stats = {
     moderacoes: 0
 };
 
+// Sistema de histórico
+let historicoStats = [];
+const HISTORICO_KEY = 'velotax_historico_stats';
+
 // Histórico de respostas
 let historicoRespostas = [];
 
@@ -46,7 +50,7 @@ Com base nos dados fornecidos, formule o texto final pronto para envio ou public
 document.addEventListener('DOMContentLoaded', function() {
     initializeBot();
     setupEventListeners();
-    updateStats();
+    inicializarHistorico();
 });
 
 // Inicialização do bot
@@ -147,6 +151,7 @@ async function gerarRespostaOpenAI() {
         historicoRespostas.unshift(itemHistorico);
     
     stats.respostasHoje++;
+    adicionarAoHistorico('respostas');
     updateStats();
     
         showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
@@ -1198,6 +1203,7 @@ async function gerarModeracao() {
             document.getElementById('moderacao-resultado').style.display = 'block';
             
             stats.moderacoes++;
+            adicionarAoHistorico('moderacoes');
             updateStats();
             
             showSuccessMessage('Solicitação de moderação gerada com script estruturado!');
@@ -1217,6 +1223,7 @@ async function gerarModeracao() {
         document.getElementById('moderacao-resultado').style.display = 'block';
         
         stats.moderacoes++;
+        adicionarAoHistorico('moderacoes');
         updateStats();
         
         showSuccessMessage('Solicitação de moderação gerada (modelo local)!');
@@ -2353,6 +2360,139 @@ function gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feed
 function updateStats() {
     document.querySelectorAll('.stat-value')[0].textContent = stats.respostasHoje;
     document.querySelectorAll('.stat-value')[1].textContent = stats.moderacoes;
+}
+
+// ===== SISTEMA DE HISTÓRICO =====
+
+// Carregar histórico do localStorage
+function carregarHistorico() {
+    try {
+        const historicoSalvo = localStorage.getItem(HISTORICO_KEY);
+        if (historicoSalvo) {
+            historicoStats = JSON.parse(historicoSalvo);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        historicoStats = [];
+    }
+}
+
+// Salvar histórico no localStorage
+function salvarHistorico() {
+    try {
+        localStorage.setItem(HISTORICO_KEY, JSON.stringify(historicoStats));
+    } catch (error) {
+        console.error('Erro ao salvar histórico:', error);
+    }
+}
+
+// Adicionar entrada ao histórico
+function adicionarAoHistorico(tipo, quantidade = 1) {
+    const hoje = new Date();
+    const dataHoje = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Verificar se já existe entrada para hoje
+    let entradaHoje = historicoStats.find(entrada => entrada.data === dataHoje);
+    
+    if (entradaHoje) {
+        // Atualizar entrada existente
+        entradaHoje[tipo] = (entradaHoje[tipo] || 0) + quantidade;
+        entradaHoje.ultimaAtualizacao = hoje.toISOString();
+    } else {
+        // Criar nova entrada
+        entradaHoje = {
+            data: dataHoje,
+            respostas: tipo === 'respostas' ? quantidade : 0,
+            moderacoes: tipo === 'moderacoes' ? quantidade : 0,
+            ultimaAtualizacao: hoje.toISOString()
+        };
+        historicoStats.unshift(entradaHoje);
+    }
+    
+    // Manter apenas os últimos 30 dias
+    if (historicoStats.length > 30) {
+        historicoStats = historicoStats.slice(0, 30);
+    }
+    
+    salvarHistorico();
+}
+
+// Exibir histórico
+function exibirHistorico() {
+    const historicoContent = document.getElementById('historico-content');
+    
+    if (historicoStats.length === 0) {
+        historicoContent.innerHTML = `
+            <div class="historico-empty">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <p>Nenhum histórico disponível</p>
+                <small>As estatísticas aparecerão aqui conforme o uso</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    historicoStats.forEach(entrada => {
+        const data = new Date(entrada.data);
+        const dataFormatada = data.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        const respostas = entrada.respostas || 0;
+        const moderacoes = entrada.moderacoes || 0;
+        
+        html += `
+            <div class="historico-item">
+                <div class="historico-data">
+                    <i class="fas fa-calendar-day me-1"></i>
+                    ${dataFormatada}
+                </div>
+                <div class="historico-stats">
+                    <div class="historico-stat respostas">
+                        <i class="fas fa-reply"></i>
+                        <span>${respostas}</span>
+                    </div>
+                    <div class="historico-stat moderacoes">
+                        <i class="fas fa-gavel"></i>
+                        <span>${moderacoes}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    historicoContent.innerHTML = html;
+}
+
+// Toggle do painel de histórico
+function toggleHistorico() {
+    const panel = document.getElementById('historico-panel');
+    const isVisible = panel.style.display !== 'none';
+    
+    if (isVisible) {
+        panel.style.display = 'none';
+    } else {
+        panel.style.display = 'block';
+        exibirHistorico();
+    }
+}
+
+// Inicializar sistema de histórico
+function inicializarHistorico() {
+    carregarHistorico();
+    
+    // Carregar estatísticas do dia atual
+    const hoje = new Date().toISOString().split('T')[0];
+    const entradaHoje = historicoStats.find(entrada => entrada.data === hoje);
+    
+    if (entradaHoje) {
+        stats.respostasHoje = entradaHoje.respostas || 0;
+        stats.moderacoes = entradaHoje.moderacoes || 0;
+        updateStats();
+    }
 }
 
 function showSuccessMessage(message) {
