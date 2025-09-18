@@ -375,6 +375,12 @@ if (!fs.existsSync(moderacaoCoerenteDir)) {
 
 // Carregar feedbacks de respostas
 function loadFeedbacksRespostas() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && feedbacksRespostasMemoria) {
+        console.log('🌐 Vercel detectado - carregando feedbacks de respostas da memória');
+        return feedbacksRespostasMemoria;
+    }
+    
     try {
         if (fs.existsSync(FEEDBACKS_RESPOSTAS_FILE)) {
             const data = fs.readFileSync(FEEDBACKS_RESPOSTAS_FILE, 'utf8');
@@ -393,10 +399,26 @@ function loadFeedbacksRespostas() {
 function saveFeedbacksRespostas(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
+        
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando feedbacks de respostas em memória');
+            feedbacksRespostasMemoria = feedbacks;
+            console.log('✅ Feedbacks de respostas salvos em memória');
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
-        console.log('✅ Feedbacks de respostas salvos com sucesso');
+        console.log('✅ Feedbacks de respostas salvos no arquivo');
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de respostas:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            feedbacksRespostasMemoria = feedbacks;
+        }
     }
 }
 
@@ -404,6 +426,12 @@ function saveFeedbacksRespostas(feedbacks) {
 
 // Carregar feedbacks de moderações
 function loadFeedbacksModeracoes() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && feedbacksModeracoesMemoria) {
+        console.log('🌐 Vercel detectado - carregando feedbacks de moderações da memória');
+        return feedbacksModeracoesMemoria;
+    }
+    
     try {
         if (fs.existsSync(FEEDBACKS_MODERACOES_FILE)) {
             const data = fs.readFileSync(FEEDBACKS_MODERACOES_FILE, 'utf8');
@@ -422,10 +450,26 @@ function loadFeedbacksModeracoes() {
 function saveFeedbacksModeracoes(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
+        
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando feedbacks de moderações em memória');
+            feedbacksModeracoesMemoria = feedbacks;
+            console.log('✅ Feedbacks de moderações salvos em memória');
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(FEEDBACKS_MODERACOES_FILE, JSON.stringify(feedbacks, null, 2));
-        console.log('✅ Feedbacks de moderações salvos com sucesso');
+        console.log('✅ Feedbacks de moderações salvos no arquivo');
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de moderações:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            feedbacksModeracoesMemoria = feedbacks;
+        }
     }
 }
 
@@ -433,6 +477,12 @@ function saveFeedbacksModeracoes(feedbacks) {
 
 // Carregar feedbacks de explicações
 function loadFeedbacksExplicacoes() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && feedbacksExplicacoesMemoria) {
+        console.log('🌐 Vercel detectado - carregando feedbacks de explicações da memória');
+        return feedbacksExplicacoesMemoria;
+    }
+    
     try {
         if (fs.existsSync(FEEDBACKS_EXPLICACOES_FILE)) {
             const data = fs.readFileSync(FEEDBACKS_EXPLICACOES_FILE, 'utf8');
@@ -451,10 +501,26 @@ function loadFeedbacksExplicacoes() {
 function saveFeedbacksExplicacoes(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
+        
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando feedbacks de explicações em memória');
+            feedbacksExplicacoesMemoria = feedbacks;
+            console.log('✅ Feedbacks de explicações salvos em memória');
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(FEEDBACKS_EXPLICACOES_FILE, JSON.stringify(feedbacks, null, 2));
-        console.log('✅ Feedbacks de explicações salvos com sucesso');
+        console.log('✅ Feedbacks de explicações salvos no arquivo');
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de explicações:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            feedbacksExplicacoesMemoria = feedbacks;
+        }
     }
 }
 
@@ -696,6 +762,11 @@ function loadModelosRespostas() {
 // Armazenamento em memória para Vercel
 let modelosRespostasMemoria = null;
 let estatisticasGlobaisMemoria = null;
+let aprendizadoScriptMemoria = null;
+let feedbacksRespostasMemoria = null;
+let feedbacksModeracoesMemoria = null;
+let feedbacksExplicacoesMemoria = null;
+let modelosModeracoesMemoria = null;
 
 // Salvar modelos de respostas
 function saveModelosRespostas(modelos) {
@@ -834,6 +905,12 @@ function getModelosRelevantes(tipoSituacao, motivoSolicitacao) {
 
 // Carregar modelos de moderações
 function loadModelosModeracoes() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && modelosModeracoesMemoria) {
+        console.log('🌐 Vercel detectado - carregando modelos de moderações da memória');
+        return modelosModeracoesMemoria;
+    }
+    
     try {
         if (fs.existsSync(MODELOS_MODERACOES_FILE)) {
             const data = fs.readFileSync(MODELOS_MODERACOES_FILE, 'utf8');
@@ -880,12 +957,6 @@ function loadModelosModeracoes() {
 // Salvar modelos de moderações
 function saveModelosModeracoes(modelos) {
     try {
-        // Garantir que o diretório existe
-        const dir = path.dirname(MODELOS_MODERACOES_FILE);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        
         // Validar estrutura antes de salvar
         if (!modelos || typeof modelos !== 'object') {
             throw new Error('Estrutura de modelos inválida');
@@ -898,6 +969,20 @@ function saveModelosModeracoes(modelos) {
         // Atualizar timestamp
         modelos.lastUpdated = obterTimestampBrasil();
         
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando modelos de moderações em memória');
+            modelosModeracoesMemoria = modelos;
+            console.log('📝 Modelos de moderações salvos em memória:', modelos.modelos.length);
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
+        const dir = path.dirname(MODELOS_MODERACOES_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
         // Escrever arquivo temporário primeiro
         const tempFile = MODELOS_MODERACOES_FILE + '.tmp';
         fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
@@ -905,9 +990,15 @@ function saveModelosModeracoes(modelos) {
         // Mover arquivo temporário para o arquivo final (operação atômica)
         fs.renameSync(tempFile, MODELOS_MODERACOES_FILE);
         
-        console.log('📝 Modelos de moderações salvos:', modelos.modelos.length);
+        console.log('📝 Modelos de moderações salvos no arquivo:', modelos.modelos.length);
     } catch (error) {
         console.error('Erro ao salvar modelos de moderações:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            modelosModeracoesMemoria = modelos;
+        }
         
         // Tentar remover arquivo temporário se existir
         try {
@@ -978,6 +1069,12 @@ function getModelosModeracaoRelevantes(motivoModeracao) {
 
 // Carregar aprendizado do script
 function loadAprendizadoScript() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && aprendizadoScriptMemoria) {
+        console.log('🌐 Vercel detectado - carregando aprendizado da memória');
+        return aprendizadoScriptMemoria;
+    }
+    
     try {
         if (fs.existsSync(APRENDIZADO_SCRIPT_FILE)) {
             const data = fs.readFileSync(APRENDIZADO_SCRIPT_FILE, 'utf8');
@@ -996,10 +1093,26 @@ function loadAprendizadoScript() {
 function saveAprendizadoScript(aprendizado) {
     try {
         aprendizado.lastUpdated = obterTimestampBrasil();
+        
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando aprendizado em memória');
+            aprendizadoScriptMemoria = aprendizado;
+            console.log('✅ Aprendizado do script salvo em memória');
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(APRENDIZADO_SCRIPT_FILE, JSON.stringify(aprendizado, null, 2));
-        console.log('✅ Aprendizado do script salvo com sucesso');
+        console.log('✅ Aprendizado do script salvo no arquivo');
     } catch (error) {
         console.error('❌ Erro ao salvar aprendizado do script:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            aprendizadoScriptMemoria = aprendizado;
+        }
     }
 }
 
