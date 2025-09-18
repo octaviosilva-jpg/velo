@@ -1,6 +1,26 @@
 {
-  "modelos": [],
-  "lastUpdated": "17/01/2025 18:00:00",
+  "modelos": [
+    {
+      "id": 1758198613128,
+      "timestamp": "18/09/2025 09:30:13",
+      "motivoModeracao": "nao-violou-direito",
+      "dadosModeracao": {
+        "solicitacaoCliente": "Teste",
+        "respostaEmpresa": "Teste",
+        "motivoModeracao": "nao-violou-direito",
+        "consideracaoFinal": "Teste"
+      },
+      "linhaRaciocinio": "Teste linha",
+      "textoModeracao": "Teste texto",
+      "contexto": {
+        "motivoModeracao": "nao-violou-direito",
+        "solicitacaoCliente": "Teste",
+        "respostaEmpresa": "Teste",
+        "consideracaoFinal": "Teste"
+      }
+    }
+  ],
+  "lastUpdated": "18/09/2025 09:30:13",
   "descricao": "Modelos de moderações aprovadas como coerentes - utilizados para aprendizado automático",
   "estrutura": {
     "id": "Timestamp único",
