@@ -2146,6 +2146,8 @@ function avaliarModeracao(tipoAvaliacao) {
 // Função para salvar moderação como modelo
 async function salvarModeracaoComoModelo() {
     try {
+        console.log('🎯 Iniciando salvamento de moderação como modelo...');
+        
         // Obter dados da moderação atual
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
         const respostaEmpresa = document.getElementById('resposta-empresa').value;
@@ -2154,6 +2156,15 @@ async function salvarModeracaoComoModelo() {
         
         const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
         const textoModeracao = document.getElementById('texto-moderacao').innerText;
+        
+        console.log('📝 Dados capturados:', {
+            solicitacaoCliente: solicitacaoCliente ? 'OK' : 'VAZIO',
+            respostaEmpresa: respostaEmpresa ? 'OK' : 'VAZIO',
+            motivoModeracao: motivoModeracao ? 'OK' : 'VAZIO',
+            consideracaoFinal: consideracaoFinal ? 'OK' : 'VAZIO',
+            linhaRaciocinio: linhaRaciocinio ? 'OK' : 'VAZIO',
+            textoModeracao: textoModeracao ? 'OK' : 'VAZIO'
+        });
         
         if (!solicitacaoCliente || !respostaEmpresa || !motivoModeracao || !consideracaoFinal) {
             showErrorMessage('Dados incompletos para salvar como modelo.');
@@ -2164,6 +2175,7 @@ async function salvarModeracaoComoModelo() {
         showLoadingMessage('Salvando moderação como modelo...');
         
         // Chamar endpoint para salvar modelo
+        console.log('🚀 Enviando dados para o servidor...');
         const response = await fetch('/api/save-modelo-moderacao', {
             method: 'POST',
             headers: {
@@ -2181,6 +2193,8 @@ async function salvarModeracaoComoModelo() {
             })
         });
         
+        console.log('📡 Resposta do servidor:', response.status, response.statusText);
+        
         const data = await response.json();
         
         if (data.success) {
@@ -2191,7 +2205,7 @@ async function salvarModeracaoComoModelo() {
         }
         
     } catch (error) {
-        console.error('Erro ao salvar modelo de moderação:', error);
+        console.error('❌ Erro ao salvar modelo de moderação:', error);
         showErrorMessage('Erro ao salvar modelo de moderação.');
     }
 }
