@@ -464,10 +464,39 @@ function loadModelosRespostas() {
     try {
         if (fs.existsSync(MODELOS_RESPOSTAS_FILE)) {
             const data = fs.readFileSync(MODELOS_RESPOSTAS_FILE, 'utf8');
+            
+            // Verificar se o arquivo não está vazio
+            if (!data.trim()) {
+                console.log('Arquivo modelos_respostas.json está vazio, criando estrutura padrão');
+                const estruturaPadrao = {
+                    modelos: [],
+                    lastUpdated: obterTimestampBrasil(),
+                    descricao: "Modelos de respostas aprovadas como coerentes - utilizados para aprendizado automático"
+                };
+                saveModelosRespostas(estruturaPadrao);
+                return estruturaPadrao;
+            }
+            
             return JSON.parse(data);
         }
     } catch (error) {
         console.error('Erro ao carregar modelos de respostas:', error);
+        console.log('Recriando arquivo modelos_respostas.json com estrutura padrão');
+        
+        // Recriar arquivo com estrutura padrão
+        const estruturaPadrao = {
+            modelos: [],
+            lastUpdated: obterTimestampBrasil(),
+            descricao: "Modelos de respostas aprovadas como coerentes - utilizados para aprendizado automático"
+        };
+        
+        try {
+            saveModelosRespostas(estruturaPadrao);
+        } catch (saveError) {
+            console.error('Erro ao recriar arquivo modelos_respostas.json:', saveError);
+        }
+        
+        return estruturaPadrao;
     }
     return {
         modelos: [],
