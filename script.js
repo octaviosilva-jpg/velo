@@ -2166,6 +2166,11 @@ async function salvarModeracaoComoModelo() {
         const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
         const textoModeracao = document.getElementById('texto-moderacao').innerText;
         
+        console.log('🔍 Elementos encontrados:', {
+            linhaRaciocinioElement: document.getElementById('linha-raciocinio') ? 'OK' : 'NÃO ENCONTRADO',
+            textoModeracaoElement: document.getElementById('texto-moderacao') ? 'OK' : 'NÃO ENCONTRADO'
+        });
+        
         console.log('📝 Dados capturados:', {
             solicitacaoCliente: solicitacaoCliente ? 'OK' : 'VAZIO',
             respostaEmpresa: respostaEmpresa ? 'OK' : 'VAZIO',
