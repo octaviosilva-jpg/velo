@@ -286,9 +286,14 @@ function gerarRespostaSimulada(dados) {
 // ===== FUNÇÕES DE AVALIAÇÃO E REFORMULAÇÃO =====
 
 async function avaliarResposta(tipoAvaliacao) {
+    console.log('🎯 Função avaliarResposta chamada com tipo:', tipoAvaliacao);
+    
     const respostaAtual = document.getElementById('texto-resposta-gpt5').value;
     
+    console.log('📝 Resposta atual capturada:', respostaAtual ? 'OK' : 'VAZIO');
+    
     if (!respostaAtual.trim()) {
+        console.log('❌ Resposta vazia, mostrando erro');
         showErrorMessage('Não há resposta para avaliar.');
         return;
     }
@@ -305,14 +310,20 @@ async function avaliarResposta(tipoAvaliacao) {
     };
     
     if (tipoAvaliacao === 'coerente') {
+        console.log('✅ Marcando como coerente - iniciando salvamento');
+        
         // Marcar como aprovada
         const itemAtual = historicoRespostas[0];
         if (itemAtual) {
             itemAtual.status = 'aprovada';
             itemAtual.resposta_aprovada = respostaAtual;
+            console.log('📝 Item atual marcado como aprovado');
+        } else {
+            console.log('⚠️ Nenhum item atual encontrado no histórico');
         }
         
         // Salvar como modelo para futuras solicitações similares
+        console.log('🚀 Chamando salvarRespostaComoModelo...');
         salvarRespostaComoModelo(dadosAtuais, respostaAtual);
         
     } else if (tipoAvaliacao === 'reformular') {
@@ -324,8 +335,15 @@ async function avaliarResposta(tipoAvaliacao) {
 // Função para salvar resposta como modelo quando marcada como coerente
 async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
     try {
+        console.log('🚀 FUNÇÃO salvarRespostaComoModelo INICIADA!');
         console.log('💾 Salvando resposta como modelo:', dadosAtuais.tipo_solicitacao);
+        console.log('📝 Dados capturados:', {
+            tipo_solicitacao: dadosAtuais.tipo_solicitacao,
+            motivo_solicitacao: dadosAtuais.motivo_solicitacao,
+            resposta_length: respostaAprovada ? respostaAprovada.length : 0
+        });
         
+        console.log('📡 Enviando dados para o servidor...');
         const response = await fetch('/api/save-modelo-resposta', {
             method: 'POST',
             headers: {
@@ -337,13 +355,15 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
             })
         });
         
+        console.log('📡 Resposta do servidor:', response.status, response.statusText);
         const data = await response.json();
+        console.log('📝 Dados retornados pelo servidor:', data);
         
         if (data.success) {
-            showSuccessMessage(`✅ Resposta salva como modelo para "${dadosAtuais.tipo_solicitacao}"! Futuras solicitações similares usarão este exemplo como referência.`);
             console.log('✅ Modelo salvo com sucesso:', data.modeloId);
+            showSuccessMessage(`✅ Resposta salva como modelo para "${dadosAtuais.tipo_solicitacao}"! Futuras solicitações similares usarão este exemplo como referência.`);
         } else {
-            console.error('❌ Erro ao salvar modelo:', data.error);
+            console.error('❌ Erro do servidor:', data.error);
             showErrorMessage('Erro ao salvar modelo. Tente novamente.');
         }
         
