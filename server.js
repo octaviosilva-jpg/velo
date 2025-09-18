@@ -478,17 +478,58 @@ function loadModelosRespostas() {
 // Salvar modelos de respostas
 function saveModelosRespostas(modelos) {
     try {
+        // Garantir que o diretório existe
+        const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Validar estrutura antes de salvar
+        if (!modelos || typeof modelos !== 'object') {
+            throw new Error('Estrutura de modelos inválida');
+        }
+        
+        if (!Array.isArray(modelos.modelos)) {
+            modelos.modelos = [];
+        }
+        
+        // Atualizar timestamp
         modelos.lastUpdated = obterTimestampBrasil();
-        fs.writeFileSync(MODELOS_RESPOSTAS_FILE, JSON.stringify(modelos, null, 2));
-        console.log('✅ Modelos de respostas salvos com sucesso');
+        
+        // Escrever arquivo temporário primeiro
+        const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
+        fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
+        
+        // Mover arquivo temporário para o arquivo final (operação atômica)
+        fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
+        
+        console.log('✅ Modelos de respostas salvos com sucesso:', modelos.modelos.length);
     } catch (error) {
         console.error('❌ Erro ao salvar modelos de respostas:', error);
+        
+        // Tentar remover arquivo temporário se existir
+        try {
+            const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
+            if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+            }
+        } catch (cleanupError) {
+            console.error('Erro ao limpar arquivo temporário:', cleanupError);
+        }
     }
 }
 
 // Adicionar modelo de resposta aprovada
 function addModeloResposta(dadosFormulario, respostaAprovada) {
+    console.log('🚀 FUNÇÃO addModeloResposta INICIADA!');
+    console.log('📝 Dados recebidos:', {
+        tipo_solicitacao: dadosFormulario.tipo_solicitacao,
+        motivo_solicitacao: dadosFormulario.motivo_solicitacao,
+        resposta_length: respostaAprovada ? respostaAprovada.length : 0
+    });
+    
     const modelos = loadModelosRespostas();
+    console.log('📚 Modelos carregados:', modelos.modelos ? modelos.modelos.length : 0);
     
     const novoModelo = {
         id: Date.now(),
@@ -503,11 +544,19 @@ function addModeloResposta(dadosFormulario, respostaAprovada) {
         }
     };
     
+    console.log('🆕 Novo modelo criado com ID:', novoModelo.id);
+    
     modelos.modelos.push(novoModelo);
+    console.log('📝 Modelo adicionado ao array. Total agora:', modelos.modelos.length);
+    
+    console.log('💾 Chamando saveModelosRespostas...');
     saveModelosRespostas(modelos);
+    console.log('✅ saveModelosRespostas concluído');
     
     // Também adicionar ao aprendizado direto do script
+    console.log('🧠 Adicionando ao aprendizado do script...');
     addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario);
+    console.log('✅ Aprendizado do script concluído');
     
     console.log('📝 Modelo de resposta aprovada adicionado:', novoModelo.id);
     return novoModelo;
