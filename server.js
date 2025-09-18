@@ -354,6 +354,7 @@ const MODELOS_RESPOSTAS_FILE = path.join(__dirname, 'data', 'modelos_respostas.j
 
 // Arquivo para modelos de moderações aprovadas (pasta específica)
 const MODELOS_MODERACOES_FILE = path.join(__dirname, 'data', 'moderacao_coerente', 'modelos_moderacoes.json');
+const ESTATISTICAS_GLOBAIS_FILE = path.join(__dirname, 'data', 'estatisticas_globais.json');
 
 // Arquivo para aprendizado direto no script de formulação
 const APRENDIZADO_SCRIPT_FILE = path.join(__dirname, 'data', 'aprendizado_script.json');
@@ -455,6 +456,167 @@ function saveFeedbacksExplicacoes(feedbacks) {
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de explicações:', error);
     }
+}
+
+// ===== FUNÇÕES PARA ESTATÍSTICAS GLOBAIS =====
+
+// Carregar estatísticas globais
+function loadEstatisticasGlobais() {
+    try {
+        if (fs.existsSync(ESTATISTICAS_GLOBAIS_FILE)) {
+            const data = fs.readFileSync(ESTATISTICAS_GLOBAIS_FILE, 'utf8');
+            
+            if (!data.trim()) {
+                console.log('Arquivo estatisticas_globais.json está vazio, criando estrutura padrão');
+                const estruturaPadrao = {
+                    estatisticas: {
+                        respostas_geradas: 0,
+                        respostas_coerentes: 0,
+                        moderacoes_geradas: 0,
+                        moderacoes_coerentes: 0,
+                        revisoes_texto: 0,
+                        explicacoes_geradas: 0
+                    },
+                    historico_diario: [],
+                    lastUpdated: obterTimestampBrasil(),
+                    descricao: "Estatísticas globais do sistema Velotax Bot - compartilhadas entre todos os usuários"
+                };
+                saveEstatisticasGlobais(estruturaPadrao);
+                return estruturaPadrao;
+            }
+            
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar estatísticas globais:', error);
+        console.log('Recriando arquivo estatisticas_globais.json com estrutura padrão');
+        
+        const estruturaPadrao = {
+            estatisticas: {
+                respostas_geradas: 0,
+                respostas_coerentes: 0,
+                moderacoes_geradas: 0,
+                moderacoes_coerentes: 0,
+                revisoes_texto: 0,
+                explicacoes_geradas: 0
+            },
+            historico_diario: [],
+            lastUpdated: obterTimestampBrasil(),
+            descricao: "Estatísticas globais do sistema Velotax Bot - compartilhadas entre todos os usuários"
+        };
+        
+        try {
+            saveEstatisticasGlobais(estruturaPadrao);
+        } catch (saveError) {
+            console.error('Erro ao recriar arquivo estatisticas_globais.json:', saveError);
+        }
+        
+        return estruturaPadrao;
+    }
+    return {
+        estatisticas: {
+            respostas_geradas: 0,
+            respostas_coerentes: 0,
+            moderacoes_geradas: 0,
+            moderacoes_coerentes: 0,
+            revisoes_texto: 0,
+            explicacoes_geradas: 0
+        },
+        historico_diario: [],
+        lastUpdated: obterTimestampBrasil()
+    };
+}
+
+// Salvar estatísticas globais
+function saveEstatisticasGlobais(estatisticas) {
+    try {
+        const dir = path.dirname(ESTATISTICAS_GLOBAIS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        if (!estatisticas || typeof estatisticas !== 'object') {
+            throw new Error('Estrutura de estatísticas inválida');
+        }
+        
+        if (!estatisticas.estatisticas) {
+            estatisticas.estatisticas = {
+                respostas_geradas: 0,
+                respostas_coerentes: 0,
+                moderacoes_geradas: 0,
+                moderacoes_coerentes: 0,
+                revisoes_texto: 0,
+                explicacoes_geradas: 0
+            };
+        }
+        
+        if (!Array.isArray(estatisticas.historico_diario)) {
+            estatisticas.historico_diario = [];
+        }
+        
+        estatisticas.lastUpdated = obterTimestampBrasil();
+        
+        const tempFile = ESTATISTICAS_GLOBAIS_FILE + '.tmp';
+        fs.writeFileSync(tempFile, JSON.stringify(estatisticas, null, 2), 'utf8');
+        fs.renameSync(tempFile, ESTATISTICAS_GLOBAIS_FILE);
+        
+        console.log('✅ Estatísticas globais salvas com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao salvar estatísticas globais:', error);
+        
+        try {
+            const tempFile = ESTATISTICAS_GLOBAIS_FILE + '.tmp';
+            if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+            }
+        } catch (cleanupError) {
+            console.error('Erro ao limpar arquivo temporário:', cleanupError);
+        }
+    }
+}
+
+// Incrementar estatística global
+function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
+    console.log(`📊 Incrementando estatística global: ${tipo} (+${quantidade})`);
+    
+    const estatisticas = loadEstatisticasGlobais();
+    
+    if (estatisticas.estatisticas[tipo] !== undefined) {
+        estatisticas.estatisticas[tipo] += quantidade;
+    } else {
+        console.log(`⚠️ Tipo de estatística não encontrado: ${tipo}`);
+        return;
+    }
+    
+    // Adicionar ao histórico diário
+    const hoje = new Date();
+    const dataHoje = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    let entradaHoje = estatisticas.historico_diario.find(entrada => entrada.data === dataHoje);
+    if (entradaHoje) {
+        entradaHoje[tipo] = (entradaHoje[tipo] || 0) + quantidade;
+        entradaHoje.ultimaAtualizacao = hoje.toISOString();
+    } else {
+        entradaHoje = {
+            data: dataHoje,
+            respostas_geradas: tipo === 'respostas_geradas' ? quantidade : 0,
+            respostas_coerentes: tipo === 'respostas_coerentes' ? quantidade : 0,
+            moderacoes_geradas: tipo === 'moderacoes_geradas' ? quantidade : 0,
+            moderacoes_coerentes: tipo === 'moderacoes_coerentes' ? quantidade : 0,
+            revisoes_texto: tipo === 'revisoes_texto' ? quantidade : 0,
+            explicacoes_geradas: tipo === 'explicacoes_geradas' ? quantidade : 0,
+            ultimaAtualizacao: hoje.toISOString()
+        };
+        estatisticas.historico_diario.unshift(entradaHoje);
+    }
+    
+    // Manter apenas os últimos 30 dias
+    if (estatisticas.historico_diario.length > 30) {
+        estatisticas.historico_diario = estatisticas.historico_diario.slice(0, 30);
+    }
+    
+    saveEstatisticasGlobais(estatisticas);
+    console.log(`✅ Estatística ${tipo} atualizada: ${estatisticas.estatisticas[tipo]}`);
 }
 
 // ===== FUNÇÕES PARA MODELOS DE RESPOSTAS APROVADAS =====
@@ -1922,6 +2084,9 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 console.log('📝 A IA deve seguir o script estruturado definido no prompt');
             }
             
+            // Incrementar estatística global
+            incrementarEstatisticaGlobal('moderacoes_geradas');
+            
             res.json({
                 success: true,
                 result: resposta
@@ -2442,6 +2607,9 @@ Equipe Velotax`;
                 
                 resposta = respostaEspecifica;
             }
+            
+            // Incrementar estatística global
+            incrementarEstatisticaGlobal('respostas_geradas');
             
             res.json({
                 success: true,
@@ -3310,6 +3478,9 @@ app.post('/api/save-modelo-resposta', (req, res) => {
         // Salvar como modelo
         const modelo = addModeloResposta(dadosFormulario, respostaAprovada);
         
+        // Incrementar estatística global
+        incrementarEstatisticaGlobal('respostas_coerentes');
+        
         res.json({
             success: true,
             message: 'Resposta salva como modelo para futuras solicitações similares',
@@ -3457,6 +3628,9 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
         const resultado = data.choices[0].message.content;
         console.log('✅ Revisão de texto gerada com sucesso');
 
+        // Incrementar estatística global
+        incrementarEstatisticaGlobal('revisoes_texto');
+
         res.json({
             success: true,
             result: resultado
@@ -3467,6 +3641,28 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor na revisão de texto'
+        });
+    }
+});
+
+// Endpoint para buscar estatísticas globais
+app.get('/api/estatisticas-globais', (req, res) => {
+    console.log('🎯 Endpoint /api/estatisticas-globais chamado');
+    try {
+        const estatisticas = loadEstatisticasGlobais();
+        
+        res.json({
+            success: true,
+            estatisticas: estatisticas.estatisticas,
+            historico: estatisticas.historico_diario,
+            lastUpdated: estatisticas.lastUpdated
+        });
+        
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas globais:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
         });
     }
 });
@@ -3486,6 +3682,9 @@ app.post('/api/save-modelo-moderacao', (req, res) => {
         
         // Salvar como modelo de moderação aprovada
         const modelo = addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
+        
+        // Incrementar estatística global
+        incrementarEstatisticaGlobal('moderacoes_coerentes');
         
         res.json({
             success: true,
@@ -3523,6 +3722,9 @@ app.post('/api/generate-explanation', (req, res) => {
         const feedbacks = loadFeedbacksRespostas();
         const explicacao = gerarExplicacaoBaseadaEmFeedbacks(tema, feedbacks);
         
+        // Incrementar estatística global
+        incrementarEstatisticaGlobal('explicacoes_geradas');
+
         res.json({
             success: true,
             result: explicacao,

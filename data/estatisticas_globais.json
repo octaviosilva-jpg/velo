@@ -1,0 +1,13 @@
+{
+  "estatisticas": {
+    "respostas_geradas": 0,
+    "respostas_coerentes": 0,
+    "moderacoes_geradas": 0,
+    "moderacoes_coerentes": 0,
+    "revisoes_texto": 0,
+    "explicacoes_geradas": 0
+  },
+  "historico_diario": [],
+  "lastUpdated": "18/01/2025 15:30:00",
+  "descricao": "Estatísticas globais do sistema Velotax Bot - compartilhadas entre todos os usuários"
+}

@@ -6,9 +6,58 @@ let stats = {
     moderacoes: 0
 };
 
+// Estatísticas globais do servidor
+let estatisticasGlobais = {
+    respostas_geradas: 0,
+    respostas_coerentes: 0,
+    moderacoes_geradas: 0,
+    moderacoes_coerentes: 0,
+    revisoes_texto: 0,
+    explicacoes_geradas: 0
+};
+
 // Sistema de histórico
 let historicoStats = [];
 const HISTORICO_KEY = 'velotax_historico_stats';
+
+// Carregar estatísticas globais do servidor
+async function carregarEstatisticasGlobais() {
+    try {
+        console.log('📊 Carregando estatísticas globais do servidor...');
+        const response = await fetch('/api/estatisticas-globais');
+        const data = await response.json();
+        
+        if (data.success) {
+            estatisticasGlobais = data.estatisticas;
+            console.log('✅ Estatísticas globais carregadas:', estatisticasGlobais);
+            atualizarEstatisticasNaInterface();
+        } else {
+            console.error('❌ Erro ao carregar estatísticas globais:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar estatísticas globais:', error);
+    }
+}
+
+// Atualizar estatísticas na interface
+function atualizarEstatisticasNaInterface() {
+    // Atualizar contadores na interface
+    const respostasHojeElement = document.querySelector('.stat-item:nth-child(1) .stat-value');
+    const moderacoesElement = document.querySelector('.stat-item:nth-child(2) .stat-value');
+    
+    if (respostasHojeElement) {
+        respostasHojeElement.textContent = estatisticasGlobais.respostas_geradas || 0;
+    }
+    
+    if (moderacoesElement) {
+        moderacoesElement.textContent = estatisticasGlobais.moderacoes_geradas || 0;
+    }
+    
+    // Atualizar histórico se estiver visível
+    if (document.getElementById('historico-panel').style.display !== 'none') {
+        exibirHistorico();
+    }
+}
 
 // Histórico de respostas
 let historicoRespostas = [];
@@ -152,6 +201,9 @@ async function gerarRespostaOpenAI() {
     
     stats.respostasHoje++;
     adicionarAoHistorico('respostas');
+    
+    // Recarregar estatísticas globais
+    carregarEstatisticasGlobais();
     updateStats();
     
         showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
@@ -2631,7 +2683,10 @@ function toggleHistorico() {
 function inicializarHistorico() {
     carregarHistorico();
     
-    // Carregar estatísticas do dia atual
+    // Carregar estatísticas globais do servidor
+    carregarEstatisticasGlobais();
+    
+    // Carregar estatísticas do dia atual (local)
     const hoje = new Date().toISOString().split('T')[0];
     const entradaHoje = historicoStats.find(entrada => entrada.data === hoje);
     
