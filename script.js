@@ -41,7 +41,7 @@ async function carregarEstatisticasGlobais() {
 
 // Atualizar estatísticas na interface
 function atualizarEstatisticasNaInterface() {
-    // Atualizar contadores na interface
+    // Atualizar contadores na interface com dados globais do servidor
     const respostasHojeElement = document.querySelector('.stat-item:nth-child(1) .stat-value');
     const moderacoesElement = document.querySelector('.stat-item:nth-child(2) .stat-value');
     
@@ -199,12 +199,8 @@ async function gerarRespostaOpenAI() {
         };
         historicoRespostas.unshift(itemHistorico);
     
-    stats.respostasHoje++;
-    adicionarAoHistorico('respostas');
-    
-    // Recarregar estatísticas globais
+    // Recarregar estatísticas globais do servidor
     carregarEstatisticasGlobais();
-    updateStats();
     
         showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
         
@@ -1401,9 +1397,8 @@ async function gerarModeracao() {
             document.getElementById('texto-moderacao').innerHTML = textoModeracao;
             document.getElementById('moderacao-resultado').style.display = 'block';
             
-            stats.moderacoes++;
-            adicionarAoHistorico('moderacoes');
-            updateStats();
+            // Recarregar estatísticas globais do servidor
+            carregarEstatisticasGlobais();
             
             showSuccessMessage('Solicitação de moderação gerada com script estruturado!');
         } else {
@@ -1421,9 +1416,8 @@ async function gerarModeracao() {
         document.getElementById('texto-moderacao').innerHTML = textoModeracao;
         document.getElementById('moderacao-resultado').style.display = 'block';
         
-        stats.moderacoes++;
-        adicionarAoHistorico('moderacoes');
-        updateStats();
+        // Recarregar estatísticas globais do servidor
+        carregarEstatisticasGlobais();
         
         showSuccessMessage('Solicitação de moderação gerada (modelo local)!');
     }
@@ -2620,7 +2614,45 @@ function adicionarAoHistorico(tipo, quantidade = 1) {
 function exibirHistorico() {
     const historicoContent = document.getElementById('historico-content');
     
-    if (historicoStats.length === 0) {
+    // Carregar histórico do servidor
+    carregarHistoricoDoServidor();
+}
+
+// Carregar histórico do servidor
+async function carregarHistoricoDoServidor() {
+    try {
+        console.log('📊 Carregando histórico do servidor...');
+        const response = await fetch('/api/estatisticas-globais');
+        const data = await response.json();
+        
+        if (data.success && data.historico) {
+            exibirHistoricoServidor(data.historico);
+        } else {
+            document.getElementById('historico-content').innerHTML = `
+                <div class="historico-empty">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Erro ao carregar histórico</p>
+                    <small>Tente novamente em alguns instantes</small>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar histórico do servidor:', error);
+        document.getElementById('historico-content').innerHTML = `
+            <div class="historico-empty">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <p>Erro ao carregar histórico</p>
+                <small>Tente novamente em alguns instantes</small>
+            </div>
+        `;
+    }
+}
+
+// Exibir histórico do servidor
+function exibirHistoricoServidor(historicoServidor) {
+    const historicoContent = document.getElementById('historico-content');
+    
+    if (!historicoServidor || historicoServidor.length === 0) {
         historicoContent.innerHTML = `
             <div class="historico-empty">
                 <i class="fas fa-inbox fa-2x mb-2"></i>
@@ -2632,7 +2664,7 @@ function exibirHistorico() {
     }
     
     let html = '';
-    historicoStats.forEach(entrada => {
+    historicoServidor.forEach(entrada => {
         const data = new Date(entrada.data);
         const dataFormatada = data.toLocaleDateString('pt-BR', {
             day: '2-digit',
@@ -2640,8 +2672,12 @@ function exibirHistorico() {
             year: 'numeric'
         });
         
-        const respostas = entrada.respostas || 0;
-        const moderacoes = entrada.moderacoes || 0;
+        const respostas = entrada.respostas_geradas || 0;
+        const moderacoes = entrada.moderacoes_geradas || 0;
+        const respostasCoerentes = entrada.respostas_coerentes || 0;
+        const moderacoesCoerentes = entrada.moderacoes_coerentes || 0;
+        const revisoes = entrada.revisoes_texto || 0;
+        const explicacoes = entrada.explicacoes_geradas || 0;
         
         html += `
             <div class="historico-item">
@@ -2652,11 +2688,23 @@ function exibirHistorico() {
                 <div class="historico-stats">
                     <div class="historico-stat respostas">
                         <i class="fas fa-reply"></i>
-                        <span>${respostas}</span>
+                        <span>${respostas} respostas</span>
                     </div>
                     <div class="historico-stat moderacoes">
                         <i class="fas fa-gavel"></i>
-                        <span>${moderacoes}</span>
+                        <span>${moderacoes} moderações</span>
+                    </div>
+                    <div class="historico-stat coerentes">
+                        <i class="fas fa-check-circle"></i>
+                        <span>${respostasCoerentes + moderacoesCoerentes} coerentes</span>
+                    </div>
+                    <div class="historico-stat revisoes">
+                        <i class="fas fa-edit"></i>
+                        <span>${revisoes} revisões</span>
+                    </div>
+                    <div class="historico-stat explicacoes">
+                        <i class="fas fa-book"></i>
+                        <span>${explicacoes} explicações</span>
                     </div>
                 </div>
             </div>
@@ -2681,20 +2729,8 @@ function toggleHistorico() {
 
 // Inicializar sistema de histórico
 function inicializarHistorico() {
-    carregarHistorico();
-    
-    // Carregar estatísticas globais do servidor
+    // Carregar apenas estatísticas globais do servidor
     carregarEstatisticasGlobais();
-    
-    // Carregar estatísticas do dia atual (local)
-    const hoje = new Date().toISOString().split('T')[0];
-    const entradaHoje = historicoStats.find(entrada => entrada.data === hoje);
-    
-    if (entradaHoje) {
-        stats.respostasHoje = entradaHoje.respostas || 0;
-        stats.moderacoes = entradaHoje.moderacoes || 0;
-        updateStats();
-    }
 }
 
 function showSuccessMessage(message) {
