@@ -1366,17 +1366,6 @@ function gerarExplicacao() {
 
 function gerarMensagemExplicativa(tema, contexto) {
     const explicacoes = {
-        'fgts': `
-            <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Vamos esclarecer sobre o FGTS (Fundo de Garantia do Tempo de Serviço):</p>
-            <ol>
-                <li><strong>O que é:</strong> É um fundo que garante proteção ao trabalhador demitido sem justa causa.</li>
-                <li><strong>Como funciona:</strong> O empregador deposita mensalmente 8% do salário do funcionário em uma conta vinculada.</li>
-                <li><strong>Restituições:</strong> Podem ocorrer em casos específicos como demissão sem justa causa, aposentadoria, ou compra da casa própria.</li>
-                <li><strong>Consulta:</strong> Você pode verificar seus saldos no aplicativo FGTS ou no site da Caixa Econômica Federal.</li>
-            </ol>
-            <p>Nossa equipe está disponível para orientações adicionais sobre seu caso específico.</p>
-        `,
         'malha-fina': `
             <p><strong>Prezado(a) cliente,</strong></p>
             <p>Vamos esclarecer sobre a Malha Fina:</p>
@@ -1388,24 +1377,6 @@ function gerarMensagemExplicativa(tema, contexto) {
                 <li><strong>Penalidades:</strong> Caso não seja respondida, pode gerar multas e juros.</li>
             </ol>
             <p>Nossa equipe está disponível para orientações sobre como proceder em seu caso específico.</p>
-        `,
-        'ecac': `
-            <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Vamos orientar sobre os procedimentos no eCAC (Centro Virtual de Atendimento):</p>
-            <ol>
-                <li><strong>Acesso:</strong> Acesse www.gov.br/receitafederal e clique em "eCAC"</li>
-                <li><strong>Login:</strong> Use seu CPF e senha ou certifique digital</li>
-                <li><strong>Navegação:</strong> No menu principal, localize a opção desejada</li>
-                <li><strong>Documentos:</strong> Tenha em mãos os documentos necessários</li>
-                <li><strong>Prazo:</strong> Fique atento aos prazos estabelecidos</li>
-            </ol>
-            <p><strong>Para revogação de procurações:</strong></p>
-            <ul>
-                <li>Acesse "Procurações"</li>
-                <li>Selecione "Revogar Procuração"</li>
-                <li>Siga as instruções na tela</li>
-            </ul>
-            <p>Nossa equipe está disponível para orientações adicionais.</p>
         `,
         'exclusao': `
             <p><strong>Prezado(a) cliente,</strong></p>
@@ -1431,18 +1402,6 @@ function gerarMensagemExplicativa(tema, contexto) {
             
             <p><strong>⚠️ Importante</strong></p>
             <p>A exclusão será feita conforme a Lei Geral de Proteção de Dados (LGPD), garantindo segurança e privacidade. Todas as informações registradas (declarações, relatórios e documentos fiscais) serão apagadas definitivamente. Lembrando que a exclusão de seus dados não cancela planos ativos em cobrança.</p>
-        `,
-        'lgpd': `
-            <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Conforme a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018), você tem os seguintes direitos:</p>
-            <ol>
-                <li><strong>Acesso:</strong> Solicitar informações sobre seus dados</li>
-                <li><strong>Correção:</strong> Solicitar correção de dados incorretos</li>
-                <li><strong>Exclusão:</strong> Solicitar a exclusão de seus dados</li>
-                <li><strong>Portabilidade:</strong> Solicitar a transferência de seus dados</li>
-            </ol>
-            <p>Para exercer qualquer um desses direitos, entre em contato conosco.</p>
-            <p>Nossa equipe está disponível para orientações sobre a LGPD.</p>
         `,
         'procuracoes': `
             <p><strong>Prezado(a) cliente,</strong></p>
@@ -1586,21 +1545,6 @@ function gerarMensagemExplicativa(tema, contexto) {
             </ol>
             
             <p>Nossa equipe está disponível para orientações adicionais sobre o Crédito do Trabalhador.</p>
-        `,
-        'portabilidade': `
-            <p><strong>Prezado(a) cliente,</strong></p>
-            <p><strong>Como realizar a portabilidade da sua chave Pix (CPF)</strong></p>
-            
-            <ol>
-                <li>Acesse a instituição onde deseja cadastrar seu CPF como chave Pix e tente cadastrá-lo.</li>
-                <li>O banco enviará automaticamente uma solicitação de portabilidade para a Celcoin.</li>
-                <li>Após isso, abra o app Velotax e entre em "VeloBank" (ícone com o símbolo de cifrão).</li>
-                <li>Vá para Área Pix → Minhas Chaves.</li>
-                <li>Ao lado do seu CPF, clique nos 3 pontinhos e selecione "Pendência de chave".</li>
-                <li>Autorize a portabilidade e pronto! Sua chave será transferida para a nova instituição.</li>
-            </ol>
-            
-            <p>Nossa equipe está disponível para orientações adicionais sobre o processo de portabilidade.</p>
         `,
         'credito-pessoal': `
             <p><strong>Prezado(a) cliente,</strong></p>
