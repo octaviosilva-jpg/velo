@@ -157,6 +157,35 @@ async function gerarRespostaOpenAI() {
     }
 }
 
+// Função para chamar o endpoint do servidor para gerar resposta RA
+async function gerarRespostaRAViaAPI(dadosResposta) {
+    try {
+        console.log('📡 Enviando dados para o servidor...');
+        
+        const response = await fetch('/api/generate-response', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dadosResposta)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('✅ Resposta gerada com sucesso pelo servidor');
+            return data.result;
+        } else {
+            console.error('❌ Erro do servidor:', data.error);
+            throw new Error(data.error || 'Erro desconhecido do servidor');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro na comunicação com o servidor:', error);
+        throw error;
+    }
+}
+
 async function chamarOpenAI(dados) {
     console.log('chamarOpenAI iniciada com dados:', dados.tipo_solicitacao);
     
