@@ -167,7 +167,9 @@ async function gerarRespostaRAViaAPI(dadosResposta) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(dadosResposta)
+            body: JSON.stringify({
+                dadosFormulario: dadosResposta
+            })
         });
         
         const data = await response.json();
