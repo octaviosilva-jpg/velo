@@ -41,20 +41,32 @@ async function carregarEstatisticasGlobais() {
 
 // Atualizar estatísticas na interface
 function atualizarEstatisticasNaInterface() {
+    console.log('🔄 Atualizando interface com estatísticas globais:', estatisticasGlobais);
+    
     // Atualizar contadores na interface com dados globais do servidor
-    const respostasHojeElement = document.querySelector('.stat-item:nth-child(1) .stat-value');
-    const moderacoesElement = document.querySelector('.stat-item:nth-child(2) .stat-value');
+    const statItems = document.querySelectorAll('.stat-item');
     
-    if (respostasHojeElement) {
-        respostasHojeElement.textContent = estatisticasGlobais.respostas_geradas || 0;
-    }
-    
-    if (moderacoesElement) {
-        moderacoesElement.textContent = estatisticasGlobais.moderacoes_geradas || 0;
+    if (statItems.length >= 2) {
+        // Primeiro item: Respostas Hoje
+        const respostasValue = statItems[0].querySelector('.stat-value');
+        if (respostasValue) {
+            respostasValue.textContent = estatisticasGlobais.respostas_geradas || 0;
+            console.log('📝 Respostas atualizadas:', estatisticasGlobais.respostas_geradas);
+        }
+        
+        // Segundo item: Moderações
+        const moderacoesValue = statItems[1].querySelector('.stat-value');
+        if (moderacoesValue) {
+            moderacoesValue.textContent = estatisticasGlobais.moderacoes_geradas || 0;
+            console.log('⚖️ Moderações atualizadas:', estatisticasGlobais.moderacoes_geradas);
+        }
+    } else {
+        console.log('⚠️ Elementos de estatísticas não encontrados');
     }
     
     // Atualizar histórico se estiver visível
-    if (document.getElementById('historico-panel').style.display !== 'none') {
+    const historicoPanel = document.getElementById('historico-panel');
+    if (historicoPanel && historicoPanel.style.display !== 'none') {
         exibirHistorico();
     }
 }
@@ -372,7 +384,10 @@ async function avaliarResposta(tipoAvaliacao) {
         
         // Salvar como modelo para futuras solicitações similares
         console.log('🚀 Chamando salvarRespostaComoModelo...');
-        salvarRespostaComoModelo(dadosAtuais, respostaAtual);
+        await salvarRespostaComoModelo(dadosAtuais, respostaAtual);
+        
+        // Atualizar estatísticas globais após salvar
+        carregarEstatisticasGlobais();
         
     } else if (tipoAvaliacao === 'reformular') {
         // Solicitar feedback do usuário para aprendizado
@@ -2242,7 +2257,10 @@ function avaliarModeracao(tipoAvaliacao) {
     if (tipoAvaliacao === 'coerente') {
         console.log('✅ Marcando como coerente - chamando salvarModeracaoComoModelo()');
         // Marcar como aprovada e salvar como modelo
-        salvarModeracaoComoModelo();
+        await salvarModeracaoComoModelo();
+        
+        // Atualizar estatísticas globais após salvar
+        carregarEstatisticasGlobais();
         
     } else if (tipoAvaliacao === 'incoerente') {
         console.log('❌ Marcando como incoerente - chamando solicitarFeedbackModeracao()');
