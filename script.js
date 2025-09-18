@@ -2125,8 +2125,15 @@ function gerarAnaliseFeedbackModeracao(solicitacaoCliente, respostaEmpresa, moti
 
 // Função para avaliar moderação
 function avaliarModeracao(tipoAvaliacao) {
+    console.log('🎯 Função avaliarModeracao chamada com tipo:', tipoAvaliacao);
+    
     const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
     const textoModeracao = document.getElementById('texto-moderacao').innerText;
+    
+    console.log('📝 Conteúdo capturado:', {
+        linhaRaciocinio: linhaRaciocinio ? 'OK' : 'VAZIO',
+        textoModeracao: textoModeracao ? 'OK' : 'VAZIO'
+    });
     
     if (!linhaRaciocinio.trim() || !textoModeracao.trim()) {
         showErrorMessage('Não há solicitação de moderação para avaliar.');
@@ -2134,10 +2141,12 @@ function avaliarModeracao(tipoAvaliacao) {
     }
     
     if (tipoAvaliacao === 'coerente') {
+        console.log('✅ Marcando como coerente - chamando salvarModeracaoComoModelo()');
         // Marcar como aprovada e salvar como modelo
         salvarModeracaoComoModelo();
         
     } else if (tipoAvaliacao === 'incoerente') {
+        console.log('❌ Marcando como incoerente - chamando solicitarFeedbackModeracao()');
         // Solicitar feedback para reformulação
         solicitarFeedbackModeracao();
     }
@@ -2167,6 +2176,12 @@ async function salvarModeracaoComoModelo() {
         });
         
         if (!solicitacaoCliente || !respostaEmpresa || !motivoModeracao || !consideracaoFinal) {
+            console.error('❌ Dados incompletos:', {
+                solicitacaoCliente: solicitacaoCliente ? 'OK' : 'VAZIO',
+                respostaEmpresa: respostaEmpresa ? 'OK' : 'VAZIO',
+                motivoModeracao: motivoModeracao ? 'OK' : 'VAZIO',
+                consideracaoFinal: consideracaoFinal ? 'OK' : 'VAZIO'
+            });
             showErrorMessage('Dados incompletos para salvar como modelo.');
             return;
         }
