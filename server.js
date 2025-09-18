@@ -3269,23 +3269,51 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 
         console.log('📝 Enviando solicitação para OpenAI...');
         
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: "Você é um especialista em revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            max_tokens: 2000,
-            temperature: 0.3
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        
+        if (!validateApiKey(apiKey)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Chave da API OpenAI não configurada'
+            });
+        }
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: envVars.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um especialista em revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            })
         });
 
-        const resultado = response.choices[0].message.content;
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('❌ Erro na API OpenAI:', errorData);
+            return res.status(400).json({
+                success: false,
+                error: 'Erro na API OpenAI',
+                details: errorData
+            });
+        }
+
+        const data = await response.json();
+        const resultado = data.choices[0].message.content;
         console.log('✅ Revisão de texto gerada com sucesso');
 
         res.json({
