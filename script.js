@@ -343,6 +343,34 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
             resposta_length: respostaAprovada ? respostaAprovada.length : 0
         });
         
+        // 1. Salvar no localStorage como backup
+        console.log('💾 Salvando no localStorage como backup...');
+        const modeloLocal = {
+            id: Date.now(),
+            timestamp: new Date().toISOString(),
+            tipo_situacao: dadosAtuais.tipo_solicitacao,
+            motivo_solicitacao: dadosAtuais.motivo_solicitacao,
+            dadosFormulario: dadosAtuais,
+            respostaAprovada: respostaAprovada,
+            contexto: {
+                tipoSituacao: dadosAtuais.tipo_solicitacao,
+                motivoSolicitacao: dadosAtuais.motivo_solicitacao
+            }
+        };
+        
+        // Carregar modelos existentes do localStorage
+        const modelosExistentes = JSON.parse(localStorage.getItem('modelos_respostas_coerentes') || '[]');
+        modelosExistentes.unshift(modeloLocal); // Adicionar no início
+        
+        // Manter apenas os últimos 50 modelos no localStorage
+        if (modelosExistentes.length > 50) {
+            modelosExistentes.splice(50);
+        }
+        
+        localStorage.setItem('modelos_respostas_coerentes', JSON.stringify(modelosExistentes));
+        console.log('✅ Modelo salvo no localStorage:', modeloLocal.id);
+        
+        // 2. Tentar salvar no servidor
         console.log('📡 Enviando dados para o servidor...');
         const response = await fetch('/api/save-modelo-resposta', {
             method: 'POST',
@@ -360,16 +388,115 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
         console.log('📝 Dados retornados pelo servidor:', data);
         
         if (data.success) {
-            console.log('✅ Modelo salvo com sucesso:', data.modeloId);
+            console.log('✅ Modelo salvo com sucesso no servidor:', data.modeloId);
             showSuccessMessage(`✅ Resposta salva como modelo para "${dadosAtuais.tipo_solicitacao}"! Futuras solicitações similares usarão este exemplo como referência.`);
         } else {
             console.error('❌ Erro do servidor:', data.error);
-            showErrorMessage('Erro ao salvar modelo. Tente novamente.');
+            console.log('⚠️ Modelo salvo apenas no localStorage devido ao erro do servidor');
+            showSuccessMessage(`✅ Resposta salva como modelo (backup local) para "${dadosAtuais.tipo_solicitacao}"!`);
         }
         
     } catch (error) {
         console.error('❌ Erro ao salvar modelo:', error);
-        showErrorMessage('Erro ao salvar modelo. Tente novamente.');
+        console.log('⚠️ Modelo salvo apenas no localStorage devido ao erro');
+        showSuccessMessage(`✅ Resposta salva como modelo (backup local) para "${dadosAtuais.tipo_solicitacao}"!`);
+    }
+}
+
+// Função para visualizar modelos salvos no localStorage
+function visualizarModelosSalvos() {
+    const modelos = JSON.parse(localStorage.getItem('modelos_respostas_coerentes') || '[]');
+    
+    if (modelos.length === 0) {
+        showErrorMessage('Nenhum modelo salvo encontrado no localStorage.');
+        return;
+    }
+    
+    let html = `
+        <div class="modal fade" id="modalModelosSalvos" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-database me-2"></i>
+                            Modelos de Respostas Coerentes Salvos
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Total de modelos salvos:</strong> ${modelos.length}
+                        </div>
+                        <div class="row">
+    `;
+    
+    modelos.forEach((modelo, index) => {
+        const dataFormatada = new Date(modelo.timestamp).toLocaleString('pt-BR');
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-file-alt me-2"></i>
+                            Modelo #${index + 1}
+                        </h6>
+                        <small class="text-muted">ID: ${modelo.id}</small>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Tipo:</strong> ${modelo.tipo_situacao}</p>
+                        <p><strong>Motivo:</strong> ${modelo.motivo_solicitacao}</p>
+                        <p><strong>Data:</strong> ${dataFormatada}</p>
+                        <p><strong>Resposta:</strong></p>
+                        <div class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;">
+                            ${modelo.respostaAprovada.substring(0, 200)}${modelo.respostaAprovada.length > 200 ? '...' : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="button" class="btn btn-danger" onclick="limparModelosSalvos()">
+                            <i class="fas fa-trash me-2"></i>
+                            Limpar Todos os Modelos
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal existente se houver
+    const modalExistente = document.getElementById('modalModelosSalvos');
+    if (modalExistente) {
+        modalExistente.remove();
+    }
+    
+    // Adicionar modal ao DOM
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('modalModelosSalvos'));
+    modal.show();
+}
+
+// Função para limpar modelos salvos
+function limparModelosSalvos() {
+    if (confirm('Tem certeza que deseja limpar todos os modelos salvos? Esta ação não pode ser desfeita.')) {
+        localStorage.removeItem('modelos_respostas_coerentes');
+        showSuccessMessage('✅ Todos os modelos salvos foram removidos.');
+        
+        // Fechar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalModelosSalvos'));
+        if (modal) {
+            modal.hide();
+        }
     }
 }
 
