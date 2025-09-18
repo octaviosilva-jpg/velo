@@ -3186,6 +3186,122 @@ app.post('/api/save-modelo-resposta', (req, res) => {
     }
 });
 
+// Endpoint para revisão de textos
+app.post('/api/revisar-texto', async (req, res) => {
+    console.log('🎯 Endpoint /api/revisar-texto chamado');
+    try {
+        const { textoOriginal, tipoRevisao, observacoes } = req.body;
+        
+        if (!textoOriginal || !tipoRevisao || tipoRevisao.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texto original e tipo de revisão são obrigatórios'
+            });
+        }
+        
+        // Construir prompt estruturado para revisão
+        const tiposRevisaoTexto = tipoRevisao.map(tipo => {
+            switch(tipo) {
+                case 'padronizacao': return 'Padronização';
+                case 'clareza': return 'Melhoria de Clareza';
+                case 'compliance': return 'Compliance';
+                case 'estrutura': return 'Estrutura';
+                default: return tipo;
+            }
+        }).join(', ');
+        
+        const prompt = `
+📌 SCRIPT ESTRUTURADO PARA REVISÃO DE TEXTOS
+
+ENTRADA OBRIGATÓRIA:
+- Texto original: ${textoOriginal}
+- Tipo de revisão: ${tiposRevisaoTexto}
+- Observações adicionais: ${observacoes || 'Nenhuma'}
+
+⚙️ FLUXO LÓGICO OBRIGATÓRIO:
+
+1. LEITURA INICIAL
+- Leia o texto original atentamente
+- Entenda o objetivo principal do texto (informar, responder cliente, pedir moderação, etc.)
+- Verifique se há observações adicionais que indicam ajustes específicos
+
+2. ANÁLISE CONFORME TIPO DE REVISÃO SELECIONADO:
+
+🔹 PADRONIZAÇÃO (se selecionado):
+- Ajustar para o tom de voz usado pela empresa (formal/técnico, ou simpático/acolhedor, conforme contexto)
+- Uniformizar termos (ex.: usar sempre "antecipação de restituição" e não variações soltas)
+- Garantir consistência em datas, números e referências contratuais
+
+🔹 MELHORIA DE CLAREZA (se selecionado):
+- Reescrever frases longas em versões mais diretas
+- Evitar jargões técnicos sem explicação
+- Dar ritmo fluido (períodos curtos, parágrafos objetivos)
+
+🔹 COMPLIANCE (se selecionado):
+- Validar se o texto está aderente à LGPD (dados pessoais só quando necessário)
+- Aos contratos (ex.: Cédula de Crédito Bancário – CCB)
+- Aos manuais do RA (se for resposta/moderação)
+- Remover termos arriscados: promessas não garantidas, subjetividades ("sempre", "nunca", "garantimos")
+- Checar se não há afirmações incorretas sobre leis ou processos
+
+🔹 ESTRUTURA (se selecionado):
+- Verificar se o texto tem início (contexto), meio (explicação) e fim (encaminhamento/solução)
+- Garantir uso de tópicos ou parágrafos quando facilita a leitura
+- Sugerir títulos, subtítulos ou formatações quando aplicável
+
+3. CONSTRUÇÃO DA LINHA DE RACIOCÍNIO INTERNA:
+- Indicar quais pontos foram analisados
+- Explicar quais mudanças foram feitas ou sugeridas
+- Justificar com base em boas práticas de redação e, quando aplicável, em compliance/contrato/manual RA
+
+4. ENTREGA FINAL OBRIGATÓRIA:
+
+FORMATO DE SAÍDA OBRIGATÓRIO:
+(1) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
+[Conteúdo da linha de raciocínio interna]
+
+(2) TEXTO REVISADO (versão final pronta para uso)
+[Texto revisado seguindo as diretrizes solicitadas]
+
+⚠️ CRÍTICO: A saída DEVE conter exatamente estes dois blocos, separados pelos marcadores (1) e (2).
+
+🚫 PROIBIDO: NÃO cite o texto original literalmente. Analise o conteúdo e reformule baseado na análise, não na citação dos dados.`;
+
+        console.log('📝 Enviando solicitação para OpenAI...');
+        
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: "Você é um especialista em revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            max_tokens: 2000,
+            temperature: 0.3
+        });
+
+        const resultado = response.choices[0].message.content;
+        console.log('✅ Revisão de texto gerada com sucesso');
+
+        res.json({
+            success: true,
+            result: resultado
+        });
+
+    } catch (error) {
+        console.error('❌ Erro na revisão de texto:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor na revisão de texto'
+        });
+    }
+});
+
 // Endpoint para salvar moderação como modelo (quando clicar em "Coerente")
 app.post('/api/save-modelo-moderacao', (req, res) => {
     console.log('🎯 Endpoint /api/save-modelo-moderacao chamado');

@@ -437,19 +437,27 @@
                                     </div>
                                     <div class="mb-3">
                                         <label for="tipo-revisao" class="form-label">Tipo de Revisão:</label>
-                                        <select class="form-select" id="tipo-revisao">
-                                            <option value="">Selecione o tipo...</option>
+                                        <select class="form-select" id="tipo-revisao" multiple>
                                             <option value="padronizacao">Padronização</option>
                                             <option value="clareza">Melhoria de Clareza</option>
                                             <option value="compliance">Compliance</option>
                                             <option value="estrutura">Estrutura</option>
                                         </select>
+                                        <small class="form-text text-muted">Segure Ctrl para selecionar múltiplas opções</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="observacoes-revisao" class="form-label">Observações Adicionais (opcional):</label>
+                                        <textarea class="form-control" id="observacoes-revisao" rows="3" placeholder="Adicione observações específicas para a revisão..."></textarea>
                                     </div>
                                     <button class="btn btn-secondary" onclick="revisarTexto()">
                                         <i class="fas fa-edit me-2"></i>
                                         Revisar Texto
                                     </button>
                                     <div id="revisao-resultado" class="mt-4" style="display: none;">
+                                        <h6>Linha de Raciocínio Interna:</h6>
+                                        <div class="response-box mb-3">
+                                            <div id="linha-raciocinio-revisao"></div>
+                                        </div>
                                         <h6>Texto Revisado:</h6>
                                         <div class="response-box">
                                             <div id="texto-revisado"></div>

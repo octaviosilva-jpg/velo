@@ -1518,91 +1518,184 @@ function gerarMensagemExplicativa(tema, contexto) {
 
 // ===== FUNÇÕES DE REVISÃO =====
 
-function revisarTexto() {
+async function revisarTexto() {
     const textoOriginal = document.getElementById('texto-revisar').value;
-    const tipoRevisao = document.getElementById('tipo-revisao').value;
+    const tipoRevisaoSelect = document.getElementById('tipo-revisao');
+    const observacoes = document.getElementById('observacoes-revisao').value;
     
     if (!textoOriginal.trim()) {
         showErrorMessage('Por favor, insira o texto a ser revisado.');
         return;
     }
     
-    const textoRevisado = revisarTextoConformeTipo(textoOriginal, tipoRevisao);
+    // Obter tipos de revisão selecionados
+    const tipoRevisao = Array.from(tipoRevisaoSelect.selectedOptions).map(option => option.value);
     
-    document.getElementById('texto-revisado').innerHTML = textoRevisado;
-    document.getElementById('revisao-resultado').style.display = 'block';
-    
-    showSuccessMessage('Texto revisado com sucesso!');
-}
-
-function revisarTextoConformeTipo(texto, tipo) {
-    let textoRevisado = texto;
-    
-    switch (tipo) {
-        case 'padronizacao':
-            textoRevisado = padronizarTexto(texto);
-            break;
-        case 'clareza':
-            textoRevisado = melhorarClareza(texto);
-            break;
-        case 'compliance':
-            textoRevisado = ajustarCompliance(texto);
-            break;
-        case 'estrutura':
-            textoRevisado = melhorarEstrutura(texto);
-            break;
+    if (tipoRevisao.length === 0) {
+        showErrorMessage('Por favor, selecione pelo menos um tipo de revisão.');
+        return;
     }
     
-    return `<p><strong>Texto Original:</strong></p><p>${texto}</p><hr><p><strong>Texto Revisado:</strong></p><p>${textoRevisado}</p>`;
+    // Mostrar loading
+    showLoadingMessage('Revisando texto com IA...');
+    
+    try {
+        // Chamar endpoint do servidor
+        const response = await fetch('/api/revisar-texto', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                textoOriginal: textoOriginal,
+                tipoRevisao: tipoRevisao,
+                observacoes: observacoes
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Processar a resposta que vem com dois blocos
+            const resultado = data.result;
+            
+            // Separar os dois blocos da resposta
+            const blocos = separarBlocosRevisao(resultado);
+            
+            // Formatar e exibir a linha de raciocínio
+            const linhaRaciocinio = formatarLinhaRaciocinioRevisao(blocos.linhaRaciocinio);
+            
+            // Formatar e exibir o texto revisado
+            const textoRevisado = formatarTextoRevisado(blocos.textoRevisado);
+            
+            document.getElementById('linha-raciocinio-revisao').innerHTML = linhaRaciocinio;
+            document.getElementById('texto-revisado').innerHTML = textoRevisado;
+            document.getElementById('revisao-resultado').style.display = 'block';
+            
+            showSuccessMessage('Texto revisado com sucesso!');
+        } else {
+            showErrorMessage('Erro na revisão: ' + data.error);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao revisar texto:', error);
+        showErrorMessage('Erro ao revisar texto. Tente novamente.');
+    }
 }
 
-function padronizarTexto(texto) {
-    // Padronizações básicas
-    let padronizado = texto
-        .replace(/e-CAC/g, 'Portal da Receita Federal')
-        .replace(/eCAC/g, 'Portal da Receita Federal')
-        .replace(/RA/g, 'Reclame Aqui')
-        .replace(/LGPD/g, 'Lei Geral de Proteção de Dados (LGPD)');
+// Função para separar os blocos da resposta de revisão
+function separarBlocosRevisao(resposta) {
+    if (!resposta) return { linhaRaciocinio: '', textoRevisado: '' };
     
-    // Padroniza parágrafos
-    padronizado = padronizado.replace(/\n\n+/g, '\n\n');
+    // Procurar por marcadores que indicam os blocos
+    const marcadores = [
+        '(1) LINHA DE RACIOCÍNIO INTERNA',
+        '(2) TEXTO REVISADO',
+        'LINHA DE RACIOCÍNIO INTERNA',
+        'TEXTO REVISADO',
+        '1. LINHA DE RACIOCÍNIO INTERNA',
+        '2. TEXTO REVISADO'
+    ];
     
-    return padronizado;
+    let linhaRaciocinio = '';
+    let textoRevisado = '';
+    
+    // Tentar separar por marcadores
+    for (let i = 0; i < marcadores.length; i += 2) {
+        const marcador1 = marcadores[i];
+        const marcador2 = marcadores[i + 1];
+        
+        const index1 = resposta.indexOf(marcador1);
+        const index2 = resposta.indexOf(marcador2);
+        
+        if (index1 !== -1 && index2 !== -1) {
+            linhaRaciocinio = resposta.substring(index1 + marcador1.length, index2).trim();
+            textoRevisado = resposta.substring(index2 + marcador2.length).trim();
+            break;
+        }
+    }
+    
+    // Se não encontrou os marcadores, tentar separar por quebras de linha
+    if (!linhaRaciocinio && !textoRevisado) {
+        const linhas = resposta.split('\n');
+        let encontrouPrimeiro = false;
+        
+        for (let i = 0; i < linhas.length; i++) {
+            const linha = linhas[i].trim();
+            if (linha.includes('LINHA DE RACIOCÍNIO') || linha.includes('raciocínio')) {
+                encontrouPrimeiro = true;
+                continue;
+            }
+            if (linha.includes('TEXTO REVISADO') || linha.includes('revisado')) {
+                encontrouPrimeiro = false;
+                continue;
+            }
+            
+            if (encontrouPrimeiro) {
+                linhaRaciocinio += linha + '\n';
+            } else {
+                textoRevisado += linha + '\n';
+            }
+        }
+    }
+    
+    return {
+        linhaRaciocinio: linhaRaciocinio.trim(),
+        textoRevisado: textoRevisado.trim()
+    };
 }
 
-function melhorarClareza(texto) {
-    // Melhoria de clareza
-    let melhorado = texto
-        .replace(/não/g, 'não')
-        .replace(/você/g, 'você')
-        .replace(/estamos/g, 'estamos');
+// Função para formatar a linha de raciocínio da revisão
+function formatarLinhaRaciocinioRevisao(linhaRaciocinio) {
+    if (!linhaRaciocinio) return '';
     
-    // Quebra em parágrafos menores
-    melhorado = melhorado.replace(/\. /g, '.\n\n');
+    let linha = '<div class="linha-raciocinio revisao">';
+    linha += '<h6 class="text-info mb-3"><i class="fas fa-brain me-2"></i>Linha de Raciocínio da Revisão:</h6>';
     
-    return melhorado;
+    // Formatar o conteúdo da linha de raciocínio
+    let conteudoFormatado = linhaRaciocinio
+        .replace(/\n\n/g, '</p><p>')  // Dupla quebra de linha = novo parágrafo
+        .replace(/\n/g, '<br>')       // Quebra simples = <br>
+        .replace(/^/, '<p>')          // Iniciar com <p>
+        .replace(/$/, '</p>');        // Terminar com </p>
+    
+    // Destacar elementos importantes
+    conteudoFormatado = conteudoFormatado
+        .replace(/Padronização/gi, '<strong class="text-primary">Padronização</strong>')
+        .replace(/Clareza/gi, '<strong class="text-success">Clareza</strong>')
+        .replace(/Compliance/gi, '<strong class="text-warning">Compliance</strong>')
+        .replace(/Estrutura/gi, '<strong class="text-info">Estrutura</strong>')
+        .replace(/LGPD/gi, '<strong class="text-danger">LGPD</strong>')
+        .replace(/CCB/gi, '<strong class="text-secondary">CCB</strong>');
+    
+    linha += '<div class="alert alert-light border-start border-info border-4">';
+    linha += conteudoFormatado;
+    linha += '</div>';
+    linha += '</div>';
+    
+    return linha;
 }
 
-function ajustarCompliance(texto) {
-    // Ajustes de compliance
-    let compliance = texto
-        .replace(/e-CAC/g, 'Portal da Receita Federal')
-        .replace(/eCAC/g, 'Portal da Receita Federal')
-        .replace(/RA/g, 'Reclame Aqui')
-        .replace(/LGPD/g, 'Lei Geral de Proteção de Dados (LGPD)');
+// Função para formatar o texto revisado
+function formatarTextoRevisado(texto) {
+    if (!texto) return '';
     
-    return compliance;
+    // Quebrar o texto em parágrafos baseado em quebras de linha
+    let textoFormatado = texto
+        .replace(/\n\n/g, '</p><p>')  // Dupla quebra de linha = novo parágrafo
+        .replace(/\n/g, '<br>')       // Quebra simples = <br>
+        .replace(/^/, '<p>')          // Iniciar com <p>
+        .replace(/$/, '</p>');        // Terminar com </p>
+    
+    // Destacar frases importantes
+    textoFormatado = textoFormatado
+        .replace(/Prezado\(a\)/g, '<strong>Prezado(a)</strong>')
+        .replace(/Atenciosamente/g, '<strong>Atenciosamente</strong>')
+        .replace(/Equipe Velotax/g, '<strong>Equipe Velotax</strong>');
+    
+    return textoFormatado;
 }
 
-function melhorarEstrutura(texto) {
-    // Melhoria de estrutura
-    let estruturado = texto;
-    
-    // Adiciona quebras de linha para melhor legibilidade
-    estruturado = estruturado.replace(/\. /g, '.\n\n');
-    
-    return estruturado;
-}
 
 // ===== FUNÇÕES DE E-MAIL =====
 
