@@ -1,34 +1,43 @@
 {
   "modelos": [
     {
-      "id": 1758198613128,
-      "timestamp": "18/09/2025 09:30:13",
+      "id": 1758199918450,
+      "timestamp": "18/09/2025 09:51:58",
       "motivoModeracao": "nao-violou-direito",
       "dadosModeracao": {
-        "solicitacaoCliente": "Teste",
-        "respostaEmpresa": "Teste",
+        "solicitacaoCliente": "Teste real",
+        "respostaEmpresa": "Teste real",
         "motivoModeracao": "nao-violou-direito",
-        "consideracaoFinal": "Teste"
+        "consideracaoFinal": "Teste real"
       },
-      "linhaRaciocinio": "Teste linha",
-      "textoModeracao": "Teste texto",
+      "linhaRaciocinio": "Teste linha real",
+      "textoModeracao": "Teste texto real",
       "contexto": {
         "motivoModeracao": "nao-violou-direito",
-        "solicitacaoCliente": "Teste",
-        "respostaEmpresa": "Teste",
-        "consideracaoFinal": "Teste"
+        "solicitacaoCliente": "Teste real",
+        "respostaEmpresa": "Teste real",
+        "consideracaoFinal": "Teste real"
+      }
+    },
+    {
+      "id": 1758199937374,
+      "timestamp": "18/09/2025 09:52:17",
+      "motivoModeracao": "nao-violou-direito",
+      "dadosModeracao": {
+        "solicitacaoCliente": "Teste ap�s restart",
+        "respostaEmpresa": "Teste ap�s restart",
+        "motivoModeracao": "nao-violou-direito",
+        "consideracaoFinal": "Teste ap�s restart"
+      },
+      "linhaRaciocinio": "Teste linha ap�s restart",
+      "textoModeracao": "Teste texto ap�s restart",
+      "contexto": {
+        "motivoModeracao": "nao-violou-direito",
+        "solicitacaoCliente": "Teste ap�s restart",
+        "respostaEmpresa": "Teste ap�s restart",
+        "consideracaoFinal": "Teste ap�s restart"
       }
     }
   ],
-  "lastUpdated": "18/09/2025 09:30:13",
-  "descricao": "Modelos de moderações aprovadas como coerentes - utilizados para aprendizado automático",
-  "estrutura": {
-    "id": "Timestamp único",
-    "timestamp": "Data/hora no formato brasileiro (DD/MM/AAAA HH:MM:SS)",
-    "motivoModeracao": "Motivo da moderação (ex: nao-violou-direito, reclamacao-outra-empresa)",
-    "dadosModeracao": "Dados originais da moderação",
-    "linhaRaciocinio": "Linha de raciocínio interna gerada",
-    "textoModeracao": "Texto final de moderação aprovado",
-    "contexto": "Contexto adicional para referência"
-  }
+  "lastUpdated": "18/09/2025 09:52:17"
 }
