@@ -552,10 +552,39 @@ function loadModelosModeracoes() {
     try {
         if (fs.existsSync(MODELOS_MODERACOES_FILE)) {
             const data = fs.readFileSync(MODELOS_MODERACOES_FILE, 'utf8');
+            
+            // Verificar se o arquivo não está vazio
+            if (!data.trim()) {
+                console.log('Arquivo modelos_moderacoes.json está vazio, criando estrutura padrão');
+                const estruturaPadrao = {
+                    modelos: [],
+                    lastUpdated: obterTimestampBrasil(),
+                    descricao: "Modelos de moderações aprovadas como coerentes - utilizados para aprendizado automático"
+                };
+                saveModelosModeracoes(estruturaPadrao);
+                return estruturaPadrao;
+            }
+            
             return JSON.parse(data);
         }
     } catch (error) {
         console.error('Erro ao carregar modelos de moderações:', error);
+        console.log('Recriando arquivo modelos_moderacoes.json com estrutura padrão');
+        
+        // Recriar arquivo com estrutura padrão
+        const estruturaPadrao = {
+            modelos: [],
+            lastUpdated: obterTimestampBrasil(),
+            descricao: "Modelos de moderações aprovadas como coerentes - utilizados para aprendizado automático"
+        };
+        
+        try {
+            saveModelosModeracoes(estruturaPadrao);
+        } catch (saveError) {
+            console.error('Erro ao recriar arquivo modelos_moderacoes.json:', saveError);
+        }
+        
+        return estruturaPadrao;
     }
     return {
         modelos: [],
@@ -566,10 +595,44 @@ function loadModelosModeracoes() {
 // Salvar modelos de moderações
 function saveModelosModeracoes(modelos) {
     try {
-        fs.writeFileSync(MODELOS_MODERACOES_FILE, JSON.stringify(modelos, null, 2), 'utf8');
+        // Garantir que o diretório existe
+        const dir = path.dirname(MODELOS_MODERACOES_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Validar estrutura antes de salvar
+        if (!modelos || typeof modelos !== 'object') {
+            throw new Error('Estrutura de modelos inválida');
+        }
+        
+        if (!Array.isArray(modelos.modelos)) {
+            modelos.modelos = [];
+        }
+        
+        // Atualizar timestamp
+        modelos.lastUpdated = obterTimestampBrasil();
+        
+        // Escrever arquivo temporário primeiro
+        const tempFile = MODELOS_MODERACOES_FILE + '.tmp';
+        fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
+        
+        // Mover arquivo temporário para o arquivo final (operação atômica)
+        fs.renameSync(tempFile, MODELOS_MODERACOES_FILE);
+        
         console.log('📝 Modelos de moderações salvos:', modelos.modelos.length);
     } catch (error) {
         console.error('Erro ao salvar modelos de moderações:', error);
+        
+        // Tentar remover arquivo temporário se existir
+        try {
+            const tempFile = MODELOS_MODERACOES_FILE + '.tmp';
+            if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+            }
+        } catch (cleanupError) {
+            console.error('Erro ao limpar arquivo temporário:', cleanupError);
+        }
     }
 }
 
