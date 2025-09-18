@@ -117,6 +117,20 @@ document.addEventListener('DOMContentLoaded', function() {
 // Inicialização do bot
 function initializeBot() {
     console.log('Bot Interno Velotax - Assistente Especializado inicializado');
+    console.log('🔧 Testando funções básicas...');
+    
+    // Teste básico
+    try {
+        console.log('✅ JavaScript funcionando');
+        console.log('✅ Funções carregadas:', {
+            gerarRespostaOpenAI: typeof gerarRespostaOpenAI,
+            avaliarResposta: typeof avaliarResposta,
+            avaliarModeracao: typeof avaliarModeracao
+        });
+    } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+    }
+    
     showSuccessMessage('Bot conectado e pronto para uso!');
 }
 
@@ -146,24 +160,47 @@ function switchTool(toolName) {
 // ===== FUNÇÕES DO RECLAME AQUI COM IA OPENAI =====
 
 async function gerarRespostaOpenAI() {
-    console.log('Função gerarRespostaOpenAI chamada');
+    console.log('🚀 Função gerarRespostaOpenAI chamada');
+    console.log('🔍 Verificando elementos do DOM...');
     
-    const tipoSituacao = document.getElementById('tipo-situacao').value;
-    const motivoSolicitacao = document.getElementById('motivo-solicitacao').value;
-    const reclamacao = document.getElementById('reclamacao-text').value;
-    const solucao = document.getElementById('solucao-implementada').value;
-    const historico = document.getElementById('historico-atendimento').value;
-    const observacoes = document.getElementById('observacoes-internas').value;
+    const tipoSituacao = document.getElementById('tipo-situacao');
+    const motivoSolicitacao = document.getElementById('motivo-solicitacao');
+    const reclamacao = document.getElementById('reclamacao-text');
+    const solucao = document.getElementById('solucao-implementada');
+    const historico = document.getElementById('historico-atendimento');
+    const observacoes = document.getElementById('observacoes-internas');
+    
+    console.log('🔍 Elementos encontrados:', {
+        tipoSituacao: tipoSituacao ? 'OK' : 'NÃO ENCONTRADO',
+        motivoSolicitacao: motivoSolicitacao ? 'OK' : 'NÃO ENCONTRADO',
+        reclamacao: reclamacao ? 'OK' : 'NÃO ENCONTRADO',
+        solucao: solucao ? 'OK' : 'NÃO ENCONTRADO',
+        historico: historico ? 'OK' : 'NÃO ENCONTRADO',
+        observacoes: observacoes ? 'OK' : 'NÃO ENCONTRADO'
+    });
+    
+    if (!tipoSituacao || !motivoSolicitacao || !reclamacao || !solucao) {
+        console.error('❌ Elementos obrigatórios não encontrados!');
+        showErrorMessage('Erro: Elementos do formulário não encontrados. Verifique se a página carregou corretamente.');
+        return;
+    }
+    
+    const tipoSituacaoValue = tipoSituacao.value;
+    const motivoSolicitacaoValue = motivoSolicitacao.value;
+    const reclamacaoValue = reclamacao.value;
+    const solucaoValue = solucao.value;
+    const historicoValue = historico.value;
+    const observacoesValue = observacoes.value;
     
     console.log('Dados coletados:', {
-        tipoSituacao,
-        motivoSolicitacao,
-        reclamacao: reclamacao.substring(0, 50) + '...',
-        solucao: solucao.substring(0, 50) + '...'
+        tipoSituacao: tipoSituacaoValue,
+        motivoSolicitacao: motivoSolicitacaoValue,
+        reclamacao: reclamacaoValue.substring(0, 50) + '...',
+        solucao: solucaoValue.substring(0, 50) + '...'
     });
     
     // Validação dos campos obrigatórios
-    if (!tipoSituacao || !motivoSolicitacao || !reclamacao.trim() || !solucao.trim()) {
+    if (!tipoSituacaoValue || !motivoSolicitacaoValue || !reclamacaoValue.trim() || !solucaoValue.trim()) {
         console.log('Validação falhou - campos obrigatórios não preenchidos');
         showErrorMessage('Por favor, preencha todos os campos obrigatórios (*).');
         return;
@@ -179,12 +216,12 @@ async function gerarRespostaOpenAI() {
         
         // Preparar dados para envio ao servidor
         const dadosResposta = {
-            tipo_solicitacao: tipoSituacao,
-            motivo_solicitacao: motivoSolicitacao,
-            texto_cliente: reclamacao,
-            solucao_implementada: solucao,
-            historico_atendimento: historico,
-            observacoes_internas: observacoes,
+            tipo_solicitacao: tipoSituacaoValue,
+            motivo_solicitacao: motivoSolicitacaoValue,
+            texto_cliente: reclamacaoValue,
+            solucao_implementada: solucaoValue,
+            historico_atendimento: historicoValue,
+            observacoes_internas: observacoesValue,
             timestamp: new Date().toISOString()
         };
         
@@ -2238,7 +2275,7 @@ function gerarAnaliseFeedbackModeracao(solicitacaoCliente, respostaEmpresa, moti
 }
 
 // Função para avaliar moderação
-function avaliarModeracao(tipoAvaliacao) {
+async function avaliarModeracao(tipoAvaliacao) {
     console.log('🎯 Função avaliarModeracao chamada com tipo:', tipoAvaliacao);
     
     const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
