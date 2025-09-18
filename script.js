@@ -2154,6 +2154,7 @@ function avaliarModeracao(tipoAvaliacao) {
 
 // Função para salvar moderação como modelo
 async function salvarModeracaoComoModelo() {
+    console.log('🚀 FUNÇÃO salvarModeracaoComoModelo INICIADA!');
     try {
         console.log('🎯 Iniciando salvamento de moderação como modelo...');
         
