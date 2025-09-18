@@ -1409,15 +1409,28 @@ function gerarMensagemExplicativa(tema, contexto) {
         `,
         'exclusao': `
             <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Para solicitar a exclusão de seu cadastro, siga os passos abaixo:</p>
+            <p>Se você deseja excluir sua conta na Velotax, preparamos um passo a passo simples. Você pode fazer isso de duas formas:</p>
+            
+            <p><strong>🔹 1. Pelo aplicativo</strong></p>
             <ol>
-                <li>Envie um e-mail para nossa equipe solicitando a exclusão</li>
-                <li>Informe seu CPF e dados de identificação</li>
-                <li>Especifique o motivo da exclusão</li>
-                <li>Aguarde nossa confirmação por e-mail</li>
+                <li>Abra o app da Velotax no seu celular.</li>
+                <li>Toque no ícone de Impostos</li>
+                <li>Selecione a opção "DARFs para investidores".</li>
+                <li>No canto superior direito, toque no ícone de menu (☰).</li>
+                <li>Role a tela lateral esquerda até encontrar a opção "Conta".</li>
+                <li>Role até o final e toque em "Excluir conta".</li>
             </ol>
-            <p>A exclusão será realizada em até 15 dias úteis, conforme previsto na LGPD.</p>
-            <p>Nossa equipe está disponível para orientações adicionais.</p>
+            
+            <p><strong>🔹 2. Pelo site</strong></p>
+            <ol>
+                <li>Acesse: www.velotax.com.br</li>
+                <li>Faça login com seu CPF e senha.</li>
+                <li>No menu inferior, do lado esquerdo, clique em "Conta".</li>
+                <li>Role a página até o final e clique em "Excluir conta".</li>
+            </ol>
+            
+            <p><strong>⚠️ Importante</strong></p>
+            <p>A exclusão será feita conforme a Lei Geral de Proteção de Dados (LGPD), garantindo segurança e privacidade. Todas as informações registradas (declarações, relatórios e documentos fiscais) serão apagadas definitivamente. Lembrando que a exclusão de seus dados não cancela planos ativos em cobrança.</p>
         `,
         'lgpd': `
             <p><strong>Prezado(a) cliente,</strong></p>
@@ -1447,14 +1460,77 @@ function gerarMensagemExplicativa(tema, contexto) {
         `,
         'ccb': `
             <p><strong>Prezado(a) cliente,</strong></p>
-            <p>A Cédula de Crédito Bancário (CCB) é um título de crédito que representa uma promessa de pagamento. Vamos esclarecer:</p>
-            <ol>
-                <li><strong>O que é:</strong> É um título de crédito emitido por instituições financeiras</li>
-                <li><strong>Como funciona:</strong> Representa uma promessa de pagamento de valor determinado</li>
-                <li><strong>Características:</strong> Pode ser negociada no mercado financeiro</li>
-                <li><strong>Riscos:</strong> Está sujeita aos riscos do mercado</li>
-            </ol>
-            <p>Nossa equipe está disponível para orientações adicionais.</p>
+            <p>A Cédula de Crédito Bancário (CCB) é um título de crédito que representa uma promessa de pagamento. Vamos esclarecer todas as cláusulas contratuais:</p>
+            
+            <p><strong>📋 CLÁUSULAS DA CCB:</strong></p>
+            
+            <p><strong>Cláusula 1 - Partes e Definições:</strong><br>
+            Identifica quem empresta (credor/instituição), quem toma o crédito (devedor/cliente) e define termos usados no contrato como "Chave Pix", "Conta de Pagamento" e "Antecipação".</p>
+            
+            <p><strong>Cláusula 2 - Objeto do Contrato:</strong><br>
+            Explica qual operação está sendo contratada — antecipação de restituição, empréstimo com garantia de restituição, ou outra modalidade.</p>
+            
+            <p><strong>Cláusula 3 - Valor, Liberação e Conta de Crédito:</strong><br>
+            Estabelece o montante, data de liberação e conta para depósito do valor contratado.</p>
+            
+            <p><strong>Cláusula 4 - Vencimento e Forma de Pagamento:</strong><br>
+            Define quando e como a dívida será paga — parcelamento, vencimento único ou amortizações. A dívida será quitada automaticamente com o crédito da restituição do Imposto de Renda.</p>
+            
+            <p><strong>Cláusula 5 - Juros, Encargos e Forma de Cálculo:</strong><br>
+            Especifica os juros remuneratórios, juros de mora, encargos, periodicidade de capitalização e método de cálculo.</p>
+            
+            <p><strong>Cláusula 6 - Atualização Monetária:</strong><br>
+            Trata de reajuste por índice (IPCA, INPC, TR) ou cláusula de correção do saldo devedor.</p>
+            
+            <p><strong>Cláusula 7 - Vínculo da Chave Pix e Quitação Automática:</strong><br>
+            ⚠️ <strong>CRÍTICA:</strong> Determina que a restituição depositada na Conta de Pagamento vinculada à Chave Pix será utilizada prioritariamente para quitação da operação. A alteração ou exclusão da Chave Pix sem notificação prévia pode caracterizar descumprimento contratual.</p>
+            
+            <p><strong>Cláusula 8 - Liquidação Antecipada:</strong><br>
+            O cliente pode liquidar antecipadamente, total ou parcialmente, o saldo devedor a qualquer tempo, beneficiando-se de desconto sobre os juros e encargos futuros.</p>
+            
+            <p><strong>Cláusula 9 - Garantias e Cessão de Direitos:</strong><br>
+            Pode prever garantias (alienação fiduciária, cessão de crédito) e regras para cessão/cessão de crédito pelo credor.</p>
+            
+            <p><strong>Cláusula 10 - Inadimplência e Vencimento Antecipado:</strong><br>
+            ⚠️ <strong>CRÍTICA:</strong> Lista eventos de inadimplência (não pagamento, informações falsas, uso indevido da Conta de Pagamento) e prevê que o credor pode tornar o saldo exigível imediatamente.</p>
+            
+            <p><strong>Cláusula 11 - Multas, Encargos de Cobrança e Custas:</strong><br>
+            Descreve multas por atraso, encargos de cobrança, honorários advocatícios e custos de execução em caso de inadimplência.</p>
+            
+            <p><strong>Cláusula 12 - Compensação / Set-off:</strong><br>
+            Permite ao credor compensar créditos/débitos entre contas do cliente e dívidas pendentes.</p>
+            
+            <p><strong>Cláusula 13 - Notificações e Comunicações:</strong><br>
+            Define como se dão avisos entre as partes, prazo para responder e efeitos da notificação.</p>
+            
+            <p><strong>Cláusula 14 - Proteção de Dados (LGPD):</strong><br>
+            Trata do tratamento de dados pessoais do cliente para execução contratual e cumprimento legal conforme a Lei Geral de Proteção de Dados.</p>
+            
+            <p><strong>Cláusula 15 - Direito de Arrependimento / Desistência:</strong><br>
+            Quando aplicável, prevê prazo de arrependimento (7 dias corridos) e procedimentos de devolução.</p>
+            
+            <p><strong>Cláusula 16 - Impostos, Tributos e Despesas:</strong><br>
+            Define quem arca com impostos e despesas decorrentes da operação.</p>
+            
+            <p><strong>Cláusula 17 - Cessão, Sub-rogação e Transferência:</strong><br>
+            Regula quando o credor pode ceder os direitos e obrigações a terceiros.</p>
+            
+            <p><strong>Cláusula 18 - Foro e Legislação Aplicável:</strong><br>
+            Estabelece a lei que rege o contrato e o foro para resolver conflitos.</p>
+            
+            <p><strong>Cláusula 19 - Alterações Contratuais e Integralidade:</strong><br>
+            Define que alterações só valem por escrito e que o contrato integra o entendimento entre as partes.</p>
+            
+            <p><strong>Cláusula 20 - Força Maior e Caso Fortuito:</strong><br>
+            Prevê que eventos extraordinários podem suspender obrigações sem penalidade.</p>
+            
+            <p><strong>Cláusula 21 - Interpretação e Cláusula Separável:</strong><br>
+            Se uma cláusula for considerada nula, o restante permanece válido.</p>
+            
+            <p><strong>⚠️ IMPORTANTE:</strong><br>
+            É fundamental que você leia atentamente todas as cláusulas do contrato antes de assinar, compreendendo os termos, condições, taxas de juros, prazos e consequências do não cumprimento das obrigações assumidas.</p>
+            
+            <p>Nossa equipe está disponível para orientações adicionais sobre qualquer cláusula específica da CCB.</p>
         `,
         'credito-trabalhador': `
             <p><strong>📌 Empréstimo do Trabalhador – Resumo</strong></p>
@@ -1513,15 +1589,18 @@ function gerarMensagemExplicativa(tema, contexto) {
         `,
         'portabilidade': `
             <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Vamos esclarecer sobre a Portabilidade de Crédito:</p>
+            <p><strong>Como realizar a portabilidade da sua chave Pix (CPF)</strong></p>
+            
             <ol>
-                <li><strong>O que é:</strong> É a possibilidade de transferir seu empréstimo de uma instituição para outra</li>
-                <li><strong>Vantagens:</strong> Pode obter melhores condições de pagamento, taxas menores ou prazos mais adequados</li>
-                <li><strong>Como funciona:</strong> A nova instituição paga o saldo devedor na instituição atual</li>
-                <li><strong>Documentação:</strong> É necessário apresentar documentos pessoais e comprovantes de renda</li>
-                <li><strong>Análise:</strong> A nova instituição fará uma análise de crédito</li>
+                <li>Acesse a instituição onde deseja cadastrar seu CPF como chave Pix e tente cadastrá-lo.</li>
+                <li>O banco enviará automaticamente uma solicitação de portabilidade para a Celcoin.</li>
+                <li>Após isso, abra o app Velotax e entre em "VeloBank" (ícone com o símbolo de cifrão).</li>
+                <li>Vá para Área Pix → Minhas Chaves.</li>
+                <li>Ao lado do seu CPF, clique nos 3 pontinhos e selecione "Pendência de chave".</li>
+                <li>Autorize a portabilidade e pronto! Sua chave será transferida para a nova instituição.</li>
             </ol>
-            <p>Nossa equipe está disponível para orientações sobre portabilidade de crédito.</p>
+            
+            <p>Nossa equipe está disponível para orientações adicionais sobre o processo de portabilidade.</p>
         `,
         'credito-pessoal': `
             <p><strong>Prezado(a) cliente,</strong></p>
