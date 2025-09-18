@@ -462,6 +462,12 @@ function saveFeedbacksExplicacoes(feedbacks) {
 
 // Carregar estatísticas globais
 function loadEstatisticasGlobais() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && estatisticasGlobaisMemoria) {
+        console.log('🌐 Vercel detectado - carregando estatísticas da memória');
+        return estatisticasGlobaisMemoria;
+    }
+    
     try {
         if (fs.existsSync(ESTATISTICAS_GLOBAIS_FILE)) {
             const data = fs.readFileSync(ESTATISTICAS_GLOBAIS_FILE, 'utf8');
@@ -530,11 +536,6 @@ function loadEstatisticasGlobais() {
 // Salvar estatísticas globais
 function saveEstatisticasGlobais(estatisticas) {
     try {
-        const dir = path.dirname(ESTATISTICAS_GLOBAIS_FILE);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        
         if (!estatisticas || typeof estatisticas !== 'object') {
             throw new Error('Estrutura de estatísticas inválida');
         }
@@ -556,13 +557,33 @@ function saveEstatisticasGlobais(estatisticas) {
         
         estatisticas.lastUpdated = obterTimestampBrasil();
         
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando estatísticas em memória');
+            estatisticasGlobaisMemoria = estatisticas;
+            console.log('✅ Estatísticas globais salvas em memória');
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
+        const dir = path.dirname(ESTATISTICAS_GLOBAIS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
         const tempFile = ESTATISTICAS_GLOBAIS_FILE + '.tmp';
         fs.writeFileSync(tempFile, JSON.stringify(estatisticas, null, 2), 'utf8');
         fs.renameSync(tempFile, ESTATISTICAS_GLOBAIS_FILE);
         
-        console.log('✅ Estatísticas globais salvas com sucesso');
+        console.log('✅ Estatísticas globais salvas no arquivo');
     } catch (error) {
         console.error('❌ Erro ao salvar estatísticas globais:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            estatisticasGlobaisMemoria = estatisticas;
+        }
         
         try {
             const tempFile = ESTATISTICAS_GLOBAIS_FILE + '.tmp';
@@ -623,6 +644,12 @@ function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
 
 // Carregar modelos de respostas
 function loadModelosRespostas() {
+    // Verificar se estamos no Vercel e temos dados em memória
+    if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && modelosRespostasMemoria) {
+        console.log('🌐 Vercel detectado - carregando da memória');
+        return modelosRespostasMemoria;
+    }
+    
     try {
         if (fs.existsSync(MODELOS_RESPOSTAS_FILE)) {
             const data = fs.readFileSync(MODELOS_RESPOSTAS_FILE, 'utf8');
@@ -666,15 +693,13 @@ function loadModelosRespostas() {
     };
 }
 
+// Armazenamento em memória para Vercel
+let modelosRespostasMemoria = null;
+let estatisticasGlobaisMemoria = null;
+
 // Salvar modelos de respostas
 function saveModelosRespostas(modelos) {
     try {
-        // Garantir que o diretório existe
-        const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        
         // Validar estrutura antes de salvar
         if (!modelos || typeof modelos !== 'object') {
             throw new Error('Estrutura de modelos inválida');
@@ -687,6 +712,20 @@ function saveModelosRespostas(modelos) {
         // Atualizar timestamp
         modelos.lastUpdated = obterTimestampBrasil();
         
+        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            console.log('🌐 Vercel detectado - salvando em memória');
+            modelosRespostasMemoria = modelos;
+            console.log('✅ Modelos de respostas salvos em memória:', modelos.modelos.length);
+            return;
+        }
+        
+        // Desenvolvimento local - usar sistema de arquivos
+        const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
         // Escrever arquivo temporário primeiro
         const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
         fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
@@ -694,9 +733,15 @@ function saveModelosRespostas(modelos) {
         // Mover arquivo temporário para o arquivo final (operação atômica)
         fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
         
-        console.log('✅ Modelos de respostas salvos com sucesso:', modelos.modelos.length);
+        console.log('✅ Modelos de respostas salvos no arquivo:', modelos.modelos.length);
     } catch (error) {
         console.error('❌ Erro ao salvar modelos de respostas:', error);
+        
+        // Fallback para memória se arquivo falhar
+        if (!process.env.VERCEL) {
+            console.log('🔄 Fallback para memória devido ao erro de arquivo');
+            modelosRespostasMemoria = modelos;
+        }
         
         // Tentar remover arquivo temporário se existir
         try {
