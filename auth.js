@@ -52,7 +52,7 @@ async function carregarConfiguracoes() {
 function showOverlay() {
     console.log('🔐 Mostrando overlay de login');
     if (identificacaoOverlay) {
-    identificacaoOverlay.classList.remove('hidden');
+        identificacaoOverlay.classList.remove('hidden');
         identificacaoOverlay.style.display = 'flex';
         identificacaoOverlay.style.opacity = '1';
         identificacaoOverlay.style.visibility = 'visible';
@@ -77,19 +77,19 @@ function hideOverlay() {
     console.log('✅ Ocultando overlay de login');
     if (identificacaoOverlay) {
         identificacaoOverlay.classList.add('hidden');
-        identificacaoOverlay.style.display = 'none !important';
-        identificacaoOverlay.style.opacity = '0 !important';
-        identificacaoOverlay.style.visibility = 'hidden !important';
-        identificacaoOverlay.style.zIndex = '-1 !important';
+        identificacaoOverlay.style.display = 'none';
+        identificacaoOverlay.style.opacity = '0';
+        identificacaoOverlay.style.visibility = 'hidden';
+        identificacaoOverlay.style.zIndex = '-1';
         console.log('✅ Overlay de login ocultado');
     }
     
     if (appWrapper) {
         appWrapper.classList.add('authenticated');
-        appWrapper.style.display = 'block !important';
-        appWrapper.style.opacity = '1 !important';
-        appWrapper.style.visibility = 'visible !important';
-        appWrapper.style.zIndex = '1 !important';
+        appWrapper.style.display = 'block';
+        appWrapper.style.opacity = '1';
+        appWrapper.style.visibility = 'visible';
+        appWrapper.style.zIndex = '1';
         console.log('✅ Interface principal exibida');
     }
 }
@@ -145,19 +145,13 @@ async function handleGoogleSignIn(response) {
         console.log('🔐 Processando login do Google...');
             console.log('📋 Response recebido:', response);
             
-            // Verificar se é um erro 400
+            // Verificar se há erro na resposta
             if (response && response.error) {
                 console.error('❌ Erro do Google OAuth:', response.error);
                 console.error('❌ Detalhes do erro:', response);
-                
-                if (response.error === 'invalid_request' || 
-                    response.error === 'unauthorized_client' ||
-                    response.error === 'access_denied' ||
-                    response.error_description) {
-                    console.log('🔧 Erro 400 detectado - CLIENT_ID não configurado para localhost');
-                    showGoogleConfigError();
-                    return;
-                }
+                errorMsg.textContent = 'Erro na autenticação. Tente novamente.';
+                errorMsg.classList.remove('hidden');
+                return;
             }
             
             if (!response || !response.access_token) {
@@ -253,44 +247,19 @@ function verificarIdentificacao() {
             foto: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiMxNjM0RkYiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSI4IiB5PSI4Ij4KPHBhdGggZD0iTTggMEMzLjU4IDAgMCAzLjU4IDAgOFMzLjU4IDE2IDggMTZTMTYgMTIuNDIgMTYgOFMxMi40MiAwIDggMFoiIGZpbGw9IiMxREZEQjkiLz4KPHBhdGggZD0iTTggNEM5LjEgNCAxMCA0LjkgMTAgNlM5LjEgOCA4IDggNiA3LjEgNiA2IDYuOSA0IDggNFoiIGZpbGw9IiMxNjM0RkYiLz4KPHBhdGggZD0iTTggMTBDOS4xIDEwIDEwIDEwLjkgMTAgMTJTOS4xIDE0IDggMTQgNiAxMy4xIDYgMTIgNi45IDEwIDggMTBaIiBmaWxsPSIjMTZDNERGIi8+Cjwvc3ZnPgo8L3N2Zz4K',
             funcao: 'Usuário Vercel'
         };
+        hideOverlay();
         iniciarAplicacao();
         return;
     }
     
-    const umDiaEmMs = 24 * 60 * 60 * 1000; // 24 horas
-    let dadosSalvos = null;
-    
-    // SEMPRE mostrar overlay primeiro (apenas para localhost)
+    // SEMPRE mostrar overlay primeiro (forçar autenticação)
+    console.log('🔐 Forçando exibição do overlay de login');
     showOverlay();
     
-    try {
-        const dadosSalvosString = localStorage.getItem('dadosUsuario');
-        if (dadosSalvosString) {
-            dadosSalvos = JSON.parse(dadosSalvosString);
-        }
-    } catch (e) {
-        console.log('⚠️ Dados corrompidos no localStorage, removendo...');
-        localStorage.removeItem('dadosUsuario');
-    }
-
-    // Verificar se há dados válidos e não expirados
-    if (dadosSalvos && 
-        dadosSalvos.email && 
-        dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && 
-        (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
-        
-        console.log('✅ Usuário já autenticado:', dadosSalvos.nome);
-        dadosUsuario = dadosSalvos;
-        logUserAccess('online');
-        hideOverlay();
-        iniciarAplicacao();
-        
-    } else {
-        // Dados inválidos ou expirados
-        console.log('🔐 Usuário não autenticado ou sessão expirada');
-        localStorage.removeItem('dadosUsuario');
-        // Overlay já está sendo mostrado acima
-    }
+    // Limpar dados salvos para forçar nova autenticação
+    console.log('🧹 Limpando dados salvos para forçar nova autenticação');
+    localStorage.removeItem('dadosUsuario');
+    dadosUsuario = null;
 }
 
 async function initGoogleSignIn() {
@@ -332,8 +301,9 @@ async function initGoogleSignIn() {
         
         // 2. Verificar se CLIENT_ID é válido
         if (!CLIENT_ID || CLIENT_ID.length < 10 || CLIENT_ID === 'SEU_CLIENT_ID_AQUI') {
-            console.log('⚠️ CLIENT_ID não configurado, mostrando opção de desenvolvimento');
-            showConfigMessage();
+            console.log('⚠️ CLIENT_ID não configurado');
+            errorMsg.textContent = 'Sistema de autenticação não configurado.';
+            errorMsg.classList.remove('hidden');
             return;
         }
         
@@ -377,10 +347,11 @@ async function initGoogleSignIn() {
             if (tokenClient) {
                 console.log('🚀 Iniciando popup do Google OAuth...');
                 
-                // Timeout para detectar erro 400 automaticamente
+                // Timeout para detectar erro automaticamente
                 const errorTimeout = setTimeout(() => {
-                    console.log('🔧 Timeout detectado - possível erro 400');
-                    showGoogleConfigError();
+                    console.log('🔧 Timeout detectado - possível erro na autenticação');
+                    errorMsg.textContent = 'Timeout na autenticação. Tente novamente.';
+                    errorMsg.classList.remove('hidden');
                 }, 3000);
                 
                 try {
@@ -396,17 +367,13 @@ async function initGoogleSignIn() {
                 } catch (error) {
                     clearTimeout(errorTimeout);
                     console.error('❌ Erro ao iniciar OAuth:', error);
-                    if (error.message && error.message.includes('400')) {
-                        showGoogleConfigError();
-                    } else {
-                        errorMsg.innerHTML = `
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Erro na autenticação:</strong><br>
-                            ${error.message || 'Erro desconhecido'}<br>
-                            <small>Verifique se o CLIENT_ID está configurado corretamente no Google Cloud Console.</small>
-                        `;
-                        errorMsg.classList.remove('hidden');
-                    }
+                    errorMsg.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Erro na autenticação:</strong><br>
+                        ${error.message || 'Erro desconhecido'}<br>
+                        <small>Tente novamente ou verifique sua conexão.</small>
+                    `;
+                    errorMsg.classList.remove('hidden');
                 }
             } else {
                 console.error('❌ Token client não inicializado');
@@ -432,123 +399,7 @@ async function initGoogleSignIn() {
 }
 
 
-// Função para mostrar erro de configuração do Google Cloud Console
-function showGoogleConfigError() {
-    const button = document.getElementById('google-signin-button');
-    const errorMsg = document.getElementById('identificacao-error');
-    
-    button.innerHTML = `
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Erro de Configuração</span>
-    `;
-    button.style.background = 'linear-gradient(135deg, #FF4444 0%, #FF8800 100%)';
-    
-    // Determinar instruções baseadas no ambiente
-    let instructions = '';
-    let domainType = '';
-    
-    if (isVercel) {
-        domainType = 'Vercel (Produção)';
-        instructions = `
-            <strong>📋 Passos para Vercel:</strong><br>
-            1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
-            2. Vá para "APIs & Services" > "Credentials"<br>
-            3. Edite o CLIENT_ID: <code>${CLIENT_ID}</code><br>
-            4. Adicione em "Authorized JavaScript origins":<br>
-               • <code>${currentDomain}</code><br>
-               • <code>http://localhost:3001</code> (para desenvolvimento)<br>
-            5. Adicione em "Authorized redirect URIs":<br>
-               • <code>${currentDomain}</code><br>
-               • <code>http://localhost:3001</code> (para desenvolvimento)<br>
-            6. Salve as alterações<br><br>
-            
-            <strong>🔧 Configuração na Vercel:</strong><br>
-            • Verifique se as variáveis de ambiente estão configuradas<br>
-            • <code>GOOGLE_CLIENT_ID</code> deve estar definido<br>
-            • <code>DOMINIO_PERMITIDO</code> deve estar definido<br><br>
-        `;
-    } else if (isDevelopment) {
-        domainType = 'Localhost (Desenvolvimento)';
-        instructions = `
-            <strong>📋 Passos para Localhost:</strong><br>
-            1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
-            2. Vá para "APIs & Services" > "Credentials"<br>
-            3. Edite o CLIENT_ID: <code>${CLIENT_ID}</code><br>
-            4. Adicione em "Authorized JavaScript origins":<br>
-               • <code>http://localhost:3001</code><br>
-            5. Adicione em "Authorized redirect URIs":<br>
-               • <code>http://localhost:3001</code><br>
-            6. Salve as alterações<br><br>
-        `;
-    } else {
-        domainType = 'Domínio Personalizado';
-        instructions = `
-            <strong>📋 Passos para Domínio Personalizado:</strong><br>
-            1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
-            2. Vá para "APIs & Services" > "Credentials"<br>
-            3. Edite o CLIENT_ID: <code>${CLIENT_ID}</code><br>
-            4. Adicione em "Authorized JavaScript origins":<br>
-               • <code>${currentDomain}</code><br>
-            5. Adicione em "Authorized redirect URIs":<br>
-               • <code>${currentDomain}</code><br>
-            6. Salve as alterações<br><br>
-        `;
-    }
-    
-    errorMsg.innerHTML = `
-        <i class="fas fa-exclamation-triangle"></i>
-        <strong>❌ Erro 400: Google OAuth não configurado</strong><br><br>
-        
-        <strong>🌐 Ambiente Atual:</strong> ${domainType}<br>
-        <strong>🔗 Domínio:</strong> <code>${currentDomain}</code><br><br>
-        
-        <strong>🔧 SOLUÇÃO:</strong><br>
-        Configure o Google Cloud Console para permitir este domínio:<br><br>
-        
-        ${instructions}
-        
-        <strong>⚠️ IMPORTANTE:</strong><br>
-        • Use o CLIENT_ID correto do projeto Velotax<br>
-        • Aguarde alguns minutos para as alterações surtirem efeito<br>
-        • Recarregue a página após configurar<br><br>
-        
-        <button onclick="location.reload()" style="background: #1634FF; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px;">
-            <i class="fas fa-refresh"></i> Recarregar Página
-        </button>
-    `;
-    errorMsg.classList.remove('hidden');
-    errorMsg.style.background = 'rgba(255, 68, 68, 0.1)';
-    errorMsg.style.borderColor = 'rgba(255, 68, 68, 0.3)';
-    errorMsg.style.color = '#FF4444';
-}
-
-// Função para mostrar mensagem quando CLIENT_ID não está configurado
-function showConfigMessage() {
-    const button = document.getElementById('google-signin-button');
-    const errorMsg = document.getElementById('identificacao-error');
-    
-    button.innerHTML = `
-        <i class="fas fa-cog"></i>
-        <span>Configurar Autenticação</span>
-    `;
-    button.style.background = 'linear-gradient(135deg, #FF8400 0%, #FF00D7 100%)';
-    
-    errorMsg.innerHTML = `
-        <i class="fas fa-info-circle"></i>
-        Para ativar a autenticação Google, configure o CLIENT_ID no arquivo .env do servidor.
-        <br><small>Consulte o arquivo GOOGLE_OAUTH_SETUP.md para instruções detalhadas.</small>
-        <br><br>
-        <strong>Configuração necessária:</strong><br>
-        1. Acesse o Google Cloud Console<br>
-        2. Configure o OAuth 2.0 com CLIENT_ID válido<br>
-        3. Adicione http://localhost:3001 nas origens autorizadas<br>
-        4. Reinicie o servidor
-    `;
-    errorMsg.classList.remove('hidden');
-    errorMsg.style.background = 'rgba(255, 132, 0, 0.1)';
-    errorMsg.style.borderColor = 'rgba(255, 132, 0, 0.3)';
-    errorMsg.style.color = '#FF8400';
-}
+// Funções de erro removidas - simplificadas para mensagens básicas
 
 
 
@@ -641,8 +492,24 @@ function iniciarAplicacao() {
         inicializarHistorico();
     }
     
-    // Esconder overlay e mostrar aplicação
-    hideOverlay();
+    // Garantir que a interface esteja visível
+    setTimeout(() => {
+        if (appWrapper) {
+            appWrapper.style.display = 'block';
+            appWrapper.style.opacity = '1';
+            appWrapper.style.visibility = 'visible';
+            appWrapper.classList.add('authenticated');
+            console.log('✅ Interface principal confirmada como visível');
+            console.log('🔍 Estado do appWrapper:', {
+                display: appWrapper.style.display,
+                opacity: appWrapper.style.opacity,
+                visibility: appWrapper.style.visibility,
+                hasAuthenticatedClass: appWrapper.classList.contains('authenticated')
+            });
+        } else {
+            console.error('❌ appWrapper não encontrado na confirmação');
+        }
+    }, 100);
 }
 
 // ================== FUNÇÕES DE VALIDAÇÃO ==================
@@ -722,7 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Se estiver na Vercel, esconder overlay imediatamente
     if (isVercel) {
         console.log('🌐 Vercel detectado - escondendo overlay imediatamente');
-        hideOverlay();
+        // Não chamar hideOverlay() aqui, será chamado em verificarIdentificacao()
     }
     
     // Verificar identificação primeiro
@@ -795,3 +662,55 @@ function testarGoogleAuth() {
 
 // Exportar funções para uso global
 window.logout = logout;
+
+// Função para testar o estado da autenticação
+window.testarAutenticacao = function() {
+    console.log('🧪 Testando estado da autenticação...');
+    console.log('🔍 Dados do usuário:', dadosUsuario);
+    console.log('🔍 Elementos DOM:', {
+        overlay: !!identificacaoOverlay,
+        wrapper: !!appWrapper,
+        errorMsg: !!errorMsg
+    });
+    
+    if (identificacaoOverlay) {
+        console.log('🔍 Estado do overlay:', {
+            display: identificacaoOverlay.style.display,
+            opacity: identificacaoOverlay.style.opacity,
+            visibility: identificacaoOverlay.style.visibility,
+            hasHiddenClass: identificacaoOverlay.classList.contains('hidden')
+        });
+    }
+    
+    if (appWrapper) {
+        console.log('🔍 Estado do appWrapper:', {
+            display: appWrapper.style.display,
+            opacity: appWrapper.style.opacity,
+            visibility: appWrapper.style.visibility,
+            hasAuthenticatedClass: appWrapper.classList.contains('authenticated')
+        });
+    }
+    
+    // Testar forçar exibição da interface
+    if (dadosUsuario && appWrapper) {
+        console.log('🔧 Forçando exibição da interface...');
+        hideOverlay();
+        iniciarAplicacao();
+    } else {
+        console.log('❌ Usuário não autenticado ou appWrapper não encontrado');
+    }
+};
+
+// Função para forçar logout e mostrar overlay de login
+window.forcarLogout = function() {
+    console.log('🚪 Forçando logout e exibindo overlay de login...');
+    
+    // Limpar todos os dados
+    localStorage.removeItem('dadosUsuario');
+    dadosUsuario = null;
+    
+    // Forçar exibição do overlay
+    showOverlay();
+    
+    console.log('✅ Logout forçado - overlay de login exibido');
+};
