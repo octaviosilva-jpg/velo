@@ -640,6 +640,9 @@ function iniciarAplicacao() {
     if (typeof inicializarHistorico === 'function') {
         inicializarHistorico();
     }
+    
+    // Esconder overlay e mostrar aplicação
+    hideOverlay();
 }
 
 // ================== FUNÇÕES DE VALIDAÇÃO ==================
