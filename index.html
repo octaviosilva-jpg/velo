@@ -675,53 +675,84 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Script imediato para forçar overlay -->
-    <script>
-        // Executar imediatamente, sem esperar DOMContentLoaded
-        (function() {
-            console.log('🚀 Script imediato executando...');
-            
-            // Aguardar um pouco para garantir que o DOM esteja pronto
-            setTimeout(function() {
-                const overlay = document.getElementById('identificacao-overlay');
-                const wrapper = document.querySelector('.app-wrapper');
+        <!-- Script imediato para forçar overlay ou esconder na Vercel -->
+        <script>
+            // Executar imediatamente, sem esperar DOMContentLoaded
+            (function() {
+                console.log('🚀 Script imediato executando...');
+                console.log('🌐 Hostname:', window.location.hostname);
                 
-                console.log('🔍 Elementos encontrados (script imediato):', {
-                    overlay: !!overlay,
-                    wrapper: !!wrapper
-                });
+                const isVercel = window.location.hostname.includes('vercel.app');
+                console.log('🌐 isVercel:', isVercel);
                 
-                if (overlay) {
-                    overlay.style.cssText = `
-                        position: fixed !important;
-                        top: 0 !important;
-                        left: 0 !important;
-                        width: 100vw !important;
-                        height: 100vh !important;
-                        display: flex !important;
-                        justify-content: center !important;
-                        align-items: center !important;
-                        z-index: 99999 !important;
-                        opacity: 1 !important;
-                        visibility: visible !important;
-                        background: linear-gradient(135deg, rgba(0, 0, 88, 0.95) 0%, rgba(22, 52, 255, 0.9) 25%, rgba(29, 253, 185, 0.1) 50%, rgba(22, 52, 255, 0.9) 75%, rgba(0, 0, 88, 0.95) 100%) !important;
-                    `;
-                    overlay.classList.remove('hidden');
-                    console.log('✅ Overlay forçado a aparecer (script imediato)');
-                }
-                
-                if (wrapper) {
-                    wrapper.style.cssText = `
-                        display: none !important;
-                        opacity: 0 !important;
-                        visibility: hidden !important;
-                    `;
-                    wrapper.classList.remove('authenticated');
-                    console.log('✅ Interface principal oculta (script imediato)');
-                }
-            }, 100);
-        })();
-    </script>
+                // Aguardar um pouco para garantir que o DOM esteja pronto
+                setTimeout(function() {
+                    const overlay = document.getElementById('identificacao-overlay');
+                    const wrapper = document.querySelector('.app-wrapper');
+                    
+                    console.log('🔍 Elementos encontrados (script imediato):', {
+                        overlay: !!overlay,
+                        wrapper: !!wrapper
+                    });
+                    
+                    if (isVercel) {
+                        // Se estiver na Vercel, esconder overlay e mostrar interface
+                        console.log('🌐 Vercel detectado - escondendo overlay imediatamente');
+                        if (overlay) {
+                            overlay.style.cssText = `
+                                display: none !important;
+                                opacity: 0 !important;
+                                visibility: hidden !important;
+                                z-index: -1 !important;
+                            `;
+                            overlay.classList.add('hidden');
+                            console.log('✅ Overlay escondido (Vercel)');
+                        }
+                        
+                        if (wrapper) {
+                            wrapper.style.cssText = `
+                                display: block !important;
+                                opacity: 1 !important;
+                                visibility: visible !important;
+                                z-index: 1 !important;
+                            `;
+                            wrapper.classList.add('authenticated');
+                            console.log('✅ Interface principal exibida (Vercel)');
+                        }
+                    } else {
+                        // Se não estiver na Vercel, mostrar overlay normalmente
+                        if (overlay) {
+                            overlay.style.cssText = `
+                                position: fixed !important;
+                                top: 0 !important;
+                                left: 0 !important;
+                                width: 100vw !important;
+                                height: 100vh !important;
+                                display: flex !important;
+                                justify-content: center !important;
+                                align-items: center !important;
+                                z-index: 99999 !important;
+                                opacity: 1 !important;
+                                visibility: visible !important;
+                                background: linear-gradient(135deg, rgba(0, 0, 88, 0.95) 0%, rgba(22, 52, 255, 0.9) 25%, rgba(29, 253, 185, 0.1) 50%, rgba(22, 52, 255, 0.9) 75%, rgba(0, 0, 88, 0.95) 100%) !important;
+                            `;
+                            overlay.classList.remove('hidden');
+                            console.log('✅ Overlay forçado a aparecer (localhost)');
+                        }
+                        
+                        if (wrapper) {
+                            wrapper.style.cssText = `
+                                display: none !important;
+                                opacity: 0 !important;
+                                visibility: hidden !important;
+                            `;
+                            wrapper.classList.remove('authenticated');
+                            console.log('✅ Interface principal oculta (localhost)');
+                        }
+                    }
+                }, 100);
+            })();
+        </script>
     
     <!-- Script para garantir que o overlay seja exibido imediatamente -->
     <script>
@@ -773,7 +804,7 @@
         });
     </script>
     
-        <script src="auth.js?v=20250117bb"></script>
+        <script src="auth.js?v=20250117cc"></script>
     <script src="script.js?v=6"></script>
     
     <!-- Sistema de ajuste automático do nome da interface -->

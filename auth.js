@@ -76,18 +76,20 @@ function showOverlay() {
 function hideOverlay() {
     console.log('✅ Ocultando overlay de login');
     if (identificacaoOverlay) {
-    identificacaoOverlay.classList.add('hidden');
-        identificacaoOverlay.style.display = 'none';
-        identificacaoOverlay.style.opacity = '0';
-        identificacaoOverlay.style.visibility = 'hidden';
+        identificacaoOverlay.classList.add('hidden');
+        identificacaoOverlay.style.display = 'none !important';
+        identificacaoOverlay.style.opacity = '0 !important';
+        identificacaoOverlay.style.visibility = 'hidden !important';
+        identificacaoOverlay.style.zIndex = '-1 !important';
         console.log('✅ Overlay de login ocultado');
     }
     
     if (appWrapper) {
         appWrapper.classList.add('authenticated');
-        appWrapper.style.display = 'block';
-        appWrapper.style.opacity = '1';
-        appWrapper.style.visibility = 'visible';
+        appWrapper.style.display = 'block !important';
+        appWrapper.style.opacity = '1 !important';
+        appWrapper.style.visibility = 'visible !important';
+        appWrapper.style.zIndex = '1 !important';
         console.log('✅ Interface principal exibida');
     }
 }
@@ -713,6 +715,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('  - identificacaoOverlay:', !!identificacaoOverlay);
     console.log('  - appWrapper:', !!appWrapper);
     console.log('  - errorMsg:', !!errorMsg);
+    
+    // Se estiver na Vercel, esconder overlay imediatamente
+    if (isVercel) {
+        console.log('🌐 Vercel detectado - escondendo overlay imediatamente');
+        hideOverlay();
+    }
     
     // Verificar identificação primeiro
     verificarIdentificacao();
