@@ -1793,7 +1793,8 @@ function loadEnvFile() {
                 APP_VERSION: process.env.APP_VERSION || '2.0.0',
                 DEBUG_MODE: process.env.DEBUG_MODE || 'false',
                 LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-                GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '108948157850402889475'
+                GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '108948157850402889475',
+                DOMINIO_PERMITIDO: process.env.DOMINIO_PERMITIDO || '@velotax.com.br'
             };
             
             console.log(`✅ ${Object.keys(envVars).filter(k => envVars[k]).length} variáveis carregadas do process.env`);
@@ -3856,11 +3857,23 @@ app.get('/api/google-config', (req, res) => {
         console.log('🔧 GOOGLE_CLIENT_ID carregado:', clientId);
         console.log('🔧 DOMINIO_PERMITIDO:', dominioPermitido);
         console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+        console.log('🔧 VERCEL:', process.env.VERCEL);
+        console.log('🔧 Todas as variáveis de ambiente:', Object.keys(process.env).filter(k => k.includes('GOOGLE') || k.includes('DOMINIO')));
+        
+        // Verificar se o CLIENT_ID está no formato correto
+        if (clientId && !clientId.includes('.apps.googleusercontent.com')) {
+            console.warn('⚠️ CLIENT_ID pode estar incompleto:', clientId);
+        }
         
         res.json({
             success: true,
             clientId: clientId,
-            dominioPermitido: dominioPermitido
+            dominioPermitido: dominioPermitido,
+            debug: {
+                nodeEnv: process.env.NODE_ENV,
+                vercel: process.env.VERCEL,
+                clientIdFormat: clientId.includes('.apps.googleusercontent.com') ? 'correto' : 'incompleto'
+            }
         });
     } catch (error) {
         console.error('Erro ao obter configurações do Google:', error);

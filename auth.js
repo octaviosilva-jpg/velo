@@ -30,8 +30,14 @@ async function carregarConfiguracoes() {
             CLIENT_ID = config.clientId;
             console.log('✅ Configurações carregadas:', { 
                 CLIENT_ID: CLIENT_ID && CLIENT_ID !== 'SEU_CLIENT_ID_AQUI' ? 'Configurado' : 'Não configurado',
-                Dominio: config.dominioPermitido || 'Não configurado'
+                Dominio: config.dominioPermitido || 'Não configurado',
+                Debug: config.debug || 'N/A'
             });
+            
+            // Verificar se o CLIENT_ID está no formato correto
+            if (CLIENT_ID && !CLIENT_ID.includes('.apps.googleusercontent.com')) {
+                console.warn('⚠️ CLIENT_ID pode estar incompleto:', CLIENT_ID);
+            }
         } else {
             console.log('⚠️ Usando CLIENT_ID padrão');
             CLIENT_ID = '108948157850402889475'; // Fallback
