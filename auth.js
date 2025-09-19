@@ -238,6 +238,19 @@ async function handleGoogleSignIn(response) {
 }
 
 function verificarIdentificacao() {
+    // Se estiver na Vercel, pular autenticação
+    if (isVercel) {
+        console.log('🌐 Ambiente Vercel detectado - pulando autenticação');
+        dadosUsuario = {
+            nome: 'Usuário Vercel',
+            email: 'vercel@velotax.com.br',
+            foto: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiMxNjM0RkYiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSI4IiB5PSI4Ij4KPHBhdGggZD0iTTggMEMzLjU4IDAgMCAzLjU4IDAgOFMzLjU4IDE2IDggMTZTMTYgMTIuNDIgMTYgOFMxMi40MiAwIDggMFoiIGZpbGw9IiMxREZEQjkiLz4KPHBhdGggZD0iTTggNEM5LjEgNCAxMCA0LjkgMTAgNlM5LjEgOCA4IDggNiA3LjEgNiA2IDYuOSA0IDggNFoiIGZpbGw9IiMxNjM0RkYiLz4KPHBhdGggZD0iTTggMTBDOS4xIDEwIDEwIDEwLjkgMTAgMTJTOS4xIDE0IDggMTQgNiAxMy4xIDYgMTIgNi45IDEwIDggMTBaIiBmaWxsPSIjMTZDNERGIi8+Cjwvc3ZnPgo8L3N2Zz4K',
+            funcao: 'Usuário Vercel'
+        };
+        iniciarAplicacao();
+        return;
+    }
+    
     const umDiaEmMs = 24 * 60 * 60 * 1000; // 24 horas
     let dadosSalvos = null;
     
@@ -277,6 +290,12 @@ function verificarIdentificacao() {
 async function initGoogleSignIn() {
     try {
         console.log('🔧 Inicializando Google Sign-In...');
+        
+        // Se estiver na Vercel, pular inicialização do Google
+        if (isVercel) {
+            console.log('🌐 Ambiente Vercel - pulando inicialização do Google Sign-In');
+            return;
+        }
         
         // GARANTIR que a interface fique oculta por padrão
         console.log('🔐 Forçando overlay de login...');
