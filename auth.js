@@ -6,8 +6,10 @@
 let DOMINIO_PERMITIDO = "@velotax.com.br"; // Domínio corporativo
 let CLIENT_ID = '108948157850402889475'; // Client ID do Google OAuth
 
-// Verificar se estamos em modo de desenvolvimento
+// Verificar se estamos em modo de desenvolvimento ou produção
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isVercel = window.location.hostname.includes('vercel.app');
+const currentDomain = window.location.origin;
 
 // ================== ELEMENTOS DO DOM ==================
 const identificacaoOverlay = document.getElementById('identificacao-overlay');
@@ -410,21 +412,74 @@ function showGoogleConfigError() {
     `;
     button.style.background = 'linear-gradient(135deg, #FF4444 0%, #FF8800 100%)';
     
+    // Determinar instruções baseadas no ambiente
+    let instructions = '';
+    let domainType = '';
+    
+    if (isVercel) {
+        domainType = 'Vercel (Produção)';
+        instructions = `
+            <strong>📋 Passos para Vercel:</strong><br>
+            1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
+            2. Vá para "APIs & Services" > "Credentials"<br>
+            3. Edite o CLIENT_ID: <code>${CLIENT_ID}</code><br>
+            4. Adicione em "Authorized JavaScript origins":<br>
+               • <code>${currentDomain}</code><br>
+               • <code>http://localhost:3001</code> (para desenvolvimento)<br>
+            5. Adicione em "Authorized redirect URIs":<br>
+               • <code>${currentDomain}</code><br>
+               • <code>http://localhost:3001</code> (para desenvolvimento)<br>
+            6. Salve as alterações<br><br>
+            
+            <strong>🔧 Configuração na Vercel:</strong><br>
+            • Verifique se as variáveis de ambiente estão configuradas<br>
+            • <code>GOOGLE_CLIENT_ID</code> deve estar definido<br>
+            • <code>DOMINIO_PERMITIDO</code> deve estar definido<br><br>
+        `;
+    } else if (isDevelopment) {
+        domainType = 'Localhost (Desenvolvimento)';
+        instructions = `
+            <strong>📋 Passos para Localhost:</strong><br>
+            1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
+            2. Vá para "APIs & Services" > "Credentials"<br>
+            3. Edite o CLIENT_ID: <code>${CLIENT_ID}</code><br>
+            4. Adicione em "Authorized JavaScript origins":<br>
+               • <code>http://localhost:3001</code><br>
+            5. Adicione em "Authorized redirect URIs":<br>
+               • <code>http://localhost:3001</code><br>
+            6. Salve as alterações<br><br>
+        `;
+    } else {
+        domainType = 'Domínio Personalizado';
+        instructions = `
+            <strong>📋 Passos para Domínio Personalizado:</strong><br>
+            1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
+            2. Vá para "APIs & Services" > "Credentials"<br>
+            3. Edite o CLIENT_ID: <code>${CLIENT_ID}</code><br>
+            4. Adicione em "Authorized JavaScript origins":<br>
+               • <code>${currentDomain}</code><br>
+            5. Adicione em "Authorized redirect URIs":<br>
+               • <code>${currentDomain}</code><br>
+            6. Salve as alterações<br><br>
+        `;
+    }
+    
     errorMsg.innerHTML = `
         <i class="fas fa-exclamation-triangle"></i>
         <strong>❌ Erro 400: Google OAuth não configurado</strong><br><br>
         
-        <strong>🔧 SOLUÇÃO:</strong><br>
-        Configure o Google Cloud Console para permitir localhost:<br><br>
+        <strong>🌐 Ambiente Atual:</strong> ${domainType}<br>
+        <strong>🔗 Domínio:</strong> <code>${currentDomain}</code><br><br>
         
-        <strong>📋 Passos:</strong><br>
-        1. Acesse: <a href="https://console.cloud.google.com/" target="_blank" style="color: #1DFDB9;">Google Cloud Console</a><br>
-        2. Vá para "APIs & Services" > "Credentials"<br>
-        3. Edite o CLIENT_ID: ${CLIENT_ID}<br>
-        4. Adicione em "Authorized JavaScript origins":<br>
-        &nbsp;&nbsp;→ <code>http://localhost:3001</code><br>
-        &nbsp;&nbsp;→ <code>http://127.0.0.1:3001</code><br>
-        5. Salve e aguarde 5-10 minutos<br><br>
+        <strong>🔧 SOLUÇÃO:</strong><br>
+        Configure o Google Cloud Console para permitir este domínio:<br><br>
+        
+        ${instructions}
+        
+        <strong>⚠️ IMPORTANTE:</strong><br>
+        • Use o CLIENT_ID correto do projeto Velotax<br>
+        • Aguarde alguns minutos para as alterações surtirem efeito<br>
+        • Recarregue a página após configurar<br><br>
         
         <button onclick="location.reload()" style="background: #1634FF; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px;">
             <i class="fas fa-refresh"></i> Recarregar Página
