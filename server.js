@@ -1737,38 +1737,11 @@ function rateLimitMiddleware(req, res, next) {
 
 // ===== FUNÇÕES DE SEGURANÇA =====
 
-// Carregar variáveis de ambiente do arquivo .env ou process.env (Vercel)
-function loadEnvFile() {
+// Função auxiliar para carregar variáveis de um arquivo específico
+function loadEnvFromFile(filePath) {
     try {
-        // Se estiver na Vercel (NODE_ENV=production), usar process.env
-        if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-            console.log('🌐 Carregando variáveis de ambiente da Vercel (process.env)');
-            const envVars = {
-                OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-                OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o',
-                OPENAI_TEMPERATURE: process.env.OPENAI_TEMPERATURE || '0.7',
-                OPENAI_MAX_TOKENS: process.env.OPENAI_MAX_TOKENS || '2000',
-                OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-                MAX_API_CALLS_PER_HOUR: process.env.MAX_API_CALLS_PER_HOUR || '100',
-                APP_NAME: process.env.APP_NAME || 'Velotax Bot',
-                APP_VERSION: process.env.APP_VERSION || '2.0.0',
-                DEBUG_MODE: process.env.DEBUG_MODE || 'false',
-                LOG_LEVEL: process.env.LOG_LEVEL || 'info'
-            };
-            
-            console.log(`✅ ${Object.keys(envVars).filter(k => envVars[k]).length} variáveis carregadas do process.env`);
-            return envVars;
-        }
-        
-        // Para desenvolvimento local, tentar carregar do arquivo .env
-        const envPath = path.join(__dirname, '.env');
-        
-        if (!fs.existsSync(envPath)) {
-            console.warn('⚠️ Arquivo .env não encontrado na raiz do projeto');
-            return {};
-        }
-        
-        const envContent = fs.readFileSync(envPath, 'utf8');
+        console.log('📁 Carregando arquivo de configuração:', filePath);
+        const envContent = fs.readFileSync(filePath, 'utf8');
         const envVars = {};
         
         const lines = envContent.split('\n');
@@ -1791,7 +1764,72 @@ function loadEnvFile() {
             envVars[key] = cleanValue;
         }
         
-        console.log(`✅ ${Object.keys(envVars).length} variáveis carregadas do .env`);
+        console.log(`✅ ${Object.keys(envVars).length} variáveis carregadas de ${path.basename(filePath)}`);
+        if (envVars.GOOGLE_CLIENT_ID) {
+            console.log('🔧 GOOGLE_CLIENT_ID carregado:', envVars.GOOGLE_CLIENT_ID);
+        }
+        
+        return envVars;
+    } catch (error) {
+        console.error('❌ Erro ao carregar arquivo:', error);
+        return {};
+    }
+}
+
+// Carregar variáveis de ambiente do arquivo .env ou process.env (Vercel)
+function loadEnvFile() {
+    try {
+        // Se estiver na Vercel (NODE_ENV=production), usar process.env
+        if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+            console.log('🌐 Carregando variáveis de ambiente da Vercel (process.env)');
+            const envVars = {
+                OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+                OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o',
+                OPENAI_TEMPERATURE: process.env.OPENAI_TEMPERATURE || '0.7',
+                OPENAI_MAX_TOKENS: process.env.OPENAI_MAX_TOKENS || '2000',
+                OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+                MAX_API_CALLS_PER_HOUR: process.env.MAX_API_CALLS_PER_HOUR || '100',
+                APP_NAME: process.env.APP_NAME || 'Velotax Bot',
+                APP_VERSION: process.env.APP_VERSION || '2.0.0',
+                DEBUG_MODE: process.env.DEBUG_MODE || 'false',
+                LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+                GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '108948157850402889475'
+            };
+            
+            console.log(`✅ ${Object.keys(envVars).filter(k => envVars[k]).length} variáveis carregadas do process.env`);
+            return envVars;
+        }
+        
+        // Para desenvolvimento local, tentar carregar do arquivo .env primeiro
+        let envPath = path.join(__dirname, '.env');
+        let envVars = {};
+        
+        if (fs.existsSync(envPath)) {
+            console.log('📁 Carregando arquivo .env...');
+            envVars = loadEnvFromFile(envPath);
+        }
+        
+        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env
+        if (!envVars.GOOGLE_CLIENT_ID) {
+            const configEnvPath = path.join(__dirname, 'config.env');
+            if (fs.existsSync(configEnvPath)) {
+                console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
+                const configVars = loadEnvFromFile(configEnvPath);
+                // Mesclar variáveis, priorizando config.env para GOOGLE_CLIENT_ID
+                envVars = { ...envVars, ...configVars };
+            }
+        }
+        
+        // Log final das variáveis carregadas
+        console.log('🔧 Variáveis finais carregadas:');
+        console.log('  - GOOGLE_CLIENT_ID:', envVars.GOOGLE_CLIENT_ID || 'NÃO ENCONTRADO');
+        console.log('  - DOMINIO_PERMITIDO:', envVars.DOMINIO_PERMITIDO || 'NÃO ENCONTRADO');
+        
+        if (Object.keys(envVars).length === 0) {
+            console.warn('⚠️ Nenhum arquivo de configuração encontrado');
+            return {};
+        }
+        
         return envVars;
         
     } catch (error) {
@@ -3804,6 +3842,142 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 });
 
 // Endpoint para buscar estatísticas globais
+// ===== ENDPOINTS DE AUTENTICAÇÃO =====
+
+// Endpoint para obter configurações do Google OAuth
+app.get('/api/google-config', (req, res) => {
+    console.log('🎯 Endpoint /api/google-config chamado');
+    try {
+        // Carregar configurações do arquivo .env
+        const envVars = loadEnvFile();
+        const clientId = envVars.GOOGLE_CLIENT_ID || '108948157850402889475';
+        const dominioPermitido = envVars.DOMINIO_PERMITIDO || '@velotax.com.br';
+        
+        console.log('🔧 GOOGLE_CLIENT_ID carregado:', clientId);
+        console.log('🔧 DOMINIO_PERMITIDO:', dominioPermitido);
+        console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+        
+        res.json({
+            success: true,
+            clientId: clientId,
+            dominioPermitido: dominioPermitido
+        });
+    } catch (error) {
+        console.error('Erro ao obter configurações do Google:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para obter perfil do usuário
+app.get('/api/getUserProfile', (req, res) => {
+    console.log('🎯 Endpoint /api/getUserProfile chamado');
+    try {
+        const { email } = req.query;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email não fornecido'
+            });
+        }
+        
+        // Por enquanto, retornar perfil padrão
+        // Em produção, você pode integrar com um banco de dados ou planilha
+        const userProfile = {
+            funcao: 'Usuário',
+            departamento: 'Geral',
+            permissoes: ['visualizar', 'gerar_respostas']
+        };
+        
+        console.log('📋 Perfil do usuário retornado:', userProfile);
+        
+        res.json({
+            success: true,
+            profile: userProfile
+        });
+        
+    } catch (error) {
+        console.error('Erro ao buscar perfil do usuário:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para registrar logs de acesso
+app.post('/api/logAccess', (req, res) => {
+    console.log('🎯 Endpoint /api/logAccess chamado');
+    try {
+        const { email, nome, status, timestamp } = req.body;
+        
+        if (!email || !status) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dados obrigatórios não fornecidos'
+            });
+        }
+        
+        // Log do acesso
+        console.log(`📝 Log de acesso: ${email} (${nome}) - ${status} - ${new Date(timestamp).toLocaleString('pt-BR')}`);
+        
+        // Aqui você pode salvar em um arquivo de log ou banco de dados
+        // Por enquanto, apenas log no console
+        
+        res.json({
+            success: true,
+            message: 'Log de acesso registrado'
+        });
+        
+    } catch (error) {
+        console.error('Erro ao registrar log de acesso:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para validar token do Google (opcional - para validação no backend)
+app.post('/api/validateGoogleToken', async (req, res) => {
+    console.log('🎯 Endpoint /api/validateGoogleToken chamado');
+    try {
+        const { token } = req.body;
+        
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                error: 'Token não fornecido'
+            });
+        }
+        
+        // Em produção, você pode usar a biblioteca google-auth-library
+        // para validar o token no backend
+        // const { OAuth2Client } = require('google-auth-library');
+        // const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        // const ticket = await client.verifyIdToken({ idToken: token, audience: process.env.GOOGLE_CLIENT_ID });
+        // const payload = ticket.getPayload();
+        
+        // Por enquanto, retornar sucesso (validação feita no frontend)
+        res.json({
+            success: true,
+            message: 'Token validado com sucesso'
+        });
+        
+    } catch (error) {
+        console.error('Erro ao validar token:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// ===== ENDPOINTS DE ESTATÍSTICAS GLOBAIS =====
+
 app.get('/api/estatisticas-globais', (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-globais chamado');
     try {

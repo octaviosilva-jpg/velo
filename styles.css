@@ -112,21 +112,36 @@ header {
 .interface-name {
     position: absolute;
     background: rgba(0,0,0,0.7);
-    padding: 6px 12px;
-    border-radius: 15px;
+    padding: 4px 8px;
+    border-radius: 12px;
     backdrop-filter: blur(10px);
     color: white;
-    font-weight: 600;
+    font-weight: 500;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     transition: all 0.3s ease;
     z-index: 3;
-    font-size: 1rem;
-    top: 15px;
-    right: 20px;
-    max-width: 200px;
+    font-size: 0.8rem;
+    top: 10px;
+    right: 15px;
+    max-width: 150px;
     text-align: center;
     line-height: 1.2;
-    word-wrap: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.interface-text {
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+/* Container do lado direito do cabeçalho */
+.header-right-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
 }
 
 /* Status indicator responsivo */
@@ -134,6 +149,11 @@ header {
     display: flex;
     align-items: center;
     gap: 6px;
+    background: rgba(29, 253, 185, 0.2);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(29, 253, 185, 0.3);
+    backdrop-filter: blur(10px);
     transition: all 0.3s ease;
 }
 
@@ -173,11 +193,11 @@ header {
         padding: 12px 24px;
     }
     .interface-name {
-        font-size: 1.1rem;
-        padding: 8px 16px;
-        top: 20px;
-        right: 30px;
-        max-width: 180px;
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        top: 10px;
+        right: 15px;
+        max-width: 120px;
     }
     .header-logo {
         max-height: 70px;
@@ -197,11 +217,11 @@ header {
         padding: 10px 20px;
     }
     .interface-name {
-        font-size: 1rem;
-        padding: 7px 14px;
-        top: 18px;
-        right: 25px;
-        max-width: 160px;
+        font-size: 0.85rem;
+        padding: 5px 10px;
+        top: 12px;
+        right: 18px;
+        max-width: 130px;
     }
     .header-logo {
         max-height: 60px;
@@ -221,11 +241,11 @@ header {
         padding: 8px 16px;
     }
     .interface-name {
-        font-size: 0.9rem;
-        padding: 6px 12px;
-        top: 15px;
-        right: 20px;
-        max-width: 140px;
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        top: 10px;
+        right: 15px;
+        max-width: 120px;
     }
     .header-logo {
         max-height: 50px;
@@ -251,11 +271,11 @@ header {
         padding: 6px 12px;
     }
     .interface-name {
-        font-size: 0.8rem;
-        padding: 5px 10px;
-        top: 12px;
-        right: 15px;
-        max-width: 120px;
+        font-size: 0.75rem;
+        padding: 3px 6px;
+        top: 8px;
+        right: 12px;
+        max-width: 100px;
     }
     .header-logo {
         max-height: 45px;
@@ -284,11 +304,11 @@ header {
         padding: 5px 10px;
     }
     .interface-name {
-        font-size: 0.75rem;
-        padding: 4px 8px;
-        top: 10px;
-        right: 10px;
-        max-width: 100px;
+        font-size: 0.7rem;
+        padding: 2px 4px;
+        top: 6px;
+        right: 8px;
+        max-width: 80px;
     }
     .header-logo {
         max-height: 40px;
@@ -321,11 +341,11 @@ header {
         padding: 4px 8px;
     }
     .interface-name {
-        font-size: 0.7rem;
-        padding: 3px 6px;
-        top: 8px;
-        right: 8px;
-        max-width: 80px;
+        font-size: 0.65rem;
+        padding: 2px 4px;
+        top: 5px;
+        right: 6px;
+        max-width: 70px;
     }
     .header-logo {
         max-height: 35px;
@@ -877,6 +897,308 @@ header {
 
 #resposta-gpt5 .card-header {
     background: linear-gradient(135deg, #1DFDB9 0%, #1634FF 100%) !important;
+
+/* ===== ESTILOS PARA OVERLAY DE LOGIN ===== */
+
+/* Overlay de Login */
+#identificacao-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, 
+        rgba(0, 0, 88, 0.95) 0%, 
+        rgba(22, 52, 255, 0.9) 25%, 
+        rgba(29, 253, 185, 0.1) 50%, 
+        rgba(22, 52, 255, 0.9) 75%, 
+        rgba(0, 0, 88, 0.95) 100%);
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    backdrop-filter: blur(10px);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Ocultar overlay quando não necessário */
+#identificacao-overlay.hidden {
+    display: none !important;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Animação de entrada do box de login */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Box de Login */
+#identificacao-box {
+    background: var(--bg-secondary);
+    padding: 3rem 2.5rem;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 88, 0.3),
+        0 0 0 1px rgba(29, 253, 185, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    max-width: 450px;
+    width: 90%;
+    position: relative;
+    overflow: hidden;
+    margin: auto;
+    transform: translateY(0);
+    animation: slideIn 0.5s ease-out;
+}
+
+/* Padrão de fundo sutil */
+#identificacao-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(29, 253, 185, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(22, 52, 255, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Header do Login */
+.login-header {
+    margin-bottom: 2rem;
+}
+
+.login-logo {
+    height: 60px;
+    width: auto;
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(2px 2px 8px rgba(0, 0, 88, 0.3));
+}
+
+.login-header h2 {
+    color: var(--primary-dark);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+}
+
+.login-header p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: 0;
+}
+
+/* Botão Google Sign-In */
+.google-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #1634FF 0%, #000058 100%);
+    color: white;
+    padding: 16px 32px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 2rem 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 25px rgba(22, 52, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.google-signin-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(29, 253, 185, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.google-signin-btn:hover::before {
+    left: 100%;
+}
+
+.google-signin-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(22, 52, 255, 0.4);
+    background: linear-gradient(135deg, #000058 0%, #1634FF 100%);
+}
+
+.google-signin-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 20px rgba(22, 52, 255, 0.3);
+}
+
+.google-signin-btn img {
+    width: 20px;
+    height: 20px;
+    filter: brightness(0) invert(1);
+}
+
+.google-signin-btn span {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Mensagem de Erro */
+.identificacao-error {
+    color: #FF00D7;
+    font-size: 14px;
+    margin-top: 1rem;
+    padding: 12px 16px;
+    background: rgba(255, 0, 215, 0.1);
+    border: 1px solid rgba(255, 0, 215, 0.3);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.identificacao-error i {
+    color: #FF00D7;
+    font-size: 16px;
+}
+
+/* Footer do Login */
+.login-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.login-footer small {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.login-footer i {
+    color: var(--accent-cyan);
+}
+
+/* Classe para ocultar elementos */
+.hidden {
+    display: none !important;
+}
+
+/* Garantir que o conteúdo principal fique oculto por padrão até autenticação */
+.app-wrapper {
+    display: none !important;
+}
+
+.app-wrapper.authenticated {
+    display: block !important;
+}
+
+/* Estilos para informações do usuário */
+.user-info {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 6px 10px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.85rem;
+    min-width: 180px;
+    max-width: 250px;
+    margin-top: 4px;
+}
+
+.user-info img {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    width: 28px;
+    height: 28px;
+}
+
+.user-info .fw-bold {
+    color: white;
+    font-size: 0.85rem;
+    line-height: 1.2;
+}
+
+.user-info .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-size: 0.7rem;
+    line-height: 1.1;
+}
+
+/* Responsividade para o overlay de login */
+@media (max-width: 768px) {
+    #identificacao-box {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+        border-radius: 15px;
+    }
+    
+    .login-logo {
+        height: 50px;
+        margin-bottom: 1rem;
+    }
+    
+    .login-header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .google-signin-btn {
+        padding: 14px 28px;
+        font-size: 15px;
+    }
+    
+    /* Ajustar layout do cabeçalho em mobile */
+    .header-right-content {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .user-info {
+        min-width: 150px;
+        max-width: 200px;
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    #identificacao-box {
+        padding: 1.5rem 1rem;
+        margin: 0.5rem;
+    }
+    
+    .login-header h2 {
+        font-size: 1.3rem;
+    }
+    
+    .login-header p {
+        font-size: 0.9rem;
+    }
+    
+    .google-signin-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+}
     color: #000058;
 }
 

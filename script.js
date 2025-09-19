@@ -1,20 +1,36 @@
 // Bot Interno Velotax - Assistente Especializado
+// Sistema de autenticação gerenciado pelo auth.js
 
-// Estatísticas globais
-let stats = {
-    respostasHoje: 0,
-    moderacoes: 0
-};
+// ================== EXEMPLO DE USO COMPLETO ==================
+/*
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <div id="login-overlay">
+        <button id="google-signin-button">Entrar com Google</button>
+    </div>
+    
+    <div id="app" class="hidden">
+        <h1>Bem-vindo!</h1>
+        <button id="logout-button">Sair</button>
+    </div>
+    
+    <script>
+        // Cole todo o código JavaScript aqui
+    </script>
+</body>
+</html>
+*/
 
-// Estatísticas globais do servidor
-let estatisticasGlobais = {
-    respostas_geradas: 0,
-    respostas_coerentes: 0,
-    moderacoes_geradas: 0,
-    moderacoes_coerentes: 0,
-    revisoes_texto: 0,
-    explicacoes_geradas: 0
-};
+// ================== FIM DO SCRIPT SSO GOOGLE ==================
+
+// ================== CONFIGURAÇÕES DA EMPRESA ==================
+const NOME_EMPRESA = 'Velotax';
+const DOMINIO_CORPORATIVO = '@velotax.com.br';
+const SITE_EMPRESA = 'https://www.velotax.com.br';
 
 // Sistema de histórico
 let historicoStats = [];
@@ -78,7 +94,7 @@ let historicoRespostas = [];
 let rascunhos = [];
 
 // Prompt mestre para IA OpenAI
-const PROMPT_MASTER_OPENAI = `Você é o assistente especializado da Velotax para comunicação com clientes e moderação no Reclame Aqui. Sua função é gerar respostas completas, claras e no tom correto com base nos dados recebidos da aba "Respostas RA".
+const PROMPT_MASTER_OPENAI = `Você é o assistente especializado da ${NOME_EMPRESA} para comunicação com clientes e moderação no Reclame Aqui. Sua função é gerar respostas completas, claras e no tom correto com base nos dados recebidos da aba "Respostas RA".
 
 ### Regras para formulação de respostas:
 1. **Respostas Reclame Aqui**
@@ -104,7 +120,7 @@ const PROMPT_MASTER_OPENAI = `Você é o assistente especializado da Velotax par
 Com base nos dados fornecidos, formule o texto final pronto para envio ou publicação no formato correspondente ao tipo de solicitação.
 - Não inclua rótulos extras
 - Entregue apenas o conteúdo já formatado
-- Garanta coerência, clareza e alinhamento com padrões da Velotax`;
+- Garanta coerência, clareza e alinhamento com padrões da ${NOME_EMPRESA}`;
 
 
 // Inicialização
@@ -116,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Inicialização do bot
 function initializeBot() {
-    console.log('Bot Interno Velotax - Assistente Especializado inicializado');
+    console.log(`Bot Interno ${NOME_EMPRESA} - Assistente Especializado inicializado`);
     console.log('🔧 Testando funções básicas...');
     
     // Teste básico
@@ -200,7 +216,7 @@ async function gerarRespostaOpenAI() {
     });
     
     // Validação dos campos obrigatórios
-    if (!tipoSituacaoValue || !motivoSolicitacaoValue || !reclamacaoValue.trim() || !solucaoValue.trim()) {
+    if (!tipoSituacaoValue || !motivoSolicitacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim()) || !solucaoValue || (typeof solucaoValue === 'string' && !solucaoValue.trim())) {
         console.log('Validação falhou - campos obrigatórios não preenchidos');
         showErrorMessage('Por favor, preencha todos os campos obrigatórios (*).');
         return;
@@ -389,7 +405,7 @@ async function avaliarResposta(tipoAvaliacao) {
     
     console.log('📝 Resposta atual capturada:', respostaAtual ? 'OK' : 'VAZIO');
     
-    if (!respostaAtual.trim()) {
+    if (!respostaAtual || (typeof respostaAtual === 'string' && !respostaAtual.trim())) {
         console.log('❌ Resposta vazia, mostrando erro');
         showErrorMessage('Não há resposta para avaliar.');
         return;
@@ -840,7 +856,7 @@ async function reformularRespostaOpenAI(dados, respostaAnterior) {
 ${respostaAnterior}
 
 ### Instrução:
-A resposta anterior foi considerada incoerente. Gere uma nova resposta corrigindo os erros identificados, consultando os manuais de moderação do RA, documentos internos da Velotax, cláusulas da CCB e mantendo clareza, tom cordial e imparcialidade.
+A resposta anterior foi considerada incoerente. Gere uma nova resposta corrigindo os erros identificados, consultando os manuais de moderação do RA, documentos internos da ${NOME_EMPRESA}, cláusulas da CCB e mantendo clareza, tom cordial e imparcialidade.
 
 Gere a nova resposta:`;
 
@@ -889,7 +905,7 @@ function gerarRespostaReformulada(dados, respostaAnterior) {
     
     // Fechamento mais profissional
     resposta += 'Seguimos à disposição para esclarecimentos adicionais.\n\n';
-    resposta += 'Atenciosamente,\nEquipe Velotax';
+    resposta += `Atenciosamente,\nEquipe ${NOME_EMPRESA}`;
     
     return resposta.trim();
 }
@@ -1008,7 +1024,7 @@ function carregarRascunho() {
 function copiarRespostaOpenAI() {
     const texto = document.getElementById('texto-resposta-gpt5').value;
     
-    if (!texto.trim()) {
+    if (!texto || (typeof texto === 'string' && !texto.trim())) {
         showErrorMessage('Não há texto para copiar.');
         return;
     }
@@ -1054,7 +1070,7 @@ const exemplosTeste = [
         nome: "Exclusão de Cadastro - Realizada",
         tipoSituacao: "exclusao-cadastro",
         motivoSolicitacao: "esclarecimento",
-        reclamacaoCliente: "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
         historicoAtendimento: "Cliente já havia solicitado exclusão via WhatsApp em 15/01/2025, mas não recebeu confirmação.",
         observacoesInternas: "Cliente demonstrou satisfação com o atendimento."
@@ -1063,7 +1079,7 @@ const exemplosTeste = [
         nome: "Exclusão de Cadastro - Negada",
         tipoSituacao: "exclusao-cadastro",
         motivoSolicitacao: "esclarecimento",
-        reclamacaoCliente: "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
         historicoAtendimento: "Cliente possui operação em andamento que impede a exclusão.",
         observacoesInternas: "Explicar ao cliente sobre as pendências e como resolver."
@@ -1108,7 +1124,7 @@ const exemplosTeste = [
         nome: "Análise em Andamento",
         tipoSituacao: "exclusao-cadastro",
         motivoSolicitacao: "esclarecimento",
-        reclamacaoCliente: "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações.",
+        reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações.`,
         solucaoImplementada: "Solicitação em análise pela equipe técnica. Aguardando verificação de pendências.",
         historicoAtendimento: "Cliente fez a solicitação há 2 dias úteis.",
         observacoesInternas: "Análise deve ser concluída em até 5 dias úteis."
@@ -1274,7 +1290,7 @@ function gerarRespostaReclameAqui(estagio, tipoSituacao, baseContratual, reclama
 function copiarRespostaEditada() {
     const textoEditavel = document.getElementById('texto-editavel').value;
     
-    if (!textoEditavel.trim()) {
+    if (!textoEditavel || (typeof textoEditavel === 'string' && !textoEditavel.trim())) {
         showErrorMessage('Não há texto para copiar.');
         return;
     }
@@ -1405,7 +1421,7 @@ async function gerarModeracao() {
     const motivoModeracao = document.getElementById('motivo-moderacao').value;
     const consideracaoFinal = document.getElementById('consideracao-final').value;
     
-    if (!solicitacaoCliente.trim() || !motivoModeracao) {
+    if (!solicitacaoCliente || (typeof solicitacaoCliente === 'string' && !solicitacaoCliente.trim()) || !motivoModeracao) {
         showErrorMessage('Por favor, preencha a solicitação do cliente e selecione o motivo da moderação.');
         return;
     }
@@ -1488,7 +1504,7 @@ function gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, resp
     const motivosDetalhados = {
         'reclamacao-outra-empresa': {
             titulo: 'Reclamação Direcionada a Outra Empresa',
-            descricao: 'A reclamação é direcionada a outra empresa, não à Velotax',
+            descricao: `A reclamação é direcionada a outra empresa, não à ${NOME_EMPRESA}`,
             manual: 'Manual de Reviews',
             fundamento: 'Reclamações devem ser direcionadas à empresa correta'
         },
@@ -1548,7 +1564,7 @@ function gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, resp
     linha += '</div>';
     linha += '</div>';
     
-    if (solicitacaoCliente && solicitacaoCliente.trim()) {
+    if (solicitacaoCliente && typeof solicitacaoCliente === 'string' && solicitacaoCliente.trim()) {
         linha += '<div class="mb-3">';
         linha += '<h6 class="text-secondary"><i class="fas fa-user me-2"></i>Solicitação do Cliente:</h6>';
         linha += `<div class="bg-light p-3 rounded border-start border-secondary border-4">`;
@@ -1577,7 +1593,7 @@ function gerarTextoModeracao(motivoModeracao, consideracaoFinal) {
     texto += '<p>Solicitamos a moderação do conteúdo acima pelos seguintes motivos:</p>';
     
     const motivos = {
-        'reclamacao-outra-empresa': 'A reclamação é direcionada a outra empresa, não à Velotax.',
+        'reclamacao-outra-empresa': `A reclamação é direcionada a outra empresa, não à ${NOME_EMPRESA}.`,
         'reclamacao-trabalhista': 'Trata-se de questão trabalhista, não de relação de consumo.',
         'conteudo-improprio': 'O conteúdo contém linguagem inadequada ou ofensiva.',
         'reclamacao-duplicidade': 'Esta é uma reclamação duplicada já registrada anteriormente.',
@@ -1632,11 +1648,11 @@ function gerarMensagemExplicativa(tema, contexto) {
         `,
         'exclusao': `
             <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Se você deseja excluir sua conta na Velotax, preparamos um passo a passo simples. Você pode fazer isso de duas formas:</p>
+            <p>Se você deseja excluir sua conta na ${NOME_EMPRESA}, preparamos um passo a passo simples. Você pode fazer isso de duas formas:</p>
             
             <p><strong>🔹 1. Pelo aplicativo</strong></p>
             <ol>
-                <li>Abra o app da Velotax no seu celular.</li>
+                <li>Abra o app da ${NOME_EMPRESA} no seu celular.</li>
                 <li>Toque no ícone de Impostos</li>
                 <li>Selecione a opção "DARFs para investidores".</li>
                 <li>No canto superior direito, toque no ícone de menu (☰).</li>
@@ -1646,7 +1662,7 @@ function gerarMensagemExplicativa(tema, contexto) {
             
             <p><strong>🔹 2. Pelo site</strong></p>
             <ol>
-                <li>Acesse: www.velotax.com.br</li>
+                <li>Acesse: ${SITE_EMPRESA}</li>
                 <li>Faça login com seu CPF e senha.</li>
                 <li>No menu inferior, do lado esquerdo, clique em "Conta".</li>
                 <li>Role a página até o final e clique em "Excluir conta".</li>
@@ -1997,7 +2013,7 @@ function formatarTextoRevisado(texto) {
     textoFormatado = textoFormatado
         .replace(/Prezado\(a\)/g, '<strong>Prezado(a)</strong>')
         .replace(/Atenciosamente/g, '<strong>Atenciosamente</strong>')
-        .replace(/Equipe Velotax/g, '<strong>Equipe Velotax</strong>');
+        .replace(new RegExp(`Equipe ${NOME_EMPRESA}`, 'g'), `<strong>Equipe ${NOME_EMPRESA}</strong>`);
     
     return textoFormatado;
 }
@@ -2055,7 +2071,7 @@ function gerarEmailFormal(tipo, assunto, destinatario, contexto) {
     
     // Fechamento
     email += '<p>Em caso de dúvidas, estamos à disposição.</p>';
-    email += '<p>Atenciosamente,<br>Equipe Velotax</p>';
+    email += `<p>Atenciosamente,<br>Equipe ${NOME_EMPRESA}</p>`;
     
     return email;
 }
@@ -2212,7 +2228,7 @@ function gerarFeedbackModeracao() {
     const respostaEmpresa = document.getElementById('resposta-empresa').value;
     const motivoModeracao = document.getElementById('motivo-moderacao').value;
     
-    if (!solicitacaoCliente.trim() || !motivoModeracao) {
+    if (!solicitacaoCliente || (typeof solicitacaoCliente === 'string' && !solicitacaoCliente.trim()) || !motivoModeracao) {
         showErrorMessage('Por favor, preencha a solicitação do cliente e selecione o motivo da moderação.');
         return;
     }
@@ -2242,7 +2258,7 @@ function gerarAnaliseFeedbackModeracao(solicitacaoCliente, respostaEmpresa, moti
     
     switch (motivoModeracao) {
         case 'reclamacao-outra-empresa':
-            feedback += '<p>✅ <strong>Moderação Justificada:</strong> A reclamação é direcionada a outra empresa, não à Velotax. Recomenda-se solicitar a moderação para redirecionamento correto.</p>';
+            feedback += `<p>✅ <strong>Moderação Justificada:</strong> A reclamação é direcionada a outra empresa, não à ${NOME_EMPRESA}. Recomenda-se solicitar a moderação para redirecionamento correto.</p>`;
             break;
         case 'reclamacao-trabalhista':
             feedback += '<p>✅ <strong>Moderação Justificada:</strong> Questão trabalhista não é de competência do Reclame Aqui. Recomenda-se solicitar a moderação.</p>';
@@ -2552,7 +2568,7 @@ function gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCl
     linha += '</div>';
     linha += '</div>';
     
-    if (solicitacaoCliente && solicitacaoCliente.trim()) {
+    if (solicitacaoCliente && typeof solicitacaoCliente === 'string' && solicitacaoCliente.trim()) {
         linha += '<div class="mb-3">';
         linha += '<h6 class="text-secondary"><i class="fas fa-user me-2"></i>Solicitação do Cliente:</h6>';
         linha += `<div class="bg-light p-3 rounded border-start border-secondary border-4">`;
@@ -2582,7 +2598,7 @@ function gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feed
     texto += '<p>Solicitamos a moderação do conteúdo acima pelos seguintes motivos:</p>';
     
     const motivos = {
-        'reclamacao-outra-empresa': 'A reclamação é direcionada a outra empresa, não à Velotax.',
+        'reclamacao-outra-empresa': `A reclamação é direcionada a outra empresa, não à ${NOME_EMPRESA}.`,
         'reclamacao-trabalhista': 'Trata-se de questão trabalhista, não de relação de consumo.',
         'conteudo-improprio': 'O conteúdo contém linguagem inadequada ou ofensiva.',
         'reclamacao-duplicidade': 'Esta é uma reclamação duplicada já registrada anteriormente.',
@@ -2825,3 +2841,41 @@ function showErrorMessage(message) {
         }
     }, 5000);
 }
+
+// ================== EXPORTAÇÕES PARA USO GLOBAL ==================
+// Exportar funções principais
+window.velotaxBot = {
+    gerarRespostaOpenAI,
+    gerarModeracao,
+    gerarExplicacao,
+    revisarTexto,
+    gerarEmail,
+    gerarFAQ,
+    salvarRascunho,
+    carregarRascunho,
+    copiarResposta,
+    verHistorico,
+    fecharHistorico,
+    toggleHistorico,
+    visualizarModelosSalvos,
+    testarFuncao,
+    avaliarResposta,
+    avaliarModeracao,
+    copiarRespostaOpenAI,
+    limparRespostaOpenAI,
+    copiarModeracao,
+    cancelarReformulacao,
+    gerarFeedbackModeracao
+};
+
+// Exportar configurações para uso global
+window.velotaxConfig = {
+    DOMINIO_CORPORATIVO,
+    NOME_EMPRESA,
+    SITE_EMPRESA
+};
+
+// Log de inicialização
+console.log('🚀 Velotax Bot - Funções exportadas para uso global');
+console.log('📋 Configurações disponíveis:', window.velotaxConfig);
+console.log('🔧 Para alterar configurações, use: window.velotaxBot.alterarConfiguracaoEmpresa()');
