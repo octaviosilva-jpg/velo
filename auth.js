@@ -238,6 +238,10 @@ async function handleGoogleSignIn(response) {
 }
 
 function verificarIdentificacao() {
+    console.log('🔍 Verificando identificação...');
+    console.log('🌐 isVercel:', isVercel);
+    console.log('🌐 hostname:', window.location.hostname);
+    
     // Se estiver na Vercel, pular autenticação
     if (isVercel) {
         console.log('🌐 Ambiente Vercel detectado - pulando autenticação');
@@ -254,7 +258,7 @@ function verificarIdentificacao() {
     const umDiaEmMs = 24 * 60 * 60 * 1000; // 24 horas
     let dadosSalvos = null;
     
-    // SEMPRE mostrar overlay primeiro
+    // SEMPRE mostrar overlay primeiro (apenas para localhost)
     showOverlay();
     
     try {
@@ -702,14 +706,16 @@ function verificarAcessoRecurso(recurso) {
 // ================== INICIALIZAÇÃO ==================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🔐 Sistema de autenticação carregado');
+    console.log('🌐 Hostname atual:', window.location.hostname);
+    console.log('🌐 isVercel:', isVercel);
+    console.log('🌐 isDevelopment:', isDevelopment);
     console.log('🔍 Verificando elementos DOM...');
     console.log('  - identificacaoOverlay:', !!identificacaoOverlay);
     console.log('  - appWrapper:', !!appWrapper);
     console.log('  - errorMsg:', !!errorMsg);
     
-    // Forçar exibição do overlay
-    showOverlay();
-    
+    // Verificar identificação primeiro
+    verificarIdentificacao();
     
     await initGoogleSignIn();
 });
