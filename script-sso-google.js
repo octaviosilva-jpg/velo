@@ -1,265 +1,246 @@
-// ================== CONFIGURAÇÕES ==================
-const DOMINIO_PERMITIDO = "@seu-dominio.com"; // Altere para seu domínio
-const CLIENT_ID = 'SEU_CLIENT_ID_AQUI'; // Obtenha no Google Cloud Console
+// ================== SCRIPT DE AUTENTICAÇÃO GOOGLE SSO ==================
+// Este arquivo contém as funções de autenticação Google OAuth 2.0
+// para o sistema Velotax Bot
 
-// ================== ELEMENTOS DO DOM ==================
-const identificacaoOverlay = document.getElementById('identificacao-overlay');
-const appWrapper = document.querySelector('.app-wrapper');
-const errorMsg = document.getElementById('identificacao-error');
-
-// ================== VARIÁVEIS DE ESTADO ==================
+// Configurações globais
+let CLIENT_ID = null;
+let DOMINIO_PERMITIDO = '@velotax.com.br';
 let dadosUsuario = null;
-let tokenClient = null;
 
-// ================== FUNÇÕES DE CONTROLE DE UI ==================
-function showOverlay() {
-    identificacaoOverlay.classList.remove('hidden');
-    appWrapper.classList.add('hidden');
-}
+// ================== FUNÇÕES DE CONFIGURAÇÃO ==================
 
-function hideOverlay() {
-    identificacaoOverlay.classList.add('hidden');
-    appWrapper.classList.remove('hidden');
-}
-
-// ================== LÓGICA DE AUTENTICAÇÃO ==================
-function waitForGoogleScript() {
-    return new Promise((resolve, reject) => {
-        const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-        if (!script) {
-            return reject(new Error('Script Google Identity Services não encontrado no HTML.'));
-        }
-        
-        if (window.google && window.google.accounts) {
-            return resolve(window.google.accounts);
-        }
-        
-        script.onload = () => {
-            if (window.google && window.google.accounts) {
-                resolve(window.google.accounts);
-            } else {
-                reject(new Error('Google Identity Services não carregou corretamente.'));
-            }
-        };
-        
-        script.onerror = () => reject(new Error('Erro ao carregar o script Google Identity Services.'));
-    });
-}
-
-async function handleGoogleSignIn(response) {
+// Carregar configurações do servidor
+async function carregarConfiguracoes() {
     try {
-        // 1. Buscar dados do usuário na API do Google
-        const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${response.access_token}` }
-        });
-        const user = await googleResponse.json();
-
-        // 2. Validar domínio corporativo
-        if (user.email && user.email.endsWith(DOMINIO_PERMITIDO)) {
-            // 3. Buscar perfil adicional (opcional)
-            const profileResponse = await fetch(`/api/getUserProfile?email=${encodeURIComponent(user.email)}`);
-            let userProfile = {};
-            
-            if (profileResponse.ok) {
-                userProfile = await profileResponse.json();
-            }
-
-            // 4. Salvar dados do usuário
-            dadosUsuario = {
-                nome: user.name,
-                email: user.email,
-                foto: user.picture,
-                timestamp: Date.now(),
-                funcao: userProfile.funcao || 'Usuário'
-            };
-
-            // 5. Persistir no localStorage
-            localStorage.setItem('dadosUsuario', JSON.stringify(dadosUsuario));
-            
-            // 6. Log de acesso (opcional)
-            await logUserAccess('online');
-            
-            // 7. Iniciar aplicação
-            hideOverlay();
-            iniciarAplicacao();
-            
+        console.log('🔧 Carregando configurações do servidor...');
+        const response = await fetch('/api/google-config');
+        const config = await response.json();
+        
+        if (config.success) {
+            CLIENT_ID = config.clientId;
+            DOMINIO_PERMITIDO = config.dominioPermitido;
+            console.log('✅ Configurações carregadas:', { CLIENT_ID, DOMINIO_PERMITIDO });
         } else {
-            // Domínio não permitido
-            errorMsg.textContent = `Acesso permitido apenas para e-mails ${DOMINIO_PERMITIDO}!`;
-            errorMsg.classList.remove('hidden');
+            console.error('❌ Erro ao carregar configurações:', config.error);
         }
-        
     } catch (error) {
-        console.error("Erro no fluxo de login:", error);
-        errorMsg.textContent = 'Erro ao verificar login ou permissões. Tente novamente.';
-        errorMsg.classList.remove('hidden');
+        console.error('❌ Erro ao carregar configurações:', error);
     }
 }
 
-function verificarIdentificacao() {
-    const umDiaEmMs = 24 * 60 * 60 * 1000; // 24 horas
-    let dadosSalvos = null;
-    
+// ================== FUNÇÕES DE AUTENTICAÇÃO ==================
+
+// Inicializar Google Sign-In
+async function initGoogleSignIn() {
     try {
-        const dadosSalvosString = localStorage.getItem('dadosUsuario');
-        if (dadosSalvosString) {
-            dadosSalvos = JSON.parse(dadosSalvosString);
+        console.log('🚀 Inicializando Google Sign-In...');
+        
+        // Carregar configurações primeiro
+        await carregarConfiguracoes();
+        
+        if (!CLIENT_ID || CLIENT_ID === 'SEU_CLIENT_ID_AQUI') {
+            console.error('❌ CLIENT_ID não configurado');
+            showGoogleConfigError();
+            return;
         }
-    } catch (e) {
-        localStorage.removeItem('dadosUsuario');
-    }
-
-    // Verificar se há dados válidos e não expirados
-    if (dadosSalvos && 
-        dadosSalvos.email && 
-        dadosSalvos.email.endsWith(DOMINIO_PERMITIDO) && 
-        (Date.now() - dadosSalvos.timestamp < umDiaEmMs)) {
         
-        dadosUsuario = dadosSalvos;
-        logUserAccess('online');
-        hideOverlay();
-        iniciarAplicacao();
+        // Verificar se o Google Identity Services está carregado
+        if (typeof google === 'undefined' || !google.accounts) {
+            console.error('❌ Google Identity Services não carregado');
+            return;
+        }
         
-    } else {
-        // Dados inválidos ou expirados
-        localStorage.removeItem('dadosUsuario');
-        showOverlay();
-    }
-}
-
-function initGoogleSignIn() {
-    waitForGoogleScript().then(accounts => {
-        // Configurar cliente OAuth
-        tokenClient = accounts.oauth2.initTokenClient({
+        // Inicializar Google Identity Services
+        google.accounts.id.initialize({
             client_id: CLIENT_ID,
-            scope: 'profile email',
-            callback: handleGoogleSignIn
+            callback: handleGoogleSignIn,
+            auto_select: false,
+            cancel_on_tap_outside: true
         });
         
-        // Configurar botão de login
-        document.getElementById('google-signin-button').addEventListener('click', () => {
-            tokenClient.requestAccessToken();
-        });
+        console.log('✅ Google Sign-In inicializado com sucesso');
         
-        // Verificar se já está logado
-        verificarIdentificacao();
+        // Mostrar overlay de login
+        showOverlay();
         
-    }).catch(error => {
-        console.error("Erro na inicialização do Google Sign-In:", error);
-        errorMsg.textContent = 'Erro ao carregar autenticação do Google. Verifique sua conexão.';
-        errorMsg.classList.remove('hidden');
-    });
-}
-
-// ================== FUNÇÕES AUXILIARES ==================
-async function logUserAccess(status) {
-    if (!dadosUsuario?.email) return;
-    
-    try {
-        await fetch('/api/logAccess', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: dadosUsuario.email,
-                status: status,
-                timestamp: Date.now()
-            })
-        });
     } catch (error) {
-        console.error("Erro ao registrar acesso:", error);
+        console.error('❌ Erro na inicialização do Google Sign-In:', error);
+        showGoogleConfigError();
     }
 }
 
-function logout() {
-    // Limpar dados locais
-    localStorage.removeItem('dadosUsuario');
-    dadosUsuario = null;
-    
-    // Log de logout
-    logUserAccess('offline');
-    
-    // Mostrar overlay de login
-    showOverlay();
-    
-    // Limpar interface
-    // ... sua lógica de limpeza aqui
+// Manipular resposta do Google Sign-In
+function handleGoogleSignIn(response) {
+    try {
+        console.log('🔐 Resposta do Google Sign-In recebida');
+        
+        if (response.credential) {
+            // Decodificar o token JWT
+            const payload = JSON.parse(atob(response.credential.split('.')[1]));
+            console.log('👤 Dados do usuário:', payload);
+            
+            // Verificar domínio
+            if (payload.email && payload.email.endsWith(DOMINIO_PERMITIDO)) {
+                dadosUsuario = {
+                    nome: payload.name,
+                    email: payload.email,
+                    foto: payload.picture,
+                    funcao: 'Usuário'
+                };
+                
+                console.log('✅ Usuário autenticado:', dadosUsuario);
+                iniciarAplicacao();
+            } else {
+                console.error('❌ Domínio não autorizado:', payload.email);
+                alert('Acesso negado. Apenas usuários com domínio @velotax.com.br são autorizados.');
+            }
+        } else {
+            console.error('❌ Credencial não recebida');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao processar resposta do Google:', error);
+    }
 }
 
-// ================== INICIALIZAÇÃO ==================
-document.addEventListener('DOMContentLoaded', () => {
-    initGoogleSignIn();
-});
+// ================== FUNÇÕES DE INTERFACE ==================
 
-// Logout ao fechar a página
-window.addEventListener('beforeunload', () => {
-    if (dadosUsuario) {
-        logUserAccess('offline');
+// Mostrar overlay de login
+function showOverlay() {
+    const overlay = document.getElementById('identificacao-overlay');
+    const wrapper = document.querySelector('.app-wrapper');
+    
+    if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+        overlay.style.visibility = 'visible';
+        overlay.style.zIndex = '99999';
+        overlay.classList.remove('hidden');
     }
-});
+    
+    if (wrapper) {
+        wrapper.style.display = 'none';
+        wrapper.style.opacity = '0';
+        wrapper.style.visibility = 'hidden';
+        wrapper.classList.remove('authenticated');
+    }
+    
+    console.log('🔒 Overlay de login exibido');
+}
+
+// Esconder overlay de login
+function hideOverlay() {
+    const overlay = document.getElementById('identificacao-overlay');
+    const wrapper = document.querySelector('.app-wrapper');
+    
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
+        overlay.classList.add('hidden');
+    }
+    
+    if (wrapper) {
+        wrapper.style.display = 'block';
+        wrapper.style.opacity = '1';
+        wrapper.style.visibility = 'visible';
+        wrapper.classList.add('authenticated');
+    }
+    
+    console.log('🔓 Overlay de login oculto');
+}
+
+// Mostrar erro de configuração do Google
+function showGoogleConfigError() {
+    const overlay = document.getElementById('identificacao-overlay');
+    if (overlay) {
+        overlay.innerHTML = `
+            <div class="login-box">
+                <h2>Configuração Necessária</h2>
+                <p>O CLIENT_ID do Google OAuth precisa ser configurado para localhost.</p>
+                <p>Configure o CLIENT_ID no arquivo .env</p>
+                <button onclick="location.reload()" class="btn btn-primary">Recarregar</button>
+            </div>
+        `;
+    }
+}
 
 // ================== FUNÇÃO PRINCIPAL DA APLICAÇÃO ==================
+
 function iniciarAplicacao() {
-    // Sua lógica de inicialização da aplicação aqui
-    console.log('Usuário logado:', dadosUsuario);
+    console.log('🚀 Iniciando aplicação para usuário:', dadosUsuario.nome);
     
     // Exemplo: mostrar nome do usuário
     const userInfo = document.getElementById('user-info');
     if (userInfo) {
-        userInfo.textContent = `Olá, ${dadosUsuario.nome}!`;
+        userInfo.innerHTML = `
+            <div class="d-flex align-items-center">
+                <img src="${dadosUsuario.foto}" alt="Foto do usuário" class="rounded-circle me-2" width="28" height="28">
+                <div>
+                    <div class="fw-bold">${dadosUsuario.nome}</div>
+                    <small class="text-muted">${dadosUsuario.funcao}</small>
+                </div>
+            </div>
+        `;
     }
     
-    // Exemplo: configurar botão de logout
-    const logoutBtn = document.getElementById('logout-button');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
+    // Inicializar bot
+    if (typeof initializeBot === 'function') {
+        initializeBot();
+    }
+    
+    // Esconder overlay e mostrar aplicação
+    hideOverlay();
+}
+
+// ================== FUNÇÕES DE LOGOUT ==================
+
+function logout() {
+    console.log('🚪 Fazendo logout...');
+    
+    // Limpar dados do usuário
+    dadosUsuario = null;
+    
+    // Limpar interface
+    const userInfo = document.getElementById('user-info');
+    if (userInfo) {
+        userInfo.innerHTML = '';
+    }
+    
+    // Mostrar overlay de login novamente
+    showOverlay();
+    
+    console.log('✅ Logout realizado');
+}
+
+// ================== INICIALIZAÇÃO ==================
+
+// Verificar identificação quando a página carregar
+function verificarIdentificacao() {
+    console.log('🔍 Verificando identificação...');
+    
+    if (dadosUsuario) {
+        console.log('✅ Usuário já autenticado');
+        iniciarAplicacao();
+    } else {
+        console.log('🔒 Usuário não autenticado, mostrando overlay');
+        showOverlay();
     }
 }
 
-// ================== RECURSOS AVANÇADOS ==================
-function verificarPermissao(permissao) {
-    if (!dadosUsuario) return false;
-    
-    const permissoes = {
-        'admin': ['admin', 'gerente'],
-        'relatorios': ['admin', 'gerente', 'analista'],
-        'editar': ['admin', 'gerente']
-    };
-    
-    return permissoes[permissao]?.includes(dadosUsuario.funcao) || false;
-}
+// Inicializar quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM carregado, inicializando autenticação...');
+    verificarIdentificacao();
+    initGoogleSignIn();
+});
 
-function verificarExpiracao() {
-    if (!dadosUsuario) return;
-    
-    const tempoExpiracao = 23 * 60 * 60 * 1000; // 23 horas
-    if (Date.now() - dadosUsuario.timestamp > tempoExpiracao) {
-        logout();
-    }
-}
-
-// Verificar a cada hora
-setInterval(verificarExpiracao, 60 * 60 * 1000);
-
-// ================== EXEMPLO DE USO COMPLETO ==================
-/*
-<!DOCTYPE html>
-<html>
-<head>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-</head>
-<body>
-    <div id="login-overlay">
-        <button id="google-signin-button">Entrar com Google</button>
-    </div>
-    
-    <div id="app" class="hidden">
-        <h1>Bem-vindo!</h1>
-        <button id="logout-button">Sair</button>
-    </div>
-    
-    <script>
-        // Cole todo o código JavaScript aqui
-    </script>
-</body>
-</html>
-*/
+// Exportar funções para uso global
+window.velotaxAuth = {
+    initGoogleSignIn,
+    handleGoogleSignIn,
+    showOverlay,
+    hideOverlay,
+    iniciarAplicacao,
+    logout,
+    verificarIdentificacao
+};
