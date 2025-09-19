@@ -1,0 +1,60 @@
+# ===== CONFIGURAÇÕES DO GOOGLE OAUTH =====
+# Obtenha estas credenciais no Google Cloud Console
+# https://console.cloud.google.com/
+
+# Client ID do Google OAuth 2.0
+GOOGLE_CLIENT_ID=seu_google_client_id_aqui
+
+# Client Secret do Google OAuth 2.0 (opcional para frontend)
+GOOGLE_CLIENT_SECRET=seu_google_client_secret_aqui
+
+# ===== CONFIGURAÇÕES DO SERVIDOR =====
+# Porta do servidor (padrão: 3001)
+PORT=3001
+
+# Ambiente (development, production)
+NODE_ENV=development
+
+# ===== CONFIGURAÇÕES DE DOMÍNIO =====
+# Domínio corporativo permitido para login
+DOMINIO_PERMITIDO=@velotax.com.br
+
+# URLs autorizadas (separadas por vírgula)
+AUTHORIZED_ORIGINS=http://localhost:3001,https://seu-dominio.com
+
+# ===== CONFIGURAÇÕES DE SEGURANÇA =====
+# Chave secreta para sessões (gere uma chave aleatória)
+SESSION_SECRET=sua_chave_secreta_aqui
+
+# Tempo de expiração da sessão em horas (padrão: 24)
+SESSION_EXPIRATION_HOURS=24
+
+# ===== CONFIGURAÇÕES DE LOG =====
+# Habilitar logs detalhados (true/false)
+ENABLE_DETAILED_LOGS=true
+
+# Diretório para arquivos de log
+LOG_DIRECTORY=./logs
+
+# ===== CONFIGURAÇÕES DE BANCO DE DADOS (OPCIONAL) =====
+# Para futuras implementações com banco de dados
+# DATABASE_URL=postgresql://usuario:senha@localhost:5432/velotax_bot
+# DATABASE_TYPE=postgresql
+
+# ===== CONFIGURAÇÕES DE EMAIL (OPCIONAL) =====
+# Para notificações por email
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=seu-email@gmail.com
+# SMTP_PASS=sua-senha-app
+
+# ===== CONFIGURAÇÕES DE INTEGRAÇÃO (OPCIONAL) =====
+# Para integração com APIs externas
+# OPENAI_API_KEY=sua_chave_openai_aqui
+# RECLAME_AQUI_API_KEY=sua_chave_ra_aqui
+
+# ===== INSTRUÇÕES =====
+# 1. Copie este arquivo para .env
+# 2. Substitua os valores pelos seus dados reais
+# 3. Nunca commite o arquivo .env no Git
+# 4. Mantenha as credenciais seguras

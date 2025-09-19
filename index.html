@@ -7,9 +7,82 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles.css?v=20250117b" rel="stylesheet">
+    <link href="styles.css?v=20250117l" rel="stylesheet">
+    
+    <!-- CSS inline para garantir que o overlay funcione -->
+    <style>
+        #identificacao-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            z-index: 99999 !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            background: linear-gradient(135deg, rgba(0, 0, 88, 0.95) 0%, rgba(22, 52, 255, 0.9) 25%, rgba(29, 253, 185, 0.1) 50%, rgba(22, 52, 255, 0.9) 75%, rgba(0, 0, 88, 0.95) 100%) !important;
+        }
+        
+        #identificacao-overlay.hidden {
+            display: none !important;
+        }
+        
+        .app-wrapper {
+            display: none !important;
+        }
+        
+        .app-wrapper.authenticated {
+            display: block !important;
+        }
+    </style>
+    
+    <!-- CSP para permitir Google APIs e recursos necessários -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com https://cdn.jsdelivr.net;
+                   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+                   img-src 'self' data: https: http:;
+                   font-src 'self' https://cdnjs.cloudflare.com;
+                   frame-src https://accounts.google.com;
+                   connect-src 'self' https://www.googleapis.com https://accounts.google.com https://cdn.jsdelivr.net;">
+    
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
+    <!-- Overlay de Login -->
+    <div id="identificacao-overlay">
+        <div id="identificacao-box">
+            <div class="login-header">
+                <img src="logo-reclame-aqui.SVG.png" alt="Velotax Bot" class="login-logo">
+                <h2>Bem-vindo(a) ao Velotax Bot</h2>
+                <p>Por favor, faça login com sua conta Google corporativa (@velotax.com.br).</p>
+            </div>
+            
+            <div id="google-signin-button" class="google-signin-btn">
+                <img src="https://www.google.com/favicon.ico" alt="Google Icon">
+                <span>Entrar com Google</span>
+            </div>
+            
+            <p id="identificacao-error" class="identificacao-error hidden">
+                <i class="fas fa-exclamation-triangle"></i>
+                Acesso permitido apenas para e-mails corporativos @velotax.com.br
+            </p>
+            
+            <div class="login-footer">
+                <small>
+                    <i class="fas fa-shield-alt"></i>
+                    Sistema seguro e protegido
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <div class="app-wrapper">
     <div class="container-fluid">
         <!-- Header Responsivo -->
         <header class="text-white py-4 mb-4" style="background: url('premio-ra-banner.svg') center/cover no-repeat; position: relative; min-height: 180px; background-attachment: local; background-position: center top;">
@@ -28,18 +101,23 @@
                         </div>
                     </div>
                     <div class="col-md-4 text-end">
-                        <div class="status-indicator">
-                            <span class="status-dot online"></span>
-                            <span class="status-text">Online</span>
+                        <div class="header-right-content">
+                            <div class="status-indicator">
+                                <span class="status-dot online"></span>
+                                <span class="status-text">Online</span>
+                            </div>
+                            <div id="user-info" class="user-info">
+                                <!-- Informações do usuário serão inseridas aqui -->
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             <!-- Nome da interface responsivo -->
             <div class="interface-name">
-                <h2 class="mb-0">
+                <span class="interface-text">
                     Bot Amassa IA do RA
-                </h2>
+                </span>
             </div>
         </header>
 
@@ -596,7 +674,107 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js?v=2"></script>
+    
+    <!-- Script imediato para forçar overlay -->
+    <script>
+        // Executar imediatamente, sem esperar DOMContentLoaded
+        (function() {
+            console.log('🚀 Script imediato executando...');
+            
+            // Aguardar um pouco para garantir que o DOM esteja pronto
+            setTimeout(function() {
+                const overlay = document.getElementById('identificacao-overlay');
+                const wrapper = document.querySelector('.app-wrapper');
+                
+                console.log('🔍 Elementos encontrados (script imediato):', {
+                    overlay: !!overlay,
+                    wrapper: !!wrapper
+                });
+                
+                if (overlay) {
+                    overlay.style.cssText = `
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100vw !important;
+                        height: 100vh !important;
+                        display: flex !important;
+                        justify-content: center !important;
+                        align-items: center !important;
+                        z-index: 99999 !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        background: linear-gradient(135deg, rgba(0, 0, 88, 0.95) 0%, rgba(22, 52, 255, 0.9) 25%, rgba(29, 253, 185, 0.1) 50%, rgba(22, 52, 255, 0.9) 75%, rgba(0, 0, 88, 0.95) 100%) !important;
+                    `;
+                    overlay.classList.remove('hidden');
+                    console.log('✅ Overlay forçado a aparecer (script imediato)');
+                }
+                
+                if (wrapper) {
+                    wrapper.style.cssText = `
+                        display: none !important;
+                        opacity: 0 !important;
+                        visibility: hidden !important;
+                    `;
+                    wrapper.classList.remove('authenticated');
+                    console.log('✅ Interface principal oculta (script imediato)');
+                }
+            }, 100);
+        })();
+    </script>
+    
+    <!-- Script para garantir que o overlay seja exibido imediatamente -->
+    <script>
+        // Garantir que o overlay seja exibido imediatamente
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM carregado, configurando overlay...');
+            
+            const overlay = document.getElementById('identificacao-overlay');
+            const wrapper = document.querySelector('.app-wrapper');
+            
+            console.log('🔍 Elementos encontrados:', {
+                overlay: !!overlay,
+                wrapper: !!wrapper
+            });
+            
+            if (overlay) {
+                // Forçar exibição do overlay
+                overlay.style.cssText = `
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                    z-index: 99999 !important;
+                    opacity: 1 !important;
+                    visibility: visible !important;
+                    background: linear-gradient(135deg, rgba(0, 0, 88, 0.95) 0%, rgba(22, 52, 255, 0.9) 25%, rgba(29, 253, 185, 0.1) 50%, rgba(22, 52, 255, 0.9) 75%, rgba(0, 0, 88, 0.95) 100%) !important;
+                `;
+                overlay.classList.remove('hidden');
+                console.log('✅ Overlay forçado a aparecer com estilos inline');
+            } else {
+                console.error('❌ Elemento identificacao-overlay não encontrado!');
+            }
+            
+            if (wrapper) {
+                wrapper.style.cssText = `
+                    display: none !important;
+                    opacity: 0 !important;
+                    visibility: hidden !important;
+                `;
+                wrapper.classList.remove('authenticated');
+                console.log('✅ Interface principal forçada a ficar oculta');
+            } else {
+                console.error('❌ Elemento app-wrapper não encontrado!');
+            }
+        });
+    </script>
+    
+    <script src="auth.js?v=20250117w"></script>
+    <script src="script.js?v=6"></script>
     
     <!-- Sistema de ajuste automático do nome da interface -->
     <script>
@@ -675,5 +853,6 @@
         // Executar após um pequeno delay para garantir que tudo carregou
         setTimeout(adjustInterfaceName, 100);
     </script>
+    </div> <!-- Fechamento do app-wrapper -->
 </body>
 </html> 
