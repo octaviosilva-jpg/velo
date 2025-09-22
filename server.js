@@ -825,18 +825,22 @@ function saveModelosRespostas(modelos) {
             console.log('✅ Modelos de respostas salvos em memória:', modelos.modelos.length);
             
             // Registrar no Google Sheets se disponível
-            if (googleSheetsIntegration.isActive()) {
-                const ultimoModelo = modelos.modelos[modelos.modelos.length - 1];
-                if (ultimoModelo) {
-                    const respostaData = {
-                        id: ultimoModelo.id,
-                        tipo: 'resposta',
-                        textoCliente: ultimoModelo.dadosFormulario?.texto_cliente || '',
-                        respostaFinal: ultimoModelo.respostaAprovada,
-                        dadosFormulario: ultimoModelo.dadosFormulario
-                    };
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+            try {
+                if (googleSheetsIntegration.isActive()) {
+                    const ultimoModelo = modelos.modelos[modelos.modelos.length - 1];
+                    if (ultimoModelo) {
+                        const respostaData = {
+                            id: ultimoModelo.id,
+                            tipo: 'resposta',
+                            textoCliente: ultimoModelo.dadosFormulario?.texto_cliente || '',
+                            respostaFinal: ultimoModelo.respostaAprovada,
+                            dadosFormulario: ultimoModelo.dadosFormulario
+                        };
+                        await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    }
                 }
+            } catch (error) {
+                console.error('❌ Erro ao registrar no Google Sheets (Vercel):', error.message);
             }
             return;
         }
@@ -857,18 +861,22 @@ function saveModelosRespostas(modelos) {
         console.log('✅ Modelos de respostas salvos no arquivo:', modelos.modelos.length);
         
         // Registrar no Google Sheets se disponível
-        if (googleSheetsIntegration.isActive()) {
-            const ultimoModelo = modelos.modelos[modelos.modelos.length - 1];
-            if (ultimoModelo) {
-                const respostaData = {
-                    id: ultimoModelo.id,
-                    tipo: 'resposta',
-                    textoCliente: ultimoModelo.dadosFormulario?.texto_cliente || '',
-                    respostaFinal: ultimoModelo.respostaAprovada,
-                    dadosFormulario: ultimoModelo.dadosFormulario
-                };
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        try {
+            if (googleSheetsIntegration.isActive()) {
+                const ultimoModelo = modelos.modelos[modelos.modelos.length - 1];
+                if (ultimoModelo) {
+                    const respostaData = {
+                        id: ultimoModelo.id,
+                        tipo: 'resposta',
+                        textoCliente: ultimoModelo.dadosFormulario?.texto_cliente || '',
+                        respostaFinal: ultimoModelo.respostaAprovada,
+                        dadosFormulario: ultimoModelo.dadosFormulario
+                    };
+                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                }
             }
+        } catch (error) {
+            console.error('❌ Erro ao registrar no Google Sheets:', error.message);
         }
     } catch (error) {
         console.error('❌ Erro ao salvar modelos de respostas:', error);
@@ -4289,20 +4297,25 @@ app.use('*', (req, res) => {
 
 // Inicializar Google Sheets se habilitado
 async function initializeGoogleSheets() {
-    if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
-        console.log('🔧 Inicializando integração com Google Sheets...');
-        const success = await googleSheetsIntegration.initialize();
-        if (success) {
-            console.log('✅ Google Sheets integrado com sucesso');
-            // Sincronizar dados existentes em background
-            setTimeout(() => {
-                googleSheetsIntegration.sincronizarDadosExistentes();
-            }, 5000);
+    try {
+        if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
+            console.log('🔧 Inicializando integração com Google Sheets...');
+            const success = await googleSheetsIntegration.initialize();
+            if (success) {
+                console.log('✅ Google Sheets integrado com sucesso');
+                // Sincronizar dados existentes em background
+                setTimeout(() => {
+                    googleSheetsIntegration.sincronizarDadosExistentes();
+                }, 5000);
+            } else {
+                console.log('⚠️ Google Sheets não pôde ser inicializado');
+            }
         } else {
-            console.log('⚠️ Google Sheets não pôde ser inicializado');
+            console.log('📊 Google Sheets desabilitado');
         }
-    } else {
-        console.log('📊 Google Sheets desabilitado');
+    } catch (error) {
+        console.error('❌ Erro ao inicializar Google Sheets:', error.message);
+        console.log('📊 Continuando sem Google Sheets...');
     }
 }
 
