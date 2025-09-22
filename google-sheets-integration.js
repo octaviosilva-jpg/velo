@@ -14,6 +14,12 @@ class GoogleSheetsIntegration {
         try {
             console.log('🔧 Inicializando integração com Google Sheets...');
             
+            // Para Vercel, desabilitar Google Sheets para evitar erros
+            if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+                console.log('⚠️ Google Sheets desabilitado na Vercel para evitar erros');
+                return false;
+            }
+            
             // Carregar configurações do ambiente
             const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
             if (!spreadsheetId) {
@@ -66,6 +72,10 @@ class GoogleSheetsIntegration {
      * Verifica se a integração está ativa
      */
     isActive() {
+        // Para Vercel, sempre retornar false para evitar erros
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            return false;
+        }
         return this.initialized && googleSheetsConfig.isInitialized();
     }
 
