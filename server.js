@@ -4286,6 +4286,10 @@ app.use('*', (req, res) => {
 // Inicializar Google Sheets se habilitado
 async function initializeGoogleSheets() {
     try {
+        // TEMPORARIAMENTE DESABILITADO PARA ESTABILIZAR O SISTEMA
+        console.log('📊 Google Sheets temporariamente desabilitado para estabilizar o sistema');
+        return false;
+        
         if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
             console.log('🔧 Inicializando integração com Google Sheets...');
             const success = await googleSheetsIntegration.initialize();
