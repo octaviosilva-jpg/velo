@@ -1,4 +1,5 @@
 const googleSheetsConfig = require('./google-sheets-config');
+const fs = require('fs');
 
 class GoogleSheetsIntegration {
     constructor() {
@@ -297,6 +298,12 @@ class GoogleSheetsIntegration {
 
         try {
             console.log('🔄 Iniciando sincronização de dados existentes...');
+            
+            // Verificar se estamos na Vercel (sem sistema de arquivos)
+            if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+                console.log('⚠️ Sincronização desabilitada na Vercel (sem sistema de arquivos)');
+                return false;
+            }
 
             // Sincronizar feedbacks
             const feedbacksPath = './data/feedbacks.json';
