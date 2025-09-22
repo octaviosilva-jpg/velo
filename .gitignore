@@ -107,3 +107,7 @@ DEPLOY_GUIDE.md
 GUIA_VERCEL.md
 INSTRUCOES_GITHUB.md
 .vercel
+
+# Google Sheets credentials (sensitive data)
+google-sheets-credentials.json
+google-sheets-token.json
