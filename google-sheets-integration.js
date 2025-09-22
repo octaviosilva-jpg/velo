@@ -63,9 +63,6 @@ class GoogleSheetsIntegration {
             };
 
             this.initialized = await googleSheetsConfig.initializeWithCredentials(credentials, spreadsheetId);
-=======
-            this.initialized = await googleSheetsConfig.initialize(credentialsPath, spreadsheetId, tokenPath);
->>>>>>> 59d1f89820d33d1071861d950de7d6753d16f664
             
             if (this.initialized) {
                 console.log('✅ Integração com Google Sheets inicializada com sucesso');
