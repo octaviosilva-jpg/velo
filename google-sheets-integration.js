@@ -17,7 +17,6 @@ class GoogleSheetsIntegration {
             
             // Carregar configurações do ambiente
             const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-            
             if (!spreadsheetId) {
                 console.log('⚠️ GOOGLE_SHEETS_ID não configurado. Integração desabilitada.');
                 return false;
@@ -64,6 +63,9 @@ class GoogleSheetsIntegration {
             };
 
             this.initialized = await googleSheetsConfig.initializeWithCredentials(credentials, spreadsheetId);
+=======
+            this.initialized = await googleSheetsConfig.initialize(credentialsPath, spreadsheetId, tokenPath);
+>>>>>>> 59d1f89820d33d1071861d950de7d6753d16f664
             
             if (this.initialized) {
                 console.log('✅ Integração com Google Sheets inicializada com sucesso');
