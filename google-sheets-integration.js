@@ -14,11 +14,7 @@ class GoogleSheetsIntegration {
         try {
             console.log('🔧 Inicializando integração com Google Sheets...');
             
-            // Para Vercel, desabilitar Google Sheets para evitar erros
-            if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-                console.log('⚠️ Google Sheets desabilitado na Vercel para evitar erros');
-                return false;
-            }
+            // Google Sheets habilitado para Vercel com Service Account
             
             // Carregar configurações do ambiente
             const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
@@ -29,12 +25,49 @@ class GoogleSheetsIntegration {
 
             this.spreadsheetId = spreadsheetId;
             
-            // Verificar se as credenciais estão nas variáveis de ambiente
+            // Verificar se as credenciais do Service Account estão nas variáveis de ambiente
+            const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+            const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+            const projectId = process.env.GOOGLE_PROJECT_ID;
+
+            // Priorizar Service Account (método correto para Vercel)
+            if (serviceAccountEmail && privateKey && projectId) {
+                console.log('🔧 Usando Service Account para autenticação...');
+                
+                // Montar objeto de credenciais do Service Account
+                const credentials = {
+                    type: 'service_account',
+                    project_id: projectId,
+                    private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID || 'default',
+                    private_key: privateKey.replace(/\\n/g, '\n'),
+                    client_email: serviceAccountEmail,
+                    client_id: process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+                    auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+                    token_uri: 'https://oauth2.googleapis.com/token',
+                    auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+                    client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(serviceAccountEmail)}`
+                };
+
+                this.initialized = await googleSheetsConfig.initializeWithCredentials(credentials, spreadsheetId);
+                
+                if (this.initialized) {
+                    console.log('✅ Integração com Google Sheets (Service Account) inicializada com sucesso');
+                    await this.ensureSheetsExist();
+                } else {
+                    console.log('⚠️ Integração com Google Sheets (Service Account) não pôde ser inicializada');
+                }
+
+                return this.initialized;
+            }
+            
+            // Fallback para OAuth2 (método antigo)
             const clientId = process.env.GOOGLE_CLIENT_ID;
             const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
             
-            if (!clientId || !clientSecret) {
-                console.log('⚠️ Credenciais do Google não encontradas nas variáveis de ambiente. Integração desabilitada.');
+            if (clientId && clientSecret) {
+                console.log('⚠️ Usando OAuth2 (método antigo - pode não funcionar na Vercel)...');
+            } else {
+                console.log('⚠️ Credenciais do Google não configuradas. Integração desabilitada.');
                 return false;
             }
 
