@@ -7,9 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 // ===== INTEGRAÇÃO COM GOOGLE SHEETS =====
-// TEMPORARIAMENTE DESABILITADO PARA ESTABILIZAR O SISTEMA
-// const googleSheetsIntegration = require('./google-sheets-integration');
-const googleSheetsIntegration = null;
+const googleSheetsIntegration = require('./google-sheets-integration');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -4288,9 +4286,17 @@ app.use('*', (req, res) => {
 // Inicializar Google Sheets se habilitado
 async function initializeGoogleSheets() {
     try {
-        // TEMPORARIAMENTE DESABILITADO PARA ESTABILIZAR O SISTEMA
-        console.log('📊 Google Sheets temporariamente desabilitado para estabilizar o sistema');
-        return false;
+        if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
+            console.log('🔧 Inicializando integração com Google Sheets...');
+            const success = await googleSheetsIntegration.initialize();
+            if (success) {
+                console.log('✅ Google Sheets integrado com sucesso');
+            } else {
+                console.log('⚠️ Google Sheets não pôde ser inicializado');
+            }
+        } else {
+            console.log('📊 Google Sheets desabilitado via configuração');
+        }
     } catch (error) {
         console.error('❌ Erro ao inicializar Google Sheets:', error.message);
         console.log('📊 Sistema funcionando sem Google Sheets');
