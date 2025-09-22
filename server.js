@@ -7,7 +7,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 // ===== INTEGRAÇÃO COM GOOGLE SHEETS =====
-const googleSheetsIntegration = require('./google-sheets-integration');
+// TEMPORARIAMENTE DESABILITADO PARA ESTABILIZAR O SISTEMA
+// const googleSheetsIntegration = require('./google-sheets-integration');
+const googleSheetsIntegration = null;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -409,14 +411,14 @@ function saveFeedbacksRespostas(feedbacks) {
             feedbacksRespostasMemoria = feedbacks;
             console.log('✅ Feedbacks de respostas salvos em memória');
             
-            // Registrar no Google Sheets se ativo
-            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                try {
-                    googleSheetsIntegration.registrarFeedback(feedbackData);
-                } catch (error) {
-                    console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
-                }
-            }
+            // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+            // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            //     try {
+            //         googleSheetsIntegration.registrarFeedback(feedbackData);
+            //     } catch (error) {
+            //         console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
+            //     }
+            // }
             return;
         }
         
@@ -424,14 +426,14 @@ function saveFeedbacksRespostas(feedbacks) {
         fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
         console.log('✅ Feedbacks de respostas salvos no arquivo');
         
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+        // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        //     try {
+        //         googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        //     } catch (error) {
+        //         console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+        //     }
+        // }
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de respostas:', error);
         
@@ -478,14 +480,14 @@ function saveFeedbacksModeracoes(feedbacks) {
             feedbacksModeracoesMemoria = feedbacks;
             console.log('✅ Feedbacks de moderações salvos em memória');
             
-            // Registrar no Google Sheets se ativo
-            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                try {
-                    googleSheetsIntegration.registrarFeedback(feedbackData);
-                } catch (error) {
-                    console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
-                }
-            }
+            // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+            // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            //     try {
+            //         googleSheetsIntegration.registrarFeedback(feedbackData);
+            //     } catch (error) {
+            //         console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
+            //     }
+            // }
             return;
         }
         
@@ -493,14 +495,14 @@ function saveFeedbacksModeracoes(feedbacks) {
         fs.writeFileSync(FEEDBACKS_MODERACOES_FILE, JSON.stringify(feedbacks, null, 2));
         console.log('✅ Feedbacks de moderações salvos no arquivo');
         
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+        // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        //     try {
+        //         googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        //     } catch (error) {
+        //         console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+        //     }
+        // }
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de moderações:', error);
         
@@ -828,14 +830,14 @@ function saveModelosRespostas(modelos) {
             modelosRespostasMemoria = modelos;
             console.log('✅ Modelos de respostas salvos em memória:', modelos.modelos.length);
             
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+        // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        //     try {
+        //         googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        //     } catch (error) {
+        //         console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+        //     }
+        // }
             return;
         }
         
@@ -854,14 +856,14 @@ function saveModelosRespostas(modelos) {
         
         console.log('✅ Modelos de respostas salvos no arquivo:', modelos.modelos.length);
         
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+        // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        //     try {
+        //         googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        //     } catch (error) {
+        //         console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+        //     }
+        // }
     } catch (error) {
         console.error('❌ Erro ao salvar modelos de respostas:', error);
         
@@ -1957,14 +1959,14 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, (req, res) => {
             status: 'Sucesso'
         };
         
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // Registrar no Google Sheets se ativo (TEMPORARIAMENTE DESABILITADO)
+        // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        //     try {
+        //         googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        //     } catch (error) {
+        //         console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+        //     }
+        // }
         
         res.json({
             success: true,
@@ -4286,21 +4288,9 @@ app.use('*', (req, res) => {
 // Inicializar Google Sheets se habilitado
 async function initializeGoogleSheets() {
     try {
-        if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
-            console.log('🔧 Inicializando integração com Google Sheets...');
-            const success = await googleSheetsIntegration.initialize();
-            if (success) {
-                console.log('✅ Google Sheets integrado com sucesso');
-                // Sincronizar dados existentes em background
-                setTimeout(() => {
-                    googleSheetsIntegration.sincronizarDadosExistentes();
-                }, 5000);
-            } else {
-                console.log('⚠️ Google Sheets não pôde ser inicializado');
-            }
-        } else {
-            console.log('📊 Google Sheets desabilitado via configuração');
-        }
+        // TEMPORARIAMENTE DESABILITADO PARA ESTABILIZAR O SISTEMA
+        console.log('📊 Google Sheets temporariamente desabilitado para estabilizar o sistema');
+        return false;
     } catch (error) {
         console.error('❌ Erro ao inicializar Google Sheets:', error.message);
         console.log('📊 Sistema funcionando sem Google Sheets');
