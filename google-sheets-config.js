@@ -11,6 +11,30 @@ class GoogleSheetsConfig {
     }
 
     /**
+     * Inicializa a configuração do Google Sheets com credenciais diretas
+     * @param {object} credentials - Objeto de credenciais
+     * @param {string} spreadsheetId - ID da planilha do Google Sheets
+     */
+    async initializeWithCredentials(credentials, spreadsheetId) {
+        try {
+            console.log('🔧 Inicializando Google Sheets API com credenciais diretas...');
+            
+            // Configurar OAuth2 com credenciais diretas
+            const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
+            this.auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+
+            // Para Vercel, vamos usar um token temporário ou desabilitar
+            console.log('⚠️ Inicialização com credenciais diretas - token não disponível');
+            console.log('📊 Google Sheets desabilitado temporariamente na Vercel');
+            return false;
+
+        } catch (error) {
+            console.error('❌ Erro ao inicializar Google Sheets com credenciais:', error.message);
+            return false;
+        }
+    }
+
+    /**
      * Inicializa a configuração do Google Sheets
      * @param {string} credentialsPath - Caminho para o arquivo de credenciais JSON
      * @param {string} spreadsheetId - ID da planilha do Google Sheets
