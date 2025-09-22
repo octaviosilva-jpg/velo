@@ -16,16 +16,36 @@ class GoogleSheetsIntegration {
             
             // Carregar configurações do ambiente
             const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
-            const credentialsPath = process.env.GOOGLE_SHEETS_CREDENTIALS_PATH || 'google-sheets-credentials.json';
-            const tokenPath = process.env.GOOGLE_SHEETS_TOKEN_PATH || 'google-sheets-token.json';
-
+            
             if (!spreadsheetId) {
                 console.log('⚠️ GOOGLE_SHEETS_ID não configurado. Integração desabilitada.');
                 return false;
             }
 
+            // Verificar se as credenciais estão disponíveis como variáveis de ambiente
+            const hasEnvCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
+            
+            if (!hasEnvCredentials) {
+                console.log('⚠️ Credenciais do Google não configuradas. Integração desabilitada.');
+                return false;
+            }
+
             this.spreadsheetId = spreadsheetId;
-            this.initialized = await googleSheetsConfig.initialize(credentialsPath, spreadsheetId, tokenPath);
+            
+            // Criar objeto de credenciais a partir das variáveis de ambiente
+            const credentials = {
+                installed: {
+                    client_id: process.env.GOOGLE_CLIENT_ID,
+                    project_id: process.env.GOOGLE_PROJECT_ID,
+                    auth_uri: process.env.GOOGLE_AUTH_URI,
+                    token_uri: process.env.GOOGLE_TOKEN_URI,
+                    auth_provider_x509_cert_url: process.env.GOOGLE_AUTH_PROVIDER_X509_CERT_URL,
+                    client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                    redirect_uris: process.env.GOOGLE_REDIRECT_URIS ? process.env.GOOGLE_REDIRECT_URIS.split(',') : ['http://localhost']
+                }
+            };
+
+            this.initialized = await googleSheetsConfig.initializeWithCredentials(credentials, spreadsheetId);
             
             if (this.initialized) {
                 console.log('✅ Integração com Google Sheets inicializada com sucesso');
