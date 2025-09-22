@@ -1,6 +1,4 @@
 const googleSheetsConfig = require('./google-sheets-config');
-const fs = require('fs');
-const path = require('path');
 
 class GoogleSheetsIntegration {
     constructor() {
@@ -24,41 +22,25 @@ class GoogleSheetsIntegration {
 
             this.spreadsheetId = spreadsheetId;
             
-            // Ler credenciais do arquivo config.env
-            const credentialsPath = path.join(__dirname, 'config.env');
+            // Verificar se as credenciais estão nas variáveis de ambiente
+            const clientId = process.env.GOOGLE_CLIENT_ID;
+            const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
             
-            if (!fs.existsSync(credentialsPath)) {
-                console.log('⚠️ Arquivo config.env não encontrado. Integração desabilitada.');
+            if (!clientId || !clientSecret) {
+                console.log('⚠️ Credenciais do Google não encontradas nas variáveis de ambiente. Integração desabilitada.');
                 return false;
             }
 
-            // Ler e parsear o arquivo config.env
-            const envContent = fs.readFileSync(credentialsPath, 'utf8');
-            const envVars = {};
-            
-            envContent.split('\n').forEach(line => {
-                const [key, ...valueParts] = line.split('=');
-                if (key && valueParts.length > 0) {
-                    envVars[key.trim()] = valueParts.join('=').trim();
-                }
-            });
-
-            // Verificar se as credenciais estão no config.env
-            if (!envVars.GOOGLE_CLIENT_ID || !envVars.GOOGLE_CLIENT_SECRET) {
-                console.log('⚠️ Credenciais do Google não encontradas no config.env. Integração desabilitada.');
-                return false;
-            }
-
-            // Criar objeto de credenciais a partir do config.env
+            // Criar objeto de credenciais a partir das variáveis de ambiente
             const credentials = {
                 installed: {
-                    client_id: envVars.GOOGLE_CLIENT_ID,
-                    project_id: envVars.GOOGLE_PROJECT_ID || 'velotax-bot-v2',
-                    auth_uri: envVars.GOOGLE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth',
-                    token_uri: envVars.GOOGLE_TOKEN_URI || 'https://oauth2.googleapis.com/token',
-                    auth_provider_x509_cert_url: envVars.GOOGLE_AUTH_PROVIDER_X509_CERT_URL || 'https://www.googleapis.com/oauth2/v1/certs',
-                    client_secret: envVars.GOOGLE_CLIENT_SECRET,
-                    redirect_uris: envVars.GOOGLE_REDIRECT_URIS ? envVars.GOOGLE_REDIRECT_URIS.split(',') : ['http://localhost']
+                    client_id: clientId,
+                    project_id: process.env.GOOGLE_PROJECT_ID || 'velotax-bot-v2',
+                    auth_uri: process.env.GOOGLE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth',
+                    token_uri: process.env.GOOGLE_TOKEN_URI || 'https://oauth2.googleapis.com/token',
+                    auth_provider_x509_cert_url: process.env.GOOGLE_AUTH_PROVIDER_X509_CERT_URL || 'https://www.googleapis.com/oauth2/v1/certs',
+                    client_secret: clientSecret,
+                    redirect_uris: process.env.GOOGLE_REDIRECT_URIS ? process.env.GOOGLE_REDIRECT_URIS.split(',') : ['http://localhost']
                 }
             };
 
