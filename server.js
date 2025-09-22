@@ -7,7 +7,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 // ===== INTEGRAÇÃO COM GOOGLE SHEETS =====
-const googleSheetsIntegration = require('./google-sheets-integration');
+// TEMPORARIAMENTE DESABILITADO PARA ESTABILIZAR O SISTEMA
+// const googleSheetsIntegration = require('./google-sheets-integration');
+const googleSheetsIntegration = null;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1867,16 +1869,16 @@ function loadEnvFile() {
             envVars = loadEnvFromFile(envPath);
         }
         
-        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env
-        if (!envVars.GOOGLE_CLIENT_ID) {
-            const configEnvPath = path.join(__dirname, 'config.env');
-            if (fs.existsSync(configEnvPath)) {
-                console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
-                const configVars = loadEnvFromFile(configEnvPath);
-                // Mesclar variáveis, priorizando config.env para GOOGLE_CLIENT_ID
-                envVars = { ...envVars, ...configVars };
-            }
-        }
+        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env (TEMPORARIAMENTE DESABILITADO)
+        // if (!envVars.GOOGLE_CLIENT_ID) {
+        //     const configEnvPath = path.join(__dirname, 'config.env');
+        //     if (fs.existsSync(configEnvPath)) {
+        //         console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
+        //         const configVars = loadEnvFromFile(configEnvPath);
+        //         // Mesclar variáveis, priorizando config.env para GOOGLE_CLIENT_ID
+        //         envVars = { ...envVars, ...configVars };
+        //     }
+        // }
         
         // Log final das variáveis carregadas
         console.log('🔧 Variáveis finais carregadas:');
@@ -4290,19 +4292,19 @@ async function initializeGoogleSheets() {
         console.log('📊 Google Sheets temporariamente desabilitado para estabilizar o sistema');
         return false;
         
-        if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
-            console.log('🔧 Inicializando integração com Google Sheets...');
-            const success = await googleSheetsIntegration.initialize();
-            if (success) {
-                console.log('✅ Google Sheets integrado com sucesso');
-                // Sincronizar dados existentes em background
-                setTimeout(() => {
-                    googleSheetsIntegration.sincronizarDadosExistentes();
-                }, 5000);
-            } else {
-                console.log('⚠️ Google Sheets não pôde ser inicializado');
-            }
+    if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
+        console.log('🔧 Inicializando integração com Google Sheets...');
+        const success = await googleSheetsIntegration.initialize();
+        if (success) {
+            console.log('✅ Google Sheets integrado com sucesso');
+            // Sincronizar dados existentes em background
+            setTimeout(() => {
+                googleSheetsIntegration.sincronizarDadosExistentes();
+            }, 5000);
         } else {
+            console.log('⚠️ Google Sheets não pôde ser inicializado');
+        }
+    } else {
             console.log('📊 Google Sheets desabilitado via configuração');
         }
     } catch (error) {
