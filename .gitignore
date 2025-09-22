@@ -111,3 +111,6 @@ INSTRUCOES_GITHUB.md
 # Google Sheets credentials (sensitive data)
 google-sheets-credentials.json
 google-sheets-token.json
+
+# Environment configuration (sensitive data)
+config.env
