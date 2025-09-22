@@ -12,8 +12,28 @@
       "contexto": {
         "teste": "teste"
       }
+    },
+    {
+      "id": 1758558372640,
+      "timestamp": "22/09/2025 13:26:12",
+      "tipo_situacao": "exclusao-cadastro",
+      "motivo_solicitacao": "esclarecimento",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-22T16:26:12.596Z"
+      },
+      "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de exclusão de cadastro na Velotax. Compreendemos a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações da nossa empresa.\n\nGostaríamos de informar que atendemos à sua solicitação com a exclusão completa do seu cadastro de nossos sistemas, efetivada em 12 de agosto de 2025. Esta ação garante que todos os seus dados pessoais foram removidos e que você não receberá mais comunicações da Velotax, em conformidade com a Lei Geral de Proteção de Dados (LGPD).\n\nAgradecemos pela confiança depositada em nossos serviços até o momento e permanecemos à disposição para qualquer esclarecimento adicional que possa necessitar.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
     }
   ],
-  "lastUpdated": "18/01/2025 15:30:00",
+  "lastUpdated": "22/09/2025 13:26:12",
   "descricao": "Teste de escrita"
 }
