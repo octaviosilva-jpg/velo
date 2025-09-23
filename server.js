@@ -2124,7 +2124,13 @@ function loadEnvFile() {
                 DEBUG_MODE: process.env.DEBUG_MODE || 'false',
                 LOG_LEVEL: process.env.LOG_LEVEL || 'info',
                 GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '108948157850402889475',
-                DOMINIO_PERMITIDO: process.env.DOMINIO_PERMITIDO || '@velotax.com.br'
+                DOMINIO_PERMITIDO: process.env.DOMINIO_PERMITIDO || '@velotax.com.br',
+                // Google Sheets
+                GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID,
+                ENABLE_GOOGLE_SHEETS: process.env.ENABLE_GOOGLE_SHEETS,
+                GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                GOOGLE_PRIVATE_KEY: process.env.GOOGLE_PRIVATE_KEY,
+                GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID
             };
             
             console.log(`✅ ${Object.keys(envVars).filter(k => envVars[k]).length} variáveis carregadas do process.env`);
