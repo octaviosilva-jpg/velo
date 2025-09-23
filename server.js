@@ -4951,6 +4951,53 @@ app.post('/api/test-google-sheets', async (req, res) => {
     }
 });
 
+// Endpoint simples para testar se o Google Sheets está configurado
+app.get('/api/test-sheets-simple', async (req, res) => {
+    try {
+        console.log('🧪 Teste simples do Google Sheets...');
+        
+        // Verificar variáveis de ambiente
+        const envVars = loadEnvFile();
+        const envStatus = {
+            NODE_ENV: process.env.NODE_ENV || 'NÃO CONFIGURADO',
+            VERCEL: process.env.VERCEL ? 'SIM' : 'NÃO',
+            GOOGLE_SHEETS_ID: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            ENABLE_GOOGLE_SHEETS: envVars.ENABLE_GOOGLE_SHEETS || 'NÃO CONFIGURADO',
+            GOOGLE_SERVICE_ACCOUNT_EMAIL: envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PRIVATE_KEY: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PROJECT_ID: envVars.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+        };
+        
+        // Verificar status da integração
+        const integrationStatus = {
+            googleSheetsIntegration: !!googleSheetsIntegration,
+            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            googleSheetsConfig: !!googleSheetsConfig,
+            isInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+        };
+        
+        res.json({
+            success: true,
+            message: 'Teste simples concluído',
+            envStatus: envStatus,
+            integrationStatus: integrationStatus,
+            globalStatus: {
+                googleSheetsInitialized: global.googleSheetsInitialized || false
+            },
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no teste simples:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro no teste simples',
+            message: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Função para gerar recomendações
 function getGoogleSheetsRecommendations(configStatus, integrationStatus) {
     const recommendations = [];
