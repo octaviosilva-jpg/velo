@@ -4610,6 +4610,40 @@ app.get('/api/aprendizado-completo', async (req, res) => {
     }
 });
 
+// Endpoint para verificar configurações de ambiente (debug)
+app.get('/api/debug-env', (req, res) => {
+    try {
+        const envVars = loadEnvFile();
+        res.json({
+            success: true,
+            ambiente: {
+                nodeEnv: process.env.NODE_ENV,
+                vercel: !!process.env.VERCEL,
+                port: process.env.PORT
+            },
+            configuracoes: {
+                googleClientId: envVars.GOOGLE_CLIENT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+                dominioPermitido: envVars.DOMINIO_PERMITIDO || 'NÃO CONFIGURADO',
+                openaiApiKey: envVars.OPENAI_API_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+                googleSheetsId: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+                enableGoogleSheets: envVars.ENABLE_GOOGLE_SHEETS
+            },
+            variaveisProcessEnv: {
+                googleClientId: process.env.GOOGLE_CLIENT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+                dominioPermitido: process.env.DOMINIO_PERMITIDO || 'NÃO CONFIGURADO',
+                openaiApiKey: process.env.OPENAI_API_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao verificar configurações:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 process.on('SIGINT', () => {
     console.log('\n🛑 Encerrando servidor...');
     process.exit(0);
