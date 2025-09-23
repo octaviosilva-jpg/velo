@@ -5012,6 +5012,19 @@ app.get('/api/test-basic', (req, res) => {
     });
 });
 
+// Endpoint simples para testar se o servidor está funcionando
+app.get('/api/test-server', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Servidor funcionando!',
+        timestamp: new Date().toISOString(),
+        env: {
+            NODE_ENV: process.env.NODE_ENV,
+            ENABLE_GOOGLE_SHEETS: process.env.ENABLE_GOOGLE_SHEETS
+        }
+    });
+});
+
 // Endpoint para testar registro direto no Google Sheets
 app.get('/api/test-sheets-register', async (req, res) => {
     try {
