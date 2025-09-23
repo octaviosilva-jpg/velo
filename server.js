@@ -403,32 +403,25 @@ function saveFeedbacksRespostas(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
         
-        // Tentar salvar no arquivo primeiro (mesmo na Vercel)
-        console.log('💾 Tentando salvar feedbacks no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
-        console.log('🌍 Ambiente:', {
-            vercel: !!process.env.VERCEL,
-            nodeEnv: process.env.NODE_ENV,
-            fileExists: fs.existsSync(FEEDBACKS_RESPOSTAS_FILE)
-        });
-        
-        try {
-            fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
-            console.log('✅ Feedbacks de respostas salvos no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
-            console.log('📊 Total de feedbacks salvos:', feedbacks.respostas?.length || 0);
-        } catch (fileError) {
-            console.log('❌ ERRO ao salvar no arquivo:', fileError.message);
-            console.log('❌ Código do erro:', fileError.code);
-            console.log('❌ Stack trace:', fileError.stack);
-            
-            // Fallback para memória
-            feedbacksRespostasMemoria = feedbacks;
-            console.log('✅ Feedbacks de respostas salvos em memória');
-        }
-        
-        // Se estamos na Vercel, também salvar em memória como backup
+        // Salvar baseado no ambiente
         if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            // Vercel: apenas memória
+            console.log('🌐 Vercel - salvando apenas em memória');
             feedbacksRespostasMemoria = feedbacks;
-            console.log('✅ Feedbacks de respostas também salvos em memória (backup)');
+            console.log('✅ Feedbacks de respostas salvos em memória:', feedbacks.respostas?.length || 0);
+        } else {
+            // Desenvolvimento local: arquivo JSON
+            console.log('💻 Desenvolvimento local - salvando no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
+            try {
+                fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
+                console.log('✅ Feedbacks de respostas salvos no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
+                console.log('📊 Total de feedbacks salvos:', feedbacks.respostas?.length || 0);
+            } catch (fileError) {
+                console.log('❌ ERRO ao salvar no arquivo:', fileError.message);
+                // Fallback para memória
+                feedbacksRespostasMemoria = feedbacks;
+                console.log('✅ Feedbacks de respostas salvos em memória (fallback)');
+            }
         }
         
         // Registrar no Google Sheets se ativo
@@ -848,45 +841,35 @@ async function saveModelosRespostas(modelos) {
         // Atualizar timestamp
         modelos.lastUpdated = obterTimestampBrasil();
         
-        // Tentar salvar no arquivo primeiro (mesmo na Vercel)
-        console.log('💾 Tentando salvar modelos no arquivo:', MODELOS_RESPOSTAS_FILE);
-        console.log('🌍 Ambiente:', {
-            vercel: !!process.env.VERCEL,
-            nodeEnv: process.env.NODE_ENV,
-            fileExists: fs.existsSync(MODELOS_RESPOSTAS_FILE)
-        });
-        
-        try {
-            const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
-            if (!fs.existsSync(dir)) {
-                console.log('📁 Criando diretório:', dir);
-                fs.mkdirSync(dir, { recursive: true });
-            }
-            
-            // Escrever arquivo temporário primeiro
-            const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
-            console.log('📝 Escrevendo arquivo temporário:', tempFile);
-            fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
-            
-            // Mover arquivo temporário para o arquivo final (operação atômica)
-            console.log('🔄 Movendo arquivo temporário para final');
-            fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
-            
-            console.log('✅ Modelos de respostas salvos no arquivo:', MODELOS_RESPOSTAS_FILE, '- Total:', modelos.modelos.length);
-        } catch (fileError) {
-            console.log('❌ ERRO ao salvar no arquivo:', fileError.message);
-            console.log('❌ Código do erro:', fileError.code);
-            console.log('❌ Stack trace:', fileError.stack);
-            
-            // Fallback para memória
+        // Salvar baseado no ambiente
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            // Vercel: apenas memória
+            console.log('🌐 Vercel - salvando apenas em memória');
             modelosRespostasMemoria = modelos;
             console.log('✅ Modelos de respostas salvos em memória:', modelos.modelos.length);
-        }
-        
-        // Se estamos na Vercel, também salvar em memória como backup
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            modelosRespostasMemoria = modelos;
-            console.log('✅ Modelos de respostas também salvos em memória (backup)');
+        } else {
+            // Desenvolvimento local: arquivo JSON
+            console.log('💻 Desenvolvimento local - salvando no arquivo:', MODELOS_RESPOSTAS_FILE);
+            try {
+                const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+                
+                // Escrever arquivo temporário primeiro
+                const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
+                fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
+                
+                // Mover arquivo temporário para o arquivo final (operação atômica)
+                fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
+                
+                console.log('✅ Modelos de respostas salvos no arquivo:', MODELOS_RESPOSTAS_FILE, '- Total:', modelos.modelos.length);
+            } catch (fileError) {
+                console.log('❌ ERRO ao salvar no arquivo:', fileError.message);
+                // Fallback para memória
+                modelosRespostasMemoria = modelos;
+                console.log('✅ Modelos de respostas salvos em memória (fallback)');
+            }
         }
         
         // Registrar no Google Sheets se ativo
@@ -1593,17 +1576,17 @@ async function processarPadroesExistentes(tipoSituacao) {
 async function getAprendizadoTipoSituacao(tipoSituacao) {
     console.log(`🔍 getAprendizadoTipoSituacao chamada para: "${tipoSituacao}"`);
     
-    // PRIORIDADE 1: Na Vercel, usar dados em memória primeiro
+    // PRIORIDADE 1: Carregar dos arquivos JSON (desenvolvimento local)
     let feedbacksRespostas, modelosRespostas, feedbacksModeracoes, modelosModeracoes;
     
     if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        console.log('🌐 Vercel detectado - usando dados em memória como fonte principal');
+        console.log('🌐 Vercel detectado - usando dados em memória (sem persistência)');
         feedbacksRespostas = feedbacksRespostasMemoria;
         modelosRespostas = modelosRespostasMemoria;
         feedbacksModeracoes = feedbacksModeracoesMemoria;
         modelosModeracoes = modelosModeracoesMemoria;
     } else {
-        // Desenvolvimento local - carregar dos arquivos JSON
+        console.log('💻 Desenvolvimento local - carregando dos arquivos JSON');
         feedbacksRespostas = loadFeedbacksRespostas();
         modelosRespostas = loadModelosRespostas();
         feedbacksModeracoes = loadFeedbacksModeracoes();
@@ -3651,7 +3634,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
-        else if (feedbacksRelevantes.length > 0) {
+        if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
             feedbacksRelevantes.forEach((fb, index) => {
                 conhecimentoFeedback += `${index + 1}. Feedback: "${fb.feedback}"\n`;
