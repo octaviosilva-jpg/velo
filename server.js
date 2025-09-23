@@ -427,7 +427,7 @@ function saveFeedbacksRespostas(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -496,7 +496,7 @@ function saveFeedbacksModeracoes(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -831,7 +831,7 @@ function saveModelosRespostas(modelos) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -857,7 +857,7 @@ function saveModelosRespostas(modelos) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -884,7 +884,7 @@ function saveModelosRespostas(modelos) {
 }
 
 // Adicionar modelo de resposta aprovada
-function addModeloResposta(dadosFormulario, respostaAprovada) {
+async function addModeloResposta(dadosFormulario, respostaAprovada) {
     console.log('🚀 FUNÇÃO addModeloResposta INICIADA!');
     console.log('📝 Dados recebidos:', {
         tipo_solicitacao: dadosFormulario.tipo_solicitacao,
@@ -921,6 +921,18 @@ function addModeloResposta(dadosFormulario, respostaAprovada) {
     console.log('🧠 Adicionando ao aprendizado do script...');
     addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario);
     console.log('✅ Aprendizado do script concluído');
+    
+    // IMPORTANTE: Se houve feedback anterior, salvar também no aprendizado
+    if (dadosFormulario.feedback_anterior && dadosFormulario.resposta_anterior) {
+        console.log('🧠 Salvando feedback anterior no aprendizado...');
+        await addFeedbackAprendizado(
+            dadosFormulario.tipo_solicitacao,
+            dadosFormulario.feedback_anterior,
+            respostaAprovada,
+            dadosFormulario.resposta_anterior
+        );
+        console.log('✅ Feedback anterior salvo no aprendizado');
+    }
     
     console.log('📝 Modelo de resposta aprovada adicionado:', novoModelo.id);
     return novoModelo;
@@ -1126,9 +1138,20 @@ function getModelosModeracaoRelevantes(motivoModeracao) {
 
 // Carregar aprendizado do script
 async function loadAprendizadoScript() {
+    console.log('🔄 loadAprendizadoScript iniciada');
+    console.log('🌍 Ambiente:', {
+        vercel: !!process.env.VERCEL,
+        nodeEnv: process.env.NODE_ENV,
+        temMemoria: !!aprendizadoScriptMemoria
+    });
+    
     // Verificar se estamos no Vercel e temos dados em memória
     if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && aprendizadoScriptMemoria) {
         console.log('🌐 Vercel detectado - carregando aprendizado da memória');
+        console.log('📊 Dados em memória:', {
+            tiposSituacao: Object.keys(aprendizadoScriptMemoria.tiposSituacao || {}),
+            totalTipos: Object.keys(aprendizadoScriptMemoria.tiposSituacao || {}).length
+        });
         return aprendizadoScriptMemoria;
     }
     
@@ -1140,6 +1163,7 @@ async function loadAprendizadoScript() {
                 const aprendizado = await googleSheetsIntegration.carregarAprendizado();
                 if (aprendizado) {
                     aprendizadoScriptMemoria = aprendizado;
+                    console.log('✅ Aprendizado carregado do Google Sheets');
                     return aprendizado;
                 }
             }
@@ -1150,12 +1174,23 @@ async function loadAprendizadoScript() {
     
     try {
         if (fs.existsSync(APRENDIZADO_SCRIPT_FILE)) {
+            console.log('📁 Carregando aprendizado do arquivo:', APRENDIZADO_SCRIPT_FILE);
             const data = fs.readFileSync(APRENDIZADO_SCRIPT_FILE, 'utf8');
-            return JSON.parse(data);
+            const aprendizado = JSON.parse(data);
+            console.log('📊 Aprendizado carregado do arquivo:', {
+                tiposSituacao: Object.keys(aprendizado.tiposSituacao || {}),
+                totalTipos: Object.keys(aprendizado.tiposSituacao || {}).length,
+                lastUpdated: aprendizado.lastUpdated
+            });
+            return aprendizado;
+        } else {
+            console.log('⚠️ Arquivo de aprendizado não existe:', APRENDIZADO_SCRIPT_FILE);
         }
     } catch (error) {
-        console.error('Erro ao carregar aprendizado do script:', error);
+        console.error('❌ Erro ao carregar aprendizado do script:', error);
     }
+    
+    console.log('🆕 Retornando aprendizado vazio');
     return {
         tiposSituacao: {},
         lastUpdated: obterTimestampBrasil()
@@ -1201,10 +1236,24 @@ async function saveAprendizadoScript(aprendizado) {
 }
 
 // Adicionar feedback ao aprendizado do script
-async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada) {
+async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada, respostaAnterior = null) {
+    console.log('🔄 addFeedbackAprendizado iniciada');
+    console.log('📝 Dados recebidos:', {
+        tipoSituacao,
+        feedback: feedback?.substring(0, 100) + '...',
+        respostaReformulada: respostaReformulada?.substring(0, 100) + '...',
+        respostaAnterior: respostaAnterior?.substring(0, 100) + '...'
+    });
+    
     const aprendizado = await loadAprendizadoScript();
+    console.log('📚 Aprendizado carregado para adicionar feedback:', {
+        existe: !!aprendizado,
+        temTiposSituacao: !!aprendizado.tiposSituacao,
+        tiposExistentes: Object.keys(aprendizado.tiposSituacao || {})
+    });
     
     if (!aprendizado.tiposSituacao[tipoSituacao]) {
+        console.log('🆕 Criando novo tipo de situação:', tipoSituacao);
         aprendizado.tiposSituacao[tipoSituacao] = {
             feedbacks: [],
             respostasCoerentes: [],
@@ -1217,8 +1266,15 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
         id: Date.now(),
         timestamp: obterTimestampBrasil(),
         feedback: feedback,
-        respostaReformulada: respostaReformulada
+        respostaReformulada: respostaReformulada,
+        respostaAnterior: respostaAnterior
     };
+    
+    console.log('🆕 Novo feedback criado:', {
+        id: novoFeedback.id,
+        timestamp: novoFeedback.timestamp,
+        feedbackLength: feedback?.length || 0
+    });
     
     // Verificar qualidade do feedback antes de adicionar
     const qualidadeFeedback = verificarQualidadeFeedbackIndividual(novoFeedback);
@@ -1228,18 +1284,41 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
     }
     
     aprendizado.tiposSituacao[tipoSituacao].feedbacks.push(novoFeedback);
+    console.log('✅ Feedback adicionado ao array. Total agora:', aprendizado.tiposSituacao[tipoSituacao].feedbacks.length);
     
     // Manter apenas os últimos 10 feedbacks por tipo
     if (aprendizado.tiposSituacao[tipoSituacao].feedbacks.length > 10) {
         aprendizado.tiposSituacao[tipoSituacao].feedbacks = 
             aprendizado.tiposSituacao[tipoSituacao].feedbacks.slice(-10);
+        console.log('✂️ Feedbacks limitados aos últimos 10');
     }
     
     // Identificar padrões automaticamente baseado no feedback
     console.log('🔍 Identificando padrões para:', tipoSituacao);
     identificarPadroesAprendizado(tipoSituacao, '', respostaReformulada);
     
+    console.log('💾 Salvando aprendizado...');
     await saveAprendizadoScript(aprendizado);
+    console.log('✅ Aprendizado salvo com sucesso');
+    
+    // Registrar no Google Sheets se ativo
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            const feedbackData = {
+                id: Date.now(),
+                tipo: 'feedback',
+                tipoSituacao: tipoSituacao,
+                feedback: feedback,
+                respostaReformulada: respostaReformulada,
+                respostaAnterior: respostaAnterior,
+                timestamp: obterTimestampBrasil()
+            };
+            googleSheetsIntegration.registrarFeedback(feedbackData);
+        } catch (error) {
+            console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
+        }
+    }
+    
     console.log('📝 Feedback adicionado ao aprendizado do script:', tipoSituacao);
 }
 
@@ -1276,15 +1355,34 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
     identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada);
     
     await saveAprendizadoScript(aprendizado);
+    
+    // Registrar no Google Sheets se ativo
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            const respostaData = {
+                id: Date.now(),
+                tipo: 'resposta',
+                tipoSituacao: tipoSituacao,
+                motivoSolicitacao: motivoSolicitacao,
+                respostaAprovada: respostaAprovada,
+                dadosFormulario: dadosFormulario,
+                timestamp: obterTimestampBrasil()
+            };
+            googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+        } catch (error) {
+            console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+        }
+    }
+    
     console.log('📝 Resposta coerente adicionada ao aprendizado do script:', tipoSituacao);
 }
 
 // Identificar padrões automaticamente
-function identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada) {
+async function identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada) {
     console.log('🔍 Identificando padrões para:', tipoSituacao);
-    const aprendizado = loadAprendizadoScript();
+    const aprendizado = await loadAprendizadoScript();
     
-    if (!aprendizado.tiposSituacao[tipoSituacao]) {
+    if (!aprendizado || !aprendizado.tiposSituacao || !aprendizado.tiposSituacao[tipoSituacao]) {
         console.log('❌ Tipo de situação não encontrado:', tipoSituacao);
         return;
     }
@@ -1362,11 +1460,11 @@ function identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, resposta
 }
 
 // Processar padrões existentes baseado nos feedbacks salvos
-function processarPadroesExistentes(tipoSituacao) {
+async function processarPadroesExistentes(tipoSituacao) {
     console.log('🔄 Processando padrões existentes para:', tipoSituacao);
-    const aprendizado = loadAprendizadoScript();
+    const aprendizado = await loadAprendizadoScript();
     
-    if (!aprendizado.tiposSituacao[tipoSituacao]) {
+    if (!aprendizado || !aprendizado.tiposSituacao || !aprendizado.tiposSituacao[tipoSituacao]) {
         return;
     }
     
@@ -1444,8 +1542,35 @@ function processarPadroesExistentes(tipoSituacao) {
 
 // Obter aprendizado para um tipo de situação
 async function getAprendizadoTipoSituacao(tipoSituacao) {
+    console.log(`🔍 getAprendizadoTipoSituacao chamada para: "${tipoSituacao}"`);
+    
     const aprendizado = await loadAprendizadoScript();
-    return aprendizado.tiposSituacao[tipoSituacao] || {
+    console.log(`📚 Aprendizado carregado:`, {
+        existe: !!aprendizado,
+        temTiposSituacao: !!aprendizado?.tiposSituacao,
+        tiposDisponiveis: aprendizado?.tiposSituacao ? Object.keys(aprendizado.tiposSituacao) : [],
+        tipoSolicitado: tipoSituacao
+    });
+    
+    if (!aprendizado || !aprendizado.tiposSituacao) {
+        console.log(`⚠️ Nenhum aprendizado encontrado para "${tipoSituacao}"`);
+        return {
+            feedbacks: [],
+            respostasCoerentes: [],
+            padroesIdentificados: [],
+            clausulasUsadas: []
+        };
+    }
+    
+    const aprendizadoTipo = aprendizado.tiposSituacao[tipoSituacao];
+    console.log(`📊 Aprendizado para "${tipoSituacao}":`, {
+        existe: !!aprendizadoTipo,
+        feedbacks: aprendizadoTipo?.feedbacks?.length || 0,
+        respostasCoerentes: aprendizadoTipo?.respostasCoerentes?.length || 0,
+        padroes: aprendizadoTipo?.padroesIdentificados?.length || 0
+    });
+    
+    return aprendizadoTipo || {
         feedbacks: [],
         respostasCoerentes: [],
         padroesIdentificados: [],
@@ -1488,7 +1613,7 @@ function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respos
     saveFeedbacksRespostas(feedbacks);
     
     // Também adicionar ao aprendizado direto do script
-    addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada);
+    addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior);
     
     console.log('📝 Feedback de resposta adicionado (aba Respostas RA):', novoFeedback.id);
     return novoFeedback;
@@ -1755,12 +1880,16 @@ app.use(cors({
     origin: [
         'http://localhost:3000', 
         'http://127.0.0.1:3000', 
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
         'file://',
         'https://velo-xxx.vercel.app',
         'https://velo.vercel.app',
         'https://velotax-bot.vercel.app'
     ],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Headers de segurança
@@ -1769,6 +1898,8 @@ app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
     next();
 });
 
@@ -1894,13 +2025,13 @@ function loadEnvFile() {
             envVars = loadEnvFromFile(envPath);
         }
         
-        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env (apenas local)
-        if (!envVars.GOOGLE_CLIENT_ID && !process.env.VERCEL) {
+        // Sempre tentar carregar config.env se não estiver na Vercel
+        if (!process.env.VERCEL) {
             const configEnvPath = path.join(__dirname, 'config.env');
             if (fs.existsSync(configEnvPath)) {
-                console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
+                console.log('📁 Carregando config.env...');
                 const configVars = loadEnvFromFile(configEnvPath);
-                // Mesclar variáveis, priorizando config.env para GOOGLE_CLIENT_ID
+                // Mesclar variáveis, priorizando config.env
                 envVars = { ...envVars, ...configVars };
             }
         }
@@ -1987,7 +2118,7 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -2008,10 +2139,16 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, (req, res) => {
 });
 
 // Rota para verificar status do servidor
-app.get('/api/status', rateLimitMiddleware, (req, res) => {
+app.get('/api/status', rateLimitMiddleware, async (req, res) => {
     try {
         const envVars = loadEnvFile();
         const hasApiKey = validateApiKey(envVars.OPENAI_API_KEY);
+        
+        // Inicializar Google Sheets se ainda não foi inicializado
+        if (!global.googleSheetsInitialized) {
+            await initializeGoogleSheets(envVars);
+            global.googleSheetsInitialized = true;
+        }
         
     res.json({
             success: true,
@@ -2461,7 +2598,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         });
         
         // Obter aprendizado direto do script para este tipo de situação (PRIORITÁRIO)
-        const aprendizadoScript = getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
+        const aprendizadoScript = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
         
         // Obter feedbacks relevantes para melhorar a geração de resposta (COMPLEMENTAR)
         const feedbacksRelevantes = getRelevantFeedbacks('resposta', {
@@ -2473,31 +2610,48 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         const modelosRelevantes = getModelosRelevantes(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao);
         
         console.log(`🔍 Buscando aprendizado para: ${dadosFormulario.tipo_solicitacao} - ${dadosFormulario.motivo_solicitacao}`);
-        console.log(`🧠 APRENDIZADO DO SCRIPT: ${aprendizadoScript.feedbacks.length} feedbacks, ${aprendizadoScript.respostasCoerentes.length} respostas coerentes`);
+        console.log(`🧠 APRENDIZADO DO SCRIPT: ${aprendizadoScript?.feedbacks?.length || 0} feedbacks, ${aprendizadoScript?.respostasCoerentes?.length || 0} respostas coerentes`);
         console.log(`📚 Feedbacks complementares: ${feedbacksRelevantes.length}`);
         console.log(`🎯 Modelos encontrados: ${modelosRelevantes.length}`);
+        
+        // Log detalhado do aprendizado
+        if (aprendizadoScript?.feedbacks?.length > 0) {
+            console.log(`⚠️ FEEDBACKS ENCONTRADOS (últimos 3):`);
+            aprendizadoScript.feedbacks.slice(-3).forEach((fb, index) => {
+                console.log(`   ${index + 1}. "${fb.feedback.substring(0, 100)}..."`);
+            });
+        }
+        
+        if (aprendizadoScript?.respostasCoerentes?.length > 0) {
+            console.log(`✅ RESPOSTAS COERENTES ENCONTRADAS (últimas 3):`);
+            aprendizadoScript.respostasCoerentes.slice(-3).forEach((resp, index) => {
+                console.log(`   ${index + 1}. Motivo: ${resp.motivoSolicitacao}`);
+            });
+        }
         
         let conhecimentoFeedback = '';
         
         // Identificar padrões automaticamente se ainda não foram identificados
         console.log('🔍 Verificando se precisa identificar padrões:', {
             tipo: dadosFormulario.tipo_solicitacao,
-            feedbacks: aprendizadoScript.feedbacks.length,
-            padroes: aprendizadoScript.padroesIdentificados.length
+            feedbacks: aprendizadoScript?.feedbacks?.length || 0,
+            padroes: aprendizadoScript?.padroesIdentificados?.length || 0
         });
         
-        if (aprendizadoScript.feedbacks.length > 0 && aprendizadoScript.padroesIdentificados.length === 0) {
+        if (aprendizadoScript?.feedbacks?.length > 0 && aprendizadoScript?.padroesIdentificados?.length === 0) {
             console.log('🔍 Identificando padrões automaticamente para:', dadosFormulario.tipo_solicitacao);
-            processarPadroesExistentes(dadosFormulario.tipo_solicitacao);
+            await processarPadroesExistentes(dadosFormulario.tipo_solicitacao);
             // Recarregar aprendizado após identificar padrões
-            const aprendizadoAtualizado = getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
-            aprendizadoScript.padroesIdentificados = aprendizadoAtualizado.padroesIdentificados;
-            aprendizadoScript.clausulasUsadas = aprendizadoAtualizado.clausulasUsadas;
-            console.log('✅ Padrões atualizados:', aprendizadoScript.padroesIdentificados.length);
+            const aprendizadoAtualizado = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
+            if (aprendizadoScript) {
+                aprendizadoScript.padroesIdentificados = aprendizadoAtualizado.padroesIdentificados;
+                aprendizadoScript.clausulasUsadas = aprendizadoAtualizado.clausulasUsadas;
+            }
+            console.log('✅ Padrões atualizados:', aprendizadoScript?.padroesIdentificados?.length || 0);
         }
         
         // PRIORIDADE 1: APRENDIZADO DIRETO DO SCRIPT (mais recente e específico)
-        if (aprendizadoScript.feedbacks.length > 0 || aprendizadoScript.respostasCoerentes.length > 0 || aprendizadoScript.padroesIdentificados.length > 0) {
+        if (aprendizadoScript?.feedbacks?.length > 0 || aprendizadoScript?.respostasCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
             conhecimentoFeedback = '\n\n🎓 APRENDIZADO DIRETO DO SCRIPT DE FORMULAÇÃO (PRIORITÁRIO):\n';
             conhecimentoFeedback += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas coerentes para "${dadosFormulario.tipo_solicitacao}":\n\n`;
             console.log('🧠 Aplicando aprendizado do script:', {
@@ -2507,42 +2661,53 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             });
             
             // Adicionar padrões identificados
-            if (aprendizadoScript.padroesIdentificados.length > 0) {
+            if (aprendizadoScript?.padroesIdentificados?.length > 0) {
                 conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (OBRIGATÓRIOS):\n';
-                aprendizadoScript.padroesIdentificados.forEach((padrao, index) => {
+                aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
                     conhecimentoFeedback += `${index + 1}. ${padrao}\n`;
                 });
                 conhecimentoFeedback += '\n';
             }
             
             // Adicionar cláusulas usadas
-            if (aprendizadoScript.clausulasUsadas.length > 0) {
+            if (aprendizadoScript?.clausulasUsadas?.length > 0) {
                 conhecimentoFeedback += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
-                aprendizadoScript.clausulasUsadas.forEach(clausula => {
+                aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
                     conhecimentoFeedback += `• ${clausula}\n`;
                 });
                 conhecimentoFeedback += '\n';
             }
             
             // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
-            if (aprendizadoScript.feedbacks.length > 0) {
+            if (aprendizadoScript?.feedbacks?.length > 0) {
                 conhecimentoFeedback += '⚠️ FEEDBACKS RECENTES (EVITAR ESTES ERROS):\n';
-                aprendizadoScript.feedbacks.slice(-5).forEach((fb, index) => {
-                    conhecimentoFeedback += `${index + 1}. ERRO: "${fb.feedback}"\n`;
-                    conhecimentoFeedback += `   RESPOSTA CORRIGIDA: "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
+                conhecimentoFeedback += 'IMPORTANTE: Estes são erros identificados pelo operador humano. NUNCA repita estes erros:\n\n';
+                aprendizadoScript?.feedbacks?.slice(-5).forEach((fb, index) => {
+                    conhecimentoFeedback += `${index + 1}. ❌ ERRO IDENTIFICADO: "${fb.feedback}"\n`;
+                    conhecimentoFeedback += `   📝 RESPOSTA ANTERIOR (INCORRETA): "${fb.respostaAnterior ? fb.respostaAnterior.substring(0, 150) + '...' : 'N/A'}"\n`;
+                    conhecimentoFeedback += `   ✅ RESPOSTA CORRIGIDA (SEGUIR ESTE PADRÃO): "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
                 });
+                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Analise cada erro acima e garanta que sua resposta NÃO contenha os problemas identificados. Use as respostas corrigidas como referência de qualidade.\n\n';
             }
             
             // Adicionar respostas coerentes recentes (SEGUIR ESTE PADRÃO)
-            if (aprendizadoScript.respostasCoerentes.length > 0) {
+            if (aprendizadoScript?.respostasCoerentes?.length > 0) {
                 conhecimentoFeedback += '✅ RESPOSTAS COERENTES RECENTES (SEGUIR ESTE PADRÃO):\n';
-                aprendizadoScript.respostasCoerentes.slice(-3).forEach((resp, index) => {
-                    conhecimentoFeedback += `${index + 1}. Motivo: ${resp.motivoSolicitacao}\n`;
-                    conhecimentoFeedback += `   RESPOSTA APROVADA: "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
+                conhecimentoFeedback += 'IMPORTANTE: Estas são respostas aprovadas pelo operador humano. Use como referência de qualidade:\n\n';
+                aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
+                    conhecimentoFeedback += `${index + 1}. 📋 Motivo: ${resp.motivoSolicitacao}\n`;
+                    conhecimentoFeedback += `   ✅ RESPOSTA APROVADA (SEGUIR ESTE PADRÃO): "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
                 });
+                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estas respostas aprovadas como modelo de qualidade. Siga a estrutura, tom e abordagem demonstrados.\n\n';
             }
             
             conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este aprendizado direto do script para gerar uma resposta de alta qualidade desde o início, aplicando os padrões identificados e evitando os erros documentados.\n';
+            
+            // Log detalhado do conhecimento construído
+            console.log('🧠 CONHECIMENTO CONSTRUÍDO PARA A OPENAI:');
+            console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback.length, 'caracteres');
+            console.log('📋 Conteúdo do conhecimento:');
+            console.log(conhecimentoFeedback.substring(0, 500) + '...');
         }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
@@ -2703,6 +2868,19 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         
+        // Verificar se o conhecimento foi construído
+        if (conhecimentoFeedback && conhecimentoFeedback.length > 100) {
+            console.log('✅ CONHECIMENTO DE FEEDBACK INCLUÍDO NO PROMPT');
+            console.log('📊 Estatísticas do conhecimento:');
+            console.log(`   - Tamanho: ${conhecimentoFeedback.length} caracteres`);
+            console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS RECENTES')}`);
+            console.log(`   - Contém respostas aprovadas: ${conhecimentoFeedback.includes('RESPOSTAS COERENTES')}`);
+            console.log(`   - Contém padrões: ${conhecimentoFeedback.includes('PADRÕES IDENTIFICADOS')}`);
+        } else {
+            console.log('⚠️ NENHUM CONHECIMENTO DE FEEDBACK DISPONÍVEL');
+            console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
+        }
+
         const prompt = `Você é responsável por redigir respostas da empresa Velotax no Reclame Aqui.
 
 ANÁLISE OBRIGATÓRIA DE TODOS OS CAMPOS:
@@ -2782,13 +2960,17 @@ ${conhecimentoFeedback}
 
 Formule uma resposta personalizada e completa que responda diretamente à solicitação do cliente, explicando como a solução implementada resolve o problema fundamentada nas cláusulas contratuais.`;
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+        // Configurar timeout de 30 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                signal: controller.signal,
+                body: JSON.stringify({
                 model: envVars.OPENAI_MODEL || 'gpt-4o',
                 messages: [
                     {
@@ -2935,8 +3117,10 @@ Equipe Velotax`;
                 success: true,
                 result: resposta
             });
+            clearTimeout(timeoutId);
         } else {
             const errorData = await response.text();
+            clearTimeout(timeoutId);
             res.status(400).json({
                 success: false,
                 error: 'Erro na API OpenAI',
@@ -2944,12 +3128,29 @@ Equipe Velotax`;
             });
         }
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('Erro ao gerar resposta RA:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Erro interno do servidor',
-            message: error.message
-        });
+        
+        // Tratamento específico para timeout
+        if (error.name === 'AbortError') {
+            res.status(408).json({
+                success: false,
+                error: 'Timeout na API OpenAI',
+                message: 'A requisição demorou mais de 30 segundos para ser processada. Tente novamente.'
+            });
+        } else if (error.code === 'UND_ERR_CONNECT_TIMEOUT') {
+            res.status(408).json({
+                success: false,
+                error: 'Timeout de conexão',
+                message: 'Não foi possível conectar com a API da OpenAI. Verifique sua conexão com a internet.'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Erro interno do servidor',
+                message: error.message
+            });
+        }
     }
 });
 
@@ -3183,7 +3384,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // Obter aprendizado direto do script para este tipo de situação (PRIORITÁRIO)
-        const aprendizadoScript = getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao);
+        const aprendizadoScript = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao);
         
         // Obter feedbacks relevantes para melhorar a reformulação (COMPLEMENTAR)
         const feedbacksRelevantes = getRelevantFeedbacks('resposta', {
@@ -3192,13 +3393,13 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
         });
         
         console.log(`🔄 REFORMULAÇÃO - Buscando aprendizado para: ${dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao}`);
-        console.log(`🧠 APRENDIZADO DO SCRIPT: ${aprendizadoScript.feedbacks.length} feedbacks, ${aprendizadoScript.respostasCoerentes.length} respostas coerentes`);
+        console.log(`🧠 APRENDIZADO DO SCRIPT: ${aprendizadoScript?.feedbacks?.length || 0} feedbacks, ${aprendizadoScript?.respostasCoerentes?.length || 0} respostas coerentes`);
         console.log(`📚 Feedbacks complementares: ${feedbacksRelevantes.length}`);
         
         let conhecimentoFeedback = '';
         
         // PRIORIDADE 1: APRENDIZADO DIRETO DO SCRIPT (mais recente e específico)
-        if (aprendizadoScript.feedbacks.length > 0 || aprendizadoScript.respostasCoerentes.length > 0 || aprendizadoScript.padroesIdentificados.length > 0) {
+        if (aprendizadoScript?.feedbacks?.length > 0 || aprendizadoScript?.respostasCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
             conhecimentoFeedback = '\n\n🎓 APRENDIZADO DIRETO DO SCRIPT DE FORMULAÇÃO (PRIORITÁRIO):\n';
             conhecimentoFeedback += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas coerentes para "${dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao}":\n\n`;
             
@@ -3209,36 +3410,36 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             });
             
             // Adicionar padrões identificados
-            if (aprendizadoScript.padroesIdentificados.length > 0) {
+            if (aprendizadoScript?.padroesIdentificados?.length > 0) {
                 conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (OBRIGATÓRIOS):\n';
-                aprendizadoScript.padroesIdentificados.forEach((padrao, index) => {
+                aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
                     conhecimentoFeedback += `${index + 1}. ${padrao}\n`;
                 });
                 conhecimentoFeedback += '\n';
             }
             
             // Adicionar cláusulas usadas
-            if (aprendizadoScript.clausulasUsadas.length > 0) {
+            if (aprendizadoScript?.clausulasUsadas?.length > 0) {
                 conhecimentoFeedback += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
-                aprendizadoScript.clausulasUsadas.forEach(clausula => {
+                aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
                     conhecimentoFeedback += `• ${clausula}\n`;
                 });
                 conhecimentoFeedback += '\n';
             }
             
             // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
-            if (aprendizadoScript.feedbacks.length > 0) {
+            if (aprendizadoScript?.feedbacks?.length > 0) {
                 conhecimentoFeedback += '⚠️ FEEDBACKS RECENTES (EVITAR ESTES ERROS):\n';
-                aprendizadoScript.feedbacks.slice(-5).forEach((fb, index) => {
+                aprendizadoScript?.feedbacks?.slice(-5).forEach((fb, index) => {
                     conhecimentoFeedback += `${index + 1}. ERRO: "${fb.feedback}"\n`;
                     conhecimentoFeedback += `   RESPOSTA CORRIGIDA: "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
                 });
             }
             
             // Adicionar respostas coerentes recentes (SEGUIR ESTE PADRÃO)
-            if (aprendizadoScript.respostasCoerentes.length > 0) {
+            if (aprendizadoScript?.respostasCoerentes?.length > 0) {
                 conhecimentoFeedback += '✅ RESPOSTAS COERENTES RECENTES (SEGUIR ESTE PADRÃO):\n';
-                aprendizadoScript.respostasCoerentes.slice(-3).forEach((resp, index) => {
+                aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
                     conhecimentoFeedback += `${index + 1}. Motivo: ${resp.motivoSolicitacao}\n`;
                     conhecimentoFeedback += `   RESPOSTA APROVADA: "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
                 });
@@ -3384,6 +3585,21 @@ REGRAS OBRIGATÓRIAS:
 
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros similares e melhorar a qualidade da resposta.
 
+🧠 INSTRUÇÕES CRÍTICAS PARA APLICAR O APRENDIZADO:
+
+1. **ANALISE O CONHECIMENTO FORNECIDO**: Leia cuidadosamente todos os feedbacks e respostas aprovadas acima
+2. **EVITE ERROS IDENTIFICADOS**: NUNCA repita os erros mencionados nos feedbacks
+3. **SEGUE PADRÕES APROVADOS**: Use as respostas aprovadas como modelo de qualidade
+4. **APLIQUE PADRÕES IDENTIFICADOS**: Siga os padrões obrigatórios listados
+5. **USE CLÁUSULAS CORRETAS**: Aplique as cláusulas CCB identificadas para cada tipo de situação
+
+🎯 SUA RESPOSTA DEVE:
+- Ser diferente das respostas incorretas mencionadas nos feedbacks
+- Seguir a estrutura e qualidade das respostas aprovadas
+- Aplicar os padrões identificados automaticamente
+- Usar as cláusulas CCB corretas para o tipo de situação
+- Demonstrar que você aprendeu com os feedbacks anteriores
+
 DIRETRIZES GERAIS:
 1. TOM E ESTILO:
 - Profissional, respeitoso e empático
@@ -3441,7 +3657,8 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
                 addFeedbackAprendizado(
                     dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao,
                     feedback,
-                    respostaReformulada
+                    respostaReformulada,
+                    respostaAnterior
                 );
                 
                 // Também salvar no arquivo de feedbacks de respostas para histórico completo
@@ -3591,9 +3808,9 @@ app.get('/api/feedbacks/explicacoes', (req, res) => {
 });
 
 // Endpoint para visualizar aprendizado direto do script
-app.get('/api/aprendizado-script', (req, res) => {
+app.get('/api/aprendizado-script', async (req, res) => {
     try {
-        const aprendizado = loadAprendizadoScript();
+        const aprendizado = await loadAprendizadoScript();
         res.json({
             success: true,
             data: aprendizado,
@@ -3609,10 +3826,10 @@ app.get('/api/aprendizado-script', (req, res) => {
 });
 
 // Endpoint para visualizar aprendizado de um tipo específico
-app.get('/api/aprendizado-script/:tipoSituacao', (req, res) => {
+app.get('/api/aprendizado-script/:tipoSituacao', async (req, res) => {
     try {
         const { tipoSituacao } = req.params;
-        const aprendizado = getAprendizadoTipoSituacao(tipoSituacao);
+        const aprendizado = await getAprendizadoTipoSituacao(tipoSituacao);
         res.json({
             success: true,
             data: aprendizado,
@@ -3628,12 +3845,12 @@ app.get('/api/aprendizado-script/:tipoSituacao', (req, res) => {
 });
 
 // Endpoint para forçar processamento de padrões
-app.post('/api/processar-padroes/:tipoSituacao', (req, res) => {
+app.post('/api/processar-padroes/:tipoSituacao', async (req, res) => {
     try {
         const { tipoSituacao } = req.params;
         console.log('🔄 Forçando processamento de padrões para:', tipoSituacao);
-        processarPadroesExistentes(tipoSituacao);
-        const aprendizado = getAprendizadoTipoSituacao(tipoSituacao);
+        await processarPadroesExistentes(tipoSituacao);
+        const aprendizado = await getAprendizadoTipoSituacao(tipoSituacao);
         res.json({
             success: true,
             message: 'Padrões processados com sucesso',
@@ -3649,10 +3866,10 @@ app.post('/api/processar-padroes/:tipoSituacao', (req, res) => {
 });
 
 // Endpoint para verificar status do aprendizado
-app.get('/api/status-aprendizado/:tipoSituacao', (req, res) => {
+app.get('/api/status-aprendizado/:tipoSituacao', async (req, res) => {
     try {
         const { tipoSituacao } = req.params;
-        const aprendizado = getAprendizadoTipoSituacao(tipoSituacao);
+        const aprendizado = await getAprendizadoTipoSituacao(tipoSituacao);
         res.json({
             success: true,
             tipoSituacao: tipoSituacao,
@@ -4311,11 +4528,14 @@ app.use('*', (req, res) => {
 // ===== INICIALIZAÇÃO DO SERVIDOR =====
 
 // Inicializar Google Sheets se habilitado
-async function initializeGoogleSheets() {
+async function initializeGoogleSheets(envVars = null) {
     try {
-        if (process.env.ENABLE_GOOGLE_SHEETS === 'true') {
+        if (!envVars) {
+            envVars = loadEnvFile();
+        }
+        if (envVars.ENABLE_GOOGLE_SHEETS === 'true') {
             console.log('🔧 Inicializando integração com Google Sheets...');
-            const success = await googleSheetsIntegration.initialize();
+            const success = await googleSheetsIntegration.initialize(envVars);
             if (success) {
                 console.log('✅ Google Sheets integrado com sucesso');
             } else {
@@ -4337,8 +4557,6 @@ app.listen(PORT, async () => {
     console.log('🔐 Sistema de segurança ativo');
     console.log('📁 Arquivo .env carregado da raiz do projeto');
     
-    // Inicializar Google Sheets
-    await initializeGoogleSheets();
     console.log('🧠 Sistema de aprendizado baseado em feedback ativo');
     console.log('🔍 Sistema de verificação automática de feedbacks ativo');
     console.log('✅ Integração de feedbacks_respostas.json como base de conhecimento ativa');
@@ -4357,6 +4575,10 @@ app.listen(PORT, async () => {
     console.log(`📚 ${feedbacks.respostas.length} feedbacks de respostas salvos`);
     console.log(`📚 ${feedbacks.moderacoes.length} feedbacks de moderação salvos`);
     
+    // Inicializar Google Sheets
+    console.log('🔧 Inicializando Google Sheets...');
+    await initializeGoogleSheets();
+    
     // Executar verificação automática de feedbacks na inicialização
     console.log('🔍 Executando verificação automática de feedbacks...');
     setTimeout(() => {
@@ -4365,6 +4587,29 @@ app.listen(PORT, async () => {
 });
 
 // Graceful shutdown
+// Endpoint para verificar todo o aprendizado
+app.get('/api/aprendizado-completo', async (req, res) => {
+    try {
+        const aprendizado = await loadAprendizadoScript();
+        res.json({
+            success: true,
+            aprendizado: aprendizado,
+            resumo: {
+                totalTipos: Object.keys(aprendizado.tiposSituacao || {}).length,
+                tiposDisponiveis: Object.keys(aprendizado.tiposSituacao || {}),
+                lastUpdated: aprendizado.lastUpdated
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao carregar aprendizado completo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 process.on('SIGINT', () => {
     console.log('\n🛑 Encerrando servidor...');
     process.exit(0);

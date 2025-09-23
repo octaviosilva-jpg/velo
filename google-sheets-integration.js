@@ -10,14 +10,14 @@ class GoogleSheetsIntegration {
     /**
      * Inicializa a integração com Google Sheets
      */
-    async initialize() {
+    async initialize(envVars = null) {
         try {
             console.log('🔧 Inicializando integração com Google Sheets...');
             
             // Google Sheets habilitado para Vercel com Service Account
             
             // Carregar configurações do ambiente
-            const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+            const spreadsheetId = envVars?.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEETS_ID;
             if (!spreadsheetId) {
                 console.log('⚠️ GOOGLE_SHEETS_ID não configurado. Integração desabilitada.');
                 return false;
@@ -26,9 +26,9 @@ class GoogleSheetsIntegration {
             this.spreadsheetId = spreadsheetId;
             
             // Verificar se as credenciais do Service Account estão nas variáveis de ambiente
-            const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-            const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-            const projectId = process.env.GOOGLE_PROJECT_ID;
+            const serviceAccountEmail = envVars?.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+            const privateKey = envVars?.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_PRIVATE_KEY;
+            const projectId = envVars?.GOOGLE_PROJECT_ID || process.env.GOOGLE_PROJECT_ID;
 
             // Priorizar Service Account (método correto para Vercel)
             if (serviceAccountEmail && privateKey && projectId) {
@@ -137,7 +137,7 @@ class GoogleSheetsIntegration {
                 'ID',
                 'Tipo',
                 'Texto Cliente',
-                'Resposta Final',
+                'Resposta Aprovada',
                 'Tipo Solicitação',
                 'Motivo Solicitação',
                 'Solução Implementada',
@@ -178,6 +178,13 @@ class GoogleSheetsIntegration {
                 // Planilha vazia, criar cabeçalhos
                 await googleSheetsConfig.appendRow(range, headers);
                 console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
+                
+                // Aplicar formatação básica para corrigir problemas de visualização
+                try {
+                    await googleSheetsConfig.aplicarFormatacaoBasica(sheetName);
+                } catch (error) {
+                    console.error(`⚠️ Erro ao aplicar formatação na planilha ${sheetName}:`, error.message);
+                }
             } else {
                 console.log(`✅ Planilha ${sheetName} já existe`);
             }
@@ -201,11 +208,11 @@ class GoogleSheetsIntegration {
                 new Date().toLocaleString('pt-BR'),
                 feedbackData.id || '',
                 feedbackData.tipo || 'feedback',
-                feedbackData.textoCliente || '',
+                feedbackData.textoCliente || feedbackData.dadosFormulario?.texto_cliente || '',
                 feedbackData.respostaAnterior || '',
                 feedbackData.feedback || '',
                 feedbackData.respostaReformulada || '',
-                feedbackData.dadosFormulario?.tipo_solicitacao || '',
+                feedbackData.dadosFormulario?.tipo_solicitacao || feedbackData.tipoSituacao || '',
                 feedbackData.dadosFormulario?.motivo_solicitacao || '',
                 feedbackData.dadosFormulario?.solucao_implementada || '',
                 feedbackData.dadosFormulario?.historico_atendimento || '',
@@ -236,10 +243,10 @@ class GoogleSheetsIntegration {
                 new Date().toLocaleString('pt-BR'),
                 respostaData.id || '',
                 respostaData.tipo || 'resposta',
-                respostaData.textoCliente || '',
-                respostaData.respostaFinal || '',
-                respostaData.dadosFormulario?.tipo_solicitacao || '',
-                respostaData.dadosFormulario?.motivo_solicitacao || '',
+                respostaData.textoCliente || respostaData.dadosFormulario?.texto_cliente || '',
+                respostaData.respostaAprovada || respostaData.respostaFinal || '',
+                respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '',
+                respostaData.dadosFormulario?.motivo_solicitacao || respostaData.motivoSolicitacao || '',
                 respostaData.dadosFormulario?.solucao_implementada || '',
                 respostaData.dadosFormulario?.historico_atendimento || '',
                 respostaData.dadosFormulario?.observacoes_internas || '',

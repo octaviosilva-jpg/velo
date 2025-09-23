@@ -1,13 +1,23 @@
 {
   "estatisticas": {
-    "respostas_geradas": 3,
-    "respostas_coerentes": 1,
+    "respostas_geradas": 20,
+    "respostas_coerentes": 12,
     "moderacoes_geradas": 0,
     "moderacoes_coerentes": 0,
     "revisoes_texto": 0,
     "explicacoes_geradas": 0
   },
   "historico_diario": [
+    {
+      "data": "2025-09-23",
+      "respostas_geradas": 17,
+      "respostas_coerentes": 11,
+      "moderacoes_geradas": 0,
+      "moderacoes_coerentes": 0,
+      "revisoes_texto": 0,
+      "explicacoes_geradas": 0,
+      "ultimaAtualizacao": "2025-09-23T16:16:35.079Z"
+    },
     {
       "data": "2025-09-22",
       "respostas_geradas": 1,
@@ -29,6 +39,6 @@
       "ultimaAtualizacao": "2025-09-19T15:38:16.572Z"
     }
   ],
-  "lastUpdated": "22/09/2025 13:26:12",
+  "lastUpdated": "23/09/2025 13:16:35",
   "descricao": "Estatísticas globais do sistema Velotax Bot - compartilhadas entre todos os usuários"
 }

@@ -437,6 +437,18 @@ async function avaliarResposta(tipoAvaliacao) {
         
         // Salvar como modelo para futuras solicitações similares
         console.log('🚀 Chamando salvarRespostaComoModelo...');
+        
+        // Verificar se houve feedback anterior para incluir no aprendizado
+        const itemComFeedback = historicoRespostas.find(item => 
+            item.feedback && item.status === 'reformulada_com_feedback'
+        );
+        
+        if (itemComFeedback) {
+            console.log('🧠 Incluindo feedback anterior no aprendizado...');
+            dadosAtuais.feedback_anterior = itemComFeedback.feedback;
+            dadosAtuais.resposta_anterior = itemComFeedback.resposta_anterior;
+        }
+        
         await salvarRespostaComoModelo(dadosAtuais, respostaAtual);
         
         // Atualizar estatísticas globais após salvar

@@ -246,6 +246,113 @@ class GoogleSheetsConfig {
             throw error;
         }
     }
+
+    /**
+     * Aplica formatação básica nas planilhas para corrigir problemas de visualização
+     * @param {string} sheetName - Nome da planilha
+     */
+    async aplicarFormatacaoBasica(sheetName) {
+        try {
+            if (!this.isInitialized()) {
+                throw new Error('Google Sheets API não foi inicializada');
+            }
+
+            const sheets = this.getSheets();
+            const spreadsheetId = this.getSpreadsheetId();
+
+            // Obter informações da planilha
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: spreadsheetId
+            });
+
+            // Encontrar o ID da planilha pelo nome
+            let sheetId = null;
+            for (const sheet of spreadsheet.data.sheets) {
+                if (sheet.properties.title === sheetName) {
+                    sheetId = sheet.properties.sheetId;
+                    break;
+                }
+            }
+
+            if (!sheetId) {
+                console.log(`⚠️ Planilha ${sheetName} não encontrada para formatação`);
+                return;
+            }
+
+            // Aplicar formatação básica
+            const requests = [
+                {
+                    repeatCell: {
+                        range: {
+                            sheetId: sheetId,
+                            startRowIndex: 0,
+                            endRowIndex: 1000,
+                            startColumnIndex: 0,
+                            endColumnIndex: 20
+                        },
+                        cell: {
+                            userEnteredFormat: {
+                                backgroundColor: {
+                                    red: 1.0,
+                                    green: 1.0,
+                                    blue: 1.0
+                                },
+                                textFormat: {
+                                    foregroundColor: {
+                                        red: 0.0,
+                                        green: 0.0,
+                                        blue: 0.0
+                                    }
+                                }
+                            }
+                        },
+                        fields: 'userEnteredFormat(backgroundColor,textFormat)'
+                    }
+                },
+                {
+                    repeatCell: {
+                        range: {
+                            sheetId: sheetId,
+                            startRowIndex: 0,
+                            endRowIndex: 1,
+                            startColumnIndex: 0,
+                            endColumnIndex: 20
+                        },
+                        cell: {
+                            userEnteredFormat: {
+                                backgroundColor: {
+                                    red: 0.9,
+                                    green: 0.9,
+                                    blue: 0.9
+                                },
+                                textFormat: {
+                                    bold: true,
+                                    foregroundColor: {
+                                        red: 0.0,
+                                        green: 0.0,
+                                        blue: 0.0
+                                    }
+                                }
+                            }
+                        },
+                        fields: 'userEnteredFormat(backgroundColor,textFormat)'
+                    }
+                }
+            ];
+
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: spreadsheetId,
+                resource: {
+                    requests: requests
+                }
+            });
+
+            console.log(`✅ Formatação básica aplicada na planilha ${sheetName}`);
+
+        } catch (error) {
+            console.error(`❌ Erro ao aplicar formatação na planilha ${sheetName}:`, error.message);
+        }
+    }
 }
 
 // Instância singleton
