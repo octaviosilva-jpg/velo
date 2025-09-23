@@ -1917,6 +1917,47 @@ if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
 app.use(express.json());
 app.use(express.static('.'));
 
+// Rotas específicas para servir arquivos estáticos com MIME type correto
+app.get('*.css', (req, res) => {
+    res.setHeader('Content-Type', 'text/css');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.png', (req, res) => {
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.svg', (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.jpg', (req, res) => {
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.jpeg', (req, res) => {
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.gif', (req, res) => {
+    res.setHeader('Content-Type', 'image/gif');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
+app.get('*.ico', (req, res) => {
+    res.setHeader('Content-Type', 'image/x-icon');
+    res.sendFile(path.join(__dirname, req.path));
+});
+
 // Rate limiting simples
 const rateLimit = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minuto
