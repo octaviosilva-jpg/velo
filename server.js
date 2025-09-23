@@ -2780,13 +2780,20 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         });
         
         // Obter aprendizado direto do script para este tipo de situação (PRIORITÁRIO)
+        console.log('🔍 Obtendo aprendizado para:', dadosFormulario.tipo_solicitacao);
         const aprendizadoScript = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
+        console.log('📚 Aprendizado obtido:', {
+            feedbacks: aprendizadoScript?.feedbacks?.length || 0,
+            respostasCoerentes: aprendizadoScript?.respostasCoerentes?.length || 0,
+            padroes: aprendizadoScript?.padroesIdentificados?.length || 0
+        });
         
         // Obter feedbacks relevantes para melhorar a geração de resposta (COMPLEMENTAR)
         const feedbacksRelevantes = getRelevantFeedbacks('resposta', {
             tipoSituacao: dadosFormulario.tipo_solicitacao,
             motivoSolicitacao: dadosFormulario.motivo_solicitacao
         });
+        console.log('📋 Feedbacks relevantes obtidos:', feedbacksRelevantes.length);
         
         // Obter modelos de respostas aprovadas para o mesmo tipo de situação
         const modelosRelevantes = getModelosRelevantes(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao);
@@ -2833,7 +2840,17 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // PRIORIDADE 1: APRENDIZADO DIRETO DO SCRIPT (mais recente e específico)
+        console.log('🔍 Verificando se há aprendizado para aplicar:', {
+            temFeedbacks: aprendizadoScript?.feedbacks?.length > 0,
+            temRespostasCoerentes: aprendizadoScript?.respostasCoerentes?.length > 0,
+            temPadroes: aprendizadoScript?.padroesIdentificados?.length > 0,
+            totalFeedbacks: aprendizadoScript?.feedbacks?.length || 0,
+            totalRespostasCoerentes: aprendizadoScript?.respostasCoerentes?.length || 0,
+            totalPadroes: aprendizadoScript?.padroesIdentificados?.length || 0
+        });
+        
         if (aprendizadoScript?.feedbacks?.length > 0 || aprendizadoScript?.respostasCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
+            console.log('✅ APLICANDO APRENDIZADO DO SCRIPT!');
             conhecimentoFeedback = '\n\n🎓 APRENDIZADO DIRETO DO SCRIPT DE FORMULAÇÃO (PRIORITÁRIO):\n';
             conhecimentoFeedback += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas coerentes para "${dadosFormulario.tipo_solicitacao}":\n\n`;
             console.log('🧠 Aplicando aprendizado do script:', {
@@ -2890,6 +2907,9 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback.length, 'caracteres');
             console.log('📋 Conteúdo do conhecimento:');
             console.log(conhecimentoFeedback.substring(0, 500) + '...');
+        } else {
+            console.log('❌ NENHUM APRENDIZADO ENCONTRADO PARA APLICAR!');
+            console.log('🔍 Dados do aprendizadoScript:', JSON.stringify(aprendizadoScript, null, 2));
         }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
