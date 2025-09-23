@@ -3651,7 +3651,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
-        else if (feedbacksRelevantes.length > 0) {
+        if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
             feedbacksRelevantes.forEach((fb, index) => {
                 conhecimentoFeedback += `${index + 1}. Feedback: "${fb.feedback}"\n`;
