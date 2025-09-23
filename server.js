@@ -2913,7 +2913,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
-        else if (feedbacksRelevantes.length > 0) {
+        if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
             conhecimentoFeedback += 'Com base em feedbacks anteriores de situações similares, siga estas diretrizes:\n\n';
             
