@@ -404,11 +404,21 @@ function saveFeedbacksRespostas(feedbacks) {
         feedbacks.lastUpdated = obterTimestampBrasil();
         
         // Tentar salvar no arquivo primeiro (mesmo na Vercel)
+        console.log('💾 Tentando salvar feedbacks no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
+        console.log('🌍 Ambiente:', {
+            vercel: !!process.env.VERCEL,
+            nodeEnv: process.env.NODE_ENV,
+            fileExists: fs.existsSync(FEEDBACKS_RESPOSTAS_FILE)
+        });
+        
         try {
             fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
             console.log('✅ Feedbacks de respostas salvos no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
+            console.log('📊 Total de feedbacks salvos:', feedbacks.respostas?.length || 0);
         } catch (fileError) {
-            console.log('⚠️ Não foi possível salvar no arquivo, salvando em memória:', fileError.message);
+            console.log('❌ ERRO ao salvar no arquivo:', fileError.message);
+            console.log('❌ Código do erro:', fileError.code);
+            console.log('❌ Stack trace:', fileError.stack);
             
             // Fallback para memória
             feedbacksRespostasMemoria = feedbacks;
@@ -839,22 +849,34 @@ async function saveModelosRespostas(modelos) {
         modelos.lastUpdated = obterTimestampBrasil();
         
         // Tentar salvar no arquivo primeiro (mesmo na Vercel)
+        console.log('💾 Tentando salvar modelos no arquivo:', MODELOS_RESPOSTAS_FILE);
+        console.log('🌍 Ambiente:', {
+            vercel: !!process.env.VERCEL,
+            nodeEnv: process.env.NODE_ENV,
+            fileExists: fs.existsSync(MODELOS_RESPOSTAS_FILE)
+        });
+        
         try {
             const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
             if (!fs.existsSync(dir)) {
+                console.log('📁 Criando diretório:', dir);
                 fs.mkdirSync(dir, { recursive: true });
             }
             
             // Escrever arquivo temporário primeiro
             const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
+            console.log('📝 Escrevendo arquivo temporário:', tempFile);
             fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
             
             // Mover arquivo temporário para o arquivo final (operação atômica)
+            console.log('🔄 Movendo arquivo temporário para final');
             fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
             
             console.log('✅ Modelos de respostas salvos no arquivo:', MODELOS_RESPOSTAS_FILE, '- Total:', modelos.modelos.length);
         } catch (fileError) {
-            console.log('⚠️ Não foi possível salvar no arquivo, salvando em memória:', fileError.message);
+            console.log('❌ ERRO ao salvar no arquivo:', fileError.message);
+            console.log('❌ Código do erro:', fileError.code);
+            console.log('❌ Stack trace:', fileError.stack);
             
             // Fallback para memória
             modelosRespostasMemoria = modelos;
