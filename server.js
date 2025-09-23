@@ -4058,6 +4058,43 @@ app.get('/api/status-aprendizado/:tipoSituacao', async (req, res) => {
     }
 });
 
+// Endpoint para visualizar dados em memória (Vercel)
+app.get('/api/dados-memoria', (req, res) => {
+    try {
+        const dadosMemoria = {
+            feedbacksRespostas: feedbacksRespostasMemoria,
+            modelosRespostas: modelosRespostasMemoria,
+            feedbacksModeracoes: feedbacksModeracoesMemoria,
+            modelosModeracoes: modelosModeracoesMemoria,
+            aprendizadoScript: aprendizadoScriptMemoria,
+            estatisticas: estatisticasGlobaisMemoria,
+            ambiente: {
+                vercel: !!process.env.VERCEL,
+                nodeEnv: process.env.NODE_ENV,
+                timestamp: obterTimestampBrasil()
+            }
+        };
+        
+        res.json({
+            success: true,
+            dados: dadosMemoria,
+            resumo: {
+                feedbacksRespostas: feedbacksRespostasMemoria?.respostas?.length || 0,
+                modelosRespostas: modelosRespostasMemoria?.modelos?.length || 0,
+                feedbacksModeracoes: feedbacksModeracoesMemoria?.moderacoes?.length || 0,
+                modelosModeracoes: modelosModeracoesMemoria?.modelos?.length || 0,
+                aprendizadoTipos: aprendizadoScriptMemoria?.tiposSituacao ? Object.keys(aprendizadoScriptMemoria.tiposSituacao).length : 0
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao obter dados da memória:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao obter dados da memória'
+        });
+    }
+});
+
 // Endpoint simples para debug do aprendizado
 app.get('/api/debug-aprendizado-simples', (req, res) => {
     try {
