@@ -4750,6 +4750,92 @@ app.get('/api/debug-env', (req, res) => {
     }
 });
 
+// Endpoint para verificar status do Google Sheets
+app.get('/api/debug-google-sheets', async (req, res) => {
+    try {
+        const envVars = loadEnvFile();
+        
+        // Verificar configurações
+        const configStatus = {
+            googleSheetsId: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            enableGoogleSheets: envVars.ENABLE_GOOGLE_SHEETS,
+            serviceAccountEmail: envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            privateKey: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            projectId: envVars.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+        };
+        
+        // Verificar status da integração
+        const integrationStatus = {
+            googleSheetsInitialized: global.googleSheetsInitialized || false,
+            googleSheetsIntegrationActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            googleSheetsConfigInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+        };
+        
+        // Tentar inicializar se não estiver inicializado
+        if (!global.googleSheetsInitialized) {
+            console.log('🔄 Tentando inicializar Google Sheets...');
+            await initializeGoogleSheets(envVars);
+            global.googleSheetsInitialized = true;
+            
+            // Verificar novamente após inicialização
+            integrationStatus.googleSheetsInitialized = global.googleSheetsInitialized;
+            integrationStatus.googleSheetsIntegrationActive = googleSheetsIntegration ? googleSheetsIntegration.isActive() : false;
+            integrationStatus.googleSheetsConfigInitialized = googleSheetsConfig ? googleSheetsConfig.isInitialized() : false;
+        }
+        
+        res.json({
+            success: true,
+            configStatus: configStatus,
+            integrationStatus: integrationStatus,
+            timestamp: new Date().toISOString(),
+            recommendations: getGoogleSheetsRecommendations(configStatus, integrationStatus)
+        });
+        
+    } catch (error) {
+        console.error('Erro ao verificar Google Sheets:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
+// Função para gerar recomendações
+function getGoogleSheetsRecommendations(configStatus, integrationStatus) {
+    const recommendations = [];
+    
+    if (configStatus.googleSheetsId === 'NÃO CONFIGURADO') {
+        recommendations.push('Configure GOOGLE_SHEETS_ID nas variáveis de ambiente');
+    }
+    
+    if (configStatus.enableGoogleSheets !== 'true') {
+        recommendations.push('Configure ENABLE_GOOGLE_SHEETS=true nas variáveis de ambiente');
+    }
+    
+    if (configStatus.serviceAccountEmail === 'NÃO CONFIGURADO') {
+        recommendations.push('Configure GOOGLE_SERVICE_ACCOUNT_EMAIL nas variáveis de ambiente');
+    }
+    
+    if (configStatus.privateKey === 'NÃO CONFIGURADO') {
+        recommendations.push('Configure GOOGLE_PRIVATE_KEY nas variáveis de ambiente');
+    }
+    
+    if (configStatus.projectId === 'NÃO CONFIGURADO') {
+        recommendations.push('Configure GOOGLE_PROJECT_ID nas variáveis de ambiente');
+    }
+    
+    if (!integrationStatus.googleSheetsIntegrationActive) {
+        recommendations.push('Google Sheets não está ativo - verifique as configurações do Service Account');
+    }
+    
+    if (recommendations.length === 0) {
+        recommendations.push('Todas as configurações estão corretas');
+    }
+    
+    return recommendations;
+}
+
 process.on('SIGINT', () => {
     console.log('\n🛑 Encerrando servidor...');
     process.exit(0);
