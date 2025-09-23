@@ -105,10 +105,7 @@ class GoogleSheetsIntegration {
      * Verifica se a integração está ativa
      */
     isActive() {
-        // Para Vercel, sempre retornar false para evitar erros
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            return false;
-        }
+        // Google Sheets habilitado para Vercel com Service Account
         return this.initialized && googleSheetsConfig.isInitialized();
     }
 
