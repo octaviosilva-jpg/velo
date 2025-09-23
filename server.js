@@ -1582,6 +1582,21 @@ async function getAprendizadoTipoSituacao(tipoSituacao) {
         modelosModeracoes: modelosModeracoes?.modelos?.length || 0
     });
     
+    // Debug: mostrar alguns exemplos dos dados carregados
+    if (feedbacksRespostas?.respostas?.length > 0) {
+        console.log(`🔍 Exemplo de feedback carregado:`, {
+            tipoSituacao: feedbacksRespostas.respostas[0].contexto?.tipoSituacao || feedbacksRespostas.respostas[0].dadosFormulario?.tipo_solicitacao,
+            feedback: feedbacksRespostas.respostas[0].feedback?.substring(0, 100) + '...'
+        });
+    }
+    
+    if (modelosRespostas?.modelos?.length > 0) {
+        console.log(`🔍 Exemplo de modelo carregado:`, {
+            tipoSituacao: modelosRespostas.modelos[0].tipo_situacao || modelosRespostas.modelos[0].contexto?.tipoSituacao,
+            resposta: modelosRespostas.modelos[0].respostaAprovada?.substring(0, 100) + '...'
+        });
+    }
+    
     // PRIORIDADE 2: Carregar do sistema de aprendizado (fallback)
     const aprendizado = await loadAprendizadoScript();
     console.log(`📚 Aprendizado do script carregado:`, {
