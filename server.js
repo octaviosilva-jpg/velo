@@ -1894,16 +1894,16 @@ function loadEnvFile() {
             envVars = loadEnvFromFile(envPath);
         }
         
-        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env (TEMPORARIAMENTE DESABILITADO)
-        // if (!envVars.GOOGLE_CLIENT_ID) {
-        //     const configEnvPath = path.join(__dirname, 'config.env');
-        //     if (fs.existsSync(configEnvPath)) {
-        //         console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
-        //         const configVars = loadEnvFromFile(configEnvPath);
-        //         // Mesclar variáveis, priorizando config.env para GOOGLE_CLIENT_ID
-        //         envVars = { ...envVars, ...configVars };
-        //     }
-        // }
+        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env
+        if (!envVars.GOOGLE_CLIENT_ID) {
+            const configEnvPath = path.join(__dirname, 'config.env');
+            if (fs.existsSync(configEnvPath)) {
+                console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
+                const configVars = loadEnvFromFile(configEnvPath);
+                // Mesclar variáveis, priorizando config.env para GOOGLE_CLIENT_ID
+                envVars = { ...envVars, ...configVars };
+            }
+        }
         
         // Log final das variáveis carregadas
         console.log('🔧 Variáveis finais carregadas:');
