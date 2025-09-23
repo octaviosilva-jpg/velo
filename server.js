@@ -4712,9 +4712,17 @@ app.listen(PORT, async () => {
     console.log(`📚 ${feedbacks.respostas.length} feedbacks de respostas salvos`);
     console.log(`📚 ${feedbacks.moderacoes.length} feedbacks de moderação salvos`);
     
-    // Inicializar Google Sheets
+    // Inicializar Google Sheets (sem bloquear o servidor)
     console.log('🔧 Inicializando Google Sheets...');
-    await initializeGoogleSheets();
+    setTimeout(async () => {
+        try {
+            await initializeGoogleSheets();
+            global.googleSheetsInitialized = true;
+        } catch (error) {
+            console.error('❌ Erro ao inicializar Google Sheets:', error.message);
+            console.log('📊 Sistema funcionando sem Google Sheets');
+        }
+    }, 1000);
     
     // Executar verificação automática de feedbacks na inicialização
     console.log('🔍 Executando verificação automática de feedbacks...');
