@@ -1597,7 +1597,7 @@ async function processarPadroesExistentes(tipoSituacao) {
     aprendizado.tiposSituacao[tipoSituacao].padroesIdentificados = padroesUnicos;
     aprendizado.tiposSituacao[tipoSituacao].clausulasUsadas = clausulasUnicas;
     
-    saveAprendizadoScript(aprendizado);
+    await saveAprendizadoScript(aprendizado);
     console.log('✅ Padrões processados:', padroesUnicos.length, 'padrões,', clausulasUnicas.length, 'cláusulas');
     console.log('📋 Padrões identificados:', padroesUnicos);
 }
