@@ -833,7 +833,10 @@ function loadModelosRespostas() {
 // Armazenamento em memória para Vercel
 let modelosRespostasMemoria = null;
 let estatisticasGlobaisMemoria = null;
-let aprendizadoScriptMemoria = null;
+let aprendizadoScriptMemoria = {
+    tiposSituacao: {},
+    lastUpdated: null
+};
 let feedbacksRespostasMemoria = null;
 let feedbacksModeracoesMemoria = null;
 let feedbacksExplicacoesMemoria = null;
@@ -3992,6 +3995,50 @@ app.get('/api/status-aprendizado/:tipoSituacao', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erro ao verificar status do aprendizado'
+        });
+    }
+});
+
+// Endpoint simples para debug do aprendizado
+app.get('/api/debug-aprendizado-simples', (req, res) => {
+    try {
+        console.log('🔍 DEBUG SIMPLES DO APRENDIZADO');
+        
+        // Verificar memória
+        const memoria = {
+            temMemoria: !!aprendizadoScriptMemoria,
+            tiposMemoria: aprendizadoScriptMemoria?.tiposSituacao ? Object.keys(aprendizadoScriptMemoria.tiposSituacao) : [],
+            lastUpdated: aprendizadoScriptMemoria?.lastUpdated
+        };
+        
+        // Detalhar cada tipo de situação na memória
+        const detalhesTipos = {};
+        if (aprendizadoScriptMemoria?.tiposSituacao) {
+            for (const [tipo, dados] of Object.entries(aprendizadoScriptMemoria.tiposSituacao)) {
+                detalhesTipos[tipo] = {
+                    feedbacks: dados.feedbacks?.length || 0,
+                    respostasCoerentes: dados.respostasCoerentes?.length || 0,
+                    padroesIdentificados: dados.padroesIdentificados?.length || 0,
+                    clausulasUsadas: dados.clausulasUsadas?.length || 0,
+                    ultimoFeedback: dados.feedbacks?.length > 0 ? dados.feedbacks[dados.feedbacks.length - 1]?.timestamp : null,
+                    ultimaRespostaCoerente: dados.respostasCoerentes?.length > 0 ? dados.respostasCoerentes[dados.respostasCoerentes.length - 1]?.timestamp : null
+                };
+            }
+        }
+        
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            memoria: memoria,
+            detalhesTipos: detalhesTipos
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no debug simples:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro no debug simples',
+            message: error.message
         });
     }
 });
