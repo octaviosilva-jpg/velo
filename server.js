@@ -4707,11 +4707,6 @@ app.listen(PORT, async () => {
         console.warn('⚠️ Arquivo .env não encontrado na raiz');
     }
     
-    // Verificar sistema de feedbacks
-    const feedbacks = loadFeedbacks();
-    console.log(`📚 ${feedbacks.respostas.length} feedbacks de respostas salvos`);
-    console.log(`📚 ${feedbacks.moderacoes.length} feedbacks de moderação salvos`);
-    
     // Inicializar Google Sheets (sem bloquear o servidor)
     console.log('🔧 Inicializando Google Sheets...');
     setTimeout(async () => {
@@ -4723,12 +4718,6 @@ app.listen(PORT, async () => {
             console.log('📊 Sistema funcionando sem Google Sheets');
         }
     }, 1000);
-    
-    // Executar verificação automática de feedbacks na inicialização
-    console.log('🔍 Executando verificação automática de feedbacks...');
-    setTimeout(() => {
-        executarVerificacaoCompletaFeedbacks();
-    }, 2000);
 });
 
 // Graceful shutdown
