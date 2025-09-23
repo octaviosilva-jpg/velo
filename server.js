@@ -983,7 +983,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     
     // Também adicionar ao aprendizado direto do script
     console.log('🧠 Adicionando ao aprendizado do script...');
-    addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario, userData);
+    await addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario, userData);
     console.log('✅ Aprendizado do script concluído');
     
     // IMPORTANTE: Se houve feedback anterior, salvar também no aprendizado
@@ -1361,7 +1361,7 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
     
     // Identificar padrões automaticamente baseado no feedback
     console.log('🔍 Identificando padrões para:', tipoSituacao);
-    identificarPadroesAprendizado(tipoSituacao, '', respostaReformulada);
+    await identificarPadroesAprendizado(tipoSituacao, '', respostaReformulada);
     
     console.log('💾 Salvando aprendizado...');
     await saveAprendizadoScript(aprendizado);
@@ -1422,7 +1422,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
     }
     
     // Identificar padrões automaticamente
-    identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada);
+    await identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada);
     
     await saveAprendizadoScript(aprendizado);
     
