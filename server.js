@@ -500,7 +500,7 @@ function loadFeedbacksModeracoes() {
 }
 
 // Salvar feedbacks de moderações
-function saveFeedbacksModeracoes(feedbacks) {
+async function saveFeedbacksModeracoes(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
         
@@ -1665,7 +1665,7 @@ function loadFeedbacks() {
 }
 
 // Adicionar feedback de resposta (APENAS para aba Respostas RA)
-function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respostaReformulada, userData = null) {
+async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respostaReformulada, userData = null) {
     const feedbacks = loadFeedbacksRespostas();
     
     const novoFeedback = {
@@ -1694,7 +1694,7 @@ function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respos
 }
 
 // Adicionar feedback de moderação (APENAS para aba Moderação RA)
-function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado) {
+async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado) {
     const feedbacks = loadFeedbacksModeracoes();
     
     const novoFeedback = {
@@ -1707,7 +1707,7 @@ function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado) {
     };
     
     feedbacks.moderacoes.push(novoFeedback);
-    saveFeedbacksModeracoes(feedbacks);
+    await saveFeedbacksModeracoes(feedbacks);
     
     console.log('📝 Feedback de moderação adicionado (aba Moderação RA):', novoFeedback.id);
     return novoFeedback;
@@ -2221,7 +2221,7 @@ function decryptSensitiveData(encryptedData, key) {
 // ===== ROTAS DE API =====
 
 // Endpoint para registrar acesso à interface
-app.post('/api/registrar-acesso', rateLimitMiddleware, (req, res) => {
+app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
     try {
         const { acao, usuario } = req.body;
         const ip = req.ip || req.connection.remoteAddress;
@@ -3785,7 +3785,7 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
                 
                 // Também salvar no arquivo de feedbacks de respostas para histórico completo
                 console.log('📝 Salvando feedback no arquivo de feedbacks de respostas');
-                addRespostaFeedback(
+                await addRespostaFeedback(
                     dadosFormulario,
                     respostaAnterior,
                     feedback,
@@ -4053,13 +4053,13 @@ app.delete('/api/feedbacks/respostas', (req, res) => {
 });
 
 // Endpoint para limpar feedbacks de moderações (aba Moderação RA)
-app.delete('/api/feedbacks/moderacoes', (req, res) => {
+app.delete('/api/feedbacks/moderacoes', async (req, res) => {
     try {
         const feedbacksVazios = {
             moderacoes: [],
             lastUpdated: obterTimestampBrasil()
         };
-        saveFeedbacksModeracoes(feedbacksVazios);
+        await saveFeedbacksModeracoes(feedbacksVazios);
         res.json({
             success: true,
             message: 'Feedbacks de moderações limpos com sucesso'
