@@ -4886,6 +4886,68 @@ app.get('/api/debug-aprendizado', async (req, res) => {
     }
 });
 
+// Endpoint para testar registro direto no Google Sheets
+app.post('/api/test-google-sheets', async (req, res) => {
+    try {
+        console.log('🧪 Testando registro direto no Google Sheets...');
+        
+        // Verificar se Google Sheets está ativo
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets não está ativo',
+                details: {
+                    googleSheetsIntegration: !!googleSheetsIntegration,
+                    isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false
+                }
+            });
+        }
+        
+        // Dados de teste
+        const testData = {
+            id: Date.now(),
+            tipo: 'teste',
+            tipoSituacao: 'Teste Manual',
+            textoCliente: 'Teste de registro na planilha',
+            respostaAprovada: 'Esta é uma resposta de teste para verificar se o registro está funcionando',
+            motivoSolicitacao: 'Teste de integração',
+            timestamp: new Date().toISOString(),
+            userProfile: 'Teste Manual (teste@velotax.com.br)',
+            userName: 'Teste Manual',
+            userEmail: 'teste@velotax.com.br'
+        };
+        
+        console.log('📝 Dados de teste:', testData);
+        
+        // Tentar registrar feedback
+        const feedbackResult = await googleSheetsIntegration.registrarFeedback(testData);
+        console.log('📝 Resultado do feedback:', feedbackResult);
+        
+        // Tentar registrar resposta coerente
+        const respostaResult = await googleSheetsIntegration.registrarRespostaCoerente(testData);
+        console.log('📝 Resultado da resposta:', respostaResult);
+        
+        res.json({
+            success: true,
+            message: 'Teste de registro concluído',
+            results: {
+                feedback: feedbackResult,
+                resposta: respostaResult
+            },
+            testData: testData
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no teste do Google Sheets:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro no teste do Google Sheets',
+            message: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Função para gerar recomendações
 function getGoogleSheetsRecommendations(configStatus, integrationStatus) {
     const recommendations = [];
