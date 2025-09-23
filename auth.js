@@ -254,8 +254,6 @@ async function initGoogleSignIn() {
     try {
         console.log('🔧 Inicializando Google Sign-In...');
         
-        // Inicializar Google Sign-In em todos os ambientes
-        
         // GARANTIR que a interface fique oculta por padrão
         console.log('🔐 Forçando overlay de login...');
         showOverlay();
@@ -268,6 +266,30 @@ async function initGoogleSignIn() {
         if (!appWrapper) {
             console.error('❌ Elemento app-wrapper não encontrado!');
             return;
+        }
+        
+        // Verificar se o Google Identity Services foi carregado
+        if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+            console.warn('⚠️ Google Identity Services não foi carregado, aguardando...');
+            
+            // Aguardar até 10 segundos para o Google carregar
+            let tentativas = 0;
+            const maxTentativas = 10;
+            
+            while (tentativas < maxTentativas && (!window.google || !window.google.accounts || !window.google.accounts.id)) {
+                console.log(`⏳ Aguardando Google Identity Services... (${tentativas + 1}/${maxTentativas})`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                tentativas++;
+            }
+            
+            if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+                console.error('❌ Google Identity Services não foi carregado após 10 segundos');
+                console.log('🔧 Tentando recarregar a página...');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                return;
+            }
         }
         
         console.log('✅ Elementos DOM encontrados:', {

@@ -42,8 +42,8 @@
     <!-- CSP para permitir Google APIs e recursos necessários -->
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self';
-                   script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com https://cdn.jsdelivr.net;
-                   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://www.gstatic.com https://cdn.jsdelivr.net;
+                   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com;
                    img-src 'self' data: https: http:;
                    font-src 'self' https://cdnjs.cloudflare.com;
                    frame-src https://accounts.google.com;
@@ -51,6 +51,28 @@
     
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <!-- Script de debug para verificar carregamento do Google -->
+    <script>
+        // Verificar se o Google Identity Services foi carregado
+        function verificarGoogleAuth() {
+            console.log('🔍 Verificando Google Identity Services...');
+            console.log('  - window.google:', !!window.google);
+            console.log('  - window.google.accounts:', !!(window.google && window.google.accounts));
+            console.log('  - window.google.accounts.id:', !!(window.google && window.google.accounts && window.google.accounts.id));
+            
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                console.log('✅ Google Identity Services carregado com sucesso!');
+            } else {
+                console.log('❌ Google Identity Services não foi carregado');
+                console.log('🔧 Tentando recarregar...');
+                setTimeout(verificarGoogleAuth, 1000);
+            }
+        }
+        
+        // Verificar após 2 segundos
+        setTimeout(verificarGoogleAuth, 2000);
+    </script>
 </head>
 <body>
     <!-- Overlay de Login -->
