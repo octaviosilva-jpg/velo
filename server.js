@@ -4956,16 +4956,15 @@ app.get('/api/test-sheets-simple', async (req, res) => {
     try {
         console.log('🧪 Teste simples do Google Sheets...');
         
-        // Verificar variáveis de ambiente
-        const envVars = loadEnvFile();
+        // Verificar variáveis de ambiente diretamente do process.env
         const envStatus = {
             NODE_ENV: process.env.NODE_ENV || 'NÃO CONFIGURADO',
             VERCEL: process.env.VERCEL ? 'SIM' : 'NÃO',
-            GOOGLE_SHEETS_ID: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-            ENABLE_GOOGLE_SHEETS: envVars.ENABLE_GOOGLE_SHEETS || 'NÃO CONFIGURADO',
-            GOOGLE_SERVICE_ACCOUNT_EMAIL: envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-            GOOGLE_PRIVATE_KEY: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-            GOOGLE_PROJECT_ID: envVars.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+            GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            ENABLE_GOOGLE_SHEETS: process.env.ENABLE_GOOGLE_SHEETS || 'NÃO CONFIGURADO',
+            GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PRIVATE_KEY: process.env.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
         };
         
         // Verificar status da integração
@@ -4996,6 +4995,21 @@ app.get('/api/test-sheets-simple', async (req, res) => {
             stack: error.stack
         });
     }
+});
+
+// Endpoint ainda mais simples para testar
+app.get('/api/test-basic', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Endpoint básico funcionando',
+        timestamp: new Date().toISOString(),
+        env: {
+            NODE_ENV: process.env.NODE_ENV,
+            VERCEL: process.env.VERCEL,
+            GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            ENABLE_GOOGLE_SHEETS: process.env.ENABLE_GOOGLE_SHEETS
+        }
+    });
 });
 
 // Função para gerar recomendações
