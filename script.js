@@ -500,6 +500,17 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
         
         // 2. Tentar salvar no servidor
         console.log('📡 Enviando dados para o servidor...');
+        
+        // Obter dados do usuário autenticado
+        const userData = window.auth?.dadosUsuario ? {
+            nome: window.auth.dadosUsuario().nome,
+            email: window.auth.dadosUsuario().email,
+            funcao: window.auth.dadosUsuario().funcao,
+            departamento: window.auth.dadosUsuario().departamento
+        } : null;
+        
+        console.log('👤 Dados do usuário para envio:', userData);
+        
         const response = await fetch('/api/save-modelo-resposta', {
             method: 'POST',
             headers: {
@@ -507,7 +518,8 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
             },
             body: JSON.stringify({
                 dadosFormulario: dadosAtuais,
-                respostaAprovada: respostaAprovada
+                respostaAprovada: respostaAprovada,
+                userData: userData
             })
         });
         
@@ -796,6 +808,14 @@ async function processarFeedbackReformulacao() {
     }
 
 async function reformularRespostaComFeedback(dados, respostaAnterior, feedback) {
+    // Obter dados do usuário autenticado
+    const userData = window.auth?.dadosUsuario ? {
+        nome: window.auth.dadosUsuario().nome,
+        email: window.auth.dadosUsuario().email,
+        funcao: window.auth.dadosUsuario().funcao,
+        departamento: window.auth.dadosUsuario().departamento
+    } : null;
+    
     // Chamar servidor para reformular com feedback
     const response = await fetch('/api/reformulate-response', {
         method: 'POST',
@@ -805,7 +825,8 @@ async function reformularRespostaComFeedback(dados, respostaAnterior, feedback) 
         body: JSON.stringify({
             dadosFormulario: dados,
             respostaAnterior: respostaAnterior,
-            feedback: feedback
+            feedback: feedback,
+            userData: userData
         })
     });
     

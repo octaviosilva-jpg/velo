@@ -412,7 +412,23 @@ function saveFeedbacksRespostas(feedbacks) {
             // Registrar no Google Sheets se ativo
             if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
                 try {
-                    googleSheetsIntegration.registrarFeedback(feedbackData);
+                    // Registrar cada feedback individualmente com dados do usuário
+                    for (const feedback of feedbacks.respostas || []) {
+                        const feedbackData = {
+                            id: feedback.id,
+                            tipo: 'feedback',
+                            tipoSituacao: feedback.contexto?.tipoSituacao || 'N/A',
+                            textoCliente: feedback.dadosFormulario?.texto_cliente || 'N/A',
+                            respostaAnterior: feedback.respostaAnterior || 'N/A',
+                            feedback: feedback.feedback || 'N/A',
+                            respostaReformulada: feedback.respostaReformulada || 'N/A',
+                            timestamp: feedback.timestamp,
+                            userProfile: feedback.userData ? `${feedback.userData.nome} (${feedback.userData.email})` : 'N/A',
+                            userName: feedback.userData?.nome || 'N/A',
+                            userEmail: feedback.userData?.email || 'N/A'
+                        };
+                        googleSheetsIntegration.registrarFeedback(feedbackData);
+                    }
                 } catch (error) {
                     console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
                 }
@@ -427,9 +443,25 @@ function saveFeedbacksRespostas(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                // Registrar cada feedback individualmente com dados do usuário
+                for (const feedback of feedbacks.respostas || []) {
+                    const feedbackData = {
+                        id: feedback.id,
+                        tipo: 'feedback',
+                        tipoSituacao: feedback.contexto?.tipoSituacao || 'N/A',
+                        textoCliente: feedback.dadosFormulario?.texto_cliente || 'N/A',
+                        respostaAnterior: feedback.respostaAnterior || 'N/A',
+                        feedback: feedback.feedback || 'N/A',
+                        respostaReformulada: feedback.respostaReformulada || 'N/A',
+                        timestamp: feedback.timestamp,
+                        userProfile: feedback.userData ? `${feedback.userData.nome} (${feedback.userData.email})` : 'N/A',
+                        userName: feedback.userData?.nome || 'N/A',
+                        userEmail: feedback.userData?.email || 'N/A'
+                    };
+                    googleSheetsIntegration.registrarFeedback(feedbackData);
+                }
             } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+                console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
             }
         }
     } catch (error) {
@@ -884,12 +916,13 @@ function saveModelosRespostas(modelos) {
 }
 
 // Adicionar modelo de resposta aprovada
-async function addModeloResposta(dadosFormulario, respostaAprovada) {
+async function addModeloResposta(dadosFormulario, respostaAprovada, userData = null) {
     console.log('🚀 FUNÇÃO addModeloResposta INICIADA!');
     console.log('📝 Dados recebidos:', {
         tipo_solicitacao: dadosFormulario.tipo_solicitacao,
         motivo_solicitacao: dadosFormulario.motivo_solicitacao,
-        resposta_length: respostaAprovada ? respostaAprovada.length : 0
+        resposta_length: respostaAprovada ? respostaAprovada.length : 0,
+        userData: userData ? `${userData.nome} (${userData.email})` : 'N/A'
     });
     
     const modelos = loadModelosRespostas();
@@ -919,7 +952,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada) {
     
     // Também adicionar ao aprendizado direto do script
     console.log('🧠 Adicionando ao aprendizado do script...');
-    addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario);
+    addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario, userData);
     console.log('✅ Aprendizado do script concluído');
     
     // IMPORTANTE: Se houve feedback anterior, salvar também no aprendizado
@@ -929,7 +962,8 @@ async function addModeloResposta(dadosFormulario, respostaAprovada) {
             dadosFormulario.tipo_solicitacao,
             dadosFormulario.feedback_anterior,
             respostaAprovada,
-            dadosFormulario.resposta_anterior
+            dadosFormulario.resposta_anterior,
+            userData
         );
         console.log('✅ Feedback anterior salvo no aprendizado');
     }
@@ -1236,13 +1270,14 @@ async function saveAprendizadoScript(aprendizado) {
 }
 
 // Adicionar feedback ao aprendizado do script
-async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada, respostaAnterior = null) {
+async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada, respostaAnterior = null, userData = null) {
     console.log('🔄 addFeedbackAprendizado iniciada');
     console.log('📝 Dados recebidos:', {
         tipoSituacao,
         feedback: feedback?.substring(0, 100) + '...',
         respostaReformulada: respostaReformulada?.substring(0, 100) + '...',
-        respostaAnterior: respostaAnterior?.substring(0, 100) + '...'
+        respostaAnterior: respostaAnterior?.substring(0, 100) + '...',
+        userData: userData ? `${userData.nome} (${userData.email})` : 'N/A'
     });
     
     const aprendizado = await loadAprendizadoScript();
@@ -1311,7 +1346,10 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
                 feedback: feedback,
                 respostaReformulada: respostaReformulada,
                 respostaAnterior: respostaAnterior,
-                timestamp: obterTimestampBrasil()
+                timestamp: obterTimestampBrasil(),
+                userProfile: userData ? `${userData.nome} (${userData.email})` : 'N/A',
+                userName: userData?.nome || 'N/A',
+                userEmail: userData?.email || 'N/A'
             };
             googleSheetsIntegration.registrarFeedback(feedbackData);
         } catch (error) {
@@ -1323,7 +1361,7 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
 }
 
 // Adicionar resposta coerente ao aprendizado do script
-async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada, dadosFormulario) {
+async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada, dadosFormulario, userData = null) {
     const aprendizado = await loadAprendizadoScript();
     
     if (!aprendizado.tiposSituacao[tipoSituacao]) {
@@ -1340,7 +1378,8 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
         timestamp: obterTimestampBrasil(),
         motivoSolicitacao: motivoSolicitacao,
         respostaAprovada: respostaAprovada,
-        dadosFormulario: dadosFormulario
+        dadosFormulario: dadosFormulario,
+        userData: userData
     };
     
     aprendizado.tiposSituacao[tipoSituacao].respostasCoerentes.push(novaResposta);
@@ -1366,7 +1405,10 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
                 motivoSolicitacao: motivoSolicitacao,
                 respostaAprovada: respostaAprovada,
                 dadosFormulario: dadosFormulario,
-                timestamp: obterTimestampBrasil()
+                timestamp: obterTimestampBrasil(),
+                userProfile: userData ? `${userData.nome} (${userData.email})` : 'N/A',
+                userName: userData?.nome || 'N/A',
+                userEmail: userData?.email || 'N/A'
             };
             googleSheetsIntegration.registrarRespostaCoerente(respostaData);
         } catch (error) {
@@ -1592,7 +1634,7 @@ function loadFeedbacks() {
 }
 
 // Adicionar feedback de resposta (APENAS para aba Respostas RA)
-function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respostaReformulada) {
+function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respostaReformulada, userData = null) {
     const feedbacks = loadFeedbacksRespostas();
     
     const novoFeedback = {
@@ -1603,6 +1645,7 @@ function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respos
         respostaAnterior: respostaAnterior,
         feedback: feedback,
         respostaReformulada: respostaReformulada,
+        userData: userData,
         contexto: {
             tipoSituacao: dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao,
             motivoSolicitacao: dadosFormulario.motivo_solicitacao || dadosFormulario.motivoSolicitacao
@@ -1613,7 +1656,7 @@ function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respos
     saveFeedbacksRespostas(feedbacks);
     
     // Também adicionar ao aprendizado direto do script
-    addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior);
+    addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
     
     console.log('📝 Feedback de resposta adicionado (aba Respostas RA):', novoFeedback.id);
     return novoFeedback;
@@ -3407,7 +3450,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             });
         }
         
-        const { dadosFormulario, respostaAnterior, feedback } = req.body;
+        const { dadosFormulario, respostaAnterior, feedback, userData } = req.body;
         
         if (!dadosFormulario || !respostaAnterior) {
             return res.status(400).json({
@@ -3699,7 +3742,8 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
                     dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao,
                     feedback,
                     respostaReformulada,
-                    respostaAnterior
+                    respostaAnterior,
+                    userData
                 );
                 
                 // Também salvar no arquivo de feedbacks de respostas para histórico completo
@@ -3708,7 +3752,8 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
                     dadosFormulario,
                     respostaAnterior,
                     feedback,
-                    respostaReformulada
+                    respostaReformulada,
+                    userData
                 );
             }
             
@@ -4035,10 +4080,10 @@ app.delete('/api/feedbacks', (req, res) => {
 });
 
 // Endpoint para salvar resposta como modelo (quando clicar em "Resposta Coerente")
-app.post('/api/save-modelo-resposta', (req, res) => {
+app.post('/api/save-modelo-resposta', async (req, res) => {
     console.log('🎯 Endpoint /api/save-modelo-resposta chamado');
     try {
-        const { dadosFormulario, respostaAprovada } = req.body;
+        const { dadosFormulario, respostaAprovada, userData } = req.body;
         
         if (!dadosFormulario || !respostaAprovada) {
             return res.status(400).json({
@@ -4050,11 +4095,12 @@ app.post('/api/save-modelo-resposta', (req, res) => {
         console.log('💾 Salvando resposta como modelo:', {
             tipo_situacao: dadosFormulario.tipo_solicitacao,
             motivo_solicitacao: dadosFormulario.motivo_solicitacao,
-            resposta_length: respostaAprovada.length
+            resposta_length: respostaAprovada.length,
+            userData: userData ? `${userData.nome} (${userData.email})` : 'N/A'
         });
         
         // Salvar como modelo
-        const modelo = addModeloResposta(dadosFormulario, respostaAprovada);
+        const modelo = await addModeloResposta(dadosFormulario, respostaAprovada, userData);
         
         // Incrementar estatística global
         incrementarEstatisticaGlobal('respostas_coerentes');
@@ -4303,7 +4349,7 @@ app.get('/api/getUserProfile', (req, res) => {
 });
 
 // Endpoint para registrar logs de acesso
-app.post('/api/logAccess', (req, res) => {
+app.post('/api/logAccess', async (req, res) => {
     console.log('🎯 Endpoint /api/logAccess chamado');
     try {
         const { email, nome, status, timestamp } = req.body;
@@ -4318,8 +4364,27 @@ app.post('/api/logAccess', (req, res) => {
         // Log do acesso
         console.log(`📝 Log de acesso: ${email} (${nome}) - ${status} - ${new Date(timestamp).toLocaleString('pt-BR')}`);
         
-        // Aqui você pode salvar em um arquivo de log ou banco de dados
-        // Por enquanto, apenas log no console
+        // Registrar acesso no Google Sheets
+        if (global.googleSheetsInitialized) {
+            try {
+                const acessoData = {
+                    userProfile: `${nome} (${email})`,
+                    userName: nome,
+                    userEmail: email,
+                    usuario: email,
+                    acao: status === 'online' ? 'Login' : 'Logout',
+                    ip: req.ip || req.connection.remoteAddress || 'N/A',
+                    userAgent: req.get('User-Agent') || 'N/A',
+                    duracaoSessao: 0,
+                    status: 'Sucesso'
+                };
+                
+                await googleSheetsIntegration.registrarAcessoInterface(acessoData);
+                console.log('✅ Acesso registrado no Google Sheets');
+            } catch (error) {
+                console.error('❌ Erro ao registrar acesso no Google Sheets:', error.message);
+            }
+        }
         
         res.json({
             success: true,

@@ -204,7 +204,12 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Criar perfil do usuário para a coluna ID
+            const userProfile = feedbackData.userProfile || 
+                (feedbackData.userEmail ? `${feedbackData.userName || 'Usuário'} (${feedbackData.userEmail})` : 'N/A');
+
             const row = [
+                userProfile, // Perfil do usuário na coluna ID
                 new Date().toLocaleString('pt-BR'),
                 feedbackData.id || '',
                 feedbackData.tipo || 'feedback',
@@ -220,7 +225,7 @@ class GoogleSheetsIntegration {
             ];
 
             await googleSheetsConfig.appendRow('Feedbacks!A:Z', row);
-            console.log('✅ Feedback registrado no Google Sheets');
+            console.log('✅ Feedback registrado no Google Sheets com perfil do usuário:', userProfile);
             return true;
 
         } catch (error) {
@@ -239,7 +244,12 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Criar perfil do usuário para a coluna ID
+            const userProfile = respostaData.userProfile || 
+                (respostaData.userEmail ? `${respostaData.userName || 'Usuário'} (${respostaData.userEmail})` : 'N/A');
+
             const row = [
+                userProfile, // Perfil do usuário na coluna ID
                 new Date().toLocaleString('pt-BR'),
                 respostaData.id || '',
                 respostaData.tipo || 'resposta',
@@ -254,7 +264,7 @@ class GoogleSheetsIntegration {
             ];
 
             await googleSheetsConfig.appendRow('Respostas Coerentes!A:Z', row);
-            console.log('✅ Resposta coerente registrada no Google Sheets');
+            console.log('✅ Resposta coerente registrada no Google Sheets com perfil do usuário:', userProfile);
             return true;
 
         } catch (error) {
@@ -273,7 +283,13 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Criar perfil do usuário para a coluna ID
+            const userProfile = acessoData.userProfile || 
+                (acessoData.userEmail ? `${acessoData.userName || 'Usuário'} (${acessoData.userEmail})` : 
+                (acessoData.usuario || 'Anônimo'));
+
             const row = [
+                userProfile, // Perfil do usuário na coluna ID
                 new Date().toLocaleString('pt-BR'),
                 acessoData.usuario || 'Anônimo',
                 acessoData.acao || 'Acesso',
@@ -284,7 +300,7 @@ class GoogleSheetsIntegration {
             ];
 
             await googleSheetsConfig.appendRow('Acessos Interface!A:Z', row);
-            console.log('✅ Acesso à interface registrado no Google Sheets');
+            console.log('✅ Acesso à interface registrado no Google Sheets com perfil do usuário:', userProfile);
             return true;
 
         } catch (error) {
