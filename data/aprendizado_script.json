@@ -150,12 +150,6 @@
     "exclusao-chave-pix-cpf": {
       "feedbacks": [
         {
-          "id": 1758055207723,
-          "timestamp": "2025-09-16T20:40:07.723Z",
-          "feedback": "\n\nProblemas identificados: informacoes-incorretas, nao-condiz-solucao, falta-clareza",
-          "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua preocupação em relação à portabilidade da sua chave Pix. Entendemos a importância dessa solicitação e estamos aqui para ajudar.\n\nGostaríamos de esclarecer que a portabilidade da sua chave Pix CPF foi concluída com sucesso. Entramos em contato com você para confirmar que todo o processo foi realizado dentro do prazo previsto de 2 dias úteis.\n\nReconhecemos que você já havia tentado realizar a portabilidade anteriormente, e lamentamos qualquer inconveniente que isso possa ter causado. Estamos comprometidos em garantir que suas experiências com a Velotax sejam satisfatórias.\n\nCaso tenha outras dúvidas ou precise de mais esclarecimentos, por favor, entre em contato diretamente com nossa equipe de atendimento. Estamos à disposição para assisti-lo(a) no que for necessário.\n\nAtenciosamente,  \nEquipe Velotax"
-        },
-        {
           "id": 1758055256507,
           "timestamp": "2025-09-16T20:40:56.507Z",
           "feedback": "jamias peça desculpas em nome da empresa, como já foi informado em solução implementada, a chave pix foi retirada e confirmado a portabilidade em nosso contato\n\nProblemas identificados: informacoes-incorretas",
@@ -208,24 +202,15 @@
           "timestamp": "2025-09-16T21:26:48.268Z",
           "feedback": "\n\nProblemas identificados: nao-condiz-solucao",
           "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por nos contatar e por nos informar sobre sua solicitação de portabilidade da chave Pix vinculada ao seu CPF. Entendemos que a transferência de sua chave Pix para outra instituição é importante para você, e estamos aqui para garantir que esse processo ocorra de maneira tranquila e eficiente.\n\nGostaríamos de informar que já concluímos a portabilidade solicitada. Entramos em contato diretamente para confirmar que a chave Pix foi liberada e transferida com sucesso para o banco de sua escolha. Estamos satisfeitos por ter podido resolver sua solicitação de forma eficaz.\n\nA Velotax está comprometida em oferecer um serviço ágil e transparente, e continuaremos trabalhando para aprimorar nossos processos e atender suas necessidades. Caso tenha mais dúvidas ou precise de qualquer assistência adicional, não hesite em nos contatar. Nossa equipe está à disposição para ajudar.\n\nAgradecemos por sua compreensão e por nos dar a oportunidade de corrigir a situação. \n\nAtenciosamente,\n\n[Seu Nome]  \nAtendimento ao Cliente Velotax"
+        },
+        {
+          "id": 1758658369697,
+          "timestamp": "23/09/2025 17:12:49",
+          "feedback": "não cite a clausula da CCB em casos de exclusão de chave pix",
+          "respostaReformulada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato e compartilhar sua solicitação de portabilidade da chave Pix associada ao seu CPF. Entendemos a importância dessa transição para você e estamos aqui para garantir que o processo ocorra de forma clara e eficiente.\n\nInformamos que a portabilidade da sua chave Pix foi concluída com sucesso. Nossa equipe já realizou o procedimento necessário e confirmamos a efetivação da transferência da chave para o banco de sua preferência, conforme sua solicitação.\n\nEstamos à disposição para esclarecer qualquer dúvida adicional que você possa ter ou para oferecer qualquer suporte necessário. Fique à vontade para entrar em contato diretamente conosco através de nossos canais de atendimento.\n\nAgradecemos pela confiança e esperamos continuar atendendo você com excelência.\n\nAtenciosamente,\n\n[Seu Nome]\nEquipe de Atendimento ao Cliente\nVelotax"
         }
       ],
       "respostasCoerentes": [
-        {
-          "id": 1758057111200,
-          "timestamp": "2025-09-16T21:11:51.200Z",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua preocupação em relação à portabilidade da sua chave Pix CPF. Entendemos que este é um processo importante para você e estamos aqui para ajudar.\n\nGostaríamos de esclarecer que já concluímos a portabilidade da sua chave Pix CPF para o banco de sua escolha. Esta ação foi confirmada diretamente com você, garantindo que sua solicitação foi atendida conforme desejado. Caso tenha mais alguma dúvida ou necessite de assistência adicional, por favor, não hesite em nos contatar.\n\nEstamos comprometidos em oferecer um serviço de qualidade e continuaremos trabalhando para aprimorar nossos processos, assegurando que experiências como a sua sejam cada vez mais satisfatórias.\n\nSe precisar de mais esclarecimentos ou desejar discutir qualquer questão adicional, nossa equipe de atendimento ao cliente está à sua disposição. Estamos à sua disposição para garantir que todos os seus pedidos sejam atendidos de maneira eficiente.\n\nAgradecemos pela sua confiança e esperamos continuar atendendo suas necessidades da melhor forma possível.\n\nAtenciosamente,\n\nEquipe Velotax",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-chave-pix-cpf",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
-            "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
-            "historico_atendimento": "",
-            "observacoes_internas": "",
-            "timestamp": "2025-09-16T21:11:51.182Z"
-          }
-        },
         {
           "id": 1758057502916,
           "timestamp": "2025-09-16T21:18:22.916Z",
@@ -284,6 +269,21 @@
             "historico_atendimento": "",
             "observacoes_internas": "",
             "timestamp": "2025-09-16T21:27:07.913Z"
+          }
+        },
+        {
+          "id": 1758658373615,
+          "timestamp": "23/09/2025 17:12:53",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato e compartilhar sua solicitação de portabilidade da chave Pix associada ao seu CPF. Entendemos a importância dessa transição para você e estamos aqui para garantir que o processo ocorra de forma clara e eficiente.\n\nInformamos que a portabilidade da sua chave Pix foi concluída com sucesso. Nossa equipe já realizou o procedimento necessário e confirmamos a efetivação da transferência da chave para o banco de sua preferência, conforme sua solicitação.\n\nEstamos à disposição para esclarecer qualquer dúvida adicional que você possa ter ou para oferecer qualquer suporte necessário. Fique à vontade para entrar em contato diretamente conosco através de nossos canais de atendimento.\n\nAgradecemos pela confiança e esperamos continuar atendendo você com excelência.\n\nAtenciosamente,\n\n[Seu Nome]\nEquipe de Atendimento ao Cliente\nVelotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-chave-pix-cpf",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
+            "solucao_implementada": "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
+            "historico_atendimento": "",
+            "observacoes_internas": "",
+            "timestamp": "2025-09-23T20:12:53.498Z"
           }
         }
       ],
@@ -358,5 +358,5 @@
       "clausulasUsadas": []
     }
   },
-  "lastUpdated": "23/09/2025 14:16:27"
+  "lastUpdated": "23/09/2025 17:12:53"
 }
