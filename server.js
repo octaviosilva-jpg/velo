@@ -1728,7 +1728,7 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
     saveFeedbacksRespostas(feedbacks);
     
     // Também adicionar ao aprendizado direto do script
-    addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
+    await addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
     
     console.log('📝 Feedback de resposta adicionado (aba Respostas RA):', novoFeedback.id);
     return novoFeedback;
@@ -3839,7 +3839,7 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
             // Aplicar feedback diretamente no script de formulação para aprendizado imediato
             if (feedback) {
                 console.log('📝 Aplicando feedback diretamente no script de formulação para aprendizado imediato');
-                addFeedbackAprendizado(
+                await addFeedbackAprendizado(
                     dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao,
                     feedback,
                     respostaReformulada,
@@ -3856,6 +3856,8 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
                     respostaReformulada,
                     userData
                 );
+                
+                console.log('✅ Feedback salvo com sucesso em ambos os sistemas');
             }
             
             res.json({
