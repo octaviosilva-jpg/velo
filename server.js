@@ -528,7 +528,7 @@ function saveFeedbacksModeracoes(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -840,7 +840,7 @@ let feedbacksExplicacoesMemoria = null;
 let modelosModeracoesMemoria = null;
 
 // Salvar modelos de respostas
-function saveModelosRespostas(modelos) {
+async function saveModelosRespostas(modelos) {
     try {
         // Validar estrutura antes de salvar
         if (!modelos || typeof modelos !== 'object') {
@@ -877,7 +877,7 @@ function saveModelosRespostas(modelos) {
                         userName: modelo.userData?.nome || 'N/A',
                         userEmail: modelo.userData?.email || 'N/A'
                     };
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
@@ -918,7 +918,7 @@ function saveModelosRespostas(modelos) {
                         userName: modelo.userData?.nome || 'N/A',
                         userEmail: modelo.userData?.email || 'N/A'
                     };
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
@@ -978,7 +978,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     console.log('📝 Modelo adicionado ao array. Total agora:', modelos.modelos.length);
     
     console.log('💾 Chamando saveModelosRespostas...');
-    saveModelosRespostas(modelos);
+    await saveModelosRespostas(modelos);
     console.log('✅ saveModelosRespostas concluído');
     
     // Também adicionar ao aprendizado direto do script
@@ -1441,7 +1441,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
                 userName: userData?.nome || 'N/A',
                 userEmail: userData?.email || 'N/A'
             };
-            googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+            await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
         } catch (error) {
             console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
         }
@@ -2239,7 +2239,7 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
