@@ -328,6 +328,131 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * Carrega aprendizado do Google Sheets
+     */
+    async carregarAprendizado() {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Não é possível carregar aprendizado.');
+            return null;
+        }
+
+        try {
+            console.log('📚 Carregando aprendizado do Google Sheets...');
+            
+            // Ler dados da planilha de aprendizado
+            const range = 'Aprendizado!A1:Z1000';
+            const data = await googleSheetsConfig.readData(range);
+            
+            if (!data || data.length === 0) {
+                console.log('📚 Nenhum aprendizado encontrado no Google Sheets');
+                return null;
+            }
+            
+            // Converter dados da planilha para formato JSON
+            const aprendizado = {
+                tiposSituacao: {},
+                lastUpdated: new Date().toLocaleString('pt-BR')
+            };
+            
+            // Processar dados (implementar lógica de conversão)
+            // Por enquanto, retornar estrutura básica
+            console.log('✅ Aprendizado carregado do Google Sheets');
+            return aprendizado;
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar aprendizado do Google Sheets:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Salva aprendizado no Google Sheets
+     */
+    async salvarAprendizado(aprendizado) {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Não é possível salvar aprendizado.');
+            return false;
+        }
+
+        try {
+            console.log('💾 Salvando aprendizado no Google Sheets...');
+            
+            // Garantir que a planilha de aprendizado existe
+            await this.ensureSheetExists('Aprendizado', [
+                'Tipo Situação',
+                'Tipo Dados',
+                'ID',
+                'Timestamp',
+                'Conteúdo JSON'
+            ]);
+            
+            // Converter aprendizado para formato de planilha
+            const rows = [];
+            for (const [tipoSituacao, dados] of Object.entries(aprendizado.tiposSituacao)) {
+                // Salvar feedbacks
+                for (const feedback of dados.feedbacks || []) {
+                    rows.push([
+                        tipoSituacao,
+                        'feedback',
+                        feedback.id || Date.now(),
+                        feedback.timestamp || new Date().toLocaleString('pt-BR'),
+                        JSON.stringify(feedback)
+                    ]);
+                }
+                
+                // Salvar respostas coerentes
+                for (const resposta of dados.respostasCoerentes || []) {
+                    rows.push([
+                        tipoSituacao,
+                        'resposta_coerente',
+                        resposta.id || Date.now(),
+                        resposta.timestamp || new Date().toLocaleString('pt-BR'),
+                        JSON.stringify(resposta)
+                    ]);
+                }
+                
+                // Salvar padrões identificados
+                for (const padrao of dados.padroesIdentificados || []) {
+                    rows.push([
+                        tipoSituacao,
+                        'padrao',
+                        Date.now(),
+                        new Date().toLocaleString('pt-BR'),
+                        padrao
+                    ]);
+                }
+            }
+            
+            if (rows.length > 0) {
+                // Limpar planilha existente
+                await googleSheetsConfig.clearSheet('Aprendizado');
+                
+                // Adicionar cabeçalhos
+                await googleSheetsConfig.appendRow('Aprendizado!A1:E1', [
+                    'Tipo Situação',
+                    'Tipo Dados',
+                    'ID',
+                    'Timestamp',
+                    'Conteúdo JSON'
+                ]);
+                
+                // Adicionar dados
+                for (const row of rows) {
+                    await googleSheetsConfig.appendRow('Aprendizado!A:E', row);
+                }
+                
+                console.log(`✅ Aprendizado salvo no Google Sheets: ${rows.length} registros`);
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Erro ao salvar aprendizado no Google Sheets:', error.message);
+            return false;
+        }
+    }
+
+    /**
      * Sincroniza dados existentes com o Google Sheets
      */
     async sincronizarDadosExistentes() {

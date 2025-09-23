@@ -216,6 +216,24 @@ class GoogleSheetsConfig {
             throw error;
         }
     }
+
+    /**
+     * Limpa o conteúdo de uma planilha
+     * @param {string} sheetName - Nome da planilha
+     */
+    async clearSheet(sheetName) {
+        try {
+            const range = `${sheetName}!A:Z`;
+            await this.sheets.spreadsheets.values.clear({
+                spreadsheetId: this.spreadsheetId,
+                range: range
+            });
+            console.log(`✅ Planilha ${sheetName} limpa com sucesso`);
+        } catch (error) {
+            console.error('❌ Erro ao limpar planilha:', error.message);
+            throw error;
+        }
+    }
 }
 
 // Instância singleton

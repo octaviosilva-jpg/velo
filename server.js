@@ -1125,11 +1125,27 @@ function getModelosModeracaoRelevantes(motivoModeracao) {
 // ===== FUNÇÕES PARA APRENDIZADO DIRETO NO SCRIPT DE FORMULAÇÃO =====
 
 // Carregar aprendizado do script
-function loadAprendizadoScript() {
+async function loadAprendizadoScript() {
     // Verificar se estamos no Vercel e temos dados em memória
     if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && aprendizadoScriptMemoria) {
         console.log('🌐 Vercel detectado - carregando aprendizado da memória');
         return aprendizadoScriptMemoria;
+    }
+    
+    // Na Vercel, tentar carregar do Google Sheets se disponível
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        try {
+            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+                console.log('🌐 Vercel - tentando carregar aprendizado do Google Sheets');
+                const aprendizado = await googleSheetsIntegration.carregarAprendizado();
+                if (aprendizado) {
+                    aprendizadoScriptMemoria = aprendizado;
+                    return aprendizado;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erro ao carregar aprendizado do Google Sheets:', error.message);
+        }
     }
     
     try {
@@ -1147,14 +1163,25 @@ function loadAprendizadoScript() {
 }
 
 // Salvar aprendizado do script
-function saveAprendizadoScript(aprendizado) {
+async function saveAprendizadoScript(aprendizado) {
     try {
         aprendizado.lastUpdated = obterTimestampBrasil();
         
         // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
         if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            console.log('🌐 Vercel detectado - salvando aprendizado em memória');
+            console.log('🌐 Vercel detectado - salvando aprendizado em memória e Google Sheets');
             aprendizadoScriptMemoria = aprendizado;
+            
+            // Salvar também no Google Sheets para persistência
+            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+                try {
+                    await googleSheetsIntegration.salvarAprendizado(aprendizado);
+                    console.log('✅ Aprendizado do script salvo no Google Sheets');
+                } catch (error) {
+                    console.error('❌ Erro ao salvar aprendizado no Google Sheets:', error.message);
+                }
+            }
+            
             console.log('✅ Aprendizado do script salvo em memória');
             return;
         }
@@ -1174,8 +1201,8 @@ function saveAprendizadoScript(aprendizado) {
 }
 
 // Adicionar feedback ao aprendizado do script
-function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada) {
-    const aprendizado = loadAprendizadoScript();
+async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada) {
+    const aprendizado = await loadAprendizadoScript();
     
     if (!aprendizado.tiposSituacao[tipoSituacao]) {
         aprendizado.tiposSituacao[tipoSituacao] = {
@@ -1212,13 +1239,13 @@ function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulada) {
     console.log('🔍 Identificando padrões para:', tipoSituacao);
     identificarPadroesAprendizado(tipoSituacao, '', respostaReformulada);
     
-    saveAprendizadoScript(aprendizado);
+    await saveAprendizadoScript(aprendizado);
     console.log('📝 Feedback adicionado ao aprendizado do script:', tipoSituacao);
 }
 
 // Adicionar resposta coerente ao aprendizado do script
-function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada, dadosFormulario) {
-    const aprendizado = loadAprendizadoScript();
+async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada, dadosFormulario) {
+    const aprendizado = await loadAprendizadoScript();
     
     if (!aprendizado.tiposSituacao[tipoSituacao]) {
         aprendizado.tiposSituacao[tipoSituacao] = {
@@ -1248,7 +1275,7 @@ function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respost
     // Identificar padrões automaticamente
     identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada);
     
-    saveAprendizadoScript(aprendizado);
+    await saveAprendizadoScript(aprendizado);
     console.log('📝 Resposta coerente adicionada ao aprendizado do script:', tipoSituacao);
 }
 
@@ -1416,8 +1443,8 @@ function processarPadroesExistentes(tipoSituacao) {
 }
 
 // Obter aprendizado para um tipo de situação
-function getAprendizadoTipoSituacao(tipoSituacao) {
-    const aprendizado = loadAprendizadoScript();
+async function getAprendizadoTipoSituacao(tipoSituacao) {
+    const aprendizado = await loadAprendizadoScript();
     return aprendizado.tiposSituacao[tipoSituacao] || {
         feedbacks: [],
         respostasCoerentes: [],
