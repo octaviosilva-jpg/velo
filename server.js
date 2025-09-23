@@ -1341,6 +1341,7 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
     }
     
     console.log('📝 Feedback adicionado ao aprendizado do script:', tipoSituacao);
+    console.log('👤 Usuário que enviou o feedback:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
 }
 
 // Adicionar resposta coerente ao aprendizado do script
@@ -1400,6 +1401,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
     }
     
     console.log('📝 Resposta coerente adicionada ao aprendizado do script:', tipoSituacao);
+    console.log('👤 Usuário que marcou como coerente:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
 }
 
 // Identificar padrões automaticamente
@@ -2713,6 +2715,11 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 // Rota para gerar resposta RA via API OpenAI
 app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
     try {
+        const { dadosFormulario, userData } = req.body;
+        console.log('🎯 Endpoint /api/generate-response chamado');
+        console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
+        console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
+        
         const envVars = loadEnvFile();
         const apiKey = envVars.OPENAI_API_KEY;
         
@@ -2722,8 +2729,6 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
                 error: 'Chave da API não configurada ou inválida'
             });
         }
-        
-        const { dadosFormulario } = req.body;
         
         if (!dadosFormulario) {
             return res.status(400).json({

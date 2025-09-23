@@ -280,13 +280,24 @@ async function gerarRespostaRAViaAPI(dadosResposta) {
     try {
         console.log('📡 Enviando dados para o servidor...');
         
+        // Obter dados do usuário autenticado
+        const userData = window.auth?.dadosUsuario ? {
+            nome: window.auth.dadosUsuario().nome,
+            email: window.auth.dadosUsuario().email,
+            funcao: window.auth.dadosUsuario().funcao,
+            departamento: window.auth.dadosUsuario().departamento
+        } : null;
+        
+        console.log('👤 Dados do usuário para geração:', userData);
+        
         const response = await fetch('/api/generate-response', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                dadosFormulario: dadosResposta
+                dadosFormulario: dadosResposta,
+                userData: userData
             })
         });
         
