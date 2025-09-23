@@ -4100,6 +4100,65 @@ app.get('/api/dados-memoria', (req, res) => {
     }
 });
 
+// Endpoint para testar carregamento de dados específicos
+app.get('/api/test-data-loading/:tipoSituacao', async (req, res) => {
+    try {
+        const { tipoSituacao } = req.params;
+        console.log(`🧪 Testando carregamento de dados para: ${tipoSituacao}`);
+        
+        // Carregar dados dos arquivos JSON
+        const feedbacksRespostas = loadFeedbacksRespostas();
+        const modelosRespostas = loadModelosRespostas();
+        
+        // Filtrar dados relevantes
+        const feedbacksRelevantes = feedbacksRespostas?.respostas?.filter(fb => 
+            fb.contexto?.tipoSituacao === tipoSituacao || 
+            fb.dadosFormulario?.tipo_solicitacao === tipoSituacao
+        ) || [];
+        
+        const modelosRelevantes = modelosRespostas?.modelos?.filter(modelo => 
+            modelo.tipo_situacao === tipoSituacao || 
+            modelo.contexto?.tipoSituacao === tipoSituacao
+        ) || [];
+        
+        // Testar getAprendizadoTipoSituacao
+        const aprendizado = await getAprendizadoTipoSituacao(tipoSituacao);
+        
+        res.json({
+            success: true,
+            tipoSituacao,
+            dados: {
+                feedbacksCarregados: feedbacksRespostas?.respostas?.length || 0,
+                modelosCarregados: modelosRespostas?.modelos?.length || 0,
+                feedbacksRelevantes: feedbacksRelevantes.length,
+                modelosRelevantes: modelosRelevantes.length,
+                aprendizadoRetornado: {
+                    feedbacks: aprendizado.feedbacks?.length || 0,
+                    respostasCoerentes: aprendizado.respostasCoerentes?.length || 0
+                }
+            },
+            exemplos: {
+                feedbacksRelevantes: feedbacksRelevantes.slice(0, 2).map(fb => ({
+                    tipoSituacao: fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao,
+                    feedback: fb.feedback?.substring(0, 100) + '...',
+                    timestamp: fb.timestamp
+                })),
+                modelosRelevantes: modelosRelevantes.slice(0, 2).map(modelo => ({
+                    tipoSituacao: modelo.tipo_situacao || modelo.contexto?.tipoSituacao,
+                    resposta: modelo.respostaAprovada?.substring(0, 100) + '...',
+                    timestamp: modelo.timestamp
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao testar carregamento de dados:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao testar carregamento de dados'
+        });
+    }
+});
+
 // Endpoint simples para debug do aprendizado
 app.get('/api/debug-aprendizado-simples', (req, res) => {
     try {
