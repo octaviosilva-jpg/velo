@@ -2912,7 +2912,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             console.log('🔍 Dados do aprendizadoScript:', JSON.stringify(aprendizadoScript, null, 2));
         }
         
-        // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
+        // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script) - CORRIGIDO DEFINITIVAMENTE
         if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
             conhecimentoFeedback += 'Com base em feedbacks anteriores de situações similares, siga estas diretrizes:\n\n';
