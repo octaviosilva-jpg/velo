@@ -403,42 +403,23 @@ function saveFeedbacksRespostas(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
         
-        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            console.log('🌐 Vercel detectado - salvando feedbacks de respostas em memória');
+        // Tentar salvar no arquivo primeiro (mesmo na Vercel)
+        try {
+            fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
+            console.log('✅ Feedbacks de respostas salvos no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
+        } catch (fileError) {
+            console.log('⚠️ Não foi possível salvar no arquivo, salvando em memória:', fileError.message);
+            
+            // Fallback para memória
             feedbacksRespostasMemoria = feedbacks;
             console.log('✅ Feedbacks de respostas salvos em memória');
-            
-            // Registrar no Google Sheets se ativo
-            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                try {
-                    // Registrar cada feedback individualmente com dados do usuário
-                    for (const feedback of feedbacks.respostas || []) {
-                        const feedbackData = {
-                            id: feedback.id,
-                            tipo: 'feedback',
-                            tipoSituacao: feedback.contexto?.tipoSituacao || 'N/A',
-                            textoCliente: feedback.dadosFormulario?.texto_cliente || 'N/A',
-                            respostaAnterior: feedback.respostaAnterior || 'N/A',
-                            feedback: feedback.feedback || 'N/A',
-                            respostaReformulada: feedback.respostaReformulada || 'N/A',
-                            timestamp: feedback.timestamp,
-                            userProfile: feedback.userData ? `${feedback.userData.nome} (${feedback.userData.email})` : 'N/A',
-                            userName: feedback.userData?.nome || 'N/A',
-                            userEmail: feedback.userData?.email || 'N/A'
-                        };
-                        googleSheetsIntegration.registrarFeedback(feedbackData);
-                    }
-                } catch (error) {
-                    console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
-                }
-            }
-            return;
         }
         
-        // Desenvolvimento local - usar sistema de arquivos
-        fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
-        console.log('✅ Feedbacks de respostas salvos no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
+        // Se estamos na Vercel, também salvar em memória como backup
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            feedbacksRespostasMemoria = feedbacks;
+            console.log('✅ Feedbacks de respostas também salvos em memória (backup)');
+        }
         
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
@@ -857,52 +838,34 @@ async function saveModelosRespostas(modelos) {
         // Atualizar timestamp
         modelos.lastUpdated = obterTimestampBrasil();
         
-        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            console.log('🌐 Vercel detectado - salvando em memória');
+        // Tentar salvar no arquivo primeiro (mesmo na Vercel)
+        try {
+            const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            
+            // Escrever arquivo temporário primeiro
+            const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
+            fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
+            
+            // Mover arquivo temporário para o arquivo final (operação atômica)
+            fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
+            
+            console.log('✅ Modelos de respostas salvos no arquivo:', MODELOS_RESPOSTAS_FILE, '- Total:', modelos.modelos.length);
+        } catch (fileError) {
+            console.log('⚠️ Não foi possível salvar no arquivo, salvando em memória:', fileError.message);
+            
+            // Fallback para memória
             modelosRespostasMemoria = modelos;
             console.log('✅ Modelos de respostas salvos em memória:', modelos.modelos.length);
-            
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                // Registrar cada modelo individualmente com dados do usuário
-                for (const modelo of modelos.modelos || []) {
-                    const respostaData = {
-                        id: modelo.id,
-                        tipo: 'resposta',
-                        tipoSituacao: modelo.tipo_situacao || modelo.contexto?.tipoSituacao || 'N/A',
-                        motivoSolicitacao: modelo.motivo_solicitacao || modelo.contexto?.motivoSolicitacao || 'N/A',
-                        respostaAprovada: modelo.respostaAprovada || 'N/A',
-                        dadosFormulario: modelo.dadosFormulario || {},
-                        timestamp: modelo.timestamp,
-                        userProfile: modelo.userData ? `${modelo.userData.nome} (${modelo.userData.email})` : 'N/A',
-                        userName: modelo.userData?.nome || 'N/A',
-                        userEmail: modelo.userData?.email || 'N/A'
-                    };
-                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
-                }
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
-            return;
         }
         
-        // Desenvolvimento local - usar sistema de arquivos
-        const dir = path.dirname(MODELOS_RESPOSTAS_FILE);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+        // Se estamos na Vercel, também salvar em memória como backup
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            modelosRespostasMemoria = modelos;
+            console.log('✅ Modelos de respostas também salvos em memória (backup)');
         }
-        
-        // Escrever arquivo temporário primeiro
-        const tempFile = MODELOS_RESPOSTAS_FILE + '.tmp';
-        fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2), 'utf8');
-        
-        // Mover arquivo temporário para o arquivo final (operação atômica)
-        fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
-        
-        console.log('✅ Modelos de respostas salvos no arquivo:', MODELOS_RESPOSTAS_FILE, '- Total:', modelos.modelos.length);
         
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
