@@ -238,6 +238,10 @@ class GoogleSheetsIntegration {
      * Registra uma resposta coerente no Google Sheets
      */
     async registrarRespostaCoerente(respostaData) {
+        console.log('🔍 [DEBUG] Iniciando registro de resposta coerente...');
+        console.log('🔍 [DEBUG] Google Sheets ativo?', this.isActive());
+        console.log('🔍 [DEBUG] Dados recebidos:', JSON.stringify(respostaData, null, 2));
+        
         if (!this.isActive()) {
             console.log('⚠️ Google Sheets não está ativo. Resposta não registrada.');
             return false;

@@ -127,12 +127,18 @@ class GoogleSheetsConfig {
      */
     async appendRow(range, values) {
         try {
+            console.log('🔍 [DEBUG] appendRow chamado com range:', range);
+            console.log('🔍 [DEBUG] appendRow chamado com values:', values);
+            
             if (!this.isInitialized()) {
+                console.log('❌ [DEBUG] Google Sheets API não foi inicializada');
                 throw new Error('Google Sheets API não foi inicializada');
             }
 
             const sheets = this.getSheets();
             const spreadsheetId = this.getSpreadsheetId();
+            
+            console.log('🔍 [DEBUG] Spreadsheet ID:', spreadsheetId);
 
             const request = {
                 spreadsheetId: spreadsheetId,
