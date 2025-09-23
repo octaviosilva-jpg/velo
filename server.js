@@ -1253,24 +1253,27 @@ async function saveAprendizadoScript(aprendizado) {
     try {
         aprendizado.lastUpdated = obterTimestampBrasil();
         
-        // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            console.log('🌐 Vercel detectado - salvando aprendizado em memória e Google Sheets');
-            aprendizadoScriptMemoria = aprendizado;
-            
-            // Salvar também no Google Sheets para persistência
-            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                try {
-                    await googleSheetsIntegration.salvarAprendizado(aprendizado);
-                    console.log('✅ Aprendizado do script salvo no Google Sheets');
-                } catch (error) {
-                    console.error('❌ Erro ao salvar aprendizado no Google Sheets:', error.message);
-                }
+    // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        console.log('🌐 Vercel detectado - salvando aprendizado em memória');
+        aprendizadoScriptMemoria = aprendizado;
+        
+        // Salvar também no Google Sheets para persistência (se disponível)
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                await googleSheetsIntegration.salvarAprendizado(aprendizado);
+                console.log('✅ Aprendizado do script salvo no Google Sheets');
+            } catch (error) {
+                console.error('❌ Erro ao salvar aprendizado no Google Sheets:', error.message);
+                console.log('⚠️ Continuando apenas com memória (dados serão perdidos no restart)');
             }
-            
-            console.log('✅ Aprendizado do script salvo em memória');
-            return;
+        } else {
+            console.log('⚠️ Google Sheets não disponível - dados serão perdidos no restart do servidor');
         }
+        
+        console.log('✅ Aprendizado do script salvo em memória');
+        return;
+    }
         
         // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(APRENDIZADO_SCRIPT_FILE, JSON.stringify(aprendizado, null, 2));
