@@ -5017,6 +5017,15 @@ app.get('/api/test-sheets-register', async (req, res) => {
     try {
         console.log('🧪 Testando registro direto no Google Sheets...');
         
+        // Verificar variáveis de ambiente
+        const envVars = {
+            GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            ENABLE_GOOGLE_SHEETS: process.env.ENABLE_GOOGLE_SHEETS,
+            GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PRIVATE_KEY: process.env.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+        };
+        
         // Verificar se Google Sheets está ativo
         if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
             return res.json({
@@ -5025,13 +5034,7 @@ app.get('/api/test-sheets-register', async (req, res) => {
                 details: {
                     googleSheetsIntegration: !!googleSheetsIntegration,
                     isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
-                    envVars: {
-                        GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-                        ENABLE_GOOGLE_SHEETS: process.env.ENABLE_GOOGLE_SHEETS,
-                        GOOGLE_SERVICE_ACCOUNT_EMAIL: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-                        GOOGLE_PRIVATE_KEY: process.env.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
-                        GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
-                    }
+                    envVars: envVars
                 }
             });
         }
@@ -5061,6 +5064,7 @@ app.get('/api/test-sheets-register', async (req, res) => {
             message: 'Teste de registro concluído',
             result: respostaResult,
             testData: testData,
+            envVars: envVars,
             timestamp: new Date().toISOString()
         });
         
