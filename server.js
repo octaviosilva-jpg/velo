@@ -4832,6 +4832,60 @@ app.get('/api/debug-google-sheets', async (req, res) => {
     }
 });
 
+// Endpoint para testar o sistema de aprendizado
+app.get('/api/debug-aprendizado', async (req, res) => {
+    try {
+        const aprendizado = await loadAprendizadoScript();
+        
+        // Verificar estrutura do aprendizado
+        const estruturaAprendizado = {
+            existe: !!aprendizado,
+            temTiposSituacao: !!aprendizado?.tiposSituacao,
+            totalTipos: Object.keys(aprendizado?.tiposSituacao || {}).length,
+            tiposDisponiveis: Object.keys(aprendizado?.tiposSituacao || {}),
+            lastUpdated: aprendizado?.lastUpdated
+        };
+        
+        // Verificar cada tipo de situação
+        const detalhesTipos = {};
+        if (aprendizado?.tiposSituacao) {
+            for (const [tipo, dados] of Object.entries(aprendizado.tiposSituacao)) {
+                detalhesTipos[tipo] = {
+                    feedbacks: dados.feedbacks?.length || 0,
+                    respostasCoerentes: dados.respostasCoerentes?.length || 0,
+                    padroesIdentificados: dados.padroesIdentificados?.length || 0,
+                    clausulasUsadas: dados.clausulasUsadas?.length || 0,
+                    ultimoFeedback: dados.feedbacks?.[dados.feedbacks.length - 1]?.timestamp || 'N/A',
+                    ultimaRespostaCoerente: dados.respostasCoerentes?.[dados.respostasCoerentes.length - 1]?.timestamp || 'N/A'
+                };
+            }
+        }
+        
+        // Verificar memória
+        const statusMemoria = {
+            aprendizadoScriptMemoria: !!aprendizadoScriptMemoria,
+            modelosRespostasMemoria: !!modelosRespostasMemoria,
+            feedbacksRespostasMemoria: !!feedbacksRespostasMemoria
+        };
+        
+        res.json({
+            success: true,
+            estruturaAprendizado: estruturaAprendizado,
+            detalhesTipos: detalhesTipos,
+            statusMemoria: statusMemoria,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('Erro ao verificar aprendizado:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Função para gerar recomendações
 function getGoogleSheetsRecommendations(configStatus, integrationStatus) {
     const recommendations = [];
