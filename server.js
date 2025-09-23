@@ -1894,8 +1894,8 @@ function loadEnvFile() {
             envVars = loadEnvFromFile(envPath);
         }
         
-        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env
-        if (!envVars.GOOGLE_CLIENT_ID) {
+        // Se não encontrou GOOGLE_CLIENT_ID no .env, tentar config.env (apenas local)
+        if (!envVars.GOOGLE_CLIENT_ID && !process.env.VERCEL) {
             const configEnvPath = path.join(__dirname, 'config.env');
             if (fs.existsSync(configEnvPath)) {
                 console.log('📁 GOOGLE_CLIENT_ID não encontrado no .env, carregando config.env...');
