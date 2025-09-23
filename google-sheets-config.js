@@ -17,19 +17,31 @@ class GoogleSheetsConfig {
      */
     async initializeWithCredentials(credentials, spreadsheetId) {
         try {
-            console.log('🔧 Inicializando Google Sheets API com credenciais diretas...');
-            
-            // Configurar OAuth2 com credenciais diretas
-            const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
-            this.auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+            console.log('🔧 Inicializando Google Sheets API com Service Account...');
 
-            // Para Vercel, vamos usar um token temporário ou desabilitar
-            console.log('⚠️ Inicialização com credenciais diretas - token não disponível');
-            console.log('📊 Google Sheets desabilitado temporariamente na Vercel');
-            return false;
+            // Verificar se é Service Account (tem private_key) ou OAuth2 (tem client_secret)
+            if (credentials.private_key) {
+                // Service Account - método correto para Vercel
+                this.auth = new google.auth.GoogleAuth({
+                    credentials: credentials,
+                    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+                });
+                console.log('✅ Usando Service Account para autenticação');
+            } else {
+                // OAuth2 - método antigo (não funciona bem na Vercel)
+                const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
+                this.auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+                console.log('⚠️ Usando OAuth2 (pode não funcionar na Vercel)');
+            }
+
+            this.sheets = google.sheets({ version: 'v4', auth: this.auth });
+            this.spreadsheetId = spreadsheetId;
+            this.initialized = true;
+            console.log('✅ Google Sheets API inicializado com sucesso');
+            return true;
 
         } catch (error) {
-            console.error('❌ Erro ao inicializar Google Sheets com credenciais:', error.message);
+            console.error('❌ Erro ao inicializar Google Sheets:', error.message);
             return false;
         }
     }
