@@ -438,7 +438,7 @@ function saveFeedbacksRespostas(feedbacks) {
         
         // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(FEEDBACKS_RESPOSTAS_FILE, JSON.stringify(feedbacks, null, 2));
-        console.log('✅ Feedbacks de respostas salvos no arquivo');
+        console.log('✅ Feedbacks de respostas salvos no arquivo:', FEEDBACKS_RESPOSTAS_FILE);
         
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
@@ -523,7 +523,7 @@ async function saveFeedbacksModeracoes(feedbacks) {
         
         // Desenvolvimento local - usar sistema de arquivos
         fs.writeFileSync(FEEDBACKS_MODERACOES_FILE, JSON.stringify(feedbacks, null, 2));
-        console.log('✅ Feedbacks de moderações salvos no arquivo');
+        console.log('✅ Feedbacks de moderações salvos no arquivo:', FEEDBACKS_MODERACOES_FILE);
         
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
@@ -902,7 +902,7 @@ async function saveModelosRespostas(modelos) {
         // Mover arquivo temporário para o arquivo final (operação atômica)
         fs.renameSync(tempFile, MODELOS_RESPOSTAS_FILE);
         
-        console.log('✅ Modelos de respostas salvos no arquivo:', modelos.modelos.length);
+        console.log('✅ Modelos de respostas salvos no arquivo:', MODELOS_RESPOSTAS_FILE, '- Total:', modelos.modelos.length);
         
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
@@ -1127,7 +1127,7 @@ function saveModelosModeracoes(modelos) {
         // Mover arquivo temporário para o arquivo final (operação atômica)
         fs.renameSync(tempFile, MODELOS_MODERACOES_FILE);
         
-        console.log('📝 Modelos de moderações salvos no arquivo:', modelos.modelos.length);
+        console.log('📝 Modelos de moderações salvos no arquivo:', MODELOS_MODERACOES_FILE, '- Total:', modelos.modelos.length);
     } catch (error) {
         console.error('Erro ao salvar modelos de moderações:', error);
         
@@ -1606,17 +1606,67 @@ async function processarPadroesExistentes(tipoSituacao) {
 async function getAprendizadoTipoSituacao(tipoSituacao) {
     console.log(`🔍 getAprendizadoTipoSituacao chamada para: "${tipoSituacao}"`);
     
+    // PRIORIDADE 1: Carregar dos arquivos JSON específicos
+    const feedbacksRespostas = loadFeedbacksRespostas();
+    const modelosRespostas = loadModelosRespostas();
+    const feedbacksModeracoes = loadFeedbacksModeracoes();
+    const modelosModeracoes = loadModelosModeracoes();
+    
+    console.log(`📚 Dados carregados dos arquivos JSON:`, {
+        feedbacksRespostas: feedbacksRespostas?.respostas?.length || 0,
+        modelosRespostas: modelosRespostas?.modelos?.length || 0,
+        feedbacksModeracoes: feedbacksModeracoes?.moderacoes?.length || 0,
+        modelosModeracoes: modelosModeracoes?.modelos?.length || 0
+    });
+    
+    // PRIORIDADE 2: Carregar do sistema de aprendizado (fallback)
     const aprendizado = await loadAprendizadoScript();
-    console.log(`📚 Aprendizado carregado:`, {
+    console.log(`📚 Aprendizado do script carregado:`, {
         existe: !!aprendizado,
         temTiposSituacao: !!aprendizado?.tiposSituacao,
         tiposDisponiveis: aprendizado?.tiposSituacao ? Object.keys(aprendizado.tiposSituacao) : [],
         tipoSolicitado: tipoSituacao
     });
     
-    if (!aprendizado || !aprendizado.tiposSituacao) {
-        console.log(`⚠️ Nenhum aprendizado encontrado para "${tipoSituacao}"`);
-        return {
+    // Filtrar dados relevantes para o tipo de situação
+    const feedbacksRelevantes = feedbacksRespostas?.respostas?.filter(fb => 
+        fb.contexto?.tipoSituacao === tipoSituacao || 
+        fb.dadosFormulario?.tipo_solicitacao === tipoSituacao
+    ) || [];
+    
+    const modelosRelevantes = modelosRespostas?.modelos?.filter(modelo => 
+        modelo.tipo_situacao === tipoSituacao || 
+        modelo.contexto?.tipoSituacao === tipoSituacao
+    ) || [];
+    
+    console.log(`🎯 Dados filtrados para "${tipoSituacao}":`, {
+        feedbacksRelevantes: feedbacksRelevantes.length,
+        modelosRelevantes: modelosRelevantes.length
+    });
+    
+    // Se não há dados nos arquivos JSON, usar o sistema de aprendizado como fallback
+    if (feedbacksRelevantes.length === 0 && modelosRelevantes.length === 0) {
+        console.log(`⚠️ Nenhum dado encontrado nos arquivos JSON para "${tipoSituacao}", usando sistema de aprendizado como fallback`);
+        
+        if (!aprendizado || !aprendizado.tiposSituacao) {
+            console.log(`⚠️ Nenhum aprendizado encontrado para "${tipoSituacao}"`);
+            return {
+                feedbacks: [],
+                respostasCoerentes: [],
+                padroesIdentificados: [],
+                clausulasUsadas: []
+            };
+        }
+        
+        const aprendizadoTipo = aprendizado.tiposSituacao[tipoSituacao];
+        console.log(`📊 Aprendizado para "${tipoSituacao}":`, {
+            existe: !!aprendizadoTipo,
+            feedbacks: aprendizadoTipo?.feedbacks?.length || 0,
+            respostasCoerentes: aprendizadoTipo?.respostasCoerentes?.length || 0,
+            padroes: aprendizadoTipo?.padroesIdentificados?.length || 0
+        });
+        
+        return aprendizadoTipo || {
             feedbacks: [],
             respostasCoerentes: [],
             padroesIdentificados: [],
@@ -1624,19 +1674,25 @@ async function getAprendizadoTipoSituacao(tipoSituacao) {
         };
     }
     
-    const aprendizadoTipo = aprendizado.tiposSituacao[tipoSituacao];
-    console.log(`📊 Aprendizado para "${tipoSituacao}":`, {
-        existe: !!aprendizadoTipo,
-        feedbacks: aprendizadoTipo?.feedbacks?.length || 0,
-        respostasCoerentes: aprendizadoTipo?.respostasCoerentes?.length || 0,
-        padroes: aprendizadoTipo?.padroesIdentificados?.length || 0
+    // Retornar dados dos arquivos JSON (PRIORIDADE)
+    console.log(`✅ Retornando dados dos arquivos JSON para "${tipoSituacao}":`, {
+        feedbacks: feedbacksRelevantes.length,
+        respostasCoerentes: modelosRelevantes.length
     });
     
-    return aprendizadoTipo || {
-        feedbacks: [],
-        respostasCoerentes: [],
-        padroesIdentificados: [],
-        clausulasUsadas: []
+    return {
+        feedbacks: feedbacksRelevantes.map(fb => ({
+            feedback: fb.feedback,
+            respostaReformulada: fb.respostaReformulada,
+            timestamp: fb.timestamp
+        })),
+        respostasCoerentes: modelosRelevantes.map(modelo => ({
+            respostaAprovada: modelo.respostaAprovada,
+            dadosFormulario: modelo.dadosFormulario,
+            timestamp: modelo.timestamp
+        })),
+        padroesIdentificados: [], // Será preenchido pelo sistema de aprendizado
+        clausulasUsadas: [] // Será preenchido pelo sistema de aprendizado
     };
 }
 
