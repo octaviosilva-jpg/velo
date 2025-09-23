@@ -863,7 +863,22 @@ function saveModelosRespostas(modelos) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
+                // Registrar cada modelo individualmente com dados do usuário
+                for (const modelo of modelos.modelos || []) {
+                    const respostaData = {
+                        id: modelo.id,
+                        tipo: 'resposta',
+                        tipoSituacao: modelo.tipo_situacao || modelo.contexto?.tipoSituacao || 'N/A',
+                        motivoSolicitacao: modelo.motivo_solicitacao || modelo.contexto?.motivoSolicitacao || 'N/A',
+                        respostaAprovada: modelo.respostaAprovada || 'N/A',
+                        dadosFormulario: modelo.dadosFormulario || {},
+                        timestamp: modelo.timestamp,
+                        userProfile: modelo.userData ? `${modelo.userData.nome} (${modelo.userData.email})` : 'N/A',
+                        userName: modelo.userData?.nome || 'N/A',
+                        userEmail: modelo.userData?.email || 'N/A'
+                    };
                     googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -889,7 +904,22 @@ function saveModelosRespostas(modelos) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
+                // Registrar cada modelo individualmente com dados do usuário
+                for (const modelo of modelos.modelos || []) {
+                    const respostaData = {
+                        id: modelo.id,
+                        tipo: 'resposta',
+                        tipoSituacao: modelo.tipo_situacao || modelo.contexto?.tipoSituacao || 'N/A',
+                        motivoSolicitacao: modelo.motivo_solicitacao || modelo.contexto?.motivoSolicitacao || 'N/A',
+                        respostaAprovada: modelo.respostaAprovada || 'N/A',
+                        dadosFormulario: modelo.dadosFormulario || {},
+                        timestamp: modelo.timestamp,
+                        userProfile: modelo.userData ? `${modelo.userData.nome} (${modelo.userData.email})` : 'N/A',
+                        userName: modelo.userData?.nome || 'N/A',
+                        userEmail: modelo.userData?.email || 'N/A'
+                    };
                     googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -935,6 +965,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
         motivo_solicitacao: dadosFormulario.motivo_solicitacao,
         dadosFormulario: dadosFormulario,
         respostaAprovada: respostaAprovada,
+        userData: userData, // Incluir dados do usuário
         contexto: {
             tipoSituacao: dadosFormulario.tipo_solicitacao,
             motivoSolicitacao: dadosFormulario.motivo_solicitacao
