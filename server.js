@@ -4533,11 +4533,19 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
         // Incrementar estatística global
         incrementarEstatisticaGlobal('respostas_coerentes');
         
+        // Verificar status da memória após salvar
+        const memoriaStatus = {
+            totalModelos: modelosRespostasMemoria?.modelos?.length || 0,
+            ultimaAtualizacao: modelosRespostasMemoria?.lastUpdated || 'N/A',
+            ambiente: process.env.VERCEL ? 'Vercel (memória)' : 'Local (arquivo)'
+        };
+        
         res.json({
             success: true,
             message: 'Resposta salva como modelo para futuras solicitações similares',
             modeloId: modelo.id,
-            tipoSituacao: modelo.tipo_situacao
+            tipoSituacao: modelo.tipo_situacao,
+            memoriaStatus: memoriaStatus
         });
         
     } catch (error) {
