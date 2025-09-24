@@ -3301,6 +3301,15 @@ Equipe Velotax`;
                 details: errorData
             });
         }
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            console.error('Erro na requisição para OpenAI:', fetchError);
+            res.status(500).json({
+                success: false,
+                error: 'Erro na comunicação com OpenAI',
+                message: fetchError.message
+            });
+        }
     } catch (error) {
         clearTimeout(timeoutId);
         console.error('Erro ao gerar resposta RA:', error);
@@ -3324,6 +3333,7 @@ Equipe Velotax`;
                 error: 'Erro interno do servidor',
                 message: error.message
             });
+        }
     }
 });
 
