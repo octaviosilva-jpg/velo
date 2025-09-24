@@ -2885,6 +2885,19 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
         let conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
         
+        // Carregar feedbacks e modelos relevantes
+        const feedbacksRespostas = await loadFeedbacksRespostas();
+        const modelosRespostas = await loadModelosRespostas();
+        
+        const feedbacksRelevantes = feedbacksRespostas?.respostas?.filter(fb => 
+            fb.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase()) ||
+            fb.contexto?.tipoSituacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
+        ) || [];
+        
+        const modelosRelevantes = modelosRespostas?.modelos?.filter(modelo => 
+            modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
+        ) || [];
+        
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script) - CORRIGIDO DEFINITIVAMENTE
         if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
