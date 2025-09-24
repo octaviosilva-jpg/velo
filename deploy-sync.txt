@@ -1,3 +1,0 @@
-Deploy forçado - Endpoint de sincronização
-Timestamp: 2024-09-24 12:30:00
-Status: Adicionando endpoint /api/sync-local-data para sincronização localStorage+servidor
