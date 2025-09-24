@@ -129,10 +129,10 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     inicializarHistorico();
     
-    // Sincronizar dados do localStorage com o servidor ao carregar a página
+    // Verificar dados do localStorage ao carregar a página
     setTimeout(() => {
         sincronizarDadosLocais();
-    }, 2000); // Aguardar 2 segundos para garantir que tudo esteja carregado
+    }, 2000);
 });
 
 // Inicialização do bot
@@ -546,9 +546,6 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
         if (data.success) {
             console.log('✅ Modelo salvo com sucesso no servidor:', data.modeloId);
             showSuccessMessage(`✅ Resposta salva como modelo para "${dadosAtuais.tipo_solicitacao}"! Futuras solicitações similares usarão este exemplo como referência.`);
-            
-            // Sincronizar dados do localStorage com o servidor
-            await sincronizarDadosLocais();
         } else {
             console.error('❌ Erro do servidor:', data.error);
             console.log('⚠️ Modelo salvo apenas no localStorage devido ao erro do servidor');
@@ -562,45 +559,24 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
     }
 }
 
-// Função para sincronizar dados do localStorage com o servidor
+// Função para sincronizar dados do localStorage com o servidor (versão simplificada)
 async function sincronizarDadosLocais() {
     try {
-        console.log('🔄 Sincronizando dados do localStorage com o servidor...');
+        console.log('🔄 Verificando dados do localStorage...');
         
         // Carregar dados do localStorage
         const modelosRespostas = JSON.parse(localStorage.getItem('modelos_respostas_coerentes') || '[]');
-        const aprendizadoScript = JSON.parse(localStorage.getItem('aprendizado_script') || '{"tiposSituacao":{}}');
         
-        if (modelosRespostas.length === 0 && Object.keys(aprendizadoScript.tiposSituacao).length === 0) {
-            console.log('📭 Nenhum dado local para sincronizar');
+        if (modelosRespostas.length === 0) {
+            console.log('📭 Nenhum modelo local para sincronizar');
             return;
         }
         
-        // Enviar para o servidor
-        const response = await fetch('/api/sync-local-data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                modelosRespostas: modelosRespostas,
-                aprendizadoScript: aprendizadoScript
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            console.log('✅ Sincronização concluída:', data.message);
-            if (data.totalSincronizados > 0) {
-                showSuccessMessage(`🔄 ${data.totalSincronizados} itens sincronizados com o servidor!`);
-            }
-        } else {
-            console.error('❌ Erro na sincronização:', data.error);
-        }
+        console.log(`📊 Encontrados ${modelosRespostas.length} modelos no localStorage`);
+        console.log('💡 Os dados estão salvos localmente e serão usados pelo sistema');
         
     } catch (error) {
-        console.error('❌ Erro ao sincronizar dados:', error);
+        console.error('❌ Erro ao verificar dados locais:', error);
     }
 }
 
