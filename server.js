@@ -5481,6 +5481,53 @@ app.post('/api/sync-local-data', async (req, res) => {
     }
 });
 
+// Endpoint para verificar dados salvos na memória do servidor
+app.get('/api/check-memory-data', async (req, res) => {
+    try {
+        console.log('🔍 Verificando dados na memória do servidor...');
+        
+        const memoriaStatus = {
+            modelosRespostasMemoria: {
+                temDados: !!modelosRespostasMemoria,
+                totalModelos: modelosRespostasMemoria?.modelos?.length || 0,
+                ultimaAtualizacao: modelosRespostasMemoria?.lastUpdated || 'N/A'
+            },
+            aprendizadoScriptMemoria: {
+                temDados: !!aprendizadoScriptMemoria,
+                totalTipos: Object.keys(aprendizadoScriptMemoria?.tiposSituacao || {}).length,
+                ultimaAtualizacao: aprendizadoScriptMemoria?.lastUpdated || 'N/A'
+            },
+            ambiente: process.env.VERCEL ? 'Vercel (memória)' : 'Local (arquivo)'
+        };
+        
+        // Mostrar alguns exemplos dos dados
+        const exemplos = {
+            modelosRecentes: modelosRespostasMemoria?.modelos?.slice(-3).map(m => ({
+                id: m.id,
+                tipo_situacao: m.tipo_situacao,
+                timestamp: m.timestamp
+            })) || [],
+            tiposAprendizado: Object.keys(aprendizadoScriptMemoria?.tiposSituacao || {}).slice(0, 5)
+        };
+        
+        res.json({
+            success: true,
+            message: 'Dados da memória do servidor',
+            memoriaStatus: memoriaStatus,
+            exemplos: exemplos,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar dados da memória:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao verificar dados da memória',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para testar salvamento de resposta coerente
 app.get('/api/test-save-coerente', async (req, res) => {
     try {
