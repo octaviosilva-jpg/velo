@@ -2883,7 +2883,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         
         // PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO
         console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
-        const conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
+        let conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script) - CORRIGIDO DEFINITIVAMENTE
         if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
