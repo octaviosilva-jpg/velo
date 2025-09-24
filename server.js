@@ -4545,11 +4545,44 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
         // Incrementar estatística global
         incrementarEstatisticaGlobal('respostas_coerentes');
         
+        // Se estiver na Vercel, tentar sincronizar com arquivos locais
+        let syncResult = null;
+        if (process.env.VERCEL) {
+            try {
+                console.log('🔄 Vercel detectada - tentando sincronizar com arquivos locais...');
+                
+                // Fazer requisição para o servidor local (se disponível)
+                const localServerUrl = 'http://localhost:3001';
+                const syncData = {
+                    modeloResposta: modelo,
+                    aprendizadoScript: aprendizadoScriptMemoria
+                };
+                
+                // Tentar sincronizar (não bloquear se falhar)
+                fetch(`${localServerUrl}/api/sync-vercel-to-local`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(syncData)
+                }).then(response => response.json())
+                .then(result => {
+                    console.log('✅ Sincronização com arquivos locais:', result);
+                }).catch(error => {
+                    console.log('⚠️ Servidor local não disponível para sincronização:', error.message);
+                });
+                
+            } catch (error) {
+                console.log('⚠️ Erro na sincronização automática:', error.message);
+            }
+        }
+        
         // Verificar status da memória após salvar
         const memoriaStatus = {
             totalModelos: modelosRespostasMemoria?.modelos?.length || 0,
             ultimaAtualizacao: modelosRespostasMemoria?.lastUpdated || 'N/A',
-            ambiente: process.env.VERCEL ? 'Vercel (memória)' : 'Local (arquivo)'
+            ambiente: process.env.VERCEL ? 'Vercel (memória)' : 'Local (arquivo)',
+            sincronizacao: process.env.VERCEL ? 'Tentativa automática com servidor local' : 'N/A'
         };
         
         res.json({
@@ -4557,7 +4590,8 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
             message: 'Resposta salva como modelo para futuras solicitações similares',
             modeloId: modelo.id,
             tipoSituacao: modelo.tipo_situacao,
-            memoriaStatus: memoriaStatus
+            memoriaStatus: memoriaStatus,
+            syncResult: syncResult
         });
         
     } catch (error) {
@@ -5544,6 +5578,140 @@ app.get('/api/check-memory-data', async (req, res) => {
             success: false,
             error: 'Erro ao verificar dados da memória',
             message: error.message
+        });
+    }
+});
+
+// Endpoint para sincronizar dados da Vercel com arquivos JSON locais
+app.post('/api/sync-vercel-to-local', async (req, res) => {
+    try {
+        console.log('🔄 Sincronizando dados da Vercel para arquivos JSON locais...');
+        
+        const { modeloResposta, aprendizadoScript } = req.body;
+        
+        if (!modeloResposta && !aprendizadoScript) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dados não fornecidos',
+                message: 'É necessário fornecer modeloResposta ou aprendizadoScript'
+            });
+        }
+        
+        let resultados = {
+            modeloResposta: { sucesso: false, message: 'Não fornecido' },
+            aprendizadoScript: { sucesso: false, message: 'Não fornecido' }
+        };
+        
+        // Sincronizar modelo de resposta
+        if (modeloResposta) {
+            try {
+                console.log('📝 Sincronizando modelo de resposta...');
+                
+                // Carregar dados existentes
+                const dadosExistentes = loadModelosRespostas();
+                
+                // Verificar se já existe (evitar duplicatas)
+                const jaExiste = dadosExistentes.modelos.some(existente => existente.id === modeloResposta.id);
+                
+                if (!jaExiste) {
+                    dadosExistentes.modelos.push(modeloResposta);
+                    dadosExistentes.lastUpdated = obterTimestampBrasil();
+                    
+                    // Forçar salvamento em arquivo (ignorar detecção de ambiente)
+                    const originalNodeEnv = process.env.NODE_ENV;
+                    const originalVercel = process.env.VERCEL;
+                    
+                    process.env.NODE_ENV = 'development';
+                    delete process.env.VERCEL;
+                    
+                    saveModelosRespostas(dadosExistentes);
+                    
+                    // Restaurar variáveis de ambiente
+                    process.env.NODE_ENV = originalNodeEnv;
+                    if (originalVercel) process.env.VERCEL = originalVercel;
+                    
+                    resultados.modeloResposta = {
+                        sucesso: true,
+                        message: 'Modelo adicionado aos arquivos JSON locais',
+                        id: modeloResposta.id
+                    };
+                    
+                    console.log(`✅ Modelo ${modeloResposta.id} sincronizado com arquivos locais`);
+                } else {
+                    resultados.modeloResposta = {
+                        sucesso: true,
+                        message: 'Modelo já existe nos arquivos locais',
+                        id: modeloResposta.id
+                    };
+                    console.log(`ℹ️ Modelo ${modeloResposta.id} já existe nos arquivos locais`);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar modelo:', error);
+                resultados.modeloResposta = {
+                    sucesso: false,
+                    message: `Erro: ${error.message}`
+                };
+            }
+        }
+        
+        // Sincronizar aprendizado do script
+        if (aprendizadoScript) {
+            try {
+                console.log('🧠 Sincronizando aprendizado do script...');
+                
+                // Carregar dados existentes
+                const dadosExistentes = loadAprendizadoScript();
+                
+                // Mesclar dados
+                const dadosMesclados = {
+                    ...dadosExistentes,
+                    ...aprendizadoScript,
+                    lastUpdated: obterTimestampBrasil()
+                };
+                
+                // Forçar salvamento em arquivo (ignorar detecção de ambiente)
+                const originalNodeEnv = process.env.NODE_ENV;
+                const originalVercel = process.env.VERCEL;
+                
+                process.env.NODE_ENV = 'development';
+                delete process.env.VERCEL;
+                
+                saveAprendizadoScript(dadosMesclados);
+                
+                // Restaurar variáveis de ambiente
+                process.env.NODE_ENV = originalNodeEnv;
+                if (originalVercel) process.env.VERCEL = originalVercel;
+                
+                resultados.aprendizadoScript = {
+                    sucesso: true,
+                    message: 'Aprendizado sincronizado com arquivos JSON locais'
+                };
+                
+                console.log('✅ Aprendizado sincronizado com arquivos locais');
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar aprendizado:', error);
+                resultados.aprendizadoScript = {
+                    sucesso: false,
+                    message: `Erro: ${error.message}`
+                };
+            }
+        }
+        
+        console.log('📊 Resultado da sincronização:', resultados);
+        
+        res.json({
+            success: true,
+            message: 'Sincronização concluída',
+            resultados: resultados,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro na sincronização:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: 'Não foi possível sincronizar os dados'
         });
     }
 });
