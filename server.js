@@ -823,6 +823,25 @@ let aprendizadoScriptMemoria = {
 };
 let feedbacksRespostasMemoria = null;
 let feedbacksModeracoesMemoria = null;
+
+// Inicializar memória do aprendizado no startup
+async function inicializarMemoriaAprendizado() {
+    try {
+        console.log('🔄 Inicializando memória do aprendizado...');
+        const aprendizado = await loadAprendizadoScript();
+        if (aprendizado && aprendizado.tiposSituacao) {
+            aprendizadoScriptMemoria = aprendizado;
+            console.log('✅ Memória do aprendizado inicializada:', {
+                tiposSituacao: Object.keys(aprendizado.tiposSituacao),
+                totalTipos: Object.keys(aprendizado.tiposSituacao).length
+            });
+        } else {
+            console.log('⚠️ Nenhum aprendizado encontrado para inicializar');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao inicializar memória do aprendizado:', error);
+    }
+}
 let feedbacksExplicacoesMemoria = null;
 let modelosModeracoesMemoria = null;
 
@@ -1182,7 +1201,7 @@ async function loadAprendizadoScript() {
     });
     
     // Verificar se temos dados em memória (PRIORIDADE 1)
-    if (aprendizadoScriptMemoria) {
+    if (aprendizadoScriptMemoria && aprendizadoScriptMemoria.tiposSituacao && Object.keys(aprendizadoScriptMemoria.tiposSituacao).length > 0) {
         console.log('🧠 Carregando aprendizado da memória');
         console.log('📊 Dados em memória:', {
             tiposSituacao: Object.keys(aprendizadoScriptMemoria.tiposSituacao || {}),
@@ -1201,6 +1220,11 @@ async function loadAprendizadoScript() {
                 totalTipos: Object.keys(aprendizado.tiposSituacao || {}).length,
                 lastUpdated: aprendizado.lastUpdated
             });
+            
+            // Atualizar memória com os dados carregados
+            aprendizadoScriptMemoria = aprendizado;
+            console.log('✅ Memória atualizada com dados do arquivo');
+            
             return aprendizado;
         } else {
             console.log('⚠️ Arquivo de aprendizado não existe:', APRENDIZADO_SCRIPT_FILE);
@@ -5069,6 +5093,9 @@ app.listen(PORT, async () => {
     console.log('🔍 Sistema de verificação automática de feedbacks ativo');
     console.log('✅ Integração de feedbacks_respostas.json como base de conhecimento ativa');
     console.log('📅 Formatação de datas em padrão brasileiro (DD/MM/AAAA HH:MM:SS) ativa');
+    
+    // Inicializar memória do aprendizado
+    await inicializarMemoriaAprendizado();
     
     // Verificar se arquivo .env existe
     const envPath = path.join(__dirname, '.env');
