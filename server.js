@@ -3324,8 +3324,8 @@ Equipe Velotax`;
         } else if (error.code === 'UND_ERR_CONNECT_TIMEOUT') {
             res.status(408).json({
                 success: false,
-                error: 'Timeout de conexão',
-                message: 'Não foi possível conectar com a API da OpenAI. Verifique sua conexão com a internet.'
+                error: 'Timeout de conexao',
+                message: 'Nao foi possivel conectar com a API da OpenAI. Verifique sua conexao com a internet.'
             });
         } else {
             res.status(500).json({
