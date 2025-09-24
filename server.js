@@ -2885,16 +2885,16 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
         let conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
         
-        // Carregar feedbacks e modelos relevantes
-        const feedbacksRespostas = await loadFeedbacksRespostas();
-        const modelosRespostas = await loadModelosRespostas();
+        // Carregar feedbacks e modelos relevantes  
+        const feedbacksRespostasLocal = await loadFeedbacksRespostas();
+        const modelosRespostasLocal = await loadModelosRespostas();
         
-        const feedbacksRelevantes = feedbacksRespostas?.respostas?.filter(fb => 
+        const feedbacksRelevantes = feedbacksRespostasLocal?.respostas?.filter(fb => 
             fb.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase()) ||
             fb.contexto?.tipoSituacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
         ) || [];
         
-        const modelosRelevantes = modelosRespostas?.modelos?.filter(modelo => 
+        const modelosRelevantes = modelosRespostasLocal?.modelos?.filter(modelo => 
             modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
         ) || [];
         
@@ -2978,8 +2978,8 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // PRIORIDADE 3: CONSULTAR FEEDBACKS_RESPOSTAS.JSON COMO BASE DE CONHECIMENTO
-        if (feedbacksRespostas.respostas && feedbacksRespostas.respostas.length > 0) {
-            const feedbacksRelevantesRespostas = feedbacksRespostas.respostas.filter(fb => {
+        if (feedbacksRespostasLocal.respostas && feedbacksRespostasLocal.respostas.length > 0) {
+            const feedbacksRelevantesRespostas = feedbacksRespostasLocal.respostas.filter(fb => {
                 const tipoSituacao = fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao || '';
                 return tipoSituacao.toLowerCase() === dadosFormulario.tipo_solicitacao.toLowerCase();
             });
