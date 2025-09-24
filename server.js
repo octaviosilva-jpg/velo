@@ -1191,6 +1191,101 @@ function getModelosModeracaoRelevantes(motivoModeracao) {
 
 // ===== FUNÇÕES PARA APRENDIZADO DIRETO NO SCRIPT DE FORMULAÇÃO =====
 
+// Processar aprendizado obrigatório antes da geração de respostas
+async function processarAprendizadoObrigatorio(dadosFormulario) {
+    console.log('🎓 PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO INICIADO');
+    console.log('📋 Dados recebidos:', {
+        tipo_solicitacao: dadosFormulario.tipo_solicitacao,
+        motivo_solicitacao: dadosFormulario.motivo_solicitacao
+    });
+    
+    // 1. Carregar aprendizado específico para o tipo de situação
+    const aprendizadoScript = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
+    console.log('🧠 Aprendizado carregado:', {
+        feedbacks: aprendizadoScript?.feedbacks?.length || 0,
+        respostasCoerentes: aprendizadoScript?.respostasCoerentes?.length || 0,
+        padroes: aprendizadoScript?.padroesIdentificados?.length || 0,
+        clausulas: aprendizadoScript?.clausulasUsadas?.length || 0
+    });
+    
+    // 2. Verificar se há feedbacks contrários a cláusulas
+    const temFeedbackContrario = aprendizadoScript?.feedbacks?.some(fb => 
+        fb.feedback.toLowerCase().includes('não cite') || 
+        fb.feedback.toLowerCase().includes('nao cite') ||
+        fb.feedback.toLowerCase().includes('não use') ||
+        fb.feedback.toLowerCase().includes('nao use')
+    );
+    
+    // 3. Processar padrões se necessário
+    if (aprendizadoScript?.feedbacks?.length > 0 && aprendizadoScript?.padroesIdentificados?.length === 0) {
+        console.log('🔍 Identificando padrões automaticamente...');
+        await processarPadroesExistentes(dadosFormulario.tipo_solicitacao);
+        // Recarregar aprendizado após identificar padrões
+        const aprendizadoAtualizado = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
+        if (aprendizadoScript) {
+            aprendizadoScript.padroesIdentificados = aprendizadoAtualizado.padroesIdentificados;
+            aprendizadoScript.clausulasUsadas = aprendizadoAtualizado.clausulasUsadas;
+        }
+    }
+    
+    // 4. Construir instruções de aprendizado
+    let instrucoesAprendizado = '';
+    
+    if (aprendizadoScript?.feedbacks?.length > 0 || aprendizadoScript?.respostasCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
+        console.log('✅ APLICANDO APRENDIZADO OBRIGATÓRIO!');
+        
+        instrucoesAprendizado = '\n\n🎓 INSTRUÇÕES OBRIGATÓRIAS DE APRENDIZADO (BASEADAS EM FEEDBACKS REAIS):\n';
+        instrucoesAprendizado += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas aprovadas para "${dadosFormulario.tipo_solicitacao}":\n\n`;
+        
+        // Adicionar padrões identificados
+        if (aprendizadoScript?.padroesIdentificados?.length > 0) {
+            instrucoesAprendizado += '📋 PADRÕES OBRIGATÓRIOS (SEGUIR SEMPRE):\n';
+            aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
+                instrucoesAprendizado += `${index + 1}. ${padrao}\n`;
+            });
+            instrucoesAprendizado += '\n';
+        }
+        
+        // Adicionar cláusulas APENAS se não houver feedbacks contrários
+        if (aprendizadoScript?.clausulasUsadas?.length > 0 && !temFeedbackContrario) {
+            instrucoesAprendizado += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
+            aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
+                instrucoesAprendizado += `• ${clausula}\n`;
+            });
+            instrucoesAprendizado += '\n';
+        } else if (temFeedbackContrario) {
+            console.log('⚠️ Feedback contrário detectado - NÃO incluindo cláusulas CCB');
+            instrucoesAprendizado += '⚠️ ATENÇÃO: NÃO cite cláusulas da CCB conforme feedbacks anteriores!\n\n';
+        }
+        
+        // Adicionar feedbacks críticos (ERROS A EVITAR)
+        if (aprendizadoScript?.feedbacks?.length > 0) {
+            instrucoesAprendizado += '❌ ERROS CRÍTICOS A EVITAR (BASEADOS EM FEEDBACKS REAIS):\n';
+            instrucoesAprendizado += 'IMPORTANTE: Estes são erros reais identificados pelo operador. NUNCA repita:\n\n';
+            aprendizadoScript?.feedbacks?.slice(-5).forEach((fb, index) => {
+                instrucoesAprendizado += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
+                instrucoesAprendizado += `   ✅ CORREÇÃO: "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
+            });
+        }
+        
+        // Adicionar respostas aprovadas (MODELOS A SEGUIR)
+        if (aprendizadoScript?.respostasCoerentes?.length > 0) {
+            instrucoesAprendizado += '✅ MODELOS APROVADOS (SEGUIR ESTE PADRÃO):\n';
+            aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
+                instrucoesAprendizado += `${index + 1}. 📋 Motivo: ${resp.motivoSolicitacao}\n`;
+                instrucoesAprendizado += `   ✅ MODELO: "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
+            });
+        }
+        
+        instrucoesAprendizado += '🎯 INSTRUÇÃO FINAL: Use este aprendizado para gerar uma resposta de alta qualidade desde o início, aplicando os padrões e evitando os erros documentados.\n';
+    } else {
+        console.log('⚠️ Nenhum aprendizado disponível para este tipo de situação');
+    }
+    
+    console.log('📊 Instruções de aprendizado construídas:', instrucoesAprendizado.length, 'caracteres');
+    return instrucoesAprendizado;
+}
+
 // Carregar aprendizado do script
 async function loadAprendizadoScript() {
     console.log('🔄 loadAprendizadoScript iniciada');
@@ -2785,102 +2880,26 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
         });
         
-        // Obter aprendizado direto do script para este tipo de situação (PRIORITÁRIO)
-        console.log('🔍 Obtendo aprendizado para:', dadosFormulario.tipo_solicitacao);
-        const aprendizadoScript = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
-        console.log('📚 Aprendizado obtido:', {
-            feedbacks: aprendizadoScript?.feedbacks?.length || 0,
-            respostasCoerentes: aprendizadoScript?.respostasCoerentes?.length || 0,
-            padroes: aprendizadoScript?.padroesIdentificados?.length || 0
-        });
-        
-        // Obter feedbacks relevantes para melhorar a geração de resposta (COMPLEMENTAR)
-        const feedbacksRelevantes = getRelevantFeedbacks('resposta', {
-            tipoSituacao: dadosFormulario.tipo_solicitacao,
-            motivoSolicitacao: dadosFormulario.motivo_solicitacao
-        });
-        console.log('📋 Feedbacks relevantes obtidos:', feedbacksRelevantes.length);
-        
-        // Obter modelos de respostas aprovadas para o mesmo tipo de situação
-        const modelosRelevantes = getModelosRelevantes(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao);
-        
-        console.log(`🔍 Buscando aprendizado para: ${dadosFormulario.tipo_solicitacao} - ${dadosFormulario.motivo_solicitacao}`);
-        console.log(`🧠 APRENDIZADO DO SCRIPT: ${aprendizadoScript?.feedbacks?.length || 0} feedbacks, ${aprendizadoScript?.respostasCoerentes?.length || 0} respostas coerentes`);
-        console.log(`📚 Feedbacks complementares: ${feedbacksRelevantes.length}`);
-        console.log(`🎯 Modelos encontrados: ${modelosRelevantes.length}`);
-        
-        // Log detalhado do aprendizado
-        if (aprendizadoScript?.feedbacks?.length > 0) {
-            console.log(`⚠️ FEEDBACKS ENCONTRADOS (últimos 3):`);
-            aprendizadoScript.feedbacks.slice(-3).forEach((fb, index) => {
-                console.log(`   ${index + 1}. "${fb.feedback.substring(0, 100)}..."`);
-            });
-        }
-        
-        if (aprendizadoScript?.respostasCoerentes?.length > 0) {
-            console.log(`✅ RESPOSTAS COERENTES ENCONTRADAS (últimas 3):`);
-            aprendizadoScript.respostasCoerentes.slice(-3).forEach((resp, index) => {
-                console.log(`   ${index + 1}. Motivo: ${resp.motivoSolicitacao}`);
-            });
-        }
-        
-        let conhecimentoFeedback = '';
-        
-        // Identificar padrões automaticamente se ainda não foram identificados
-        console.log('🔍 Verificando se precisa identificar padrões:', {
-            tipo: dadosFormulario.tipo_solicitacao,
-            feedbacks: aprendizadoScript?.feedbacks?.length || 0,
-            padroes: aprendizadoScript?.padroesIdentificados?.length || 0
-        });
-        
-        if (aprendizadoScript?.feedbacks?.length > 0 && aprendizadoScript?.padroesIdentificados?.length === 0) {
-            console.log('🔍 Identificando padrões automaticamente para:', dadosFormulario.tipo_solicitacao);
-            await processarPadroesExistentes(dadosFormulario.tipo_solicitacao);
-            // Recarregar aprendizado após identificar padrões
-            const aprendizadoAtualizado = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
-            if (aprendizadoScript) {
-                aprendizadoScript.padroesIdentificados = aprendizadoAtualizado.padroesIdentificados;
-                aprendizadoScript.clausulasUsadas = aprendizadoAtualizado.clausulasUsadas;
-            }
-            console.log('✅ Padrões atualizados:', aprendizadoScript?.padroesIdentificados?.length || 0);
-        }
-        
-        // PRIORIDADE 1: APRENDIZADO DIRETO DO SCRIPT (mais recente e específico)
-        console.log('🔍 Verificando se há aprendizado para aplicar:', {
-            temFeedbacks: aprendizadoScript?.feedbacks?.length > 0,
-            temRespostasCoerentes: aprendizadoScript?.respostasCoerentes?.length > 0,
-            temPadroes: aprendizadoScript?.padroesIdentificados?.length > 0,
-            totalFeedbacks: aprendizadoScript?.feedbacks?.length || 0,
-            totalRespostasCoerentes: aprendizadoScript?.respostasCoerentes?.length || 0,
-            totalPadroes: aprendizadoScript?.padroesIdentificados?.length || 0
-        });
-        
-        if (aprendizadoScript?.feedbacks?.length > 0 || aprendizadoScript?.respostasCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
-            console.log('✅ APLICANDO APRENDIZADO DO SCRIPT!');
-            conhecimentoFeedback = '\n\n🎓 APRENDIZADO DIRETO DO SCRIPT DE FORMULAÇÃO (PRIORITÁRIO):\n';
-            conhecimentoFeedback += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas coerentes para "${dadosFormulario.tipo_solicitacao}":\n\n`;
-            console.log('🧠 Aplicando aprendizado do script:', {
-                feedbacks: aprendizadoScript.feedbacks.length,
-                respostasCoerentes: aprendizadoScript.respostasCoerentes.length,
-                padroes: aprendizadoScript.padroesIdentificados.length
-            });
+        // PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO
+        console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
+        const conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
             
-            // Adicionar padrões identificados
-            if (aprendizadoScript?.padroesIdentificados?.length > 0) {
-                conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (OBRIGATÓRIOS):\n';
-                aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
-                    conhecimentoFeedback += `${index + 1}. ${padrao}\n`;
-                });
-                conhecimentoFeedback += '\n';
-            }
+            // Adicionar cláusulas usadas (APENAS se não houver feedbacks contrários)
+            const temFeedbackContrario = aprendizadoScript?.feedbacks?.some(fb => 
+                fb.feedback.toLowerCase().includes('não cite') || 
+                fb.feedback.toLowerCase().includes('nao cite') ||
+                fb.feedback.toLowerCase().includes('não use') ||
+                fb.feedback.toLowerCase().includes('nao use')
+            );
             
-            // Adicionar cláusulas usadas
-            if (aprendizadoScript?.clausulasUsadas?.length > 0) {
+            if (aprendizadoScript?.clausulasUsadas?.length > 0 && !temFeedbackContrario) {
                 conhecimentoFeedback += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
                 aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
                     conhecimentoFeedback += `• ${clausula}\n`;
                 });
                 conhecimentoFeedback += '\n';
+            } else if (temFeedbackContrario) {
+                console.log('⚠️ Feedback contrário detectado - não incluindo cláusulas CCB');
             }
             
             // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
@@ -3626,13 +3645,22 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
                 conhecimentoFeedback += '\n';
             }
             
-            // Adicionar cláusulas usadas
-            if (aprendizadoScript?.clausulasUsadas?.length > 0) {
+            // Adicionar cláusulas usadas (APENAS se não houver feedbacks contrários)
+            const temFeedbackContrario = aprendizadoScript?.feedbacks?.some(fb => 
+                fb.feedback.toLowerCase().includes('não cite') || 
+                fb.feedback.toLowerCase().includes('nao cite') ||
+                fb.feedback.toLowerCase().includes('não use') ||
+                fb.feedback.toLowerCase().includes('nao use')
+            );
+            
+            if (aprendizadoScript?.clausulasUsadas?.length > 0 && !temFeedbackContrario) {
                 conhecimentoFeedback += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
                 aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
                     conhecimentoFeedback += `• ${clausula}\n`;
                 });
                 conhecimentoFeedback += '\n';
+            } else if (temFeedbackContrario) {
+                console.log('⚠️ Feedback contrário detectado - não incluindo cláusulas CCB');
             }
             
             // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
