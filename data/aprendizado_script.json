@@ -75,22 +75,6 @@
       ],
       "respostasCoerentes": [
         {
-          "id": 1758718397158,
-          "timestamp": "24/09/2025 09:53:17",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato com a Velotax e por expressar sua solicitação de exclusão de cadastro. Entendemos a importância de sua solicitação e respeitamos sua decisão de não querer mais receber comunicações de nossa parte.\n\nGostaríamos de informar que seu cadastro foi devidamente excluído de nossos sistemas no dia 12/08/2025, conforme solicitado. Com esta ação, todos os seus dados pessoais foram removidos, garantindo que você não receberá mais comunicações de nossa parte, em conformidade com a Lei Geral de Proteção de Dados (LGPD).\n\nNosso compromisso é com a transparência e o respeito aos direitos de nossos clientes, e estamos satisfeitos em saber que o atendimento atendeu às suas expectativas. Caso tenha mais alguma dúvida ou necessite de assistência futura, não hesite em nos contatar. Estamos sempre à disposição para ajudar.\n\nAgradecemos pela confiança e desejamos tudo de bom em seus projetos futuros.\n\nAtenciosamente,\n\n[Seu Nome]  \nEquipe Velotax",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-cadastro",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
-            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
-            "historico_atendimento": "",
-            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
-            "timestamp": "2025-09-23T16:04:14.350Z"
-          },
-          "userData": null
-        },
-        {
           "id": 1758718397418,
           "timestamp": "24/09/2025 09:53:17",
           "motivoSolicitacao": "esclarecimento",
@@ -153,6 +137,27 @@
             "timestamp": "2025-09-23T17:16:27.088Z"
           },
           "userData": null
+        },
+        {
+          "id": 1758732294487,
+          "timestamp": "24/09/2025 13:44:54",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de exclusão de cadastro na Velotax. Compreendemos a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações da nossa empresa.\n\nGostaríamos de informar que, conforme sua solicitação, seu cadastro foi completamente excluído dos nossos sistemas em 12/08/2025. Com essa ação, garantimos que todos os seus dados pessoais foram removidos, e você não receberá mais comunicações da Velotax. \n\nNossa equipe está sempre à disposição para esclarecer qualquer dúvida adicional que você possa ter. Agradecemos pela confiança e por nos dar a oportunidade de atendê-lo de acordo com suas expectativas.\n\nAtenciosamente,\n\nEquipe Velotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-cadastro",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+            "historico_atendimento": "",
+            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+            "timestamp": "2025-09-24T16:44:48.584Z"
+          },
+          "userData": {
+            "nome": "Octavio Augusto Ramalho da Silva",
+            "email": "octavio.silva@velotax.com.br",
+            "funcao": "Usuário",
+            "departamento": "Geral"
+          }
         }
       ],
       "padroesIdentificados": [
@@ -280,5 +285,11 @@
       "clausulasUsadas": []
     }
   },
-  "lastUpdated": "24/09/2025 09:53:18"
+  "lastUpdated": "24/09/2025, 14:03:55",
+  "situacoes": {
+    "exclusao-cadastro": {
+      "totalRespostas": 1,
+      "ultimaAtualizacao": "24/09/2025, 14:03:55"
+    }
+  }
 }

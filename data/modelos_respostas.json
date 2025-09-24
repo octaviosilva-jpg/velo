@@ -312,8 +312,50 @@
         "tipoSituacao": "exclusao-chave-pix-cpf",
         "motivoSolicitacao": "esclarecimento"
       }
+    },
+    {
+      "id": 1758732288685,
+      "timestamp": "24/09/2025 13:44:48",
+      "tipo_situacao": "exclusao-cadastro",
+      "motivo_solicitacao": "esclarecimento",
+      "dadosFormulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+        "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+        "historico_atendimento": "",
+        "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+        "timestamp": "2025-09-24T16:44:48.584Z"
+      },
+      "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de exclusão de cadastro na Velotax. Compreendemos a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações da nossa empresa.\n\nGostaríamos de informar que, conforme sua solicitação, seu cadastro foi completamente excluído dos nossos sistemas em 12/08/2025. Com essa ação, garantimos que todos os seus dados pessoais foram removidos, e você não receberá mais comunicações da Velotax. \n\nNossa equipe está sempre à disposição para esclarecer qualquer dúvida adicional que você possa ter. Agradecemos pela confiança e por nos dar a oportunidade de atendê-lo de acordo com suas expectativas.\n\nAtenciosamente,\n\nEquipe Velotax",
+      "userData": {
+        "nome": "Octavio Augusto Ramalho da Silva",
+        "email": "octavio.silva@velotax.com.br",
+        "funcao": "Usuário",
+        "departamento": "Geral"
+      },
+      "contexto": {
+        "tipoSituacao": "exclusao-cadastro",
+        "motivoSolicitacao": "esclarecimento"
+      }
+    },
+    {
+      "id": 1758733435327,
+      "tipo": "resposta",
+      "tipo_situacao": "exclusao-cadastro",
+      "motivo_solicitacao": "esclarecimento",
+      "resposta_aprovada": "Resposta de teste da Vercel",
+      "dados_formulario": {
+        "tipo_solicitacao": "exclusao-cadastro",
+        "motivo_solicitacao": "esclarecimento",
+        "texto_cliente": "Teste de sincronização",
+        "solucao_implementada": "Teste implementado",
+        "timestamp": "2025-09-24T17:03:55.328Z"
+      },
+      "timestamp": "24/09/2025, 14:03:55",
+      "user_profile": "Teste Vercel (teste@velotax.com.br)"
     }
   ],
-  "lastUpdated": "23/09/2025 17:12:53",
+  "lastUpdated": "24/09/2025, 14:03:55",
   "descricao": "Teste de escrita"
 }
