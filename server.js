@@ -2978,7 +2978,6 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         }
         
         // PRIORIDADE 3: CONSULTAR FEEDBACKS_RESPOSTAS.JSON COMO BASE DE CONHECIMENTO
-        const feedbacksRespostas = loadFeedbacksRespostas();
         if (feedbacksRespostas.respostas && feedbacksRespostas.respostas.length > 0) {
             const feedbacksRelevantesRespostas = feedbacksRespostas.respostas.filter(fb => {
                 const tipoSituacao = fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao || '';
