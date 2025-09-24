@@ -1640,55 +1640,54 @@ async function getAprendizadoTipoSituacao(tipoSituacao) {
         modelosRelevantes: modelosRelevantes.length
     });
     
-    // Se não há dados nos arquivos JSON, usar o sistema de aprendizado como fallback
-    if (feedbacksRelevantes.length === 0 && modelosRelevantes.length === 0) {
-        console.log(`⚠️ Nenhum dado encontrado nos arquivos JSON para "${tipoSituacao}", usando sistema de aprendizado como fallback`);
-        
-        if (!aprendizado || !aprendizado.tiposSituacao) {
-            console.log(`⚠️ Nenhum aprendizado encontrado para "${tipoSituacao}"`);
-            return {
-                feedbacks: [],
-                respostasCoerentes: [],
-                padroesIdentificados: [],
-                clausulasUsadas: []
-            };
-        }
-        
+    // PRIORIDADE 1: Usar sistema de aprendizado (dados mais atualizados e sincronizados)
+    if (aprendizado && aprendizado.tiposSituacao && aprendizado.tiposSituacao[tipoSituacao]) {
         const aprendizadoTipo = aprendizado.tiposSituacao[tipoSituacao];
-        console.log(`📊 Aprendizado para "${tipoSituacao}":`, {
-            existe: !!aprendizadoTipo,
+        console.log(`✅ Retornando dados do aprendizado_script.json para "${tipoSituacao}":`, {
             feedbacks: aprendizadoTipo?.feedbacks?.length || 0,
             respostasCoerentes: aprendizadoTipo?.respostasCoerentes?.length || 0,
-            padroes: aprendizadoTipo?.padroesIdentificados?.length || 0
+            padroes: aprendizadoTipo?.padroesIdentificados?.length || 0,
+            clausulas: aprendizadoTipo?.clausulasUsadas?.length || 0
         });
         
-        return aprendizadoTipo || {
-            feedbacks: [],
-            respostasCoerentes: [],
-            padroesIdentificados: [],
-            clausulasUsadas: []
+        return {
+            feedbacks: aprendizadoTipo.feedbacks || [],
+            respostasCoerentes: aprendizadoTipo.respostasCoerentes || [],
+            padroesIdentificados: aprendizadoTipo.padroesIdentificados || [],
+            clausulasUsadas: aprendizadoTipo.clausulasUsadas || []
         };
     }
     
-    // Retornar dados dos arquivos JSON (PRIORIDADE)
-    console.log(`✅ Retornando dados dos arquivos JSON para "${tipoSituacao}":`, {
-        feedbacks: feedbacksRelevantes.length,
-        respostasCoerentes: modelosRelevantes.length
-    });
+    // PRIORIDADE 2: Fallback para arquivos JSON (dados mais antigos)
+    if (feedbacksRelevantes.length > 0 || modelosRelevantes.length > 0) {
+        console.log(`⚠️ Usando fallback dos arquivos JSON para "${tipoSituacao}":`, {
+            feedbacks: feedbacksRelevantes.length,
+            respostasCoerentes: modelosRelevantes.length
+        });
+        
+        return {
+            feedbacks: feedbacksRelevantes.map(fb => ({
+                feedback: fb.feedback,
+                respostaReformulada: fb.respostaReformulada,
+                timestamp: fb.timestamp
+            })),
+            respostasCoerentes: modelosRelevantes.map(modelo => ({
+                respostaAprovada: modelo.respostaAprovada,
+                dadosFormulario: modelo.dadosFormulario,
+                timestamp: modelo.timestamp
+            })),
+            padroesIdentificados: [], // Será preenchido pelo sistema de aprendizado
+            clausulasUsadas: [] // Será preenchido pelo sistema de aprendizado
+        };
+    }
     
+    // Nenhum dado encontrado
+    console.log(`⚠️ Nenhum aprendizado encontrado para "${tipoSituacao}"`);
     return {
-        feedbacks: feedbacksRelevantes.map(fb => ({
-            feedback: fb.feedback,
-            respostaReformulada: fb.respostaReformulada,
-            timestamp: fb.timestamp
-        })),
-        respostasCoerentes: modelosRelevantes.map(modelo => ({
-            respostaAprovada: modelo.respostaAprovada,
-            dadosFormulario: modelo.dadosFormulario,
-            timestamp: modelo.timestamp
-        })),
-        padroesIdentificados: [], // Será preenchido pelo sistema de aprendizado
-        clausulasUsadas: [] // Será preenchido pelo sistema de aprendizado
+        feedbacks: [],
+        respostasCoerentes: [],
+        padroesIdentificados: [],
+        clausulasUsadas: []
     };
 }
 
@@ -4050,6 +4049,72 @@ app.post('/api/processar-padroes/:tipoSituacao', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erro ao processar padrões'
+        });
+    }
+});
+
+// Endpoint para forçar sincronização de todos os feedbacks pendentes
+app.post('/api/sincronizar-feedbacks-pendentes', async (req, res) => {
+    try {
+        console.log('🔄 Iniciando sincronização de feedbacks pendentes...');
+        
+        // Carregar todos os feedbacks de respostas
+        const feedbacksRespostas = loadFeedbacksRespostas();
+        const feedbacksModeracoes = loadFeedbacksModeracoes();
+        const modelosRespostas = loadModelosRespostas();
+        const modelosModeracoes = loadModelosModeracoes();
+        
+        let totalSincronizados = 0;
+        
+        // Sincronizar feedbacks de respostas
+        if (feedbacksRespostas?.respostas?.length > 0) {
+            console.log(`📝 Sincronizando ${feedbacksRespostas.respostas.length} feedbacks de respostas...`);
+            for (const feedback of feedbacksRespostas.respostas) {
+                const tipoSituacao = feedback.contexto?.tipoSituacao || feedback.dadosFormulario?.tipo_solicitacao;
+                if (tipoSituacao && feedback.feedback && feedback.respostaReformulada) {
+                    await addFeedbackAprendizado(
+                        tipoSituacao,
+                        feedback.feedback,
+                        feedback.respostaReformulada,
+                        feedback.respostaAnterior,
+                        feedback.userData
+                    );
+                    totalSincronizados++;
+                }
+            }
+        }
+        
+        // Sincronizar modelos de respostas
+        if (modelosRespostas?.modelos?.length > 0) {
+            console.log(`📝 Sincronizando ${modelosRespostas.modelos.length} modelos de respostas...`);
+            for (const modelo of modelosRespostas.modelos) {
+                const tipoSituacao = modelo.tipo_situacao || modelo.contexto?.tipoSituacao;
+                if (tipoSituacao && modelo.respostaAprovada) {
+                    await addRespostaCoerenteAprendizado(
+                        tipoSituacao,
+                        modelo.motivo_solicitacao,
+                        modelo.respostaAprovada,
+                        modelo.dadosFormulario,
+                        modelo.userData
+                    );
+                    totalSincronizados++;
+                }
+            }
+        }
+        
+        console.log(`✅ Sincronização concluída! ${totalSincronizados} itens sincronizados.`);
+        
+        res.json({
+            success: true,
+            message: `Sincronização concluída com sucesso! ${totalSincronizados} itens sincronizados.`,
+            totalSincronizados: totalSincronizados
+        });
+    } catch (error) {
+        console.error('Erro ao sincronizar feedbacks pendentes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao sincronizar feedbacks pendentes',
+            message: error.message
         });
     }
 });
