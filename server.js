@@ -862,10 +862,19 @@ async function saveModelosRespostas(modelos) {
         
         // Salvar baseado no ambiente
         if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-            // Vercel: apenas memória
-            console.log('🌐 Vercel - salvando apenas em memória');
+            // Vercel: memória + tentar salvar em arquivo temporário
+            console.log('🌐 Vercel - salvando em memória e tentando arquivo temporário');
             modelosRespostasMemoria = modelos;
             console.log('✅ Modelos de respostas salvos em memória:', modelos.modelos.length);
+            
+            // Tentar salvar em arquivo temporário (pode funcionar em alguns casos)
+            try {
+                const tempFile = '/tmp/modelos_respostas.json';
+                fs.writeFileSync(tempFile, JSON.stringify(modelos, null, 2));
+                console.log('✅ Modelos também salvos em arquivo temporário:', tempFile);
+            } catch (tempError) {
+                console.log('⚠️ Não foi possível salvar arquivo temporário (normal na Vercel)');
+            }
         } else {
             // Desenvolvimento local: arquivo JSON
             console.log('💻 Desenvolvimento local - salvando no arquivo:', MODELOS_RESPOSTAS_FILE);
@@ -1345,17 +1354,13 @@ async function saveAprendizadoScript(aprendizado) {
         console.log('🌐 Vercel detectado - salvando aprendizado em memória');
         aprendizadoScriptMemoria = aprendizado;
         
-        // Salvar também no Google Sheets para persistência (se disponível)
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                await googleSheetsIntegration.salvarAprendizado(aprendizado);
-                console.log('✅ Aprendizado do script salvo no Google Sheets');
-            } catch (error) {
-                console.error('❌ Erro ao salvar aprendizado no Google Sheets:', error.message);
-                console.log('⚠️ Continuando apenas com memória (dados serão perdidos no restart)');
-            }
-        } else {
-            console.log('⚠️ Google Sheets não disponível - dados serão perdidos no restart do servidor');
+        // Tentar salvar em arquivo temporário (pode funcionar em alguns casos)
+        try {
+            const tempFile = '/tmp/aprendizado_script.json';
+            fs.writeFileSync(tempFile, JSON.stringify(aprendizado, null, 2));
+            console.log('✅ Aprendizado também salvo em arquivo temporário:', tempFile);
+        } catch (tempError) {
+            console.log('⚠️ Não foi possível salvar arquivo temporário (normal na Vercel)');
         }
         
         console.log('✅ Aprendizado do script salvo em memória');
@@ -5384,6 +5389,94 @@ app.get('/api/test-sheets-simple', async (req, res) => {
             error: 'Erro no teste simples',
             message: error.message,
             stack: error.stack
+        });
+    }
+});
+
+// Endpoint para sincronizar dados do localStorage com o servidor
+app.post('/api/sync-local-data', async (req, res) => {
+    try {
+        const { modelosRespostas, aprendizadoScript } = req.body;
+        
+        console.log('🔄 Sincronizando dados do localStorage com o servidor...');
+        
+        let totalSincronizados = 0;
+        
+        // Sincronizar modelos de respostas
+        if (modelosRespostas && Array.isArray(modelosRespostas)) {
+            const modelosAtuais = loadModelosRespostas();
+            const novosModelos = [];
+            
+            for (const modeloLocal of modelosRespostas) {
+                // Verificar se o modelo já existe (por ID ou timestamp)
+                const existe = modelosAtuais.modelos.some(m => 
+                    m.id === modeloLocal.id || 
+                    (m.timestamp === modeloLocal.timestamp && m.tipo_situacao === modeloLocal.tipo_situacao)
+                );
+                
+                if (!existe) {
+                    novosModelos.push(modeloLocal);
+                    totalSincronizados++;
+                }
+            }
+            
+            if (novosModelos.length > 0) {
+                modelosAtuais.modelos.push(...novosModelos);
+                await saveModelosRespostas(modelosAtuais);
+                console.log(`✅ ${novosModelos.length} novos modelos sincronizados`);
+            }
+        }
+        
+        // Sincronizar aprendizado do script
+        if (aprendizadoScript && aprendizadoScript.tiposSituacao) {
+            const aprendizadoAtual = await loadAprendizadoScript();
+            let aprendizadoAtualizado = false;
+            
+            for (const [tipoSituacao, dados] of Object.entries(aprendizadoScript.tiposSituacao)) {
+                if (!aprendizadoAtual.tiposSituacao[tipoSituacao]) {
+                    aprendizadoAtual.tiposSituacao[tipoSituacao] = {
+                        feedbacks: [],
+                        respostasCoerentes: [],
+                        padroesIdentificados: [],
+                        clausulasUsadas: []
+                    };
+                }
+                
+                // Sincronizar respostas coerentes
+                if (dados.respostasCoerentes && Array.isArray(dados.respostasCoerentes)) {
+                    for (const respostaLocal of dados.respostasCoerentes) {
+                        const existe = aprendizadoAtual.tiposSituacao[tipoSituacao].respostasCoerentes.some(r => 
+                            r.id === respostaLocal.id || 
+                            (r.timestamp === respostaLocal.timestamp && r.motivoSolicitacao === respostaLocal.motivoSolicitacao)
+                        );
+                        
+                        if (!existe) {
+                            aprendizadoAtual.tiposSituacao[tipoSituacao].respostasCoerentes.push(respostaLocal);
+                            aprendizadoAtualizado = true;
+                            totalSincronizados++;
+                        }
+                    }
+                }
+            }
+            
+            if (aprendizadoAtualizado) {
+                await saveAprendizadoScript(aprendizadoAtual);
+                console.log('✅ Aprendizado sincronizado');
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `Sincronização concluída! ${totalSincronizados} itens sincronizados.`,
+            totalSincronizados: totalSincronizados
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro na sincronização:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro na sincronização',
+            message: error.message
         });
     }
 });
