@@ -861,7 +861,13 @@ async function saveModelosRespostas(modelos) {
         modelos.lastUpdated = obterTimestampBrasil();
         
         // Salvar baseado no ambiente
-        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        const isVercel = process.env.VERCEL;
+        const isProduction = process.env.NODE_ENV === 'production';
+        const isLocalhost = process.env.HOSTNAME === 'localhost' || process.env.HOSTNAME === '127.0.0.1' || !process.env.HOSTNAME;
+        
+        console.log('🔍 Detecção de ambiente:', { isVercel, isProduction, isLocalhost });
+        
+        if (isVercel || (isProduction && !isLocalhost)) {
             // Vercel: memória + tentar salvar em arquivo temporário
             console.log('🌐 Vercel - salvando em memória e tentando arquivo temporário');
             modelosRespostasMemoria = modelos;
@@ -1350,7 +1356,13 @@ async function saveAprendizadoScript(aprendizado) {
         aprendizado.lastUpdated = obterTimestampBrasil();
         
     // Verificar se estamos no Vercel (sistema de arquivos somente leitura)
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    const isVercel = process.env.VERCEL;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isLocalhost = process.env.HOSTNAME === 'localhost' || process.env.HOSTNAME === '127.0.0.1' || !process.env.HOSTNAME;
+    
+    console.log('🔍 Detecção de ambiente (aprendizado):', { isVercel, isProduction, isLocalhost });
+    
+    if (isVercel || (isProduction && !isLocalhost)) {
         console.log('🌐 Vercel detectado - salvando aprendizado em memória');
         aprendizadoScriptMemoria = aprendizado;
         
