@@ -3137,6 +3137,8 @@ Formule uma resposta personalizada e completa que responda diretamente à solici
         // Configurar timeout de 30 segundos
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        try {
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -3291,10 +3293,8 @@ Equipe Velotax`;
                 success: true,
                 result: resposta
             });
-            clearTimeout(timeoutId);
         } else {
             const errorData = await response.text();
-            clearTimeout(timeoutId);
             res.status(400).json({
                 success: false,
                 error: 'Erro na API OpenAI',
@@ -3325,7 +3325,6 @@ Equipe Velotax`;
                 message: error.message
             });
         }
-    }
 });
 
 // Rota para reformular texto de moderação após negativa
