@@ -4080,17 +4080,17 @@ app.post('/api/sincronizar-feedbacks-pendentes', async (req, res) => {
         console.log('🔄 Iniciando sincronização de feedbacks pendentes...');
         
         // Carregar todos os feedbacks de respostas
-        const feedbacksRespostas = loadFeedbacksRespostas();
-        const feedbacksModeracoes = loadFeedbacksModeracoes();
-        const modelosRespostas = loadModelosRespostas();
-        const modelosModeracoes = loadModelosModeracoes();
+        const feedbacksRespostasSync = loadFeedbacksRespostas();
+        const feedbacksModeracoesSync = loadFeedbacksModeracoes();
+        const modelosRespostasSync = loadModelosRespostas();
+        const modelosModeracoesSync = loadModelosModeracoes();
         
         let totalSincronizados = 0;
         
         // Sincronizar feedbacks de respostas
-        if (feedbacksRespostas?.respostas?.length > 0) {
-            console.log(`📝 Sincronizando ${feedbacksRespostas.respostas.length} feedbacks de respostas...`);
-            for (const feedback of feedbacksRespostas.respostas) {
+        if (feedbacksRespostasSync?.respostas?.length > 0) {
+            console.log(`📝 Sincronizando ${feedbacksRespostasSync.respostas.length} feedbacks de respostas...`);
+            for (const feedback of feedbacksRespostasSync.respostas) {
                 const tipoSituacao = feedback.contexto?.tipoSituacao || feedback.dadosFormulario?.tipo_solicitacao;
                 if (tipoSituacao && feedback.feedback && feedback.respostaReformulada) {
                     await addFeedbackAprendizado(
@@ -4106,9 +4106,9 @@ app.post('/api/sincronizar-feedbacks-pendentes', async (req, res) => {
         }
         
         // Sincronizar modelos de respostas
-        if (modelosRespostas?.modelos?.length > 0) {
-            console.log(`📝 Sincronizando ${modelosRespostas.modelos.length} modelos de respostas...`);
-            for (const modelo of modelosRespostas.modelos) {
+        if (modelosRespostasSync?.modelos?.length > 0) {
+            console.log(`📝 Sincronizando ${modelosRespostasSync.modelos.length} modelos de respostas...`);
+            for (const modelo of modelosRespostasSync.modelos) {
                 const tipoSituacao = modelo.tipo_situacao || modelo.contexto?.tipoSituacao;
                 if (tipoSituacao && modelo.respostaAprovada) {
                     await addRespostaCoerenteAprendizado(
@@ -4209,21 +4209,21 @@ app.get('/api/test-data-loading/:tipoSituacao', async (req, res) => {
         console.log(`🧪 Testando carregamento de dados para: ${tipoSituacao}`);
         
         // Carregar dados dos arquivos JSON
-        const feedbacksRespostas = loadFeedbacksRespostas();
-        const modelosRespostas = loadModelosRespostas();
+        const feedbacksRespostasTest = loadFeedbacksRespostas();
+        const modelosRespostasTest = loadModelosRespostas();
         
         console.log(`📊 Dados carregados:`, {
-            feedbacksTotal: feedbacksRespostas?.respostas?.length || 0,
-            modelosTotal: modelosRespostas?.modelos?.length || 0
+            feedbacksTotal: feedbacksRespostasTest?.respostas?.length || 0,
+            modelosTotal: modelosRespostasTest?.modelos?.length || 0
         });
         
         // Filtrar dados relevantes
-        const feedbacksRelevantes = feedbacksRespostas?.respostas?.filter(fb => 
+        const feedbacksRelevantes = feedbacksRespostasTest?.respostas?.filter(fb => 
             fb.contexto?.tipoSituacao === tipoSituacao || 
             fb.dadosFormulario?.tipo_solicitacao === tipoSituacao
         ) || [];
         
-        const modelosRelevantes = modelosRespostas?.modelos?.filter(modelo => 
+        const modelosRelevantes = modelosRespostasTest?.modelos?.filter(modelo => 
             modelo.tipo_situacao === tipoSituacao || 
             modelo.contexto?.tipoSituacao === tipoSituacao
         ) || [];
@@ -4245,8 +4245,8 @@ app.get('/api/test-data-loading/:tipoSituacao', async (req, res) => {
             success: true,
             tipoSituacao,
             dados: {
-                feedbacksCarregados: feedbacksRespostas?.respostas?.length || 0,
-                modelosCarregados: modelosRespostas?.modelos?.length || 0,
+                feedbacksCarregados: feedbacksRespostasTest?.respostas?.length || 0,
+                modelosCarregados: modelosRespostasTest?.modelos?.length || 0,
                 feedbacksRelevantes: feedbacksRelevantes.length,
                 modelosRelevantes: modelosRelevantes.length,
                 aprendizadoRetornado: {
@@ -4267,11 +4267,11 @@ app.get('/api/test-data-loading/:tipoSituacao', async (req, res) => {
                 }))
             },
             debug: {
-                todosFeedbacks: feedbacksRespostas?.respostas?.slice(0, 3).map(fb => ({
+                todosFeedbacks: feedbacksRespostasTest?.respostas?.slice(0, 3).map(fb => ({
                     tipoSituacao: fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao,
                     feedback: fb.feedback?.substring(0, 50) + '...'
                 })),
-                todosModelos: modelosRespostas?.modelos?.slice(0, 3).map(modelo => ({
+                todosModelos: modelosRespostasTest?.modelos?.slice(0, 3).map(modelo => ({
                     tipoSituacao: modelo.tipo_situacao || modelo.contexto?.tipoSituacao,
                     resposta: modelo.respostaAprovada?.substring(0, 50) + '...'
                 }))
