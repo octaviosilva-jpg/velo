@@ -1780,23 +1780,23 @@ async function getAprendizadoTipoSituacao(tipoSituacao) {
     // PRIORIDADE 2: Fallback para arquivos JSON (dados mais antigos)
     if (feedbacksRelevantes.length > 0 || modelosRelevantes.length > 0) {
         console.log(`⚠️ Usando fallback dos arquivos JSON para "${tipoSituacao}":`, {
-            feedbacks: feedbacksRelevantes.length,
-            respostasCoerentes: modelosRelevantes.length
-        });
-        
-        return {
-            feedbacks: feedbacksRelevantes.map(fb => ({
-                feedback: fb.feedback,
-                respostaReformulada: fb.respostaReformulada,
-                timestamp: fb.timestamp
-            })),
-            respostasCoerentes: modelosRelevantes.map(modelo => ({
-                respostaAprovada: modelo.respostaAprovada,
-                dadosFormulario: modelo.dadosFormulario,
-                timestamp: modelo.timestamp
-            })),
-            padroesIdentificados: [], // Será preenchido pelo sistema de aprendizado
-            clausulasUsadas: [] // Será preenchido pelo sistema de aprendizado
+        feedbacks: feedbacksRelevantes.length,
+        respostasCoerentes: modelosRelevantes.length
+    });
+    
+    return {
+        feedbacks: feedbacksRelevantes.map(fb => ({
+            feedback: fb.feedback,
+            respostaReformulada: fb.respostaReformulada,
+            timestamp: fb.timestamp
+        })),
+        respostasCoerentes: modelosRelevantes.map(modelo => ({
+            respostaAprovada: modelo.respostaAprovada,
+            dadosFormulario: modelo.dadosFormulario,
+            timestamp: modelo.timestamp
+        })),
+        padroesIdentificados: [], // Será preenchido pelo sistema de aprendizado
+        clausulasUsadas: [] // Será preenchido pelo sistema de aprendizado
         };
     }
     
@@ -3324,7 +3324,7 @@ Equipe Velotax`;
                 error: 'Erro interno do servidor',
                 message: error.message
             });
-        }
+    }
 });
 
 // Rota para reformular texto de moderação após negativa
@@ -5067,6 +5067,7 @@ app.listen(PORT, async () => {
     console.log('🔍 Sistema de verificação automática de feedbacks ativo');
     console.log('✅ Integração de feedbacks_respostas.json como base de conhecimento ativa');
     console.log('📅 Formatação de datas em padrão brasileiro (DD/MM/AAAA HH:MM:SS) ativa');
+    console.log('🔄 Deploy atualizado em: ' + new Date().toISOString());
     
     // Inicializar memória do aprendizado
     await inicializarMemoriaAprendizado();
