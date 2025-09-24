@@ -2848,6 +2848,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 
 // Rota para gerar resposta RA via API OpenAI
 app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
+    let timeoutId;
     try {
         const { dadosFormulario, userData } = req.body;
         console.log('🎯 Endpoint /api/generate-response chamado');
