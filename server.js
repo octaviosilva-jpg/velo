@@ -2883,59 +2883,6 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         // PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO
         console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
         const conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
-            
-            // Adicionar cláusulas usadas (APENAS se não houver feedbacks contrários)
-            const temFeedbackContrario = aprendizadoScript?.feedbacks?.some(fb => 
-                fb.feedback.toLowerCase().includes('não cite') || 
-                fb.feedback.toLowerCase().includes('nao cite') ||
-                fb.feedback.toLowerCase().includes('não use') ||
-                fb.feedback.toLowerCase().includes('nao use')
-            );
-            
-            if (aprendizadoScript?.clausulasUsadas?.length > 0 && !temFeedbackContrario) {
-                conhecimentoFeedback += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
-                aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
-                    conhecimentoFeedback += `• ${clausula}\n`;
-                });
-                conhecimentoFeedback += '\n';
-            } else if (temFeedbackContrario) {
-                console.log('⚠️ Feedback contrário detectado - não incluindo cláusulas CCB');
-            }
-            
-            // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
-            if (aprendizadoScript?.feedbacks?.length > 0) {
-                conhecimentoFeedback += '⚠️ FEEDBACKS RECENTES (EVITAR ESTES ERROS):\n';
-                conhecimentoFeedback += 'IMPORTANTE: Estes são erros identificados pelo operador humano. NUNCA repita estes erros:\n\n';
-                aprendizadoScript?.feedbacks?.slice(-5).forEach((fb, index) => {
-                    conhecimentoFeedback += `${index + 1}. ❌ ERRO IDENTIFICADO: "${fb.feedback}"\n`;
-                    conhecimentoFeedback += `   📝 RESPOSTA ANTERIOR (INCORRETA): "${fb.respostaAnterior ? fb.respostaAnterior.substring(0, 150) + '...' : 'N/A'}"\n`;
-                    conhecimentoFeedback += `   ✅ RESPOSTA CORRIGIDA (SEGUIR ESTE PADRÃO): "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
-                });
-                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Analise cada erro acima e garanta que sua resposta NÃO contenha os problemas identificados. Use as respostas corrigidas como referência de qualidade.\n\n';
-            }
-            
-            // Adicionar respostas coerentes recentes (SEGUIR ESTE PADRÃO)
-            if (aprendizadoScript?.respostasCoerentes?.length > 0) {
-                conhecimentoFeedback += '✅ RESPOSTAS COERENTES RECENTES (SEGUIR ESTE PADRÃO):\n';
-                conhecimentoFeedback += 'IMPORTANTE: Estas são respostas aprovadas pelo operador humano. Use como referência de qualidade:\n\n';
-                aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
-                    conhecimentoFeedback += `${index + 1}. 📋 Motivo: ${resp.motivoSolicitacao}\n`;
-                    conhecimentoFeedback += `   ✅ RESPOSTA APROVADA (SEGUIR ESTE PADRÃO): "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
-                });
-                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estas respostas aprovadas como modelo de qualidade. Siga a estrutura, tom e abordagem demonstrados.\n\n';
-            }
-            
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este aprendizado direto do script para gerar uma resposta de alta qualidade desde o início, aplicando os padrões identificados e evitando os erros documentados.\n';
-            
-            // Log detalhado do conhecimento construído
-            console.log('🧠 CONHECIMENTO CONSTRUÍDO PARA A OPENAI:');
-            console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback.length, 'caracteres');
-            console.log('📋 Conteúdo do conhecimento:');
-            console.log(conhecimentoFeedback.substring(0, 500) + '...');
-        } else {
-            console.log('❌ NENHUM APRENDIZADO ENCONTRADO PARA APLICAR!');
-            console.log('🔍 Dados do aprendizadoScript:', JSON.stringify(aprendizadoScript, null, 2));
-        }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script) - CORRIGIDO DEFINITIVAMENTE
         if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
