@@ -5078,6 +5078,7 @@ app.listen(PORT, async () => {
     console.log('✅ Integração de feedbacks_respostas.json como base de conhecimento ativa');
     console.log('📅 Formatação de datas em padrão brasileiro (DD/MM/AAAA HH:MM:SS) ativa');
     console.log('🔄 Deploy atualizado em: ' + new Date().toISOString());
+    console.log('🔧 Versão: 2.1.0 - Correção de sintaxe aplicada');
     
     // Inicializar memória do aprendizado
     await inicializarMemoriaAprendizado();
