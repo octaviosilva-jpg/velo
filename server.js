@@ -5388,6 +5388,44 @@ app.get('/api/test-sheets-simple', async (req, res) => {
     }
 });
 
+// Endpoint para testar salvamento de resposta coerente
+app.get('/api/test-save-coerente', async (req, res) => {
+    try {
+        console.log('🧪 Testando salvamento de resposta coerente...');
+        
+        // Dados de teste
+        const dadosTeste = {
+            tipo_solicitacao: 'Teste Sistema',
+            motivo_solicitacao: 'Verificar se salvamento funciona',
+            solucao_implementada: 'Teste de salvamento',
+            texto_cliente: 'Cliente teste',
+            historico_atendimento: 'Histórico teste',
+            observacoes_internas: 'Observações teste'
+        };
+        
+        const respostaTeste = 'Esta é uma resposta de teste para verificar se o sistema de aprendizado está funcionando corretamente.';
+        
+        // Tentar salvar
+        const modelo = await addModeloResposta(dadosTeste, respostaTeste, { nome: 'Teste', email: 'teste@teste.com' });
+        
+        res.json({
+            success: true,
+            message: 'Teste de salvamento realizado com sucesso',
+            modeloId: modelo.id,
+            ambiente: process.env.VERCEL ? 'Vercel (memória)' : 'Local (arquivo)',
+            googleSheetsAtivo: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no teste:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro no teste de salvamento',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint ainda mais simples para testar
 app.get('/api/test-basic', (req, res) => {
     res.json({
