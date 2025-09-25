@@ -427,6 +427,12 @@ function saveFeedbacksRespostas(feedbacks) {
         }
         
         // Registrar no Google Sheets se ativo (SISTEMA SIMPLES)
+        console.log('🔍 DEBUG - Google Sheets status:', {
+            googleSheetsIntegration: !!googleSheetsIntegration,
+            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            feedbacksCount: feedbacks.respostas ? feedbacks.respostas.length : 0
+        });
+        
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
                 // Salvar apenas o último feedback (mais simples)
@@ -2973,6 +2979,16 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         const modelosRelevantes = modelosRespostasLocal?.modelos?.filter(modelo => 
             modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
         ) || [];
+        
+        console.log('🔍 DEBUG - Sistema de aprendizado:', {
+            tipoSolicitacao: dadosFormulario.tipo_solicitacao,
+            totalModelos: modelosRespostasLocal?.modelos?.length || 0,
+            modelosRelevantes: modelosRelevantes.length,
+            modelosEncontrados: modelosRelevantes.map(m => ({
+                tipo: m.dadosFormulario?.tipo_solicitacao,
+                resposta: m.respostaAprovada?.substring(0, 50) + '...'
+            }))
+        });
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES - DESABILITADO PARA ESTABILIDADE
         if (false) {
