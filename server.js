@@ -436,7 +436,7 @@ async function saveFeedbacksRespostas(feedbacks) {
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
                 // Registrar cada feedback individualmente com dados do usuário (DIRETO)
-                for (const feedback of feedbacks.respostas || []) {
+                const feedbackPromises = (feedbacks.respostas || []).map(async (feedback) => {
                     const feedbackData = {
                         id: feedback.id,
                         tipo: 'feedback',
@@ -454,7 +454,10 @@ async function saveFeedbacksRespostas(feedbacks) {
                     // SALVAMENTO DIRETO - SEM FILA
                     await googleSheetsIntegration.registrarFeedback(feedbackData);
                     console.log('📋 Feedback salvo DIRETAMENTE no Google Sheets:', feedback.id);
-                }
+                });
+                
+                // Aguardar todos os feedbacks serem salvos
+                await Promise.all(feedbackPromises);
             } catch (error) {
                 console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
             }
@@ -511,7 +514,7 @@ async function saveFeedbacksModeracoes(feedbacks) {
             if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
                 try {
                     // Registrar cada feedback de moderação individualmente
-                    for (const moderacao of feedbacks.moderacoes || []) {
+                    const moderacaoPromises = (feedbacks.moderacoes || []).map(async (moderacao) => {
                         const moderacaoData = {
                             id: moderacao.id,
                             tipo: 'moderacao',
@@ -526,7 +529,10 @@ async function saveFeedbacksModeracoes(feedbacks) {
                         
                         await googleSheetsIntegration.registrarFeedback(moderacaoData);
                         console.log('📋 Moderação salva DIRETAMENTE no Google Sheets:', moderacao.id);
-                    }
+                    });
+                    
+                    // Aguardar todas as moderações serem salvas
+                    await Promise.all(moderacaoPromises);
                 } catch (error) {
                     console.error('❌ Erro ao registrar moderação no Google Sheets:', error.message);
                 }
