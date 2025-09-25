@@ -5176,6 +5176,14 @@ async function initializeGoogleSheets(envVars = null) {
         if (!envVars) {
             envVars = loadEnvFile();
         }
+        
+        console.log('🔍 DEBUG - Verificando configuração do Google Sheets:', {
+            ENABLE_GOOGLE_SHEETS: envVars.ENABLE_GOOGLE_SHEETS,
+            GOOGLE_SHEETS_ID: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_SERVICE_ACCOUNT_EMAIL: envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            GOOGLE_PRIVATE_KEY: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+        });
+        
         if (envVars.ENABLE_GOOGLE_SHEETS === 'true') {
             console.log('🔧 Inicializando integração com Google Sheets...');
             const success = await googleSheetsIntegration.initialize(envVars);
@@ -5197,9 +5205,17 @@ async function initializeGoogleSheets(envVars = null) {
 app.get('/api/google-sheets-queue-status', (req, res) => {
     try {
         const queueStatus = googleSheetsQueue.getStatus();
+        const envVars = loadEnvFile();
+        
         const integrationStatus = {
             googleSheetsActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
-            queueStatus: queueStatus
+            queueStatus: queueStatus,
+            config: {
+                ENABLE_GOOGLE_SHEETS: envVars.ENABLE_GOOGLE_SHEETS,
+                GOOGLE_SHEETS_ID: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+                GOOGLE_SERVICE_ACCOUNT_EMAIL: envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+                GOOGLE_PRIVATE_KEY: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+            }
         };
         
         res.json({
