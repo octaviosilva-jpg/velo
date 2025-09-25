@@ -426,17 +426,19 @@ function saveFeedbacksRespostas(feedbacks) {
             }
         }
         
-        // FORÇAR INICIALIZAÇÃO DO GOOGLE SHEETS
-        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
-            console.log('🔄 Forçando inicialização do Google Sheets...');
-            initializeGoogleSheets()
-                .then(() => {
-                    console.log('✅ Google Sheets inicializado com sucesso');
-                })
-                .catch((error) => {
-                    console.error('❌ Erro ao inicializar Google Sheets:', error.message);
-                });
-        }
+
+        // GOOGLE SHEETS TEMPORARIAMENTE DESABILITADO PARA EVITAR QUOTA
+        console.log('⚠️ Google Sheets temporariamente desabilitado para evitar quota excedida');
+        // if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+        //     console.log('🔄 Forçando inicialização do Google Sheets...');
+        //     initializeGoogleSheets()
+        //         .then(() => {
+        //             console.log('✅ Google Sheets inicializado com sucesso');
+        //         })
+        //         .catch((error) => {
+        //             console.error('❌ Erro ao inicializar Google Sheets:', error.message);
+        //         });
+        // }
         
         // Registrar no Google Sheets se ativo (SISTEMA SIMPLES)
         console.log('🔍 DEBUG - Google Sheets status:', {
@@ -3045,17 +3047,18 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         const feedbacksRespostasLocal = await loadFeedbacksRespostas();
         const modelosRespostasLocal = await loadModelosRespostas();
         
-        // CARREGAR MODELOS DA PLANILHA PARA APRENDIZADO
+        // CARREGAR MODELOS DA PLANILHA PARA APRENDIZADO - DESABILITADO TEMPORARIAMENTE
         let modelosDaPlanilha = [];
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                console.log('📚 Carregando modelos da planilha para aprendizado...');
-                modelosDaPlanilha = await carregarModelosDaPlanilha(dadosFormulario.tipo_solicitacao);
-                console.log(`✅ Carregados ${modelosDaPlanilha.length} modelos da planilha`);
-            } catch (error) {
-                console.error('❌ Erro ao carregar modelos da planilha:', error.message);
-            }
-        }
+        console.log('⚠️ Carregamento de modelos da planilha desabilitado temporariamente para evitar quota');
+        // if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        //     try {
+        //         console.log('📚 Carregando modelos da planilha para aprendizado...');
+        //         modelosDaPlanilha = await carregarModelosDaPlanilha(dadosFormulario.tipo_solicitacao);
+        //         console.log(`✅ Carregados ${modelosDaPlanilha.length} modelos da planilha`);
+        //     } catch (error) {
+        //         console.error('❌ Erro ao carregar modelos da planilha:', error.message);
+        //     }
+        // }
         
         const feedbacksRelevantes = feedbacksRespostasLocal?.respostas?.filter(fb => 
             fb.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase()) ||
