@@ -426,6 +426,12 @@ function saveFeedbacksRespostas(feedbacks) {
         }
         
         // Registrar no Google Sheets se ativo
+        console.log('🔍 DEBUG - Verificando Google Sheets para feedbacks:', {
+            googleSheetsIntegration: !!googleSheetsIntegration,
+            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            feedbacksCount: feedbacks.respostas ? feedbacks.respostas.length : 0
+        });
+        
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
                 // Registrar cada feedback individualmente com dados do usuário
@@ -447,11 +453,13 @@ function saveFeedbacksRespostas(feedbacks) {
                         type: 'feedback',
                         data: feedbackData
                     });
-                    console.log('📋 Feedback adicionado à fila do Google Sheets');
+                    console.log('📋 Feedback adicionado à fila do Google Sheets:', feedback.id);
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
             }
+        } else {
+            console.log('⚠️ Google Sheets não está ativo para feedbacks');
         }
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de respostas:', error);
