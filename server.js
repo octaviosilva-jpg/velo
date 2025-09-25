@@ -859,6 +859,11 @@ async function carregarDadosAprendizadoLocal(tipoSolicitacao) {
         const feedbacksRespostasLocal = await loadFeedbacksRespostas();
         const modelosRespostasLocal = await loadModelosRespostas();
         
+        console.log('🔍 DEBUG - Dados locais carregados:', {
+            totalModelos: modelosRespostasLocal?.modelos?.length || 0,
+            totalFeedbacks: feedbacksRespostasLocal?.respostas?.length || 0
+        });
+        
         const modelosCoerentes = modelosRespostasLocal?.modelos?.filter(modelo => 
             modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(tipoSolicitacao.toLowerCase())
         ) || [];
@@ -867,6 +872,15 @@ async function carregarDadosAprendizadoLocal(tipoSolicitacao) {
             fb.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(tipoSolicitacao.toLowerCase()) ||
             fb.contexto?.tipoSituacao?.toLowerCase().includes(tipoSolicitacao.toLowerCase())
         ) || [];
+        
+        console.log('🔍 DEBUG - Dados filtrados:', {
+            modelosCoerentes: modelosCoerentes.length,
+            feedbacksRelevantes: feedbacksRelevantes.length,
+            modelosEncontrados: modelosCoerentes.map(m => ({
+                tipo: m.dadosFormulario?.tipo_solicitacao,
+                id: m.id
+            }))
+        });
         
         return {
             modelosCoerentes,
@@ -3220,6 +3234,13 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             feedbacksRelevantes: [],
             fonte: 'local'
         };
+        
+        // DEBUG: Verificar status do Google Sheets
+        console.log('🔍 DEBUG - Status do Google Sheets para aprendizado:', {
+            googleSheetsIntegration: !!googleSheetsIntegration,
+            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            tipoSolicitacao: dadosFormulario.tipo_solicitacao
+        });
         
         // Tentar carregar da planilha primeiro (com controle de quota)
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
