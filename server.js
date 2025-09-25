@@ -5232,6 +5232,55 @@ app.get('/api/google-sheets-queue-status', (req, res) => {
     }
 });
 
+// ===== ENDPOINT PARA FORÇAR INICIALIZAÇÃO DO GOOGLE SHEETS =====
+app.post('/api/force-initialize-google-sheets', async (req, res) => {
+    try {
+        console.log('🔄 Forçando inicialização do Google Sheets...');
+        
+        const envVars = loadEnvFile();
+        
+        // Forçar ENABLE_GOOGLE_SHEETS como true se não estiver configurado
+        if (!envVars.ENABLE_GOOGLE_SHEETS) {
+            envVars.ENABLE_GOOGLE_SHEETS = 'true';
+            console.log('🔧 ENABLE_GOOGLE_SHEETS definido como true');
+        }
+        
+        // Tentar inicializar
+        const success = await googleSheetsIntegration.initialize(envVars);
+        
+        if (success) {
+            global.googleSheetsInitialized = true;
+            console.log('✅ Google Sheets inicializado com sucesso');
+            
+            res.json({
+                success: true,
+                message: 'Google Sheets inicializado com sucesso',
+                data: {
+                    googleSheetsActive: googleSheetsIntegration.isActive(),
+                    initialized: true
+                }
+            });
+        } else {
+            console.log('❌ Falha ao inicializar Google Sheets');
+            res.json({
+                success: false,
+                message: 'Falha ao inicializar Google Sheets',
+                data: {
+                    googleSheetsActive: false,
+                    initialized: false
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao forçar inicialização:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 app.listen(PORT, async () => {
     console.log('🚀 Servidor Velotax Bot iniciado!');
     console.log(`📡 Porta: ${PORT}`);
