@@ -3773,7 +3773,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             }
         }
         
-        const prompt = `
+        let prompt = `
 TAREFA: ${feedback ? 'GERAR NOVA RESPOSTA' : 'REFORMULAR RESPOSTA'} do Reclame Aqui
 
 DADOS DO CASO:
@@ -3784,7 +3784,10 @@ DADOS DO CASO:
 - Histórico de Atendimento: ${dadosFormulario.historico_atendimento || dadosFormulario.historicoAtendimento}
 - Observações Internas: ${dadosFormulario.observacoes_internas || dadosFormulario.observacoesInternas}
 
-${feedback ? `
+`;
+
+        if (feedback) {
+            prompt += `
 FEEDBACK DO OPERADOR (a resposta anterior estava incorreta):
 ${feedback}
 
@@ -3795,7 +3798,9 @@ INSTRUÇÕES CRÍTICAS:
 - Analise o feedback para entender o que estava errado
 - Evite os erros identificados no feedback
 - Foque na solução implementada e como ela resolve a solicitação do cliente
-- Seja específico e conclusivo` : `
+- Seja específico e conclusivo`;
+        } else {
+            prompt += `
 RESPOSTA ANTERIOR (para referência):
 ${respostaAnterior}
 
@@ -3803,7 +3808,10 @@ INSTRUÇÕES PARA REFORMULAÇÃO:
 - Analise a resposta anterior e identifique pontos de melhoria
 - Reformule para ser mais completa e eficaz
 - Mantenha o tom profissional e empático
-- Aborde todos os aspectos da reclamação do cliente`}
+- Aborde todos os aspectos da reclamação do cliente`;
+        }
+
+        prompt += `
 
 ${conhecimentoFeedback || ''}
 
