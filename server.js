@@ -4552,10 +4552,12 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                 console.log('🔄 Vercel detectada - salvando diretamente no Google Sheets...');
                 
                 // Salvar modelo de resposta no Google Sheets
-                if (googleSheets && googleSheets.salvarModeloResposta) {
-                    const sheetsResult = await googleSheets.salvarModeloResposta(modelo);
+                if (googleSheetsIntegration && googleSheetsIntegration.salvarModeloResposta) {
+                    const sheetsResult = await googleSheetsIntegration.salvarModeloResposta(modelo);
                     console.log('✅ Modelo salvo no Google Sheets:', sheetsResult);
                     syncResult = { googleSheets: sheetsResult };
+                } else {
+                    console.log('⚠️ Google Sheets não está disponível ou função não encontrada');
                 }
                 
                 // Tentar sincronizar com arquivos locais também (backup)
