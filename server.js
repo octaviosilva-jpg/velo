@@ -3284,11 +3284,11 @@ Formule uma resposta personalizada e completa que responda diretamente à solici
                 // Criar resposta mais específica e completa baseada nos dados fornecidos
                 let respostaEspecifica = `Prezado(a) cliente,
 
-Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ` - ${motivo}` : ''}.
+Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
-${solucao ? `Confirmamos que ${solucao}.` : 'Analisamos sua solicitação e implementamos a solução adequada.'}
+${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação e implementamos a solução adequada.'}
 
-${historico && historico !== 'Nenhum' ? `Considerando o histórico de atendimento: ${historico}. ` : ''}${observacoes && observacoes !== 'Nenhuma' ? `Observamos que: ${observacoes}. ` : ''}
+${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
 O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.
 
@@ -3299,11 +3299,11 @@ Equipe Velotax`;
                 if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('exclusao')) {
                     respostaEspecifica = `Prezado(a) cliente,
 
-Agradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro${motivo ? ` - ${motivo}` : ''}.
+Agradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro${motivo ? ' - ' + motivo : ''}.
 
-${solucao ? `Confirmamos que ${solucao}.` : 'Analisamos sua solicitação de exclusão e implementamos a solução adequada.'}
+${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de exclusão e implementamos a solução adequada.'}
 
-${historico && historico !== 'Nenhum' ? `Considerando o histórico de atendimento: ${historico}. ` : ''}${observacoes && observacoes !== 'Nenhuma' ? `Observamos que: ${observacoes}. ` : ''}
+${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
 O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.
 
@@ -3312,11 +3312,11 @@ Equipe Velotax`;
                 } else if (tipoSituacao.toLowerCase().includes('pix') || tipoSituacao.toLowerCase().includes('portabilidade')) {
                     respostaEspecifica = `Prezado(a) cliente,
 
-Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ` - ${motivo}` : ''}.
+Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
-${solucao ? `Confirmamos que ${solucao}.` : 'Analisamos sua solicitação de portabilidade e implementamos a solução adequada.'}
+${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de portabilidade e implementamos a solução adequada.'}
 
-${historico && historico !== 'Nenhum' ? `Considerando o histórico de atendimento: ${historico}. ` : ''}${observacoes && observacoes !== 'Nenhuma' ? `Observamos que: ${observacoes}. ` : ''}
+${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
 A operação foi realizada conforme estabelecido na Cláusula 7 de sua Cédula de Crédito Bancário (CCB), que trata do vínculo da chave Pix e quitação automática.
 
@@ -3327,11 +3327,11 @@ Equipe Velotax`;
                 } else if (tipoSituacao.toLowerCase().includes('quitação') || tipoSituacao.toLowerCase().includes('liquidação')) {
                     respostaEspecifica = `Prezado(a) cliente,
 
-Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ` - ${motivo}` : ''}.
+Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
-${solucao ? `Confirmamos que ${solucao}.` : 'Analisamos sua solicitação de quitação e implementamos a solução adequada.'}
+${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de quitação e implementamos a solução adequada.'}
 
-${historico && historico !== 'Nenhum' ? `Considerando o histórico de atendimento: ${historico}. ` : ''}${observacoes && observacoes !== 'Nenhuma' ? `Observamos que: ${observacoes}. ` : ''}
+${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
 A operação foi realizada conforme estabelecido na Cláusula 8 de sua Cédula de Crédito Bancário (CCB), que trata da liquidação antecipada.
 
