@@ -235,6 +235,14 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * Salva um modelo de resposta no Google Sheets (alias para registrarRespostaCoerente)
+     */
+    async salvarModeloResposta(modeloData) {
+        console.log('💾 Salvando modelo de resposta no Google Sheets...');
+        return await this.registrarRespostaCoerente(modeloData);
+    }
+
+    /**
      * Registra uma resposta coerente no Google Sheets
      */
     async registrarRespostaCoerente(respostaData) {

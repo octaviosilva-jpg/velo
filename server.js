@@ -4545,13 +4545,20 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
         // Incrementar estatística global
         incrementarEstatisticaGlobal('respostas_coerentes');
         
-        // Se estiver na Vercel, tentar sincronizar com arquivos locais
+        // Se estiver na Vercel, salvar diretamente no Google Sheets
         let syncResult = null;
         if (process.env.VERCEL) {
             try {
-                console.log('🔄 Vercel detectada - tentando sincronizar com arquivos locais...');
+                console.log('🔄 Vercel detectada - salvando diretamente no Google Sheets...');
                 
-                // Fazer requisição para o servidor local (se disponível)
+                // Salvar modelo de resposta no Google Sheets
+                if (googleSheets && googleSheets.salvarModeloResposta) {
+                    const sheetsResult = await googleSheets.salvarModeloResposta(modelo);
+                    console.log('✅ Modelo salvo no Google Sheets:', sheetsResult);
+                    syncResult = { googleSheets: sheetsResult };
+                }
+                
+                // Tentar sincronizar com arquivos locais também (backup)
                 const localServerUrl = 'http://localhost:3001';
                 const syncData = {
                     modeloResposta: modelo,
@@ -4568,6 +4575,9 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                 }).then(response => response.json())
                 .then(result => {
                     console.log('✅ Sincronização com arquivos locais:', result);
+                    if (syncResult) {
+                        syncResult.localFiles = result;
+                    }
                 }).catch(error => {
                     console.log('⚠️ Servidor local não disponível para sincronização:', error.message);
                 });
