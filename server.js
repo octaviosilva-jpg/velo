@@ -2929,7 +2929,17 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         
         // PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO
         console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
-        let conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
+        let conhecimentoFeedback = '';
+        try {
+            conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
+            if (!conhecimentoFeedback) {
+                console.log('⚠️ processarAprendizadoObrigatorio retornou vazio');
+                conhecimentoFeedback = '';
+            }
+        } catch (error) {
+            console.error('❌ Erro em processarAprendizadoObrigatorio:', error.message);
+            conhecimentoFeedback = '';
+        }
         
         // Carregar feedbacks e modelos relevantes  
         const feedbacksRespostasLocal = await loadFeedbacksRespostas();
