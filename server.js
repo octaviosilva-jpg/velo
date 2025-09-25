@@ -3194,6 +3194,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         console.log('🎯 Endpoint /api/generate-response chamado');
         console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
         console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
+        console.log('🚀 INICIANDO SISTEMA DE APRENDIZADO...');
         
         const envVars = loadEnvFile();
         const apiKey = envVars.OPENAI_API_KEY;
