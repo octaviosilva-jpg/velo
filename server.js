@@ -429,12 +429,13 @@ function saveFeedbacksRespostas(feedbacks) {
         // FORÇAR INICIALIZAÇÃO DO GOOGLE SHEETS
         if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
             console.log('🔄 Forçando inicialização do Google Sheets...');
-            try {
-                await initializeGoogleSheets();
-                console.log('✅ Google Sheets inicializado com sucesso');
-            } catch (error) {
-                console.error('❌ Erro ao inicializar Google Sheets:', error.message);
-            }
+            initializeGoogleSheets()
+                .then(() => {
+                    console.log('✅ Google Sheets inicializado com sucesso');
+                })
+                .catch((error) => {
+                    console.error('❌ Erro ao inicializar Google Sheets:', error.message);
+                });
         }
         
         // Registrar no Google Sheets se ativo (SISTEMA SIMPLES)
