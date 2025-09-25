@@ -3186,7 +3186,15 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
-// Rota para gerar resposta RA via API OpenAI
+// Rota alternativa para gerar resposta RA (redireciona para o endpoint principal)
+app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
+    console.log('🔄 Endpoint /api/gerar-resposta chamado - redirecionando para /api/generate-response');
+    // Redirecionar para o endpoint principal que tem o sistema de aprendizado
+    req.url = '/api/generate-response';
+    app._router.handle(req, res);
+});
+
+// Rota para gerar resposta RA via API OpenAI (endpoint principal)
 app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
     let timeoutId;
     try {
