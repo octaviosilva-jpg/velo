@@ -4576,6 +4576,12 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
         
         // Se estiver na Vercel, salvar diretamente no Google Sheets
         let syncResult = null;
+        console.log('🔍 DEBUG - Verificando ambiente:', {
+            VERCEL: process.env.VERCEL,
+            NODE_ENV: process.env.NODE_ENV,
+            googleSheetsActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false
+        });
+        
         if (process.env.VERCEL) {
             try {
                 console.log('🔄 Vercel detectada - salvando diretamente no Google Sheets...');
@@ -4588,8 +4594,9 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                         data: modelo
                     });
                     syncResult = { googleSheets: 'Adicionado à fila' };
+                    console.log('✅ Modelo adicionado à fila com sucesso');
                 } else {
-                    console.log('⚠️ Google Sheets não está disponível');
+                    console.log('⚠️ Google Sheets não está disponível ou não está ativo');
                 }
                 
                 // Tentar sincronizar com arquivos locais também (backup)
