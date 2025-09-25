@@ -2927,17 +2927,25 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
         });
         
-        // PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO
-        console.log('🎓 INICIANDO PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO');
+        // Sistema de aprendizado com proteção contra erros
         let conhecimentoFeedback = '';
         try {
-            conhecimentoFeedback = await processarAprendizadoObrigatorio(dadosFormulario);
-            if (!conhecimentoFeedback) {
-                console.log('⚠️ processarAprendizadoObrigatorio retornou vazio');
-                conhecimentoFeedback = '';
+            // Tentar carregar aprendizado, mas não falhar se der erro
+            const aprendizado = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
+            if (aprendizado && aprendizado.feedbacks && aprendizado.feedbacks.length > 0) {
+                conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS:\n';
+                conhecimentoFeedback += `Baseado em ${aprendizado.feedbacks.length} feedbacks para "${dadosFormulario.tipo_solicitacao}":\n\n`;
+                
+                // Adicionar apenas os feedbacks mais recentes (máximo 3)
+                aprendizado.feedbacks.slice(-3).forEach((fb, index) => {
+                    conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
+                    conhecimentoFeedback += `   ✅ CORREÇÃO: "${fb.respostaReformulada.substring(0, 150)}..."\n\n`;
+                });
+                
+                conhecimentoFeedback += '🎯 Use este conhecimento para evitar erros similares.\n';
             }
         } catch (error) {
-            console.error('❌ Erro em processarAprendizadoObrigatorio:', error.message);
+            console.log('⚠️ Sistema de aprendizado temporariamente indisponível:', error.message);
             conhecimentoFeedback = '';
         }
         
@@ -2954,8 +2962,8 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
         ) || [];
         
-        // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script) - CORRIGIDO DEFINITIVAMENTE
-        if (!conhecimentoFeedback && feedbacksRelevantes.length > 0) {
+        // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES - DESABILITADO TEMPORARIAMENTE
+        if (false && feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
             conhecimentoFeedback += 'Com base em feedbacks anteriores de situações similares, siga estas diretrizes:\n\n';
             
