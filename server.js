@@ -510,10 +510,25 @@ async function saveFeedbacksModeracoes(feedbacks) {
             // Registrar no Google Sheets se ativo (DIRETO)
             if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
                 try {
-                    await googleSheetsIntegration.registrarFeedback(feedbackData);
-                    console.log('📋 Feedback salvo DIRETAMENTE no Google Sheets');
+                    // Registrar cada feedback de moderação individualmente
+                    for (const moderacao of feedbacks.moderacoes || []) {
+                        const moderacaoData = {
+                            id: moderacao.id,
+                            tipo: 'moderacao',
+                            motivoNegativa: moderacao.motivoNegativa || 'N/A',
+                            textoNegado: moderacao.textoNegado || 'N/A',
+                            textoReformulado: moderacao.textoReformulado || 'N/A',
+                            timestamp: moderacao.timestamp,
+                            userProfile: moderacao.userData ? `${moderacao.userData.nome} (${moderacao.userData.email})` : 'N/A',
+                            userName: moderacao.userData?.nome || 'N/A',
+                            userEmail: moderacao.userData?.email || 'N/A'
+                        };
+                        
+                        await googleSheetsIntegration.registrarFeedback(moderacaoData);
+                        console.log('📋 Moderação salva DIRETAMENTE no Google Sheets:', moderacao.id);
+                    }
                 } catch (error) {
-                    console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
+                    console.error('❌ Erro ao registrar moderação no Google Sheets:', error.message);
                 }
             }
             return;
