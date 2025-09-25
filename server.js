@@ -4586,6 +4586,22 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
             try {
                 console.log('🔄 Vercel detectada - salvando diretamente no Google Sheets...');
                 
+                // Tentar inicializar Google Sheets se não estiver ativo
+                if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+                    console.log('🔄 Tentando inicializar Google Sheets automaticamente...');
+                    try {
+                        const envVars = loadEnvFile();
+                        envVars.ENABLE_GOOGLE_SHEETS = 'true'; // Forçar ativação
+                        const success = await googleSheetsIntegration.initialize(envVars);
+                        if (success) {
+                            global.googleSheetsInitialized = true;
+                            console.log('✅ Google Sheets inicializado automaticamente');
+                        }
+                    } catch (error) {
+                        console.log('❌ Erro ao inicializar Google Sheets:', error.message);
+                    }
+                }
+                
                 // Adicionar modelo de resposta à fila do Google Sheets
                 if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
                     console.log('📋 Adicionando modelo à fila do Google Sheets...');
