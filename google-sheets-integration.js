@@ -210,7 +210,7 @@ class GoogleSheetsIntegration {
 
             const row = [
                 userProfile, // Perfil do usuário na coluna ID
-                new Date().toLocaleString('pt-BR'),
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
                 feedbackData.id || '',
                 feedbackData.tipo || 'feedback',
                 feedbackData.textoCliente || feedbackData.dadosFormulario?.texto_cliente || '',
@@ -262,7 +262,7 @@ class GoogleSheetsIntegration {
 
             const row = [
                 userProfile, // Perfil do usuário na coluna ID
-                new Date().toLocaleString('pt-BR'),
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
                 respostaData.id || '',
                 respostaData.tipo || 'resposta',
                 respostaData.textoCliente || respostaData.dadosFormulario?.texto_cliente || '',
@@ -302,7 +302,7 @@ class GoogleSheetsIntegration {
 
             const row = [
                 userProfile, // Perfil do usuário na coluna ID
-                new Date().toLocaleString('pt-BR'),
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
                 acessoData.usuario || 'Anônimo',
                 acessoData.acao || 'Acesso',
                 acessoData.ip || '',
@@ -386,7 +386,7 @@ class GoogleSheetsIntegration {
             // Converter dados da planilha para formato JSON
             const aprendizado = {
                 tiposSituacao: {},
-                lastUpdated: new Date().toLocaleString('pt-BR')
+                lastUpdated: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
             };
             
             // Processar dados (implementar lógica de conversão)
@@ -430,7 +430,7 @@ class GoogleSheetsIntegration {
                         tipoSituacao,
                         'feedback',
                         feedback.id || Date.now(),
-                        feedback.timestamp || new Date().toLocaleString('pt-BR'),
+                        feedback.timestamp || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
                         JSON.stringify(feedback)
                     ]);
                 }
@@ -441,7 +441,7 @@ class GoogleSheetsIntegration {
                         tipoSituacao,
                         'resposta_coerente',
                         resposta.id || Date.now(),
-                        resposta.timestamp || new Date().toLocaleString('pt-BR'),
+                        resposta.timestamp || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
                         JSON.stringify(resposta)
                     ]);
                 }
@@ -452,7 +452,7 @@ class GoogleSheetsIntegration {
                         tipoSituacao,
                         'padrao',
                         Date.now(),
-                        new Date().toLocaleString('pt-BR'),
+                        new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
                         padrao
                     ]);
                 }
