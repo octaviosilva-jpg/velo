@@ -5212,6 +5212,8 @@ async function initializeGoogleSheets(envVars = null) {
             const success = await googleSheetsIntegration.initialize(envVars);
             if (success) {
                 console.log('✅ Google Sheets integrado com sucesso');
+                // Garantir que a instância global esteja disponível
+                global.googleSheetsIntegration = googleSheetsIntegration;
             } else {
                 console.log('⚠️ Google Sheets não pôde ser inicializado');
             }

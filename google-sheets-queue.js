@@ -86,7 +86,18 @@ class GoogleSheetsQueue {
      * Processa um item individual
      */
     async processItem(item) {
-        const { googleSheetsIntegration } = require('./google-sheets-integration');
+        // Usar a instância global se disponível, senão importar
+        let googleSheetsIntegration;
+        if (global.googleSheetsIntegration) {
+            googleSheetsIntegration = global.googleSheetsIntegration;
+        } else {
+            googleSheetsIntegration = require('./google-sheets-integration');
+        }
+        
+        // Verificar se está ativo
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            throw new Error('Google Sheets não está ativo ou disponível');
+        }
         
         switch (item.type) {
             case 'feedback':
