@@ -1,4 +1,4 @@
-// ===== SERVIDOR BACKEND SEGURO - VELOTAX BOT =====
+﻿// ===== SERVIDOR BACKEND SEGURO - VELOTAX BOT =====
 
 const express = require('express');
 const cors = require('cors');
@@ -2688,7 +2688,7 @@ INFORMAÇÕES DISPONÍVEIS:
 - Consideração final do consumidor: ${dadosModeracao.consideracaoFinal}
 - Motivo da moderação: ${dadosModeracao.motivoModeracao}
 
-${conhecimentoFeedback}
+${conhecimentoFeedback || ''}
 
 ⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
 
@@ -3189,7 +3189,7 @@ A resposta deve ser uma formulação completa que:
 5. Demonstra conhecimento das obrigações contratuais
 6. Mantém tom profissional e empático
 
-${conhecimentoFeedback}
+${conhecimentoFeedback || ''}
 
 Formule uma resposta personalizada e completa que responda diretamente à solicitação do cliente, explicando como a solução implementada resolve o problema fundamentada nas cláusulas contratuais.`;
 
@@ -3442,7 +3442,7 @@ DADOS DE ENTRADA:
 - Motivo da negativa: ${motivoNegativa}
 - Texto de moderação negado: ${textoNegado}
 
-${conhecimentoFeedback}
+${conhecimentoFeedback || ''}
 
 ⚙️ FLUXO DE REFORMULAÇÃO OBRIGATÓRIO:
 
@@ -3805,7 +3805,7 @@ INSTRUÇÕES PARA REFORMULAÇÃO:
 - Mantenha o tom profissional e empático
 - Aborde todos os aspectos da reclamação do cliente`}
 
-${conhecimentoFeedback}
+${conhecimentoFeedback || ''}
 
 ANÁLISE OBRIGATÓRIA DE TODOS OS CAMPOS:
 
