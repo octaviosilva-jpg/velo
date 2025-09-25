@@ -402,6 +402,7 @@ function loadFeedbacksRespostas() {
 // Salvar feedbacks de respostas
 function saveFeedbacksRespostas(feedbacks) {
     try {
+        console.log('🔍 DEBUG - saveFeedbacksRespostas chamada com:', feedbacks.respostas?.length || 0, 'feedbacks');
         feedbacks.lastUpdated = obterTimestampBrasil();
         
         // Salvar baseado no ambiente
