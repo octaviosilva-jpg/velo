@@ -814,6 +814,68 @@ function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
     console.log(`✅ Estatística ${tipo} atualizada: ${estatisticas.estatisticas[tipo]}`);
 }
 
+// ===== FUNÇÕES PARA CARREGAR MODELOS DA PLANILHA =====
+
+// Carregar modelos da planilha para aprendizado
+async function carregarModelosDaPlanilha(tipoSolicitacao) {
+    if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+        console.log('⚠️ Google Sheets não está ativo. Não é possível carregar modelos da planilha.');
+        return [];
+    }
+
+    try {
+        console.log(`📚 Carregando modelos da planilha para: ${tipoSolicitacao}`);
+        
+        // Ler dados da planilha "Respostas Coerentes"
+        const range = 'Respostas Coerentes!A1:Z1000';
+        const data = await googleSheetsConfig.readData(range);
+        
+        if (!data || data.length <= 1) {
+            console.log('📚 Nenhum modelo encontrado na planilha');
+            return [];
+        }
+        
+        // Converter dados da planilha para formato de modelos
+        const modelos = [];
+        const headers = data[0]; // Primeira linha são os cabeçalhos
+        
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (row.length === 0) continue; // Pular linhas vazias
+            
+            // Mapear colunas (ajustar conforme estrutura da planilha)
+            const modelo = {
+                id: row[0] || `planilha_${i}`,
+                timestamp: row[1] || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+                tipo_situacao: row[2] || 'N/A',
+                motivo_solicitacao: row[3] || 'N/A',
+                solucao_implementada: row[4] || 'N/A',
+                texto_cliente: row[5] || 'N/A',
+                respostaAprovada: row[6] || 'N/A',
+                dadosFormulario: {
+                    tipo_solicitacao: row[2] || 'N/A',
+                    motivo_solicitacao: row[3] || 'N/A',
+                    solucao_implementada: row[4] || 'N/A',
+                    texto_cliente: row[5] || 'N/A'
+                }
+            };
+            
+            // Filtrar apenas modelos relevantes para o tipo de solicitação
+            if (modelo.tipo_situacao && 
+                modelo.tipo_situacao.toLowerCase().includes(tipoSolicitacao.toLowerCase())) {
+                modelos.push(modelo);
+            }
+        }
+        
+        console.log(`✅ Carregados ${modelos.length} modelos relevantes da planilha`);
+        return modelos;
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar modelos da planilha:', error.message);
+        return [];
+    }
+}
+
 // ===== FUNÇÕES PARA MODELOS DE RESPOSTAS APROVADAS =====
 
 // Carregar modelos de respostas
@@ -2976,28 +3038,48 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
         });
         
-        // Sistema de aprendizado desabilitado para estabilidade
+        // Sistema de aprendizado ATIVADO para usar modelos da planilha
         let conhecimentoFeedback = '';
         
         // Carregar feedbacks e modelos relevantes  
         const feedbacksRespostasLocal = await loadFeedbacksRespostas();
         const modelosRespostasLocal = await loadModelosRespostas();
         
+        // CARREGAR MODELOS DA PLANILHA PARA APRENDIZADO
+        let modelosDaPlanilha = [];
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                console.log('📚 Carregando modelos da planilha para aprendizado...');
+                modelosDaPlanilha = await carregarModelosDaPlanilha(dadosFormulario.tipo_solicitacao);
+                console.log(`✅ Carregados ${modelosDaPlanilha.length} modelos da planilha`);
+            } catch (error) {
+                console.error('❌ Erro ao carregar modelos da planilha:', error.message);
+            }
+        }
+        
         const feedbacksRelevantes = feedbacksRespostasLocal?.respostas?.filter(fb => 
             fb.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase()) ||
             fb.contexto?.tipoSituacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
         ) || [];
         
-        const modelosRelevantes = modelosRespostasLocal?.modelos?.filter(modelo => 
-            modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
-        ) || [];
+        // PRIORIDADE 1: MODELOS DA PLANILHA (mais atualizados)
+        let modelosRelevantes = modelosDaPlanilha || [];
+        
+        // PRIORIDADE 2: MODELOS LOCAIS (fallback)
+        if (modelosRelevantes.length === 0) {
+            modelosRelevantes = modelosRespostasLocal?.modelos?.filter(modelo => 
+                modelo.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
+            ) || [];
+        }
         
         console.log('🔍 DEBUG - Sistema de aprendizado:', {
             tipoSolicitacao: dadosFormulario.tipo_solicitacao,
-            totalModelos: modelosRespostasLocal?.modelos?.length || 0,
+            modelosDaPlanilha: modelosDaPlanilha.length,
+            modelosLocais: modelosRespostasLocal?.modelos?.length || 0,
             modelosRelevantes: modelosRelevantes.length,
+            fonte: modelosDaPlanilha.length > 0 ? 'PLANILHA' : 'LOCAL',
             modelosEncontrados: modelosRelevantes.map(m => ({
-                tipo: m.dadosFormulario?.tipo_solicitacao,
+                tipo: m.dadosFormulario?.tipo_solicitacao || m.tipo_situacao,
                 resposta: m.respostaAprovada?.substring(0, 50) + '...'
             }))
         });
@@ -3151,18 +3233,19 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             }
         }
         
-        // Adicionar modelos de respostas aprovadas
+        // Adicionar modelos de respostas aprovadas (PRIORIDADE MÁXIMA)
         if (modelosRelevantes.length > 0) {
-            conhecimentoFeedback += '\n\n🏆 MODELOS DE RESPOSTAS APROVADAS:\n';
-            conhecimentoFeedback += 'Baseado em respostas que foram marcadas como "coerentes" para situações similares, use estes exemplos como referência:\n\n';
+            conhecimentoFeedback += '\n\n🏆 MODELOS DE RESPOSTAS APROVADAS (SEGUIR ESTE PADRÃO):\n';
+            conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} respostas que foram marcadas como "coerentes" para situações similares, use estes exemplos como referência:\n\n`;
             
             modelosRelevantes.forEach((modelo, index) => {
-                conhecimentoFeedback += `📋 **MODELO ${index + 1}** (${modelo.tipo_situacao}):\n`;
-                conhecimentoFeedback += `   Motivo: ${modelo.motivo_solicitacao}\n`;
-                conhecimentoFeedback += `   Resposta aprovada: "${modelo.respostaAprovada.substring(0, 300)}..."\n\n`;
+                conhecimentoFeedback += `📋 **MODELO ${index + 1}** (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
+                conhecimentoFeedback += `   Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
+                conhecimentoFeedback += `   Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
+                conhecimentoFeedback += `   Resposta aprovada: "${modelo.respostaAprovada.substring(0, 400)}..."\n\n`;
             });
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO: Use estes modelos como base para estruturar sua resposta, adaptando o conteúdo para os dados específicos fornecidos acima.\n';
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para estruturar sua resposta, adaptando o conteúdo para os dados específicos fornecidos acima. Mantenha a mesma estrutura e abordagem dos modelos aprovados.\n';
         }
         
         
