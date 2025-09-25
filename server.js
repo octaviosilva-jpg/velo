@@ -5591,12 +5591,18 @@ app.post('/api/test-google-sheets', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar feedback
-        const feedbackResult = await googleSheetsIntegration.registrarFeedback(testData);
-        console.log('📝 Resultado do feedback:', feedbackResult);
+        googleSheetsIntegration.registrarFeedback(testData).then(result => {
+            console.log('📝 Resultado do feedback:', result);
+        }).catch(error => {
+            console.error('❌ Erro no feedback:', error.message);
+        });
         
         // Tentar registrar resposta coerente
-        const respostaResult = await googleSheetsIntegration.registrarRespostaCoerente(testData);
-        console.log('📝 Resultado da resposta:', respostaResult);
+        googleSheetsIntegration.registrarRespostaCoerente(testData).then(result => {
+            console.log('📝 Resultado da resposta:', result);
+        }).catch(error => {
+            console.error('❌ Erro na resposta:', error.message);
+        });
         
         res.json({
             success: true,
@@ -6044,8 +6050,11 @@ app.get('/api/test-sheets-register', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar resposta coerente
-        const respostaResult = await googleSheetsIntegration.registrarRespostaCoerente(testData);
-        console.log('📝 Resultado da resposta:', respostaResult);
+        googleSheetsIntegration.registrarRespostaCoerente(testData).then(result => {
+            console.log('📝 Resultado da resposta:', result);
+        }).catch(error => {
+            console.error('❌ Erro na resposta:', error.message);
+        });
         
         res.json({
             success: true,
