@@ -8,6 +8,7 @@ const crypto = require('crypto');
 
 // ===== INTEGRAÇÃO COM GOOGLE SHEETS =====
 const googleSheetsIntegration = require('./google-sheets-integration');
+const googleSheetsQueue = require('./google-sheets-queue');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -442,7 +443,11 @@ function saveFeedbacksRespostas(feedbacks) {
                         userName: feedback.userData?.nome || 'N/A',
                         userEmail: feedback.userData?.email || 'N/A'
                     };
-                    googleSheetsIntegration.registrarFeedback(feedbackData);
+                    googleSheetsQueue.addToQueue({
+                        type: 'feedback',
+                        data: feedbackData
+                    });
+                    console.log('📋 Feedback adicionado à fila do Google Sheets');
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
@@ -497,9 +502,13 @@ async function saveFeedbacksModeracoes(feedbacks) {
             // Registrar no Google Sheets se ativo
             if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
                 try {
-                    googleSheetsIntegration.registrarFeedback(feedbackData);
+                    googleSheetsQueue.addToQueue({
+                        type: 'feedback',
+                        data: feedbackData
+                    });
+                    console.log('📋 Feedback adicionado à fila do Google Sheets');
                 } catch (error) {
-                    console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
+                    console.error('❌ Erro ao adicionar feedback à fila:', error.message);
                 }
             }
             return;
@@ -512,7 +521,11 @@ async function saveFeedbacksModeracoes(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsQueue.addToQueue({
+                        type: 'resposta_coerente',
+                        data: respostaData
+                    });
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -923,7 +936,11 @@ async function saveModelosRespostas(modelos) {
                         userName: modelo.userData?.nome || 'N/A',
                         userEmail: modelo.userData?.email || 'N/A'
                     };
-                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsQueue.addToQueue({
+                        type: 'resposta_coerente',
+                        data: respostaData
+                    });
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
@@ -1475,7 +1492,11 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
                 userName: userData?.nome || 'N/A',
                 userEmail: userData?.email || 'N/A'
             };
-            googleSheetsIntegration.registrarFeedback(feedbackData);
+            googleSheetsQueue.addToQueue({
+                        type: 'feedback',
+                        data: feedbackData
+                    });
+                    console.log('📋 Feedback adicionado à fila do Google Sheets');
         } catch (error) {
             console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
         }
@@ -1535,7 +1556,11 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
                 userName: userData?.nome || 'N/A',
                 userEmail: userData?.email || 'N/A'
             };
-            await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+            googleSheetsQueue.addToQueue({
+                        type: 'resposta_coerente',
+                        data: respostaData
+                    });
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
         } catch (error) {
             console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
         }
@@ -2415,7 +2440,11 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    await googleSheetsIntegration.registrarRespostaCoerente(respostaData);
+                    googleSheetsQueue.addToQueue({
+                        type: 'resposta_coerente',
+                        data: respostaData
+                    });
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -4551,13 +4580,16 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
             try {
                 console.log('🔄 Vercel detectada - salvando diretamente no Google Sheets...');
                 
-                // Salvar modelo de resposta no Google Sheets
-                if (googleSheetsIntegration && googleSheetsIntegration.salvarModeloResposta) {
-                    const sheetsResult = await googleSheetsIntegration.salvarModeloResposta(modelo);
-                    console.log('✅ Modelo salvo no Google Sheets:', sheetsResult);
-                    syncResult = { googleSheets: sheetsResult };
+                // Adicionar modelo de resposta à fila do Google Sheets
+                if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+                    console.log('📋 Adicionando modelo à fila do Google Sheets...');
+                    googleSheetsQueue.addToQueue({
+                        type: 'resposta_coerente',
+                        data: modelo
+                    });
+                    syncResult = { googleSheets: 'Adicionado à fila' };
                 } else {
-                    console.log('⚠️ Google Sheets não está disponível ou função não encontrada');
+                    console.log('⚠️ Google Sheets não está disponível');
                 }
                 
                 // Tentar sincronizar com arquivos locais também (backup)
@@ -4873,7 +4905,11 @@ app.post('/api/logAccess', async (req, res) => {
                     status: 'Sucesso'
                 };
                 
-                await googleSheetsIntegration.registrarAcessoInterface(acessoData);
+                googleSheetsQueue.addToQueue({
+                        type: 'acesso',
+                        data: acessoData
+                    });
+                    console.log('📋 Acesso adicionado à fila do Google Sheets');
                 console.log('✅ Acesso registrado no Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar acesso no Google Sheets:', error.message);
@@ -5149,6 +5185,29 @@ async function initializeGoogleSheets(envVars = null) {
         console.log('📊 Sistema funcionando sem Google Sheets');
     }
 }
+
+// ===== ENDPOINT PARA VERIFICAR STATUS DA FILA DO GOOGLE SHEETS =====
+app.get('/api/google-sheets-queue-status', (req, res) => {
+    try {
+        const queueStatus = googleSheetsQueue.getStatus();
+        const integrationStatus = {
+            googleSheetsActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            queueStatus: queueStatus
+        };
+        
+        res.json({
+            success: true,
+            message: 'Status da fila do Google Sheets',
+            data: integrationStatus
+        });
+    } catch (error) {
+        console.error('Erro ao verificar status da fila:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
 
 app.listen(PORT, async () => {
     console.log('🚀 Servidor Velotax Bot iniciado!');

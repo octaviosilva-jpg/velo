@@ -75,70 +75,6 @@
       ],
       "respostasCoerentes": [
         {
-          "id": 1758718397418,
-          "timestamp": "24/09/2025 09:53:17",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por compartilhar sua solicitação de exclusão de cadastro. Entendemos a importância de sua solicitação e queremos assegurar que sua demanda foi tratada com o devido cuidado.\n\nGostaríamos de informar que o seu cadastro foi totalmente excluído do nosso sistema em 12/08/2025, conforme solicitado. Com isso, todas as suas informações foram removidas e você não receberá mais comunicações da Velotax. Este procedimento está em conformidade com a Lei Geral de Proteção de Dados (LGPD), que garante seu direito à privacidade e proteção de dados pessoais.\n\nCaso tenha mais alguma dúvida ou necessite de qualquer outro tipo de assistência, por favor, não hesite em nos contatar. Estamos à disposição para ajudar no que for necessário.\n\nAtenciosamente,\n\nEquipe Velotax",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-cadastro",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
-            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
-            "historico_atendimento": "",
-            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
-            "timestamp": "2025-09-23T16:12:21.458Z"
-          },
-          "userData": null
-        },
-        {
-          "id": 1758718397752,
-          "timestamp": "24/09/2025 09:53:17",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e pela oportunidade de atendê-lo.\n\nCompreendemos a importância de sua solicitação para a exclusão de seu cadastro e a interrupção das comunicações da Velotax. Gostaríamos de informar que, conforme sua solicitação, todos os seus dados foram removidos de nossos sistemas em 12/08/2025. Este procedimento foi realizado de acordo com as diretrizes da Lei Geral de Proteção de Dados (LGPD), garantindo que seus direitos à privacidade e à proteção de dados sejam plenamente respeitados.\n\nCaso tenha mais alguma dúvida ou precise de assistência adicional, por favor, não hesite em nos contatar. Estamos à disposição para ajudar e garantir sua satisfação.\n\nAtenciosamente,\n\n[Seu Nome]  \n[Seu Cargo]  \nVelotax Atendimento ao Cliente",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-cadastro",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
-            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
-            "historico_atendimento": "",
-            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
-            "timestamp": "2025-09-23T16:16:24.875Z"
-          },
-          "userData": null
-        },
-        {
-          "id": 1758718398074,
-          "timestamp": "24/09/2025 09:53:18",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco através do Reclame Aqui. Compreendemos a importância de sua solicitação de exclusão de cadastro e respeitamos seu desejo de não mais receber comunicações da Velotax.\n\nGostaríamos de informar que atendemos prontamente ao seu pedido e realizamos a exclusão completa de seu cadastro de nossos sistemas no dia 12 de agosto de 2025. Assim, seus dados foram removidos conforme solicitado, em conformidade com a Lei Geral de Proteção de Dados (LGPD), garantindo a sua privacidade e segurança.\n\nEstamos satisfeitos em saber que o atendimento prestado foi satisfatório para você. Caso tenha alguma dúvida adicional ou precise de mais informações, por favor, não hesite em nos contatar. Continuamos à disposição para auxiliá-lo.\n\nAgradecemos por nos dar a oportunidade de resolver esta questão e por sua compreensão.\n\nAtenciosamente,\n\n[Seu Nome]  \n[Seu Cargo]  \nVelotax Atendimento ao Cliente",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-cadastro",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
-            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
-            "historico_atendimento": "",
-            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
-            "timestamp": "2025-09-23T16:22:55.811Z"
-          },
-          "userData": null
-        },
-        {
-          "id": 1758718398355,
-          "timestamp": "24/09/2025 09:53:18",
-          "motivoSolicitacao": "esclarecimento",
-          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por nos informar sobre sua solicitação de exclusão de cadastro. Entendemos a importância de sua solicitação e estamos comprometidos em respeitar sua privacidade e seus direitos.\n\nConforme solicitado, já realizamos a exclusão completa de seu cadastro de nossos sistemas no dia 12/08/2025. Com isso, todas as suas informações foram removidas, e você não receberá mais comunicações da Velotax. Este procedimento está em conformidade com a Lei Geral de Proteção de Dados (LGPD), que assegura o direito de exclusão de dados pessoais.\n\nEstamos satisfeitos em saber que o atendimento atendeu às suas expectativas. Caso tenha mais alguma dúvida ou necessite de qualquer assistência adicional, não hesite em nos contatar. Estamos à disposição para ajudar.\n\nAtenciosamente,\n\nEquipe Velotax",
-          "dadosFormulario": {
-            "tipo_solicitacao": "exclusao-cadastro",
-            "motivo_solicitacao": "esclarecimento",
-            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
-            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
-            "historico_atendimento": "",
-            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
-            "timestamp": "2025-09-23T17:16:27.088Z"
-          },
-          "userData": null
-        },
-        {
           "id": 1758732294487,
           "timestamp": "24/09/2025 13:44:54",
           "motivoSolicitacao": "esclarecimento",
@@ -151,6 +87,90 @@
             "historico_atendimento": "",
             "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
             "timestamp": "2025-09-24T16:44:48.584Z"
+          },
+          "userData": {
+            "nome": "Octavio Augusto Ramalho da Silva",
+            "email": "octavio.silva@velotax.com.br",
+            "funcao": "Usuário",
+            "departamento": "Geral"
+          }
+        },
+        {
+          "id": 1758809714930,
+          "timestamp": "25/09/2025 11:15:14",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua solicitação de exclusão de cadastro na Velotax. Compreendemos plenamente a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações de nossa empresa.\n\nGostaríamos de informar que, conforme sua solicitação, realizamos a exclusão completa do seu cadastro de nossos sistemas no dia 12 de agosto de 2025. Isso significa que todos os seus dados foram removidos e você não receberá mais comunicações da Velotax, conforme previsto pela Lei Geral de Proteção de Dados (LGPD).\n\nAgradecemos por sua compreensão e estamos à disposição para qualquer esclarecimento adicional que você possa precisar.\n\nAtenciosamente,\n\nEquipe Velotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-cadastro",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+            "historico_atendimento": "",
+            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+            "timestamp": "2025-09-25T14:14:53.526Z"
+          },
+          "userData": {
+            "nome": "Octavio Augusto Ramalho da Silva",
+            "email": "octavio.silva@velotax.com.br",
+            "funcao": "Usuário",
+            "departamento": "Geral"
+          }
+        },
+        {
+          "id": 1758809716465,
+          "timestamp": "25/09/2025 11:15:16",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua solicitação de exclusão de cadastro na Velotax. Compreendemos plenamente a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações de nossa empresa.\n\nGostaríamos de informar que, conforme sua solicitação, realizamos a exclusão completa do seu cadastro de nossos sistemas no dia 12 de agosto de 2025. Isso significa que todos os seus dados foram removidos e você não receberá mais comunicações da Velotax, conforme previsto pela Lei Geral de Proteção de Dados (LGPD).\n\nAgradecemos por sua compreensão e estamos à disposição para qualquer esclarecimento adicional que você possa precisar.\n\nAtenciosamente,\n\nEquipe Velotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-cadastro",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+            "historico_atendimento": "",
+            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+            "timestamp": "2025-09-25T14:14:55.758Z"
+          },
+          "userData": {
+            "nome": "Octavio Augusto Ramalho da Silva",
+            "email": "octavio.silva@velotax.com.br",
+            "funcao": "Usuário",
+            "departamento": "Geral"
+          }
+        },
+        {
+          "id": 1758809717596,
+          "timestamp": "25/09/2025 11:15:17",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua solicitação de exclusão de cadastro na Velotax. Compreendemos plenamente a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações de nossa empresa.\n\nGostaríamos de informar que, conforme sua solicitação, realizamos a exclusão completa do seu cadastro de nossos sistemas no dia 12 de agosto de 2025. Isso significa que todos os seus dados foram removidos e você não receberá mais comunicações da Velotax, conforme previsto pela Lei Geral de Proteção de Dados (LGPD).\n\nAgradecemos por sua compreensão e estamos à disposição para qualquer esclarecimento adicional que você possa precisar.\n\nAtenciosamente,\n\nEquipe Velotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-cadastro",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+            "historico_atendimento": "",
+            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+            "timestamp": "2025-09-25T14:14:57.712Z"
+          },
+          "userData": {
+            "nome": "Octavio Augusto Ramalho da Silva",
+            "email": "octavio.silva@velotax.com.br",
+            "funcao": "Usuário",
+            "departamento": "Geral"
+          }
+        },
+        {
+          "id": 1758809722366,
+          "timestamp": "25/09/2025 11:15:22",
+          "motivoSolicitacao": "esclarecimento",
+          "respostaAprovada": "Prezado(a) Cliente,\n\nAgradecemos por entrar em contato conosco e por expressar sua solicitação de exclusão de cadastro na Velotax. Compreendemos plenamente a importância de proteger sua privacidade e respeitar sua decisão de não querer mais receber comunicações de nossa empresa.\n\nGostaríamos de informar que, conforme sua solicitação, realizamos a exclusão completa do seu cadastro de nossos sistemas no dia 12 de agosto de 2025. Isso significa que todos os seus dados foram removidos e você não receberá mais comunicações da Velotax, conforme previsto pela Lei Geral de Proteção de Dados (LGPD).\n\nAgradecemos por sua compreensão e estamos à disposição para qualquer esclarecimento adicional que você possa precisar.\n\nAtenciosamente,\n\nEquipe Velotax",
+          "dadosFormulario": {
+            "tipo_solicitacao": "exclusao-cadastro",
+            "motivo_solicitacao": "esclarecimento",
+            "texto_cliente": "Cliente solicita exclusão de seu cadastro da Velotax. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.",
+            "solucao_implementada": "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
+            "historico_atendimento": "",
+            "observacoes_internas": "Cliente demonstrou satisfação com o atendimento.",
+            "timestamp": "2025-09-25T14:15:06.515Z"
           },
           "userData": {
             "nome": "Octavio Augusto Ramalho da Silva",
@@ -285,7 +305,7 @@
       "clausulasUsadas": []
     }
   },
-  "lastUpdated": "24/09/2025, 12:26:34",
+  "lastUpdated": "25/09/2025 11:15:22",
   "situacoes": {
     "exclusao-cadastro": {
       "totalRespostas": 1,
