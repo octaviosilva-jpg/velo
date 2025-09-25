@@ -400,7 +400,7 @@ function loadFeedbacksRespostas() {
 }
 
 // Salvar feedbacks de respostas
-function saveFeedbacksRespostas(feedbacks) {
+async function saveFeedbacksRespostas(feedbacks) {
     try {
         console.log('🔍 DEBUG - saveFeedbacksRespostas chamada com:', feedbacks.respostas?.length || 0, 'feedbacks');
         feedbacks.lastUpdated = obterTimestampBrasil();
@@ -779,7 +779,7 @@ function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
 // ===== FUNÇÕES PARA MODELOS DE RESPOSTAS APROVADAS =====
 
 // Carregar modelos de respostas
-function loadModelosRespostas() {
+async function loadModelosRespostas() {
     // Verificar se estamos no Vercel e temos dados em memória
     if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && modelosRespostasMemoria) {
         console.log('🌐 Vercel detectado - carregando da memória');
@@ -798,7 +798,7 @@ function loadModelosRespostas() {
                     lastUpdated: obterTimestampBrasil(),
                     descricao: "Modelos de respostas aprovadas como coerentes - utilizados para aprendizado automático"
                 };
-                saveModelosRespostas(estruturaPadrao);
+                await saveModelosRespostas(estruturaPadrao);
                 return estruturaPadrao;
             }
             
@@ -816,7 +816,7 @@ function loadModelosRespostas() {
         };
         
         try {
-            saveModelosRespostas(estruturaPadrao);
+            await saveModelosRespostas(estruturaPadrao);
         } catch (saveError) {
             console.error('Erro ao recriar arquivo modelos_respostas.json:', saveError);
         }
@@ -976,7 +976,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
         userData: userData ? `${userData.nome} (${userData.email})` : 'N/A'
     });
     
-    const modelos = loadModelosRespostas();
+    const modelos = await loadModelosRespostas();
     console.log('📚 Modelos carregados:', modelos.modelos ? modelos.modelos.length : 0);
     
     const novoModelo = {
@@ -1025,8 +1025,8 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
 }
 
 // Obter modelos relevantes para um tipo de situação
-function getModelosRelevantes(tipoSituacao, motivoSolicitacao) {
-    const modelos = loadModelosRespostas();
+async function getModelosRelevantes(tipoSituacao, motivoSolicitacao) {
+    const modelos = await loadModelosRespostas();
     const relevantes = [];
     
     modelos.modelos.forEach(modelo => {
@@ -1059,7 +1059,7 @@ function getModelosRelevantes(tipoSituacao, motivoSolicitacao) {
 // ===== FUNÇÕES PARA MODELOS DE MODERAÇÕES APROVADAS =====
 
 // Carregar modelos de moderações
-function loadModelosModeracoes() {
+async function loadModelosModeracoes() {
     // Verificar se estamos no Vercel e temos dados em memória
     if ((process.env.VERCEL || process.env.NODE_ENV === 'production') && modelosModeracoesMemoria) {
         console.log('🌐 Vercel detectado - carregando modelos de moderações da memória');
@@ -1078,7 +1078,7 @@ function loadModelosModeracoes() {
                     lastUpdated: obterTimestampBrasil(),
                     descricao: "Modelos de moderações aprovadas como coerentes - utilizados para aprendizado automático"
                 };
-                saveModelosModeracoes(estruturaPadrao);
+                await saveModelosModeracoes(estruturaPadrao);
                 return estruturaPadrao;
             }
             
@@ -1096,7 +1096,7 @@ function loadModelosModeracoes() {
         };
         
         try {
-            saveModelosModeracoes(estruturaPadrao);
+            await saveModelosModeracoes(estruturaPadrao);
         } catch (saveError) {
             console.error('Erro ao recriar arquivo modelos_moderacoes.json:', saveError);
         }
@@ -1110,7 +1110,7 @@ function loadModelosModeracoes() {
 }
 
 // Salvar modelos de moderações
-function saveModelosModeracoes(modelos) {
+async function saveModelosModeracoes(modelos) {
     try {
         // Validar estrutura antes de salvar
         if (!modelos || typeof modelos !== 'object') {
@@ -1168,8 +1168,8 @@ function saveModelosModeracoes(modelos) {
 }
 
 // Adicionar modelo de moderação aprovada
-function addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao) {
-    const modelos = loadModelosModeracoes();
+async function addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao) {
+    const modelos = await loadModelosModeracoes();
     
     const novoModelo = {
         id: Date.now(),
@@ -1189,14 +1189,14 @@ function addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao) {
     modelos.modelos.push(novoModelo);
     modelos.lastUpdated = obterTimestampBrasil();
     
-    saveModelosModeracoes(modelos);
+    await saveModelosModeracoes(modelos);
     console.log('📝 Modelo de moderação aprovada adicionado:', novoModelo.id);
     return novoModelo;
 }
 
 // Obter modelos de moderação relevantes
-function getModelosModeracaoRelevantes(motivoModeracao) {
-    const modelos = loadModelosModeracoes();
+async function getModelosModeracaoRelevantes(motivoModeracao) {
+    const modelos = await loadModelosModeracoes();
     const relevantes = [];
     
     modelos.modelos.forEach(modelo => {
@@ -1742,9 +1742,9 @@ async function getAprendizadoTipoSituacao(tipoSituacao) {
     } else {
         console.log('💻 Desenvolvimento local - carregando dos arquivos JSON');
         feedbacksRespostas = loadFeedbacksRespostas();
-        modelosRespostas = loadModelosRespostas();
+        modelosRespostas = await loadModelosRespostas();
         feedbacksModeracoes = loadFeedbacksModeracoes();
-        modelosModeracoes = loadModelosModeracoes();
+        modelosModeracoes = await loadModelosModeracoes();
     }
     
     console.log(`📚 Dados carregados dos arquivos JSON:`, {
@@ -1883,7 +1883,7 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
         respostas: [...(feedbacks.respostas || []), novoFeedback]
     };
     
-    saveFeedbacksRespostas(feedbacksCopy);
+    await saveFeedbacksRespostas(feedbacksCopy);
     
     // Também adicionar ao aprendizado direto do script
     await addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
@@ -4130,7 +4130,7 @@ app.post('/api/sincronizar-feedbacks-pendentes', async (req, res) => {
         // Carregar todos os feedbacks de respostas
         const feedbacksRespostasSync = loadFeedbacksRespostas();
         const feedbacksModeracoesSync = loadFeedbacksModeracoes();
-        const modelosRespostasSync = loadModelosRespostas();
+        const modelosRespostasSync = await loadModelosRespostas();
         const modelosModeracoesSync = loadModelosModeracoes();
         
         let totalSincronizados = 0;
@@ -4258,7 +4258,7 @@ app.get('/api/test-data-loading/:tipoSituacao', async (req, res) => {
         
         // Carregar dados dos arquivos JSON
         const feedbacksRespostasTest = loadFeedbacksRespostas();
-        const modelosRespostasTest = loadModelosRespostas();
+        const modelosRespostasTest = await loadModelosRespostas();
         
         console.log(`📊 Dados carregados:`, {
             feedbacksTotal: feedbacksRespostasTest?.respostas?.length || 0,
@@ -4466,13 +4466,13 @@ app.get('/api/feedbacks', (req, res) => {
 });
 
 // Endpoint para limpar feedbacks de respostas (aba Respostas RA)
-app.delete('/api/feedbacks/respostas', (req, res) => {
+app.delete('/api/feedbacks/respostas', async (req, res) => {
     try {
         const feedbacksVazios = {
             respostas: [],
             lastUpdated: obterTimestampBrasil()
         };
-        saveFeedbacksRespostas(feedbacksVazios);
+        await saveFeedbacksRespostas(feedbacksVazios);
         res.json({
             success: true,
             message: 'Feedbacks de respostas limpos com sucesso'
@@ -5632,7 +5632,7 @@ app.post('/api/sync-local-data', async (req, res) => {
         
         // Sincronizar modelos de respostas
         if (modelosRespostas && Array.isArray(modelosRespostas)) {
-            const modelosAtuais = loadModelosRespostas();
+            const modelosAtuais = await loadModelosRespostas();
             const novosModelos = [];
             
             for (const modeloLocal of modelosRespostas) {
@@ -5782,7 +5782,7 @@ app.post('/api/sync-vercel-to-local', async (req, res) => {
                 console.log('📝 Sincronizando modelo de resposta...');
                 
                 // Carregar dados existentes
-                const dadosExistentes = loadModelosRespostas();
+                const dadosExistentes = await loadModelosRespostas();
                 
                 // Verificar se já existe (evitar duplicatas)
                 const jaExiste = dadosExistentes.modelos.some(existente => existente.id === modeloResposta.id);
@@ -5798,7 +5798,7 @@ app.post('/api/sync-vercel-to-local', async (req, res) => {
                     process.env.NODE_ENV = 'development';
                     delete process.env.VERCEL;
                     
-                    saveModelosRespostas(dadosExistentes);
+                    await saveModelosRespostas(dadosExistentes);
                     
                     // Restaurar variáveis de ambiente
                     process.env.NODE_ENV = originalNodeEnv;
