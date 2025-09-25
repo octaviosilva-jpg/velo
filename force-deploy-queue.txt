@@ -1,3 +1,0 @@
-Force deploy - Sistema de fila Google Sheets implementado
-Timestamp: 2025-09-25T14:30:00Z
-Versão: 2.2.0 - Sistema de fila com rate limiting
