@@ -5200,8 +5200,15 @@ async function initializeGoogleSheets(envVars = null) {
             GOOGLE_PRIVATE_KEY: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
         });
         
-        if (envVars.ENABLE_GOOGLE_SHEETS === 'true') {
+        // Na Vercel, sempre tentar inicializar Google Sheets se as credenciais estiverem disponíveis
+        if (envVars.ENABLE_GOOGLE_SHEETS === 'true' || (process.env.VERCEL && envVars.GOOGLE_SHEETS_ID && envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL)) {
             console.log('🔧 Inicializando integração com Google Sheets...');
+            // Forçar ativação na Vercel se não estiver configurado
+            if (process.env.VERCEL && !envVars.ENABLE_GOOGLE_SHEETS) {
+                envVars.ENABLE_GOOGLE_SHEETS = 'true';
+                console.log('🔧 ENABLE_GOOGLE_SHEETS forçado como true na Vercel');
+            }
+            
             const success = await googleSheetsIntegration.initialize(envVars);
             if (success) {
                 console.log('✅ Google Sheets integrado com sucesso');
@@ -5328,6 +5335,16 @@ app.listen(PORT, async () => {
         try {
             await initializeGoogleSheets();
             global.googleSheetsInitialized = true;
+            
+            // Na Vercel, verificar se inicializou corretamente
+            if (process.env.VERCEL) {
+                console.log('🌐 Vercel detectada - verificando status do Google Sheets...');
+                if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+                    console.log('✅ Google Sheets ativo na Vercel - pronto para receber dados');
+                } else {
+                    console.log('⚠️ Google Sheets não está ativo na Vercel');
+                }
+            }
         } catch (error) {
             console.error('❌ Erro ao inicializar Google Sheets:', error.message);
             console.log('📊 Sistema funcionando sem Google Sheets');
