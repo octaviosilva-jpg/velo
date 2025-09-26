@@ -3188,7 +3188,9 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 
 // Rota alternativa para gerar resposta RA (com sistema de aprendizado completo)
 app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
-    console.log('🔥 ENTRADA NO ENDPOINT /api/gerar-resposta');
+    console.log('=================================');
+    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/gerar-resposta 🔥🔥🔥');
+    console.log('=================================');
     let timeoutId;
     try {
         console.log('🔥 DENTRO DO TRY - INICIANDO PROCESSAMENTO');
