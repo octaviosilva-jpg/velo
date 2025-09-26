@@ -3243,6 +3243,8 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         
         // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
         let conhecimentoFeedback = '';
+        let modelosCoerentes = [];
+        let feedbacksRelevantes = [];
         
         console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
         
@@ -3252,11 +3254,11 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
                 
                 // Carregar modelos coerentes da planilha
-                const modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
                 console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
                 
                 // Carregar feedbacks da planilha
-                const feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
                 console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
                 
                 // APLICAR MODELOS COERENTES
@@ -3400,8 +3402,8 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
                 success: true,
                 result: resposta,
                 aprendizadoAplicado: temAprendizado,
-                modelosUtilizados: modelosCoerentes?.length || 0,
-                feedbacksUtilizados: feedbacksRelevantes?.length || 0
+                modelosUtilizados: modelosCoerentes.length || 0,
+                feedbacksUtilizados: feedbacksRelevantes.length || 0
             });
         } else {
             const errorData = await response.text();
@@ -3639,8 +3641,8 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
                 success: true,
                 result: resposta,
                 aprendizadoAplicado: temAprendizado,
-                modelosUtilizados: modelosCoerentes?.length || 0,
-                feedbacksUtilizados: feedbacksRelevantes?.length || 0
+                modelosUtilizados: modelosCoerentes.length || 0,
+                feedbacksUtilizados: feedbacksRelevantes.length || 0
             });
         } else {
             const errorData = await response.text();
