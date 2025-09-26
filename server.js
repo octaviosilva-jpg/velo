@@ -3204,17 +3204,37 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
         console.log('🚀 INICIANDO SISTEMA DE APRENDIZADO...');
         
+        // DEBUG: Verificar dados recebidos
+        console.log('🔍 DEBUG - Dados recebidos:', {
+            temDadosFormulario: !!dadosFormulario,
+            temUserData: !!userData,
+            tipoSolicitacao: dadosFormulario?.tipo_solicitacao
+        });
+        
+        console.log('🔍 DEBUG - Carregando variáveis de ambiente...');
         const envVars = loadEnvFile();
         const apiKey = envVars.OPENAI_API_KEY;
         
+        console.log('🔍 DEBUG - Validando API Key...', {
+            temApiKey: !!apiKey,
+            tamanhoApiKey: apiKey ? apiKey.length : 0
+        });
+        
         if (!validateApiKey(apiKey)) {
+            console.log('❌ DEBUG - API Key inválida');
             return res.status(400).json({
                 success: false,
                 error: 'Chave da API não configurada ou inválida'
             });
         }
         
+        console.log('🔍 DEBUG - Verificando dados do formulário...', {
+            temDadosFormulario: !!dadosFormulario,
+            tipoSolicitacao: dadosFormulario?.tipo_solicitacao
+        });
+        
         if (!dadosFormulario) {
+            console.log('❌ DEBUG - Dados do formulário não fornecidos');
             return res.status(400).json({
                 success: false,
                 error: 'Dados do formulário não fornecidos'
