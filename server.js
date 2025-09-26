@@ -2874,11 +2874,29 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
             status: 'Sucesso'
         };
         
-        // Registrar no Google Sheets se ativo
+        // FORÇAR INICIALIZAÇÃO DO GOOGLE SHEETS SE NÃO ESTIVER ATIVO
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            console.log('🔄 Google Sheets inativo - tentando inicializar automaticamente para registro de acesso...');
+            try {
+                const envVars = loadEnvFile();
+                envVars.ENABLE_GOOGLE_SHEETS = 'true'; // Forçar ativação
+                const success = await googleSheetsIntegration.initialize(envVars);
+                if (success) {
+                    global.googleSheetsInitialized = true;
+                    console.log('✅ Google Sheets inicializado automaticamente para registro de acesso!');
+                } else {
+                    console.log('❌ Falha ao inicializar Google Sheets automaticamente para registro de acesso');
+                }
+            } catch (error) {
+                console.log('❌ Erro ao inicializar Google Sheets para registro de acesso:', error.message);
+            }
+        }
+        
+        // Registrar DIRETAMENTE no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                await googleSheetsQueue.addToQueue('registrarAcessoInterface', acessoData, true); // true = instantâneo
-                console.log('✅ Acesso registrado INSTANTANEAMENTE no Google Sheets');
+                await googleSheetsIntegration.registrarAcessoInterface(acessoData);
+                console.log('✅ Acesso registrado DIRETAMENTE no Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar acesso no Google Sheets:', error.message);
             }
