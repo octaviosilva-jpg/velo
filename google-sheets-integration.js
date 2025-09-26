@@ -422,7 +422,7 @@ class GoogleSheetsIntegration {
             }
             
             // Ler dados da planilha de modelos
-            const range = 'ModelosRespostas!A1:Z1000';
+            const range = 'Respostas Coerentes!A1:Z1000';
             const data = await googleSheetsConfig.readData(range);
             
             if (!data || data.length <= 1) {
@@ -480,7 +480,7 @@ class GoogleSheetsIntegration {
             }
             
             // Ler dados da planilha de feedbacks
-            const range = 'FeedbacksRespostas!A1:Z1000';
+            const range = 'Feedbacks!A1:Z1000';
             const data = await googleSheetsConfig.readData(range);
             
             if (!data || data.length <= 1) {
