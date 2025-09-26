@@ -459,6 +459,14 @@ function saveFeedbacksRespostas(feedbacks) {
                         respostaAnterior: ultimoFeedback.respostaAnterior || 'N/A',
                         feedback: ultimoFeedback.feedback || 'N/A',
                         respostaReformulada: ultimoFeedback.respostaReformulada || 'N/A',
+                        dadosFormulario: {
+                            tipo_solicitacao: ultimoFeedback.dadosFormulario?.tipo_solicitacao || ultimoFeedback.contexto?.tipoSituacao || 'N/A',
+                            motivo_solicitacao: ultimoFeedback.dadosFormulario?.motivo_solicitacao || ultimoFeedback.contexto?.motivoSolicitacao || 'N/A',
+                            solucao_implementada: ultimoFeedback.dadosFormulario?.solucao_implementada || '',
+                            historico_atendimento: ultimoFeedback.dadosFormulario?.historico_atendimento || '',
+                            observacoes_internas: ultimoFeedback.dadosFormulario?.observacoes_internas || '',
+                            texto_cliente: ultimoFeedback.dadosFormulario?.texto_cliente || 'N/A'
+                        },
                         timestamp: ultimoFeedback.timestamp,
                         userProfile: ultimoFeedback.userData ? `${ultimoFeedback.userData.nome} (${ultimoFeedback.userData.email})` : 'N/A',
                         userName: ultimoFeedback.userData?.nome || 'N/A',
