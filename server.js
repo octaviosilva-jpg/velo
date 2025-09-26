@@ -6089,6 +6089,68 @@ app.post('/api/refresh-google-sheets', async (req, res) => {
     }
 });
 
+// Endpoint para testar carregamento de dados da planilha
+app.post('/api/test-planilha-aprendizado', async (req, res) => {
+    try {
+        console.log('🧪 Testando carregamento de dados da planilha...');
+        
+        const { tipoSolicitacao = 'exclusao-chave-pix-cpf' } = req.body;
+        
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Google Sheets não está ativo'
+            });
+        }
+        
+        console.log('🔍 DEBUG - Testando com tipo:', tipoSolicitacao);
+        
+        // Forçar refresh do cache
+        await googleSheetsIntegration.forceRefreshData('all');
+        
+        // Carregar modelos
+        const modelos = await carregarModelosCoerentesDaPlanilha(tipoSolicitacao);
+        console.log('🔍 DEBUG - Modelos carregados:', modelos.length);
+        
+        // Carregar feedbacks
+        const feedbacks = await carregarFeedbacksRelevantesDaPlanilha(tipoSolicitacao);
+        console.log('🔍 DEBUG - Feedbacks carregados:', feedbacks.length);
+        
+        res.json({
+            success: true,
+            message: 'Teste de carregamento concluído',
+            tipoSolicitacao: tipoSolicitacao,
+            resultados: {
+                modelos: {
+                    total: modelos.length,
+                    dados: modelos.map(m => ({
+                        id: m.ID || m.id,
+                        tipo: m['Tipo Solicitação'] || m.tipo_situacao,
+                        motivo: m['Motivo Solicitação'] || m.motivo_solicitacao,
+                        resposta: m['Resposta Aprovada'] || m.respostaAprovada?.substring(0, 100) + '...'
+                    }))
+                },
+                feedbacks: {
+                    total: feedbacks.length,
+                    dados: feedbacks.map(f => ({
+                        id: f.ID || f.id,
+                        tipo: f['Tipo Solicitação'] || f.tipoSituacao,
+                        feedback: f.Feedback || f.feedback?.substring(0, 100) + '...'
+                    }))
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro no teste da planilha:', error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Erro no teste da planilha',
+            error: error.message
+        });
+    }
+});
+
 // Endpoint simples para testar se o Google Sheets está configurado
 app.get('/api/test-sheets-simple', async (req, res) => {
     try {
