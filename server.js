@@ -1366,30 +1366,8 @@ async function saveModelosRespostas(modelos) {
             }
         }
         
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                // Registrar cada modelo individualmente com dados do usuário
-                for (const modelo of modelos.modelos || []) {
-                    const respostaData = {
-                        id: modelo.id,
-                        tipo: 'resposta',
-                        tipoSituacao: modelo.tipo_situacao || modelo.contexto?.tipoSituacao || 'N/A',
-                        motivoSolicitacao: modelo.motivo_solicitacao || modelo.contexto?.motivoSolicitacao || 'N/A',
-                        respostaAprovada: modelo.respostaAprovada || 'N/A',
-                        dadosFormulario: modelo.dadosFormulario || {},
-                        timestamp: modelo.timestamp,
-                        userProfile: modelo.userData ? `${modelo.userData.nome} (${modelo.userData.email})` : 'N/A',
-                        userName: modelo.userData?.nome || 'N/A',
-                        userEmail: modelo.userData?.email || 'N/A'
-                    };
-                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
-                console.log('✅ Resposta coerente registrada INSTANTANEAMENTE no Google Sheets');
-                }
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // NOTA: Registro no Google Sheets é feito apenas quando uma nova resposta é marcada como coerente
+        // Para evitar registrar toda a fila de modelos existentes
     } catch (error) {
         console.error('❌ Erro ao salvar modelos de respostas:', error);
         
@@ -1442,6 +1420,28 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     
     modelos.modelos.push(novoModelo);
     console.log('📝 Modelo adicionado ao array. Total agora:', modelos.modelos.length);
+    
+    // Registrar APENAS a nova resposta no Google Sheets (não toda a fila)
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            const respostaData = {
+                id: novoModelo.id,
+                tipo: 'resposta',
+                tipoSituacao: novoModelo.tipo_situacao || 'N/A',
+                motivoSolicitacao: novoModelo.motivo_solicitacao || 'N/A',
+                respostaAprovada: novoModelo.respostaAprovada || 'N/A',
+                dadosFormulario: novoModelo.dadosFormulario || {},
+                timestamp: novoModelo.timestamp,
+                userProfile: novoModelo.userData ? `${novoModelo.userData.nome} (${novoModelo.userData.email})` : 'N/A',
+                userName: novoModelo.userData?.nome || 'N/A',
+                userEmail: novoModelo.userData?.email || 'N/A'
+            };
+            await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
+            console.log('✅ NOVA resposta coerente registrada INSTANTANEAMENTE no Google Sheets (ID:', novoModelo.id, ')');
+        } catch (error) {
+            console.error('❌ Erro ao registrar nova resposta coerente no Google Sheets:', error.message);
+        }
+    }
     
     console.log('💾 Chamando saveModelosRespostas...');
     await saveModelosRespostas(modelos);
