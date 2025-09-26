@@ -3249,6 +3249,11 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
         
         // Verificar se Google Sheets está ativo
+        console.log('🔍 DEBUG - Verificando Google Sheets:', {
+            googleSheetsIntegration: !!googleSheetsIntegration,
+            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false
+        });
+        
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
                 console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
