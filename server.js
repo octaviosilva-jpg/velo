@@ -2877,7 +2877,7 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', acessoData, true); // true = instantâneo
+                await googleSheetsQueue.addToQueue('registrarAcessoInterface', acessoData, true); // true = instantâneo
                 console.log('✅ Acesso registrado INSTANTANEAMENTE no Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar acesso no Google Sheets:', error.message);
