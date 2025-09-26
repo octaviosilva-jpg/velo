@@ -6096,10 +6096,32 @@ app.post('/api/test-planilha-aprendizado', async (req, res) => {
         
         const { tipoSolicitacao = 'exclusao-chave-pix-cpf' } = req.body;
         
+        // Verificar e inicializar Google Sheets se necessário
+        console.log('🔍 DEBUG - Verificando status do Google Sheets...');
+        console.log('🔍 DEBUG - googleSheetsIntegration existe:', !!googleSheetsIntegration);
+        console.log('🔍 DEBUG - Google Sheets ativo:', googleSheetsIntegration ? googleSheetsIntegration.isActive() : false);
+        
+        // Tentar inicializar Google Sheets se não estiver ativo
+        if (googleSheetsIntegration && !googleSheetsIntegration.isActive()) {
+            console.log('🔄 Tentando inicializar Google Sheets...');
+            try {
+                const envVars = loadEnvFile();
+                await googleSheetsIntegration.initialize(envVars);
+                console.log('✅ Google Sheets inicializado com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao inicializar Google Sheets:', error.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Erro ao inicializar Google Sheets',
+                    error: error.message
+                });
+            }
+        }
+        
         if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
             return res.status(400).json({
                 success: false,
-                message: 'Google Sheets não está ativo'
+                message: 'Google Sheets não está ativo após tentativa de inicialização'
             });
         }
         
