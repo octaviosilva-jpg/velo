@@ -3446,9 +3446,9 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
 });
 
 // Rota para gerar resposta RA via API OpenAI (endpoint principal com sistema de aprendizado)
-app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
+app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
     console.log('=================================');
-    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/generate-response 🔥🔥🔥');
+    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/gerar-resposta 🔥🔥🔥');
     console.log('=================================');
     let timeoutId;
     try {
