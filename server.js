@@ -15,10 +15,24 @@ class GoogleSheetsQueue {
     constructor() {
         this.queue = [];
         this.isProcessing = false;
-        this.processingInterval = 2000; // 2 segundos entre processamentos
+        this.processingInterval = 500; // 500ms entre processamentos (mais rápido)
     }
 
-    async addToQueue(operation, data) {
+    async addToQueue(operation, data, instant = false) {
+        // Se for instantâneo, processar diretamente sem fila
+        if (instant) {
+            try {
+                console.log(`⚡ Processamento INSTANTÂNEO: ${operation}`);
+                const result = await googleSheetsIntegration[operation](data);
+                console.log(`✅ Processamento instantâneo concluído: ${operation}`);
+                return result;
+            } catch (error) {
+                console.error(`❌ Erro no processamento instantâneo ${operation}:`, error.message);
+                throw error;
+            }
+        }
+        
+        // Processamento normal com fila
         return new Promise((resolve, reject) => {
             this.queue.push({
                 operation,
@@ -626,11 +640,8 @@ function saveFeedbacksModeracoes(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData).then(() => {
-                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
-                }).catch(error => {
-                    console.error('❌ Erro ao adicionar resposta coerente à fila:', error.message);
-                });
+                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
+                console.log('✅ Resposta coerente registrada INSTANTANEAMENTE no Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -880,6 +891,75 @@ function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
 }
 
 // ===== SISTEMA DE APRENDIZADO SEPARADO =====
+
+// Gerar script padrão "cru" para geração de respostas
+function gerarScriptPadraoResposta(dadosFormulario) {
+    return `📌 SCRIPT PADRÃO PARA GERAÇÃO DE RESPOSTA RA
+
+Você é responsável por gerar respostas para o Reclame Aqui seguindo o script estruturado abaixo.
+
+DADOS DE ENTRADA:
+- Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
+- Motivo da solicitação: ${dadosFormulario.motivo_solicitacao}
+- Solução implementada: ${dadosFormulario.solucao_implementada}
+- Texto do cliente: ${dadosFormulario.texto_cliente}
+- Histórico de atendimento: ${dadosFormulario.historico_atendimento}
+- Observações internas: ${dadosFormulario.observacoes_internas}
+
+⚙️ FLUXO LÓGICO OBRIGATÓRIO:
+
+1. ANÁLISE DA SOLICITAÇÃO:
+- Identifique o problema alegado pelo cliente
+- Verifique se a solução implementada resolve a solicitação
+- Considere o contexto do histórico de atendimento
+
+2. ESTRUTURA DA RESPOSTA:
+a) Agradecimento e reconhecimento
+b) Esclarecimento da situação
+c) Solução apresentada/implementada
+d) Compromisso de melhoria
+e) Convite para contato direto
+
+3. DIRETRIZES:
+- Sempre reconheça o problema do cliente
+- Explique as ações tomadas de forma clara
+- Demonstre compromisso com a satisfação
+- Mantenha tom profissional e respeitoso
+- Seja específico e detalhado
+
+Gere uma resposta completa e eficaz que atenda à solicitação do cliente.`;
+}
+
+// Reformular script com conhecimento da planilha
+function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario) {
+    let promptFinal = scriptPadrao;
+    
+    if (dadosPlanilha && (dadosPlanilha.modelosCoerentes?.length > 0 || dadosPlanilha.feedbacksRelevantes?.length > 0)) {
+        promptFinal += '\n\n🧠 CONHECIMENTO APLICADO DA PLANILHA:\n';
+        
+        // Adicionar modelos coerentes
+        if (dadosPlanilha.modelosCoerentes?.length > 0) {
+            promptFinal += '\n✅ MODELOS COERENTES APROVADOS (use como referência):\n';
+            dadosPlanilha.modelosCoerentes.forEach((modelo, index) => {
+                promptFinal += `${index + 1}. Resposta aprovada: "${modelo.respostaAprovada?.substring(0, 200)}..."\n`;
+                promptFinal += `   Contexto: ${modelo.dadosFormulario?.tipo_solicitacao} - ${modelo.dadosFormulario?.motivo_solicitacao}\n\n`;
+            });
+        }
+        
+        // Adicionar feedbacks relevantes
+        if (dadosPlanilha.feedbacksRelevantes?.length > 0) {
+            promptFinal += '\n⚠️ FEEDBACKS DE CORREÇÃO (evite estes erros):\n';
+            dadosPlanilha.feedbacksRelevantes.forEach((feedback, index) => {
+                promptFinal += `${index + 1}. ❌ Erro identificado: "${feedback.feedback?.substring(0, 150)}..."\n`;
+                promptFinal += `   ✅ Resposta corrigida: "${feedback.respostaReformulada?.substring(0, 150)}..."\n\n`;
+            });
+        }
+        
+        promptFinal += '\n🎯 INSTRUÇÃO CRÍTICA: Use os modelos aprovados como referência e evite os erros identificados nos feedbacks.';
+    }
+    
+    return promptFinal;
+}
 
 // Carregar dados completos de aprendizado da planilha
 async function carregarDadosAprendizadoCompleto(tipoSolicitacao) {
@@ -1227,11 +1307,8 @@ async function saveModelosRespostas(modelos) {
                         userName: modelo.userData?.nome || 'N/A',
                         userEmail: modelo.userData?.email || 'N/A'
                     };
-                googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData).then(() => {
-                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
-                }).catch(error => {
-                    console.error('❌ Erro ao adicionar resposta coerente à fila:', error.message);
-                });
+                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
+                console.log('✅ Resposta coerente registrada INSTANTANEAMENTE no Google Sheets');
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
@@ -2751,11 +2828,8 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData).then(() => {
-                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
-                }).catch(error => {
-                    console.error('❌ Erro ao adicionar resposta coerente à fila:', error.message);
-                });
+                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
+                console.log('✅ Resposta coerente registrada INSTANTANEAMENTE no Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -3404,13 +3478,14 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
             const data = await response.json();
             const resposta = data.choices[0].message.content;
             
-            // Verificar se a resposta foi gerada com aprendizado
-            const temAprendizado = conhecimentoFeedback && conhecimentoFeedback.length > 100;
+            // Verificar se a resposta foi gerada com conhecimento da planilha
+            const temConhecimentoPlanilha = dadosPlanilha && (dadosPlanilha.modelosCoerentes?.length > 0 || dadosPlanilha.feedbacksRelevantes?.length > 0);
             
-            if (temAprendizado) {
-                console.log('✅ Resposta gerada com aprendizado aplicado - mantendo resposta da IA');
+            if (temConhecimentoPlanilha) {
+                console.log('✅ Resposta gerada com conhecimento da planilha aplicado');
+                console.log(`📊 Conhecimento aplicado: ${dadosPlanilha.modelosCoerentes?.length || 0} modelos + ${dadosPlanilha.feedbacksRelevantes?.length || 0} feedbacks`);
             } else {
-                console.log('⚠️ Resposta gerada sem aprendizado - usando resposta da IA');
+                console.log('⚠️ Resposta gerada apenas com script padrão (sem conhecimento da planilha)');
             }
             
             // Atualizar estatísticas
@@ -3419,9 +3494,10 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
             res.json({
                 success: true,
                 result: resposta,
-                aprendizadoAplicado: temAprendizado,
-                modelosUtilizados: modelosCoerentes.length || 0,
-                feedbacksUtilizados: feedbacksRelevantes.length || 0
+                conhecimentoPlanilhaAplicado: temConhecimentoPlanilha,
+                modelosUtilizados: dadosPlanilha?.modelosCoerentes?.length || 0,
+                feedbacksUtilizados: dadosPlanilha?.feedbacksRelevantes?.length || 0,
+                fluxoUtilizado: 'Script Padrão → Consultar Planilha → Reformular'
             });
         } else {
             const errorData = await response.text();
@@ -3586,86 +3662,12 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
         }
 
-        const prompt = `Você é responsável por redigir respostas da empresa Velotax no Reclame Aqui.
-
-ANÁLISE OBRIGATÓRIA DE TODOS OS CAMPOS:
-
-Você receberá os seguintes campos que DEVEM ser analisados em conjunto:
-- **Reclamação do Cliente**: O que o cliente está solicitando/reclamando
-- **Solução Implementada**: O que a empresa fez para resolver
-- **Histórico de Atendimento**: Contexto de atendimentos anteriores
-- **Observações Internas**: Informações adicionais da equipe
-- **Tipo de Situação**: Categoria da solicitação
-- **Motivo da Solicitação**: Razão da solicitação
-
-DADOS RECEBIDOS PARA ANÁLISE COMPLETA:
-
-**Tipo de solicitação:** ${dadosFormulario.tipo_solicitacao}
-**Motivo da solicitação:** ${dadosFormulario.motivo_solicitacao}
-
-**RECLAMAÇÃO DO CLIENTE (ANALISAR PRIMEIRO):**
-"${dadosFormulario.texto_cliente}"
-
-**SOLUÇÃO IMPLEMENTADA (BASE FACTUAL):**
-"${dadosFormulario.solucao_implementada}"
-
-**HISTÓRICO DE ATENDIMENTO:**
-${dadosFormulario.historico_atendimento || 'Nenhum'}
-
-**OBSERVAÇÕES INTERNAS:**
-${dadosFormulario.observacoes_internas || 'Nenhuma'}
-
-SUA TAREFA É:
-
-1. **ANALISAR** a reclamação do cliente para entender exatamente o que ele está pedindo
-2. **CONSIDERAR** a solução implementada como base factual do que foi feito
-3. **INTEGRAR** o histórico de atendimento e observações internas para contexto completo
-4. **FORMULAR** uma resposta personalizada que responda diretamente à solicitação do cliente
-5. **ALINHAR** a resposta com a solução implementada, explicando como ela resolve a solicitação
-
-REGRAS OBRIGATÓRIAS:
-
-- **NUNCA** copie literalmente o texto da "Solução implementada"
-- **SEMPRE** formule uma resposta que responda diretamente à reclamação do cliente
-- **SEMPRE** explique como a solução implementada resolve a solicitação do cliente
-- **SEMPRE** use linguagem cordial, objetiva e empática
-- **SEMPRE** contextualize com referências legais quando aplicável (LGPD, CCB, etc.)
-- **SEMPRE** deixe o texto pronto para publicação no Reclame Aqui
-
-ANÁLISE INTELIGENTE DAS CLÁUSULAS DA CCB:
-
-Você deve analisar QUAL cláusula da CCB se aplica ao tipo de situação específica:
-
-**Cláusulas Disponíveis:**
-- **Cláusula 7**: Vínculo da Chave Pix e Quitação Automática (para casos de chave Pix, portabilidade, liberação)
-- **Cláusula 8**: Liquidação Antecipada (para casos de quitação, liquidação, encerramento)
-- **Cláusula 10**: Inadimplência e Vencimento Antecipado (para casos de inadimplência, vencimento)
-- **Cláusula 14**: Proteção de Dados (LGPD) (para casos de exclusão de cadastro, dados pessoais)
-
-**Como determinar a cláusula correta:**
-1. **ANALISAR** o tipo de situação: ${dadosFormulario.tipo_solicitacao}
-2. **IDENTIFICAR** qual cláusula se aplica baseado no tipo de situação
-3. **USAR** o conhecimento dos feedbacks para aplicar a cláusula correta
-4. **FUNDAMENTAR** a resposta com base na cláusula contratual específica
-5. **EXPLICAR** ao cliente como a cláusula justifica a solução implementada
-
-**IMPORTANTE:** Nem todos os casos usam a Cláusula 14 (LGPD). Use a cláusula apropriada para cada tipo de situação.
-
-IMPORTANTE:
-
-A resposta deve ser uma formulação completa que:
-1. Reconhece a solicitação do cliente
-2. Analisa a solução implementada com base nas cláusulas da CCB
-3. Explica como a solução resolve a solicitação fundamentada contratualmente
-4. Inclui contexto relevante do histórico e observações
-5. Demonstra conhecimento das obrigações contratuais
-6. Mantém tom profissional e empático
-
-${conhecimentoFeedback || ''}
-
-🎯 INSTRUÇÃO CRÍTICA: Use o conhecimento dos modelos coerentes para gerar uma resposta de alta qualidade desde o início, aplicando a estrutura e abordagem dos modelos aprovados.
-
-IMPORTANTE: A resposta deve ser específica para esta situação, não genérica. Use os dados fornecidos e o conhecimento dos modelos coerentes para criar uma resposta personalizada e de alta qualidade.`;
+        // USAR O NOVO FLUXO: Script Padrão → Consultar Planilha → Reformular
+        const prompt = reformularComConhecimento(
+            gerarScriptPadraoResposta(dadosFormulario), 
+            dadosPlanilha, 
+            dadosFormulario
+        );
 
         // Configurar timeout de 30 segundos
         const controller = new AbortController();
@@ -5085,15 +5087,16 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                     }
                 }
                 
-                // Adicionar modelo de resposta à fila do Google Sheets
+                // Adicionar modelo de resposta INSTANTANEAMENTE ao Google Sheets
                 if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                googleSheetsQueue.addToQueue('registrarRespostaCoerente', modelo).then(() => {
-                    console.log('📋 Modelo adicionado à fila do Google Sheets');
-                }).catch(error => {
-                    console.error('❌ Erro ao adicionar modelo à fila:', error.message);
-                    });
-                    syncResult = { googleSheets: 'Adicionado à fila' };
-                    console.log('✅ Modelo adicionado à fila com sucesso');
+                    try {
+                        await googleSheetsQueue.addToQueue('registrarRespostaCoerente', modelo, true); // true = instantâneo
+                        syncResult = { googleSheets: 'Registrado instantaneamente' };
+                        console.log('✅ Modelo registrado INSTANTANEAMENTE no Google Sheets');
+                    } catch (error) {
+                        console.error('❌ Erro ao registrar modelo instantaneamente:', error.message);
+                        syncResult = { googleSheets: 'Erro no registro instantâneo' };
+                    }
                 } else {
                     console.log('⚠️ Google Sheets não está disponível ou não está ativo');
                 }
