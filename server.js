@@ -3401,7 +3401,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
             }
             
             // Atualizar estatísticas
-            updateEstatisticas('respostas_geradas');
+            incrementarEstatisticaGlobal('respostas_geradas');
             
             res.json({
                 success: true,
@@ -3640,7 +3640,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
             }
             
             // Atualizar estatísticas
-            updateEstatisticas('respostas_geradas');
+            incrementarEstatisticaGlobal('respostas_geradas');
             
             res.json({
                 success: true,
