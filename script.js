@@ -295,7 +295,7 @@ async function gerarRespostaRAViaAPI(dadosResposta) {
         
         console.log('👤 Dados do usuário para geração:', userData);
         
-        const response = await fetch('/api/generate-response', {
+        const response = await fetch('/api/gerar-resposta', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
