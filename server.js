@@ -3188,14 +3188,23 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 
 // Rota para gerar resposta RA via API OpenAI (endpoint em português - redirecionamento da Vercel)
 app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
+    console.log('🚨🚨🚨 ENDPOINT /api/gerar-resposta INTERCEPTADO - REDIRECIONANDO PARA SISTEMA DE APRENDIZADO 🚨🚨🚨');
+    
+    // Redirecionar para o endpoint correto com sistema de aprendizado
+    req.url = '/api/generate-response';
+    return app._router.handle(req, res);
+});
+
+// Rota para gerar resposta RA via API OpenAI (endpoint com sistema de aprendizado completo)
+app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
     console.log('=================================');
-    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/gerar-resposta 🔥🔥🔥');
+    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/generate-response 🔥🔥🔥');
     console.log('=================================');
     let timeoutId;
     try {
         console.log('🔥 DENTRO DO TRY - INICIANDO PROCESSAMENTO');
         const { dadosFormulario, userData } = req.body;
-        console.log('🎯 Endpoint /api/gerar-resposta chamado');
+        console.log('🎯 Endpoint /api/generate-response chamado');
         console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
         console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
         console.log('🚀 INICIANDO SISTEMA DE APRENDIZADO...');
@@ -3414,7 +3423,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
         
     } catch (error) {
         clearTimeout(timeoutId);
-        console.error('🔥 ERRO NO ENDPOINT /api/gerar-resposta:', error);
+        console.error('🔥 ERRO NO ENDPOINT /api/generate-response:', error);
         console.error('🔥 STACK TRACE:', error.stack);
         
         res.status(500).json({
