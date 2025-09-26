@@ -8,7 +8,64 @@ const crypto = require('crypto');
 
 // ===== INTEGRAÇÃO COM GOOGLE SHEETS =====
 const googleSheetsIntegration = require('./google-sheets-integration');
-// Sistema de fila removido - salvamento direto
+const googleSheetsConfig = require('./google-sheets-config');
+
+// ===== SISTEMA DE FILA PARA GOOGLE SHEETS =====
+class GoogleSheetsQueue {
+    constructor() {
+        this.queue = [];
+        this.isProcessing = false;
+        this.processingInterval = 2000; // 2 segundos entre processamentos
+    }
+
+    async addToQueue(operation, data) {
+        return new Promise((resolve, reject) => {
+            this.queue.push({
+                operation,
+                data,
+                resolve,
+                reject,
+                timestamp: Date.now()
+            });
+            
+            if (!this.isProcessing) {
+                this.processQueue();
+            }
+        });
+    }
+
+    async processQueue() {
+        if (this.isProcessing || this.queue.length === 0) {
+            return;
+        }
+
+        this.isProcessing = true;
+        console.log(`🔄 Processando fila do Google Sheets: ${this.queue.length} itens`);
+
+        while (this.queue.length > 0) {
+            const item = this.queue.shift();
+            
+            try {
+                console.log(`📝 Processando: ${item.operation}`);
+                const result = await googleSheetsIntegration[item.operation](item.data);
+                item.resolve(result);
+            } catch (error) {
+                console.error(`❌ Erro ao processar ${item.operation}:`, error.message);
+                item.reject(error);
+            }
+
+            // Aguardar intervalo entre processamentos
+            if (this.queue.length > 0) {
+                await new Promise(resolve => setTimeout(resolve, this.processingInterval));
+            }
+        }
+
+        this.isProcessing = false;
+        console.log('✅ Fila do Google Sheets processada');
+    }
+}
+
+const googleSheetsQueue = new GoogleSheetsQueue();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -569,12 +626,11 @@ function saveFeedbacksModeracoes(feedbacks) {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData).then(() => {
-                        console.log('📋 Resposta coerente salva no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar resposta coerente:', error.message);
-                    });
-                    console.log('📋 Resposta coerente salva DIRETAMENTE no Google Sheets');
+                googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData).then(() => {
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
+                }).catch(error => {
+                    console.error('❌ Erro ao adicionar resposta coerente à fila:', error.message);
+                });
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -910,43 +966,27 @@ async function carregarDadosAprendizadoLocal(tipoSolicitacao) {
 
 // Carregar modelos coerentes da planilha
 async function carregarModelosCoerentesDaPlanilha(tipoSolicitacao) {
+    if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+        console.log('⚠️ Google Sheets não está ativo. Não é possível carregar modelos da planilha.');
+        return [];
+    }
+
     try {
         console.log(`📋 Carregando modelos coerentes da planilha para: ${tipoSolicitacao}`);
         
-        const range = 'Respostas Coerentes!A1:Z1000';
-        const data = await googleSheetsConfig.readData(range);
+        // Usar a integração do Google Sheets em vez de acessar diretamente
+        const todosModelos = await googleSheetsIntegration.obterModelosRespostas();
         
-        if (!data || data.length <= 1) {
+        if (!todosModelos || todosModelos.length === 0) {
             console.log('📋 Nenhum modelo coerente encontrado na planilha');
             return [];
         }
         
-        const modelos = [];
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            if (row.length === 0) continue;
-            
-            const modelo = {
-                id: row[0] || `planilha_${i}`,
-                timestamp: row[1] || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-                tipo_situacao: row[2] || 'N/A',
-                motivo_solicitacao: row[3] || 'N/A',
-                solucao_implementada: row[4] || 'N/A',
-                texto_cliente: row[5] || 'N/A',
-                respostaAprovada: row[6] || 'N/A',
-                dadosFormulario: {
-                    tipo_solicitacao: row[2] || 'N/A',
-                    motivo_solicitacao: row[3] || 'N/A',
-                    solucao_implementada: row[4] || 'N/A',
-                    texto_cliente: row[5] || 'N/A'
-                }
-            };
-            
-            if (modelo.tipo_situacao && 
-                modelo.tipo_situacao.toLowerCase().includes(tipoSolicitacao.toLowerCase())) {
-                modelos.push(modelo);
-            }
-        }
+        // Filtrar modelos relevantes para o tipo de solicitação
+        const modelos = todosModelos.filter(modelo => {
+            const tipoSituacao = modelo['Tipo Solicitação'] || modelo.tipo_situacao || '';
+            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase());
+        });
         
         console.log(`✅ Carregados ${modelos.length} modelos coerentes da planilha`);
         return modelos;
@@ -959,42 +999,27 @@ async function carregarModelosCoerentesDaPlanilha(tipoSolicitacao) {
 
 // Carregar feedbacks relevantes da planilha
 async function carregarFeedbacksRelevantesDaPlanilha(tipoSolicitacao) {
+    if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+        console.log('⚠️ Google Sheets não está ativo. Não é possível carregar feedbacks da planilha.');
+        return [];
+    }
+
     try {
         console.log(`💬 Carregando feedbacks relevantes da planilha para: ${tipoSolicitacao}`);
         
-        const range = 'Feedbacks!A1:Z1000';
-        const data = await googleSheetsConfig.readData(range);
+        // Usar a integração do Google Sheets em vez de acessar diretamente
+        const todosFeedbacks = await googleSheetsIntegration.obterFeedbacksRespostas();
         
-        if (!data || data.length <= 1) {
+        if (!todosFeedbacks || todosFeedbacks.length === 0) {
             console.log('💬 Nenhum feedback encontrado na planilha');
             return [];
         }
         
-        const feedbacks = [];
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            if (row.length === 0) continue;
-            
-            const feedback = {
-                id: row[0] || `feedback_${i}`,
-                timestamp: row[1] || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-                tipo: row[2] || 'N/A',
-                tipoSituacao: row[3] || 'N/A',
-                textoCliente: row[4] || 'N/A',
-                respostaAnterior: row[5] || 'N/A',
-                feedback: row[6] || 'N/A',
-                respostaReformulada: row[7] || 'N/A',
-                dadosFormulario: {
-                    tipo_solicitacao: row[3] || 'N/A',
-                    texto_cliente: row[4] || 'N/A'
-                }
-            };
-            
-            if (feedback.tipoSituacao && 
-                feedback.tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase())) {
-                feedbacks.push(feedback);
-            }
-        }
+        // Filtrar feedbacks relevantes para o tipo de solicitação
+        const feedbacks = todosFeedbacks.filter(feedback => {
+            const tipoSituacao = feedback['Tipo Solicitação'] || feedback.tipoSituacao || '';
+            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase());
+        });
         
         console.log(`✅ Carregados ${feedbacks.length} feedbacks relevantes da planilha`);
         return feedbacks;
@@ -1017,46 +1042,19 @@ async function carregarModelosDaPlanilha(tipoSolicitacao) {
     try {
         console.log(`📚 Carregando modelos da planilha para: ${tipoSolicitacao}`);
         
-        // Ler dados da planilha "Respostas Coerentes"
-        const range = 'Respostas Coerentes!A1:Z1000';
-        const data = await googleSheetsConfig.readData(range);
+        // Usar a integração do Google Sheets em vez de acessar diretamente
+        const todosModelos = await googleSheetsIntegration.obterModelosRespostas();
         
-        if (!data || data.length <= 1) {
+        if (!todosModelos || todosModelos.length === 0) {
             console.log('📚 Nenhum modelo encontrado na planilha');
             return [];
         }
         
-        // Converter dados da planilha para formato de modelos
-        const modelos = [];
-        const headers = data[0]; // Primeira linha são os cabeçalhos
-        
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            if (row.length === 0) continue; // Pular linhas vazias
-            
-            // Mapear colunas (ajustar conforme estrutura da planilha)
-            const modelo = {
-                id: row[0] || `planilha_${i}`,
-                timestamp: row[1] || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-                tipo_situacao: row[2] || 'N/A',
-                motivo_solicitacao: row[3] || 'N/A',
-                solucao_implementada: row[4] || 'N/A',
-                texto_cliente: row[5] || 'N/A',
-                respostaAprovada: row[6] || 'N/A',
-                dadosFormulario: {
-                    tipo_solicitacao: row[2] || 'N/A',
-                    motivo_solicitacao: row[3] || 'N/A',
-                    solucao_implementada: row[4] || 'N/A',
-                    texto_cliente: row[5] || 'N/A'
-                }
-            };
-            
-            // Filtrar apenas modelos relevantes para o tipo de solicitação
-            if (modelo.tipo_situacao && 
-                modelo.tipo_situacao.toLowerCase().includes(tipoSolicitacao.toLowerCase())) {
-                modelos.push(modelo);
-            }
-        }
+        // Filtrar modelos relevantes para o tipo de solicitação
+        const modelos = todosModelos.filter(modelo => {
+            const tipoSituacao = modelo['Tipo Solicitação'] || modelo.tipo_situacao || '';
+            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase());
+        });
         
         console.log(`✅ Carregados ${modelos.length} modelos relevantes da planilha`);
         return modelos;
@@ -1229,12 +1227,11 @@ async function saveModelosRespostas(modelos) {
                         userName: modelo.userData?.nome || 'N/A',
                         userEmail: modelo.userData?.email || 'N/A'
                     };
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData).then(() => {
-                        console.log('📋 Resposta coerente salva no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar resposta coerente:', error.message);
-                    });
-                    console.log('📋 Resposta coerente salva DIRETAMENTE no Google Sheets');
+                googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData).then(() => {
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
+                }).catch(error => {
+                    console.error('❌ Erro ao adicionar resposta coerente à fila:', error.message);
+                });
                 }
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
@@ -1856,7 +1853,6 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
                     }).catch(error => {
                         console.error('❌ Erro ao salvar resposta coerente:', error.message);
                     });
-                    console.log('📋 Resposta coerente salva DIRETAMENTE no Google Sheets');
         } catch (error) {
             console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
         }
@@ -2741,12 +2737,11 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                    googleSheetsIntegration.registrarRespostaCoerente(respostaData).then(() => {
-                        console.log('📋 Resposta coerente salva no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar resposta coerente:', error.message);
-                    });
-                    console.log('📋 Resposta coerente salva DIRETAMENTE no Google Sheets');
+                googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData).then(() => {
+                    console.log('📋 Resposta coerente adicionada à fila do Google Sheets');
+                }).catch(error => {
+                    console.error('❌ Erro ao adicionar resposta coerente à fila:', error.message);
+                });
             } catch (error) {
                 console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
             }
@@ -5078,11 +5073,10 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                 
                 // Adicionar modelo de resposta à fila do Google Sheets
                 if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                    console.log('📋 Salvando modelo DIRETAMENTE no Google Sheets...');
-                    googleSheetsIntegration.registrarRespostaCoerente(modelo).then(() => {
-                        console.log('📋 Modelo salvo no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar modelo:', error.message);
+                googleSheetsQueue.addToQueue('registrarRespostaCoerente', modelo).then(() => {
+                    console.log('📋 Modelo adicionado à fila do Google Sheets');
+                }).catch(error => {
+                    console.error('❌ Erro ao adicionar modelo à fila:', error.message);
                     });
                     syncResult = { googleSheets: 'Adicionado à fila' };
                     console.log('✅ Modelo adicionado à fila com sucesso');
@@ -6034,7 +6028,7 @@ app.post('/api/test-google-sheets', async (req, res) => {
         });
         
         // Tentar registrar resposta coerente
-        googleSheetsIntegration.registrarRespostaCoerente(testData).then(result => {
+        googleSheetsQueue.addToQueue('registrarRespostaCoerente', testData).then(result => {
             console.log('📝 Resultado da resposta:', result);
         }).catch(error => {
             console.error('❌ Erro na resposta:', error.message);
@@ -6057,6 +6051,40 @@ app.post('/api/test-google-sheets', async (req, res) => {
             error: 'Erro no teste do Google Sheets',
             message: error.message,
             stack: error.stack
+        });
+    }
+});
+
+// Endpoint para forçar refresh dos dados do Google Sheets
+app.post('/api/refresh-google-sheets', async (req, res) => {
+    try {
+        console.log('🔄 Forçando refresh dos dados do Google Sheets...');
+        
+        const { dataType = 'all' } = req.body;
+        
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Google Sheets não está ativo'
+            });
+        }
+        
+        // Forçar refresh dos dados
+        const result = await googleSheetsIntegration.forceRefreshData(dataType);
+        
+        res.json({
+            success: true,
+            message: `Dados ${dataType} atualizados com sucesso`,
+            dataType: dataType,
+            result: result
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao forçar refresh:', error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao forçar refresh dos dados',
+            error: error.message
         });
     }
 });
@@ -6486,7 +6514,7 @@ app.get('/api/test-sheets-register', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar resposta coerente
-        googleSheetsIntegration.registrarRespostaCoerente(testData).then(result => {
+        googleSheetsQueue.addToQueue('registrarRespostaCoerente', testData).then(result => {
             console.log('📝 Resultado da resposta:', result);
         }).catch(error => {
             console.error('❌ Erro na resposta:', error.message);

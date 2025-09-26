@@ -5,6 +5,12 @@ class GoogleSheetsIntegration {
     constructor() {
         this.initialized = false;
         this.spreadsheetId = null;
+        this.rateLimitQueue = [];
+        this.isProcessingQueue = false;
+        this.lastRequestTime = 0;
+        this.minRequestInterval = 1000; // 1 segundo entre requests
+        this.cache = new Map();
+        this.cacheTimeout = 2 * 60 * 1000; // 2 minutos (mais responsivo)
     }
 
     /**
@@ -53,6 +59,7 @@ class GoogleSheetsIntegration {
                 if (this.initialized) {
                     console.log('✅ Integração com Google Sheets (Service Account) inicializada com sucesso');
                     await this.ensureSheetsExist();
+                    this.startCacheCleanup(); // Iniciar limpeza periódica de cache
                 } else {
                     console.log('⚠️ Integração com Google Sheets (Service Account) não pôde ser inicializada');
                 }
@@ -107,6 +114,122 @@ class GoogleSheetsIntegration {
     isActive() {
         // Google Sheets habilitado para Vercel com Service Account
         return this.initialized && googleSheetsConfig.isInitialized();
+    }
+
+    /**
+     * Rate limiting para evitar esgotamento de quota
+     */
+    async waitForRateLimit() {
+        const now = Date.now();
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        
+        if (timeSinceLastRequest < this.minRequestInterval) {
+            const waitTime = this.minRequestInterval - timeSinceLastRequest;
+            console.log(`⏳ Rate limiting: aguardando ${waitTime}ms...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+        this.lastRequestTime = Date.now();
+    }
+
+    /**
+     * Verifica cache antes de fazer request
+     */
+    getFromCache(key, forceRefresh = false) {
+        if (forceRefresh) {
+            console.log(`🔄 Forçando refresh do cache para: ${key}`);
+            this.cache.delete(key);
+            return null;
+        }
+        
+        const cached = this.cache.get(key);
+        if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+            console.log(`📋 Cache hit para: ${key}`);
+            return cached.data;
+        }
+        return null;
+    }
+
+    /**
+     * Salva no cache
+     */
+    setCache(key, data) {
+        this.cache.set(key, {
+            data: data,
+            timestamp: Date.now()
+        });
+        console.log(`💾 Cache salvo para: ${key}`);
+    }
+
+    /**
+     * Limpa cache expirado
+     */
+    cleanExpiredCache() {
+        const now = Date.now();
+        for (const [key, value] of this.cache.entries()) {
+            if ((now - value.timestamp) >= this.cacheTimeout) {
+                this.cache.delete(key);
+            }
+        }
+    }
+
+    /**
+     * Invalida cache específico (usado após operações de escrita)
+     */
+    invalidateCache(keys = []) {
+        if (keys.length === 0) {
+            // Se não especificar chaves, limpar todo o cache
+            this.cache.clear();
+            console.log('🗑️ Cache completamente limpo');
+        } else {
+            keys.forEach(key => {
+                this.cache.delete(key);
+                console.log(`🗑️ Cache invalidado para: ${key}`);
+            });
+        }
+    }
+
+    /**
+     * Força refresh de dados específicos
+     */
+    async forceRefreshData(dataType) {
+        const cacheKeys = {
+            'modelos': 'modelos_respostas',
+            'feedbacks': 'feedbacks_respostas',
+            'all': ['modelos_respostas', 'feedbacks_respostas']
+        };
+
+        const keys = cacheKeys[dataType] || [dataType];
+        this.invalidateCache(Array.isArray(keys) ? keys : [keys]);
+        
+        // Recarregar dados se necessário
+        if (dataType === 'modelos' || dataType === 'all') {
+            return await this.obterModelosRespostas();
+        }
+        if (dataType === 'feedbacks' || dataType === 'all') {
+            return await this.obterFeedbacksRespostas();
+        }
+    }
+
+    /**
+     * Trata erros de quota do Google Sheets
+     */
+    handleQuotaError(error) {
+        if (error.message && error.message.includes('quota') || error.message.includes('esgotado')) {
+            console.log('⚠️ Quota do Google Sheets esgotada. Aumentando intervalo de rate limiting...');
+            this.minRequestInterval = Math.min(this.minRequestInterval * 2, 10000); // Máximo 10 segundos
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Inicializa limpeza periódica de cache
+     */
+    startCacheCleanup() {
+        setInterval(() => {
+            this.cleanExpiredCache();
+        }, 60000); // Limpar a cada minuto
     }
 
     /**
@@ -204,6 +327,11 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Rate limiting para operações de escrita
+            await this.waitForRateLimit();
+            
+            // Invalidar cache relacionado para forçar atualização
+            this.invalidateCache(['feedbacks_respostas']);
             // Criar perfil do usuário para a coluna ID
             const userProfile = feedbackData.userProfile || 
                 (feedbackData.userEmail ? `${feedbackData.userName || 'Usuário'} (${feedbackData.userEmail})` : 'N/A');
@@ -229,6 +357,7 @@ class GoogleSheetsIntegration {
 
         } catch (error) {
             console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
+            this.handleQuotaError(error);
             return false;
         }
     }
@@ -255,6 +384,11 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Rate limiting para operações de escrita
+            await this.waitForRateLimit();
+            
+            // Invalidar cache relacionado para forçar atualização
+            this.invalidateCache(['modelos_respostas']);
             // Criar perfil do usuário para a coluna ID
             const userProfile = respostaData.userProfile || 
                 (respostaData.userEmail ? `${respostaData.userName || 'Usuário'} (${respostaData.userEmail})` : 'N/A');
@@ -279,6 +413,7 @@ class GoogleSheetsIntegration {
 
         } catch (error) {
             console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+            this.handleQuotaError(error);
             return false;
         }
     }
@@ -410,6 +545,13 @@ class GoogleSheetsIntegration {
         try {
             console.log('📚 Obtendo modelos de respostas do Google Sheets...');
             
+            // Verificar cache primeiro
+            const cacheKey = 'modelos_respostas';
+            const cachedData = this.getFromCache(cacheKey);
+            if (cachedData) {
+                return cachedData;
+            }
+            
             // Verificar se googleSheetsConfig está inicializado
             console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
                 existe: !!googleSheetsConfig,
@@ -420,6 +562,9 @@ class GoogleSheetsIntegration {
                 console.log('⚠️ googleSheetsConfig não está inicializado');
                 return [];
             }
+            
+            // Rate limiting
+            await this.waitForRateLimit();
             
             // Ler dados da planilha de modelos
             const range = 'Respostas Coerentes!A1:Z1000';
@@ -448,10 +593,15 @@ class GoogleSheetsIntegration {
             }
             
             console.log(`✅ ${modelos.length} modelos obtidos do Google Sheets`);
+            
+            // Salvar no cache
+            this.setCache(cacheKey, modelos);
+            
             return modelos;
             
         } catch (error) {
             console.error('❌ Erro ao obter modelos do Google Sheets:', error.message);
+            this.handleQuotaError(error);
             return [];
         }
     }
@@ -468,6 +618,13 @@ class GoogleSheetsIntegration {
         try {
             console.log('📚 Obtendo feedbacks de respostas do Google Sheets...');
             
+            // Verificar cache primeiro
+            const cacheKey = 'feedbacks_respostas';
+            const cachedData = this.getFromCache(cacheKey);
+            if (cachedData) {
+                return cachedData;
+            }
+            
             // Verificar se googleSheetsConfig está inicializado
             console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
                 existe: !!googleSheetsConfig,
@@ -478,6 +635,9 @@ class GoogleSheetsIntegration {
                 console.log('⚠️ googleSheetsConfig não está inicializado');
                 return [];
             }
+            
+            // Rate limiting
+            await this.waitForRateLimit();
             
             // Ler dados da planilha de feedbacks
             const range = 'Feedbacks!A1:Z1000';
@@ -506,10 +666,15 @@ class GoogleSheetsIntegration {
             }
             
             console.log(`✅ ${feedbacks.length} feedbacks obtidos do Google Sheets`);
+            
+            // Salvar no cache
+            this.setCache(cacheKey, feedbacks);
+            
             return feedbacks;
             
         } catch (error) {
             console.error('❌ Erro ao obter feedbacks do Google Sheets:', error.message);
+            this.handleQuotaError(error);
             return [];
         }
     }
