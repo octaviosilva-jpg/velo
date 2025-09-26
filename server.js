@@ -3244,6 +3244,8 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         
         // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
         let conhecimentoFeedback = '';
+        let modelosCoerentes = [];
+        let feedbacksRelevantes = [];
         
         console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
         
@@ -3253,11 +3255,11 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
                 console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
                 
                 // Carregar modelos coerentes da planilha
-                const modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
                 console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
                 
                 // Carregar feedbacks da planilha
-                const feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
                 console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
                 
                 // APLICAR MODELOS COERENTES
@@ -3493,6 +3495,8 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
         
         // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
         let conhecimentoFeedback = '';
+        let modelosCoerentes = [];
+        let feedbacksRelevantes = [];
         
         console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
         
@@ -3502,11 +3506,11 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
                 console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
                 
                 // Carregar modelos coerentes da planilha
-                const modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
                 console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
                 
                 // Carregar feedbacks da planilha
-                const feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
                 console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
                 
                 // APLICAR MODELOS COERENTES
