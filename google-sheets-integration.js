@@ -413,6 +413,11 @@ class GoogleSheetsIntegration {
             console.log('📚 Obtendo modelos de respostas do Google Sheets...');
             
             // Verificar se googleSheetsConfig está inicializado
+            console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
+                existe: !!googleSheetsConfig,
+                isInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+            });
+            
             if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
                 console.log('⚠️ googleSheetsConfig não está inicializado');
                 return [];
@@ -466,6 +471,11 @@ class GoogleSheetsIntegration {
             console.log('📚 Obtendo feedbacks de respostas do Google Sheets...');
             
             // Verificar se googleSheetsConfig está inicializado
+            console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
+                existe: !!googleSheetsConfig,
+                isInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+            });
+            
             if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
                 console.log('⚠️ googleSheetsConfig não está inicializado');
                 return [];
