@@ -591,7 +591,7 @@ function loadFeedbacksModeracoes() {
 }
 
 // Salvar feedbacks de moderações
-function saveFeedbacksModeracoes(feedbacks) {
+async function saveFeedbacksModeracoes(feedbacks) {
     try {
         feedbacks.lastUpdated = obterTimestampBrasil();
         
@@ -637,15 +637,7 @@ function saveFeedbacksModeracoes(feedbacks) {
         fs.writeFileSync(FEEDBACKS_MODERACOES_FILE, JSON.stringify(feedbacks, null, 2));
         console.log('✅ Feedbacks de moderações salvos no arquivo:', FEEDBACKS_MODERACOES_FILE);
         
-        // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
-                console.log('✅ Resposta coerente registrada INSTANTANEAMENTE no Google Sheets');
-            } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-            }
-        }
+        // Nota: Registros no Google Sheets são feitos em outras funções específicas
     } catch (error) {
         console.error('❌ Erro ao salvar feedbacks de moderações:', error);
         
@@ -2296,7 +2288,7 @@ async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulad
     };
     
     feedbacks.moderacoes.push(novoFeedback);
-    saveFeedbacksModeracoes(feedbacks);
+    await saveFeedbacksModeracoes(feedbacks);
     
     console.log('📝 Feedback de moderação adicionado (aba Moderação RA):', novoFeedback.id);
     return novoFeedback;
@@ -2828,10 +2820,10 @@ app.post('/api/registrar-acesso', rateLimitMiddleware, async (req, res) => {
         // Registrar no Google Sheets se ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
-                console.log('✅ Resposta coerente registrada INSTANTANEAMENTE no Google Sheets');
+                await googleSheetsQueue.addToQueue('registrarRespostaCoerente', acessoData, true); // true = instantâneo
+                console.log('✅ Acesso registrado INSTANTANEAMENTE no Google Sheets');
             } catch (error) {
-                console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+                console.error('❌ Erro ao registrar acesso no Google Sheets:', error.message);
             }
         }
         
@@ -4976,7 +4968,7 @@ app.delete('/api/feedbacks/moderacoes', async (req, res) => {
             moderacoes: [],
             lastUpdated: obterTimestampBrasil()
         };
-        saveFeedbacksModeracoes(feedbacksVazios);
+        await saveFeedbacksModeracoes(feedbacksVazios);
         res.json({
             success: true,
             message: 'Feedbacks de moderações limpos com sucesso'
