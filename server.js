@@ -3186,6 +3186,38 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
+// Rota para gerar resposta RA via API OpenAI (endpoint em português)
+app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
+    console.log('=================================');
+    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/gerar-resposta 🔥🔥🔥');
+    console.log('=================================');
+    let timeoutId;
+    try {
+        console.log('🔥 DENTRO DO TRY - INICIANDO PROCESSAMENTO');
+        const { dadosFormulario, userData } = req.body;
+        console.log('🎯 Endpoint /api/gerar-resposta chamado');
+        console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
+        console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
+        console.log('🚀 INICIANDO SISTEMA DE APRENDIZADO...');
+        
+        // Chamar diretamente o endpoint generate-response
+        req.url = '/api/generate-response';
+        
+        // Redirecionar para o endpoint principal
+        return app._router.handle(req, res);
+        
+    } catch (error) {
+        clearTimeout(timeoutId);
+        console.error('🔥 ERRO NO ENDPOINT /api/gerar-resposta:', error);
+        console.error('🔥 STACK TRACE:', error.stack);
+        
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
 
 // Rota para gerar resposta RA via API OpenAI (endpoint principal com sistema de aprendizado)
 app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
