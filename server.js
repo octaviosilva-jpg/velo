@@ -1522,25 +1522,39 @@ async function processarAprendizadoObrigatorio(dadosFormulario) {
         motivo_solicitacao: dadosFormulario.motivo_solicitacao
     });
     
-    // 1. Carregar aprendizado específico para o tipo de situação
-    const aprendizadoScript = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
-    console.log('🧠 Aprendizado carregado:', {
-        feedbacks: aprendizadoScript?.feedbacks?.length || 0,
-        respostasCoerentes: aprendizadoScript?.respostasCoerentes?.length || 0,
-        padroes: aprendizadoScript?.padroesIdentificados?.length || 0,
-        clausulas: aprendizadoScript?.clausulasUsadas?.length || 0
-    });
+    // 1. Carregar aprendizado da PLANILHA (não da memória)
+    console.log('🧠 SISTEMA DE APRENDIZADO: Carregando dados da PLANILHA...');
+    let aprendizadoScript = null;
+    
+    try {
+        // Tentar carregar da planilha primeiro
+        aprendizadoScript = await carregarDadosAprendizadoCompleto(dadosFormulario.tipo_solicitacao);
+        console.log('✅ Aprendizado carregado da PLANILHA:', {
+            modelosCoerentes: aprendizadoScript?.modelosCoerentes?.length || 0,
+            feedbacksRelevantes: aprendizadoScript?.feedbacksRelevantes?.length || 0,
+            fonte: aprendizadoScript?.fonte || 'desconhecida'
+        });
+    } catch (error) {
+        console.log('⚠️ Erro ao carregar da planilha, usando fallback local:', error.message);
+        // Fallback para dados locais se a planilha falhar
+        aprendizadoScript = await carregarDadosAprendizadoLocal(dadosFormulario.tipo_solicitacao);
+        console.log('✅ Aprendizado carregado do FALLBACK LOCAL:', {
+            modelosCoerentes: aprendizadoScript?.modelosCoerentes?.length || 0,
+            feedbacksRelevantes: aprendizadoScript?.feedbacksRelevantes?.length || 0,
+            fonte: aprendizadoScript?.fonte || 'local'
+        });
+    }
     
     // 2. Verificar se há feedbacks contrários a cláusulas
-    const temFeedbackContrario = aprendizadoScript?.feedbacks?.some(fb => 
-        fb.feedback.toLowerCase().includes('não cite') || 
-        fb.feedback.toLowerCase().includes('nao cite') ||
-        fb.feedback.toLowerCase().includes('não use') ||
-        fb.feedback.toLowerCase().includes('nao use')
+    const temFeedbackContrario = aprendizadoScript?.feedbacksRelevantes?.some(fb => 
+        (fb.feedback || fb.Feedback || '').toLowerCase().includes('não cite') || 
+        (fb.feedback || fb.Feedback || '').toLowerCase().includes('nao cite') ||
+        (fb.feedback || fb.Feedback || '').toLowerCase().includes('não use') ||
+        (fb.feedback || fb.Feedback || '').toLowerCase().includes('nao use')
     );
     
-    // 3. Processar padrões se necessário
-    if (aprendizadoScript?.feedbacks?.length > 0 && aprendizadoScript?.padroesIdentificados?.length === 0) {
+    // 3. Processar padrões se necessário (apenas se não tiver dados da planilha)
+    if (aprendizadoScript?.fonte === 'local' && aprendizadoScript?.feedbacksRelevantes?.length > 0) {
         console.log('🔍 Identificando padrões automaticamente...');
         await processarPadroesExistentes(dadosFormulario.tipo_solicitacao);
         // Recarregar aprendizado após identificar padrões
@@ -1554,11 +1568,11 @@ async function processarAprendizadoObrigatorio(dadosFormulario) {
     // 4. Construir instruções de aprendizado
     let instrucoesAprendizado = '';
     
-    if (aprendizadoScript?.feedbacks?.length > 0 || aprendizadoScript?.respostasCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
+    if (aprendizadoScript?.feedbacksRelevantes?.length > 0 || aprendizadoScript?.modelosCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
         console.log('✅ APLICANDO APRENDIZADO OBRIGATÓRIO!');
         
         instrucoesAprendizado = '\n\n🎓 INSTRUÇÕES OBRIGATÓRIAS DE APRENDIZADO (BASEADAS EM FEEDBACKS REAIS):\n';
-        instrucoesAprendizado += `Baseado em ${aprendizadoScript.feedbacks.length} feedbacks e ${aprendizadoScript.respostasCoerentes.length} respostas aprovadas para "${dadosFormulario.tipo_solicitacao}":\n\n`;
+        instrucoesAprendizado += `Baseado em ${aprendizadoScript.feedbacksRelevantes?.length || 0} feedbacks e ${aprendizadoScript.modelosCoerentes?.length || 0} respostas aprovadas para "${dadosFormulario.tipo_solicitacao}":\n\n`;
         
         // Adicionar padrões identificados
         if (aprendizadoScript?.padroesIdentificados?.length > 0) {
