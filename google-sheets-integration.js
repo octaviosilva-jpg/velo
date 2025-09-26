@@ -401,6 +401,100 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * Obtém todos os modelos de respostas da planilha
+     */
+    async obterModelosRespostas() {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Não é possível obter modelos.');
+            return [];
+        }
+
+        try {
+            console.log('📚 Obtendo modelos de respostas do Google Sheets...');
+            
+            // Ler dados da planilha de modelos
+            const range = 'ModelosRespostas!A1:Z1000';
+            const data = await googleSheetsConfig.readData(range);
+            
+            if (!data || data.length <= 1) {
+                console.log('📚 Nenhum modelo encontrado no Google Sheets');
+                return [];
+            }
+            
+            // Converter dados da planilha para array de objetos
+            const headers = data[0];
+            const modelos = [];
+            
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                if (row[0]) { // Se tem ID
+                    const modelo = {};
+                    headers.forEach((header, index) => {
+                        if (row[index] !== undefined) {
+                            modelo[header] = row[index];
+                        }
+                    });
+                    modelos.push(modelo);
+                }
+            }
+            
+            console.log(`✅ ${modelos.length} modelos obtidos do Google Sheets`);
+            return modelos;
+            
+        } catch (error) {
+            console.error('❌ Erro ao obter modelos do Google Sheets:', error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Obtém todos os feedbacks de respostas da planilha
+     */
+    async obterFeedbacksRespostas() {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Não é possível obter feedbacks.');
+            return [];
+        }
+
+        try {
+            console.log('📚 Obtendo feedbacks de respostas do Google Sheets...');
+            
+            // Ler dados da planilha de feedbacks
+            const range = 'FeedbacksRespostas!A1:Z1000';
+            const data = await googleSheetsConfig.readData(range);
+            
+            if (!data || data.length <= 1) {
+                console.log('📚 Nenhum feedback encontrado no Google Sheets');
+                return [];
+            }
+            
+            // Converter dados da planilha para array de objetos
+            const headers = data[0];
+            const feedbacks = [];
+            
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                if (row[0]) { // Se tem ID
+                    const feedback = {};
+                    headers.forEach((header, index) => {
+                        if (row[index] !== undefined) {
+                            feedback[header] = row[index];
+                        }
+                    });
+                    feedbacks.push(feedback);
+                }
+            }
+            
+            console.log(`✅ ${feedbacks.length} feedbacks obtidos do Google Sheets`);
+            return feedbacks;
+            
+        } catch (error) {
+            console.error('❌ Erro ao obter feedbacks do Google Sheets:', error.message);
+            return [];
+        }
+    }
+
+    /**
      * Salva aprendizado no Google Sheets
      */
     async salvarAprendizado(aprendizado) {

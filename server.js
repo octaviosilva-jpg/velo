@@ -3241,12 +3241,12 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
         });
         
-        // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
+        // SISTEMA DE APRENDIZADO 100% GOOGLE SHEETS
         let conhecimentoFeedback = '';
         let modelosCoerentes = [];
         let feedbacksRelevantes = [];
         
-        console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
+        console.log('🚀 SISTEMA DE APRENDIZADO 100% GOOGLE SHEETS: Iniciando...');
         
         // Verificar se Google Sheets está ativo
         console.log('🔍 DEBUG - Verificando Google Sheets:', {
@@ -3256,15 +3256,31 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
+                console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE - SISTEMA UNIFICADO...');
                 
-                // Carregar modelos coerentes da planilha
-                modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
-                console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
+                // CONSULTAR MODELOS COERENTES DIRETAMENTE DA PLANILHA
+                console.log('🔍 Buscando modelos coerentes na planilha...');
+                const modelosPlanilha = await googleSheetsIntegration.obterModelosRespostas();
+                console.log(`📊 Total de modelos na planilha: ${modelosPlanilha.length}`);
                 
-                // Carregar feedbacks da planilha
-                feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
-                console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
+                // Filtrar modelos coerentes para o tipo de solicitação
+                modelosCoerentes = modelosPlanilha.filter(modelo => {
+                    const tipoModelo = modelo.dadosFormulario?.tipo_solicitacao || modelo.tipo_situacao;
+                    return tipoModelo === dadosFormulario.tipo_solicitacao && modelo.coerente === true;
+                });
+                console.log(`✅ MODELOS COERENTES ENCONTRADOS: ${modelosCoerentes.length} para "${dadosFormulario.tipo_solicitacao}"`);
+                
+                // CONSULTAR FEEDBACKS DIRETAMENTE DA PLANILHA
+                console.log('🔍 Buscando feedbacks na planilha...');
+                const feedbacksPlanilha = await googleSheetsIntegration.obterFeedbacksRespostas();
+                console.log(`📊 Total de feedbacks na planilha: ${feedbacksPlanilha.length}`);
+                
+                // Filtrar feedbacks relevantes para o tipo de solicitação
+                feedbacksRelevantes = feedbacksPlanilha.filter(feedback => {
+                    const tipoFeedback = feedback.dadosFormulario?.tipo_solicitacao || feedback.tipo_situacao;
+                    return tipoFeedback === dadosFormulario.tipo_solicitacao;
+                });
+                console.log(`✅ FEEDBACKS RELEVANTES ENCONTRADOS: ${feedbacksRelevantes.length} para "${dadosFormulario.tipo_solicitacao}"`);
                 
                 // APLICAR MODELOS COERENTES
                 if (modelosCoerentes.length > 0) {
@@ -3272,11 +3288,11 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                     conhecimentoFeedback += '\n\n🧠 MODELOS COERENTES DA PLANILHA (SEGUIR ESTE PADRÃO):\n';
                     conhecimentoFeedback += `Baseado em ${modelosCoerentes.length} respostas aprovadas como "coerentes" para situações similares:\n\n`;
                     
-                    modelosCoerentes.forEach((modelo, index) => {
-                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
+                    modelosCoerentes.slice(0, 3).forEach((modelo, index) => {
+                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.dadosFormulario?.tipo_solicitacao || modelo.tipo_situacao}):\n`;
                         conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
-                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
-                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
+                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.dadosFormulario?.motivo_solicitacao || modelo.motivo_solicitacao}\n`;
+                        conhecimentoFeedback += `   🔧 Solução: ${modelo.dadosFormulario?.solucao_implementada || modelo.solucao_implementada}\n`;
                         conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada.substring(0, 400)}..."\n\n`;
                     });
                     
@@ -3291,7 +3307,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                     conhecimentoFeedback += '\n\n⚠️ FEEDBACKS DA PLANILHA (EVITAR ESTES ERROS):\n';
                     conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} feedbacks de situações similares:\n\n`;
                     
-                    feedbacksRelevantes.forEach((fb, index) => {
+                    feedbacksRelevantes.slice(0, 3).forEach((fb, index) => {
                         conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
                         conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior.substring(0, 150)}..."\n`;
                         conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada.substring(0, 150)}..."\n\n`;
