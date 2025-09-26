@@ -5166,19 +5166,9 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                     }
                 }
                 
-                // Adicionar modelo de resposta INSTANTANEAMENTE ao Google Sheets
-                if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-                    try {
-                        await googleSheetsQueue.addToQueue('registrarRespostaCoerente', modelo, true); // true = instantâneo
-                        syncResult = { googleSheets: 'Registrado instantaneamente' };
-                        console.log('✅ Modelo registrado INSTANTANEAMENTE no Google Sheets');
-                    } catch (error) {
-                        console.error('❌ Erro ao registrar modelo instantaneamente:', error.message);
-                        syncResult = { googleSheets: 'Erro no registro instantâneo' };
-                    }
-                } else {
-                    console.log('⚠️ Google Sheets não está disponível ou não está ativo');
-                }
+                // NOTA: Registro no Google Sheets já foi feito em addModeloResposta para evitar duplicação
+                syncResult = { googleSheets: 'Registrado em addModeloResposta' };
+                console.log('✅ Modelo já registrado no Google Sheets via addModeloResposta');
                 
                 // Tentar sincronizar com arquivos locais também (backup)
                 const localServerUrl = 'http://localhost:3001';
