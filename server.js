@@ -5486,8 +5486,26 @@ app.post('/api/logAccess', async (req, res) => {
         // Log do acesso
         console.log(`📝 Log de acesso: ${email} (${nome}) - ${status} - ${new Date(timestamp).toLocaleString('pt-BR')}`);
         
+        // FORÇAR INICIALIZAÇÃO DO GOOGLE SHEETS SE NÃO ESTIVER ATIVO
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            console.log('🔄 Google Sheets inativo - tentando inicializar automaticamente para log de acesso...');
+            try {
+                const envVars = loadEnvFile();
+                envVars.ENABLE_GOOGLE_SHEETS = 'true'; // Forçar ativação
+                const success = await googleSheetsIntegration.initialize(envVars);
+                if (success) {
+                    global.googleSheetsInitialized = true;
+                    console.log('✅ Google Sheets inicializado automaticamente para log de acesso!');
+                } else {
+                    console.log('❌ Falha ao inicializar Google Sheets automaticamente para log de acesso');
+                }
+            } catch (error) {
+                console.log('❌ Erro ao inicializar Google Sheets para log de acesso:', error.message);
+            }
+        }
+        
         // Registrar acesso no Google Sheets
-        if (global.googleSheetsInitialized) {
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
                 const acessoData = {
                     userProfile: `${nome} (${email})`,
@@ -5501,12 +5519,8 @@ app.post('/api/logAccess', async (req, res) => {
                     status: 'Sucesso'
                 };
                 
-                googleSheetsIntegration.registrarAcessoInterface(acessoData).then(() => {
-                        console.log('📋 Acesso salvo no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar acesso:', error.message);
-                    });
-                    console.log('📋 Acesso adicionado à fila do Google Sheets');
+                await googleSheetsIntegration.registrarAcessoInterface(acessoData);
+                console.log('📋 Acesso salvo DIRETAMENTE no Google Sheets');
                 console.log('✅ Acesso registrado no Google Sheets');
             } catch (error) {
                 console.error('❌ Erro ao registrar acesso no Google Sheets:', error.message);
