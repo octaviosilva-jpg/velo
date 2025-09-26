@@ -2151,14 +2151,13 @@ function gerarEmailFormal(tipo, assunto, destinatario, contexto) {
 
 function gerarFAQ() {
     const tema = document.getElementById('tema-faq').value;
-    const pergunta = document.getElementById('pergunta-faq').value;
     
     if (!tema) {
         showErrorMessage('Por favor, selecione o tema.');
         return;
     }
     
-    const respostaFAQ = gerarRespostaFAQ(tema, pergunta);
+    const respostaFAQ = gerarRespostaFAQ(tema);
     
     document.getElementById('faq-content').innerHTML = respostaFAQ;
     document.getElementById('faq-resultado').style.display = 'block';
@@ -2166,10 +2165,10 @@ function gerarFAQ() {
     showSuccessMessage('Resposta FAQ gerada com sucesso!');
 }
 
-function gerarRespostaFAQ(tema, pergunta) {
+function gerarRespostaFAQ(tema) {
     const respostas = {
         'servicos-velotax': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Quais são os serviços oferecidos pelo Velotax?'}</p>
+            <p><strong>Pergunta:</strong> 'Quais são os serviços oferecidos pelo Velotax?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>O Velotax é uma empresa de tecnologia focada em criar soluções que simplificam o cálculo e o pagamento de impostos Pessoa Física e agora oferece soluções de crédito de maneira simples e rápida. Somos o maior aplicativo de antecipação do país, com mais de 3 milhões de downloads, 📲 oferecendo os serviços abaixo:</p>
             
@@ -2184,7 +2183,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             <p><strong>📌 Veloprime, nossa Calculadora de DARF:</strong> Cálculo automático preciso de impostos, além de emissão de DARF. Tudo o que você precisa para investir com mais segurança 📈 sem se preocupar com os impostos. Nossa ferramenta é completa, integrando informações da B3 e exterior 🌍.</p>
         `,
         'antecipacao-restituicao': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Qual é o serviço de Antecipação da Restituição oferecido pelo Velotax?'}</p>
+            <p><strong>Pergunta:</strong> 'Qual é o serviço de Antecipação da Restituição oferecido pelo Velotax?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>Durante o período de declaração do Imposto de Renda💰, que ocorre normalmente entre Março e Maio de cada ano📅, o Velotax 📲 oferece aos clientes o serviço de Antecipação da Restituição. Ao declarar seu Imposto de Renda conosco e confirmar que possui saldo a restituir, você tem a opção de antecipar parte desse valor de forma rápida e segura.</p>
             
@@ -2195,7 +2194,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             <p>Fique atento ao nosso aplicativo e redes sociais para mais novidades! 🚀💙</p>
         `,
         'credito-trabalhador': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Crédito do Trabalhador Velotax: O que é?'}</p>
+            <p><strong>Pergunta:</strong> 'Crédito do Trabalhador Velotax: O que é?'}</p>
             <p><strong>Resposta:</strong></p>
             <p><strong>👷‍♂️ Crédito do Trabalhador Velotax: O que é o Crédito do Trabalhador?</strong> Empréstimo consignado lançado em 2025 📅 para trabalhadores CLT, domésticos e diretores, com vínculo ativo mínimo de 12 meses e empresa ativa há 24 meses. Pagamento com desconto diretamente na folha de pagamento pelo e-Social.</p>
             
@@ -2206,7 +2205,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             <p><strong>Quais documentos são necessários?</strong> Você realizará um processo de confirmação de identidade onde enviará uma foto ou exportação da carteira digital de seu documento de identidade ✍️, e uma selfie para garantir que você mesmo esteja fazendo a solicitação.</p>
         `,
         'credito-pessoal': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Crédito Pessoal Velotax: O que é?'}</p>
+            <p><strong>Pergunta:</strong> 'Crédito Pessoal Velotax: O que é?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>Com o Crédito Pessoal Velotax você tem dinheiro em conta para usar como quiser, seja pagar dívidas, fazer compras, viajar ou realizar um sonho.</p>
             
@@ -2227,7 +2226,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             Não é necessário enviar documentos. Basta ter o CPF cadastrado como chave PIX na conta bancária e autorizar o compartilhamento dos dados pelo app.</p>
         `,
         'veloprime': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Veloprime: Calculadora e DARF do Velotax: O que é?'}</p>
+            <p><strong>Pergunta:</strong> 'Veloprime: Calculadora e DARF do Velotax: O que é?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>A Calculadora de DARF Velotax é uma ferramenta desenvolvida para facilitar a vida de investidores que atuam na bolsa de valores e em investimentos internacionais. Ela gera automaticamente suas DARFs de imposto sobre ganhos em bolsa de forma altamente precisa, com base em um sistema conectado diretamente à B3, além de possuir integração com investimentos internacionais das corretoras internacionais da BTG e Warren, permitindo que você centralize seus cálculos e relatórios em um só lugar.</p>
             
@@ -2251,7 +2250,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             📍 0800 800 0049 – Demais localidades</p>
         `,
         'login-cadastro': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Como faço login ou criar uma conta no aplicativo Velotax?'}</p>
+            <p><strong>Pergunta:</strong> 'Como faço login ou criar uma conta no aplicativo Velotax?'}</p>
             <p><strong>Resposta:</strong></p>
             <p><strong>Dificuldade de cadastro</strong><br>
             Para acessar sua conta no Velotax, siga os passos abaixo:</p>
@@ -2269,7 +2268,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             </ol>
         `,
         'malha-fina': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'O que é a malha fina e como saber se minha declaração está retida?'}</p>
+            <p><strong>Pergunta:</strong> 'O que é a malha fina e como saber se minha declaração está retida?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>A malha fina ocorre quando a Receita Federal encontra inconsistências, erros ou falta de informações na sua declaração de Imposto de Renda. Isso pode acontecer, por exemplo, quando os dados fornecidos não correspondem ao que consta nas bases de dados da Receita📊, ou quando há divergências nos valores declarados.</p>
             
@@ -2291,14 +2290,14 @@ function gerarRespostaFAQ(tema, pergunta) {
             <p>Lembre-se⚠️: se houver pendências, será necessário regularizar a situação junto à Receita Federal para desbloquear a restituição ou evitar multas</p>
         `,
         'envio-gratuito': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'O envio da declaração pelo app Velotax é gratuito?'}</p>
+            <p><strong>Pergunta:</strong> 'O envio da declaração pelo app Velotax é gratuito?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>O Velotax 📲 oferece uma plataforma simples e segura 🔒 para o preenchimento e envio da sua declaração de Imposto de Renda. Nosso serviço inclui verificação automática dos dados, suporte para esclarecer dúvidas 💬 e a facilidade de envio direto pelo aplicativo, garantindo que todo o processo seja realizado de forma correta e eficiente.</p>
             
             <p>A taxa de serviço💵 é cobrada para cobrir os benefícios oferecidos aos nossos clientes e o valor é sempre informado antes da conclusão do envio da declaração. Além disso, o pagamento é realizado apenas quando você recebe a restituição do Imposto de Renda 💸, mas você também tem a opção de pagar na hora, se preferir.</p>
         `,
         'restituicao-pendente': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Porque ainda não recebi minha restituição?'}</p>
+            <p><strong>Pergunta:</strong> 'Porque ainda não recebi minha restituição?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>A restituição do Imposto de Renda 💰 é paga em lotes, conforme o cronograma definido pela Receita Federal. Em 2025, foram 5 📅 lotes, distribuídos entre Maio e Setembro.</p>
             
@@ -2321,7 +2320,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             <p>✅ Assim, após a antecipação, não há mais valores pendentes a receber, pois a diferença foi utilizada para cobrir as despesas relacionadas à operação do serviço de antecipação.</p>
         `,
         'restituicao-resgate': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Restituição do Imposto de Renda disponível para resgate'}</p>
+            <p><strong>Pergunta:</strong> 'Restituição do Imposto de Renda disponível para resgate'}</p>
             <p><strong>Resposta:</strong></p>
             <p>Se você está esperando a restituição do Imposto de Renda e o valor ainda não apareceu na sua conta, não precisa se preocupar! Em algumas situações, o valor pode não ter sido creditado diretamente na conta cadastrada e, nesse caso, fica disponível para resgate manual no site do Banco do Brasil.</p>
             
@@ -2329,7 +2328,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             Não se preocupe, a equipe Velotax está aqui para te ajudar! É só entrar em contato que vamos te acompanhar de pertinho, passo a passo, com todo o suporte que você precisar. 👉 Siga as orientações neste link.</p>
         `,
         'open-finance': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'O que é Open Finance?'}</p>
+            <p><strong>Pergunta:</strong> 'O que é Open Finance?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>Open Finance é um jeito seguro de você compartilhar seus dados financeiros entre bancos e outras instituições, sempre com a sua permissão. 🔒</p>
             
@@ -2340,7 +2339,7 @@ function gerarRespostaFAQ(tema, pergunta) {
             <p>O mais importante: você tem total controle. ✅ Só compartilhe se quiser e pode cancelar a autorização a qualquer momento.</p>
         `,
         'suporte': `
-            <p><strong>Pergunta:</strong> ${pergunta || 'Como obter suporte no Velotax? Como falar com um atendente?'}</p>
+            <p><strong>Pergunta:</strong> 'Como obter suporte no Velotax? Como falar com um atendente?'}</p>
             <p><strong>Resposta:</strong></p>
             <p>Se precisar de ajuda, não hesite em ligar para a equipe Velotax 📞 teremos prazer em te atender e te orientar passo a passo!</p>
             
