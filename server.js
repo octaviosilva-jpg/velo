@@ -3186,13 +3186,243 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
-// Rota para gerar resposta RA via API OpenAI (endpoint em português - redirecionamento da Vercel)
+// Rota para gerar resposta RA via API OpenAI (endpoint em português - sistema de aprendizado direto)
 app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
-    console.log('🚨🚨🚨 ENDPOINT /api/gerar-resposta INTERCEPTADO - REDIRECIONANDO PARA SISTEMA DE APRENDIZADO 🚨🚨🚨');
-    
-    // Redirecionar para o endpoint correto com sistema de aprendizado
-    req.url = '/api/generate-response';
-    return app._router.handle(req, res);
+    console.log('=================================');
+    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/gerar-resposta 🔥🔥🔥');
+    console.log('=================================');
+    let timeoutId;
+    try {
+        console.log('🔥 DENTRO DO TRY - INICIANDO PROCESSAMENTO');
+        const { dadosFormulario, userData } = req.body;
+        console.log('🎯 Endpoint /api/gerar-resposta chamado');
+        console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
+        console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
+        console.log('🚀 INICIANDO SISTEMA DE APRENDIZADO...');
+        
+        // DEBUG: Verificar dados recebidos
+        console.log('🔍 DEBUG - Dados recebidos:', {
+            temDadosFormulario: !!dadosFormulario,
+            temUserData: !!userData,
+            tipoSolicitacao: dadosFormulario?.tipo_solicitacao
+        });
+        
+        console.log('🔍 DEBUG - Carregando variáveis de ambiente...');
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        
+        console.log('🔍 DEBUG - Validando API Key...', {
+            temApiKey: !!apiKey,
+            tamanhoApiKey: apiKey ? apiKey.length : 0
+        });
+        
+        if (!validateApiKey(apiKey)) {
+            console.log('❌ DEBUG - API Key inválida');
+            return res.status(400).json({
+                success: false,
+                error: 'Chave da API não configurada ou inválida'
+            });
+        }
+        
+        if (!dadosFormulario) {
+            console.log('❌ DEBUG - Dados do formulário não fornecidos');
+            return res.status(400).json({
+                success: false,
+                error: 'Dados do formulário não fornecidos'
+            });
+        }
+        
+        console.log('📋 Dados recebidos do formulário:', {
+            tipo_solicitacao: dadosFormulario.tipo_solicitacao,
+            motivo_solicitacao: dadosFormulario.motivo_solicitacao,
+            solucao_implementada: dadosFormulario.solucao_implementada?.substring(0, 100) + '...',
+            texto_cliente: dadosFormulario.texto_cliente?.substring(0, 100) + '...',
+            historico_atendimento: dadosFormulario.historico_atendimento?.substring(0, 50) + '...',
+            observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
+        });
+        
+        // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
+        let conhecimentoFeedback = '';
+        
+        console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
+        
+        // Verificar se Google Sheets está ativo
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
+                
+                // Carregar modelos coerentes da planilha
+                const modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
+                
+                // Carregar feedbacks da planilha
+                const feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
+                
+                // APLICAR MODELOS COERENTES
+                if (modelosCoerentes.length > 0) {
+                    console.log('🎯 APLICANDO MODELOS COERENTES DA PLANILHA!');
+                    conhecimentoFeedback += '\n\n🧠 MODELOS COERENTES DA PLANILHA (SEGUIR ESTE PADRÃO):\n';
+                    conhecimentoFeedback += `Baseado em ${modelosCoerentes.length} respostas aprovadas como "coerentes" para situações similares:\n\n`;
+                    
+                    modelosCoerentes.forEach((modelo, index) => {
+                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
+                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
+                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
+                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
+                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada.substring(0, 400)}..."\n\n`;
+                    });
+                    
+                    conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
+                } else {
+                    console.log('⚠️ NENHUM MODELO COERENTE ENCONTRADO na planilha para esta solicitação');
+                }
+                
+                // APLICAR FEEDBACKS RELEVANTES
+                if (feedbacksRelevantes.length > 0) {
+                    console.log('🎯 APLICANDO FEEDBACKS DA PLANILHA!');
+                    conhecimentoFeedback += '\n\n⚠️ FEEDBACKS DA PLANILHA (EVITAR ESTES ERROS):\n';
+                    conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} feedbacks de situações similares:\n\n`;
+                    
+                    feedbacksRelevantes.forEach((fb, index) => {
+                        conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
+                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior.substring(0, 150)}..."\n`;
+                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada.substring(0, 150)}..."\n\n`;
+                    });
+                    
+                    conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para evitar erros similares.\n';
+                } else {
+                    console.log('⚠️ NENHUM FEEDBACK RELEVANTE ENCONTRADO na planilha para esta solicitação');
+                }
+                
+            } catch (error) {
+                console.error('❌ ERRO ao consultar planilha:', error.message);
+                console.log('🔄 Continuando sem aprendizado da planilha...');
+            }
+        } else {
+            console.log('⚠️ GOOGLE SHEETS INATIVO - Continuando sem aprendizado da planilha');
+        }
+        
+        // Verificar se o conhecimento foi construído
+        if (conhecimentoFeedback && conhecimentoFeedback.length > 100) {
+            console.log('✅ CONHECIMENTO DA PLANILHA INCLUÍDO NO PROMPT');
+            console.log('📊 Estatísticas do conhecimento:');
+            console.log(`   - Tamanho: ${conhecimentoFeedback.length} caracteres`);
+            console.log(`   - Contém modelos: ${conhecimentoFeedback.includes('MODELOS COERENTES')}`);
+            console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS DA PLANILHA')}`);
+        } else {
+            console.log('⚠️ NENHUM CONHECIMENTO DA PLANILHA DISPONÍVEL');
+            console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
+        }
+
+        const prompt = `📌 GERAÇÃO DE RESPOSTA RA COM SISTEMA DE APRENDIZADO ATIVADO
+
+Você é responsável por gerar respostas para o Reclame Aqui seguindo o script estruturado e aplicando o conhecimento dos modelos coerentes.
+
+DADOS DE ENTRADA:
+- Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
+- Motivo da solicitação: ${dadosFormulario.motivo_solicitacao}
+- Solução implementada: ${dadosFormulario.solucao_implementada}
+- Texto do cliente: ${dadosFormulario.texto_cliente}
+- Histórico de atendimento: ${dadosFormulario.historico_atendimento}
+- Observações internas: ${dadosFormulario.observacoes_internas}
+
+${conhecimentoFeedback || ''}
+
+⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
+
+1. ANÁLISE DA SITUAÇÃO:
+- Identifique o tipo de solicitação (exclusão, portabilidade, quitação, etc.)
+- Analise o contexto específico (motivo, solução implementada, histórico)
+- Considere as observações internas e histórico de atendimento
+
+2. APLICAÇÃO DO CONHECIMENTO:
+- Use os modelos coerentes como referência para estrutura e tom
+- Evite os erros identificados nos feedbacks
+- Mantenha consistência com respostas aprovadas anteriormente
+
+3. GERAÇÃO DA RESPOSTA:
+- Estruture a resposta seguindo o padrão dos modelos coerentes
+- Seja específico sobre a solução implementada
+- Integre o histórico de atendimento quando relevante
+- Use tom profissional e empático
+
+4. VERIFICAÇÃO FINAL:
+- Confirme que a resposta é específica (não genérica)
+- Verifique se menciona a solução implementada
+- Garanta que o tom está adequado para o RA
+
+🎯 INSTRUÇÃO CRÍTICA: Use o conhecimento dos modelos coerentes para gerar uma resposta de alta qualidade desde o início, aplicando a estrutura e abordagem dos modelos aprovados.
+
+IMPORTANTE: A resposta deve ser específica para esta situação, não genérica. Use os dados fornecidos e o conhecimento dos modelos coerentes para criar uma resposta personalizada e de alta qualidade.`;
+
+        // Fazer a requisição para a OpenAI
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: envVars.OPENAI_MODEL || 'gpt-4o',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um especialista em atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7,
+                max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const resposta = data.choices[0].message.content;
+            
+            // Verificar se a resposta foi gerada com aprendizado
+            const temAprendizado = conhecimentoFeedback && conhecimentoFeedback.length > 100;
+            
+            if (temAprendizado) {
+                console.log('✅ Resposta gerada com aprendizado aplicado - mantendo resposta da IA');
+            } else {
+                console.log('⚠️ Resposta gerada sem aprendizado - usando resposta da IA');
+            }
+            
+            // Atualizar estatísticas
+            updateEstatisticas('respostas_geradas');
+            
+            res.json({
+                success: true,
+                result: resposta,
+                aprendizadoAplicado: temAprendizado,
+                modelosUtilizados: modelosCoerentes?.length || 0,
+                feedbacksUtilizados: feedbacksRelevantes?.length || 0
+            });
+        } else {
+            const errorData = await response.text();
+            res.status(400).json({
+                success: false,
+                error: 'Erro na API OpenAI',
+                details: errorData
+            });
+        }
+        
+    } catch (error) {
+        clearTimeout(timeoutId);
+        console.error('🔥 ERRO NO ENDPOINT /api/gerar-resposta:', error);
+        console.error('🔥 STACK TRACE:', error.stack);
+        
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
 });
 
 // Rota para gerar resposta RA via API OpenAI (endpoint com sistema de aprendizado completo)
