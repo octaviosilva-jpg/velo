@@ -3655,6 +3655,19 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         }
 
         // USAR O NOVO FLUXO: Script Padrão → Consultar Planilha → Reformular
+        // Primeiro, tentar carregar dados da planilha
+        let dadosPlanilha = null;
+        try {
+            dadosPlanilha = await carregarDadosAprendizadoCompleto(dadosFormulario.tipo_solicitacao);
+            console.log('✅ Dados da planilha carregados:', {
+                modelos: dadosPlanilha?.modelosCoerentes?.length || 0,
+                feedbacks: dadosPlanilha?.feedbacksRelevantes?.length || 0
+            });
+        } catch (error) {
+            console.log('⚠️ Erro ao carregar dados da planilha:', error.message);
+            console.log('🔄 Continuando com script padrão...');
+        }
+        
         const prompt = reformularComConhecimento(
             gerarScriptPadraoResposta(dadosFormulario), 
             dadosPlanilha, 
