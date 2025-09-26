@@ -3195,9 +3195,14 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
 });
 
 // Rota para gerar resposta RA via API OpenAI (endpoint principal)
-app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
+app.post('/api/generate-response', (req, res, next) => {
+    console.log('🔥 MIDDLEWARE ANTES DO RATE LIMIT');
+    next();
+}, rateLimitMiddleware, async (req, res) => {
+    console.log('🔥 ENTRADA NO ENDPOINT /api/generate-response');
     let timeoutId;
     try {
+        console.log('🔥 DENTRO DO TRY - INICIANDO PROCESSAMENTO');
         const { dadosFormulario, userData } = req.body;
         console.log('🎯 Endpoint /api/generate-response chamado');
         console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
@@ -3759,7 +3764,8 @@ Equipe Velotax`;
         }
     } catch (error) {
         clearTimeout(timeoutId);
-        console.error('Erro ao gerar resposta RA:', error);
+        console.error('🔥 ERRO NO ENDPOINT /api/generate-response:', error);
+        console.error('🔥 STACK TRACE:', error.stack);
         
         // Tratamento específico para timeout
         if (error.name === 'AbortError') {
