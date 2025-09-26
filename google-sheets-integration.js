@@ -209,19 +209,18 @@ class GoogleSheetsIntegration {
                 (feedbackData.userEmail ? `${feedbackData.userName || 'Usuário'} (${feedbackData.userEmail})` : 'N/A');
 
             const row = [
-                userProfile, // Perfil do usuário na coluna ID
-                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-                feedbackData.id || '',
-                feedbackData.tipo || 'feedback',
-                feedbackData.textoCliente || feedbackData.dadosFormulario?.texto_cliente || '',
-                feedbackData.respostaAnterior || '',
-                feedbackData.feedback || '',
-                feedbackData.respostaReformulada || '',
-                feedbackData.dadosFormulario?.tipo_solicitacao || feedbackData.tipoSituacao || '',
-                feedbackData.dadosFormulario?.motivo_solicitacao || '',
-                feedbackData.dadosFormulario?.solucao_implementada || '',
-                feedbackData.dadosFormulario?.historico_atendimento || '',
-                feedbackData.dadosFormulario?.observacoes_internas || ''
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
+                feedbackData.id || '', // Coluna B: ID
+                feedbackData.tipo || 'feedback', // Coluna C: Tipo
+                feedbackData.textoCliente || feedbackData.dadosFormulario?.texto_cliente || '', // Coluna D: Texto Cliente
+                feedbackData.respostaAnterior || '', // Coluna E: Resposta Anterior
+                feedbackData.feedback || '', // Coluna F: Feedback
+                feedbackData.respostaReformulada || '', // Coluna G: Resposta Reformulada
+                feedbackData.dadosFormulario?.tipo_solicitacao || feedbackData.tipoSituacao || '', // Coluna H: Tipo Solicitação
+                feedbackData.dadosFormulario?.motivo_solicitacao || '', // Coluna I: Motivo Solicitação
+                feedbackData.dadosFormulario?.solucao_implementada || '', // Coluna J: Solução Implementada
+                feedbackData.dadosFormulario?.historico_atendimento || '', // Coluna K: Histórico Atendimento
+                feedbackData.dadosFormulario?.observacoes_internas || '' // Coluna L: Observações Internas
             ];
 
             await googleSheetsConfig.appendRow('Feedbacks!A:Z', row);
@@ -261,18 +260,17 @@ class GoogleSheetsIntegration {
                 (respostaData.userEmail ? `${respostaData.userName || 'Usuário'} (${respostaData.userEmail})` : 'N/A');
 
             const row = [
-                userProfile, // Perfil do usuário na coluna ID
-                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-                respostaData.id || '',
-                respostaData.tipo || 'resposta',
-                respostaData.textoCliente || respostaData.dadosFormulario?.texto_cliente || '',
-                respostaData.respostaAprovada || respostaData.respostaFinal || '',
-                respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '',
-                respostaData.dadosFormulario?.motivo_solicitacao || respostaData.motivoSolicitacao || '',
-                respostaData.dadosFormulario?.solucao_implementada || '',
-                respostaData.dadosFormulario?.historico_atendimento || '',
-                respostaData.dadosFormulario?.observacoes_internas || '',
-                'Aprovada'
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
+                respostaData.id || '', // Coluna B: ID
+                respostaData.tipo || 'resposta', // Coluna C: Tipo
+                respostaData.textoCliente || respostaData.dadosFormulario?.texto_cliente || '', // Coluna D: Texto Cliente
+                respostaData.respostaAprovada || respostaData.respostaFinal || '', // Coluna E: Resposta Aprovada
+                respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '', // Coluna F: Tipo Solicitação
+                respostaData.dadosFormulario?.motivo_solicitacao || respostaData.motivoSolicitacao || '', // Coluna G: Motivo Solicitação
+                respostaData.dadosFormulario?.solucao_implementada || '', // Coluna H: Solução Implementada
+                respostaData.dadosFormulario?.historico_atendimento || '', // Coluna I: Histórico Atendimento
+                respostaData.dadosFormulario?.observacoes_internas || '', // Coluna J: Observações Internas
+                'Aprovada' // Coluna K: Status Aprovação
             ];
 
             await googleSheetsConfig.appendRow('Respostas Coerentes!A:Z', row);
