@@ -127,8 +127,8 @@ function verificarFeedbacksDuplicados() {
                         id1: feedback1.id,
                         id2: feedback2.id,
                         similaridade: similaridade,
-                        feedback1: feedback1.feedback.substring(0, 100) + '...',
-                        feedback2: feedback2.feedback.substring(0, 100) + '...'
+                        feedback1: feedback1.feedback?.substring(0, 100) || 'N/A' + '...',
+                        feedback2: feedback2.feedback?.substring(0, 100) || 'N/A' + '...'
                     });
                 }
             }
@@ -1763,7 +1763,7 @@ async function processarAprendizadoObrigatorio(dadosFormulario) {
             instrucoesAprendizado += '✅ MODELOS APROVADOS (SEGUIR ESTE PADRÃO):\n';
             aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
                 instrucoesAprendizado += `${index + 1}. 📋 Motivo: ${resp.motivoSolicitacao}\n`;
-                instrucoesAprendizado += `   ✅ MODELO: "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
+                instrucoesAprendizado += `   ✅ MODELO: "${resp.respostaAprovada?.substring(0, 250) || 'N/A'}..."\n\n`;
             });
         }
         
@@ -3431,7 +3431,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
                         conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
                         conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
                         conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
-                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada.substring(0, 400)}..."\n\n`;
+                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada?.substring(0, 400) || 'N/A'}..."\n\n`;
                     });
                     
                     conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
@@ -3447,8 +3447,8 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
                     
                     feedbacksRelevantes.forEach((fb, index) => {
                         conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
-                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior.substring(0, 150)}..."\n`;
-                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada.substring(0, 150)}..."\n\n`;
+                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior?.substring(0, 150) || 'N/A'}..."\n`;
+                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada?.substring(0, 150) || 'N/A'}..."\n\n`;
                     });
                     
                     conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para evitar erros similares.\n';
@@ -3701,7 +3701,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                         conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
                         conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
                         conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
-                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada.substring(0, 400)}..."\n\n`;
+                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada?.substring(0, 400) || 'N/A'}..."\n\n`;
                     });
                     
                     conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
@@ -3717,8 +3717,8 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                     
                     feedbacksRelevantes.forEach((fb, index) => {
                         conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
-                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior.substring(0, 150)}..."\n`;
-                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada.substring(0, 150)}..."\n\n`;
+                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior?.substring(0, 150) || 'N/A'}..."\n`;
+                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada?.substring(0, 150) || 'N/A'}..."\n\n`;
                     });
                     
                     conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para evitar erros similares.\n';
@@ -4266,7 +4266,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
                 conhecimentoFeedback += '✅ RESPOSTAS COERENTES RECENTES (SEGUIR ESTE PADRÃO):\n';
                 aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
                     conhecimentoFeedback += `${index + 1}. Motivo: ${resp.motivoSolicitacao}\n`;
-                    conhecimentoFeedback += `   RESPOSTA APROVADA: "${resp.respostaAprovada.substring(0, 250)}..."\n\n`;
+                    conhecimentoFeedback += `   RESPOSTA APROVADA: "${resp.respostaAprovada?.substring(0, 250) || 'N/A'}..."\n\n`;
                 });
             }
             
