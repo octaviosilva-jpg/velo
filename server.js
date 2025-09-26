@@ -1950,12 +1950,8 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
                 userName: userData?.nome || 'N/A',
                 userEmail: userData?.email || 'N/A'
             };
-            googleSheetsIntegration.registrarFeedback(feedbackData).then(() => {
-                        console.log('📋 Feedback salvo no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar feedback:', error.message);
-                    });
-                    console.log('📋 Feedback salvo DIRETAMENTE no Google Sheets');
+            await googleSheetsQueue.addToQueue('registrarFeedback', feedbackData, true); // true = instantâneo
+            console.log('✅ Feedback registrado INSTANTANEAMENTE no Google Sheets (ID:', feedbackData.id, ')');
         } catch (error) {
             console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
         }
