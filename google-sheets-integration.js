@@ -412,6 +412,12 @@ class GoogleSheetsIntegration {
         try {
             console.log('📚 Obtendo modelos de respostas do Google Sheets...');
             
+            // Verificar se googleSheetsConfig está inicializado
+            if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+                console.log('⚠️ googleSheetsConfig não está inicializado');
+                return [];
+            }
+            
             // Ler dados da planilha de modelos
             const range = 'ModelosRespostas!A1:Z1000';
             const data = await googleSheetsConfig.readData(range);
@@ -458,6 +464,12 @@ class GoogleSheetsIntegration {
 
         try {
             console.log('📚 Obtendo feedbacks de respostas do Google Sheets...');
+            
+            // Verificar se googleSheetsConfig está inicializado
+            if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+                console.log('⚠️ googleSheetsConfig não está inicializado');
+                return [];
+            }
             
             // Ler dados da planilha de feedbacks
             const range = 'FeedbacksRespostas!A1:Z1000';
