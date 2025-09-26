@@ -886,11 +886,11 @@ function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
 
 // Gerar script padrão "cru" para geração de respostas
 function gerarScriptPadraoResposta(dadosFormulario) {
-    return `📌 SCRIPT PADRÃO PARA GERAÇÃO DE RESPOSTA RA
+    return `📌 SCRIPT INTELIGENTE PARA GERAÇÃO DE RESPOSTA RA - VELOTAX
 
-Você é responsável por gerar respostas para o Reclame Aqui seguindo o script estruturado abaixo.
+Você é um especialista em atendimento ao cliente da Velotax, empresa de antecipação de restituição do Imposto de Renda. Sua função é gerar respostas personalizadas e inteligentes para o Reclame Aqui.
 
-DADOS DE ENTRADA:
+DADOS ESPECÍFICOS DO CASO:
 - Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
 - Motivo da solicitação: ${dadosFormulario.motivo_solicitacao}
 - Solução implementada: ${dadosFormulario.solucao_implementada}
@@ -898,28 +898,112 @@ DADOS DE ENTRADA:
 - Histórico de atendimento: ${dadosFormulario.historico_atendimento}
 - Observações internas: ${dadosFormulario.observacoes_internas}
 
-⚙️ FLUXO LÓGICO OBRIGATÓRIO:
+🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
-1. ANÁLISE DA SOLICITAÇÃO:
-- Identifique o problema alegado pelo cliente
-- Verifique se a solução implementada resolve a solicitação
-- Considere o contexto do histórico de atendimento
+1. CONTEXTUALIZAÇÃO DA VELOTAX:
+- Somos especialistas em antecipação de restituição do Imposto de Renda
+- Trabalhamos com Cédula de Crédito Bancário (CCB) conforme legislação
+- Seguimos rigorosamente a LGPD e normas do Banco Central
+- Nossa operação é 100% legal e regulamentada
 
-2. ESTRUTURA DA RESPOSTA:
-a) Agradecimento e reconhecimento
-b) Esclarecimento da situação
-c) Solução apresentada/implementada
-d) Compromisso de melhoria
-e) Convite para contato direto
+2. ANÁLISE ESPECÍFICA POR TIPO DE SOLICITAÇÃO:
 
-3. DIRETRIZES:
-- Sempre reconheça o problema do cliente
-- Explique as ações tomadas de forma clara
-- Demonstre compromisso com a satisfação
-- Mantenha tom profissional e respeitoso
-- Seja específico e detalhado
+${gerarContextoEspecifico(dadosFormulario.tipo_solicitacao)}
 
-Gere uma resposta completa e eficaz que atenda à solicitação do cliente.`;
+3. ESTRUTURA INTELIGENTE DA RESPOSTA:
+
+a) RECONHECIMENTO PERSONALIZADO:
+- Agradeça especificamente pela confiança na Velotax
+- Reconheça a importância da solicitação do cliente
+- Demonstre compreensão da situação específica
+
+b) ESCLARECIMENTO TÉCNICO:
+- Explique o que foi feito de forma clara e técnica
+- Cite datas, processos e procedimentos específicos
+- Contextualize com a legislação aplicável (CCB, LGPD, etc.)
+
+c) SOLUÇÃO IMPLEMENTADA:
+- Detalhe as ações tomadas pela Velotax
+- Explique como a solução resolve a solicitação
+- Mencione benefícios e resultados para o cliente
+
+d) COMPROMISSO E TRANSPARÊNCIA:
+- Reafirme o compromisso com a satisfação
+- Ofereça canais de comunicação direta
+- Demonstre transparência nos processos
+
+4. DIRETRIZES ESPECÍFICAS DA VELOTAX:
+
+- Use linguagem técnica mas acessível
+- Cite sempre a legislação aplicável (CCB, LGPD, etc.)
+- Mencione a regulamentação do Banco Central quando relevante
+- Demonstre expertise em antecipação de restituição
+- Mantenha tom profissional, empático e solucionador
+- Seja específico sobre processos e prazos
+- Evite generalizações - seja sempre específico ao caso
+
+5. ELEMENTOS OBRIGATÓRIOS:
+
+- Mencione a Velotax como especialista em antecipação de restituição
+- Cite a legalidade da operação (CCB, regulamentação BC)
+- Demonstre conhecimento técnico do processo
+- Ofereça canais de contato direto
+- Mantenha transparência total
+
+Gere uma resposta que demonstre expertise técnica, transparência e compromisso com a satisfação do cliente, sempre contextualizada para a Velotax e o tipo de solicitação específica.`;
+}
+
+// Função auxiliar para gerar contexto específico por tipo de solicitação
+function gerarContextoEspecifico(tipoSolicitacao) {
+    const contextos = {
+        'exclusao-cadastro': `
+🔹 EXCLUSÃO DE CADASTRO:
+- Processo de exclusão conforme LGPD (Lei 13.709/2018)
+- Remoção completa dos dados pessoais do sistema
+- Confirmação de que não receberá mais comunicações
+- Prazo de processamento: até 15 dias úteis
+- Direito do titular conforme art. 16 da LGPD`,
+
+        'liberacao-chave-pix': `
+🔹 LIBERAÇÃO DE CHAVE PIX:
+- Processo de desvinculação da chave PIX conforme CCB
+- Verificação de quitação da operação
+- Liberação para uso em outras instituições
+- Conformidade com regulamentação do Banco Central
+- Prazo de processamento: até 2 dias úteis`,
+
+        'antecipacao-restituicao': `
+🔹 ANTECIPAÇÃO DE RESTITUIÇÃO:
+- Operação baseada em Cédula de Crédito Bancário (CCB)
+- Análise de elegibilidade conforme Receita Federal
+- Processamento conforme regulamentação do Banco Central
+- Transparência total nos custos e prazos
+- Garantia de legalidade da operação`,
+
+        'quitação-antecipada': `
+🔹 QUITAÇÃO ANTECIPADA:
+- Direito do cliente conforme CCB
+- Cálculo de juros proporcionais
+- Processamento conforme regulamentação
+- Transparência nos valores e prazos
+- Conformidade com normas do Banco Central`,
+
+        'esclarecimento': `
+🔹 ESCLARECIMENTO:
+- Esclarecimento completo sobre a operação
+- Transparência nos processos e prazos
+- Explicação técnica da antecipação de restituição
+- Conformidade com regulamentação aplicável
+- Compromisso com a clareza e transparência`
+    };
+
+    return contextos[tipoSolicitacao] || `
+🔹 SOLICITAÇÃO GERAL:
+- Análise específica do caso apresentado
+- Aplicação das melhores práticas da Velotax
+- Conformidade com regulamentação aplicável
+- Transparência e compromisso com a satisfação
+- Especialização em antecipação de restituição`;
 }
 
 // Reformular script com conhecimento da planilha
@@ -3554,6 +3638,23 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 success: false,
                 error: 'Chave da API não configurada ou inválida'
             });
+        }
+        
+        // FORÇAR INICIALIZAÇÃO DO GOOGLE SHEETS SE NÃO ESTIVER ATIVO
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            console.log('🔄 Google Sheets inativo - tentando inicializar automaticamente...');
+            try {
+                envVars.ENABLE_GOOGLE_SHEETS = 'true'; // Forçar ativação
+                const success = await googleSheetsIntegration.initialize(envVars);
+                if (success) {
+                    global.googleSheetsInitialized = true;
+                    console.log('✅ Google Sheets inicializado automaticamente com sucesso!');
+                } else {
+                    console.log('❌ Falha ao inicializar Google Sheets automaticamente');
+                }
+            } catch (error) {
+                console.log('❌ Erro ao inicializar Google Sheets:', error.message);
+            }
         }
         
         console.log('🔍 DEBUG - Verificando dados do formulário...', {
