@@ -3186,38 +3186,6 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
-// Rota para gerar resposta RA via API OpenAI (endpoint em português)
-app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
-    console.log('=================================');
-    console.log('🔥🔥🔥 ENTRADA NO ENDPOINT /api/gerar-resposta 🔥🔥🔥');
-    console.log('=================================');
-    let timeoutId;
-    try {
-        console.log('🔥 DENTRO DO TRY - INICIANDO PROCESSAMENTO');
-        const { dadosFormulario, userData } = req.body;
-        console.log('🎯 Endpoint /api/gerar-resposta chamado');
-        console.log('👤 Usuário que fez a solicitação:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
-        console.log('📋 Tipo de solicitação:', dadosFormulario?.tipo_solicitacao || 'N/A');
-        console.log('🚀 INICIANDO SISTEMA DE APRENDIZADO...');
-        
-        // Chamar diretamente o endpoint generate-response
-        req.url = '/api/generate-response';
-        
-        // Redirecionar para o endpoint principal
-        return app._router.handle(req, res);
-        
-    } catch (error) {
-        clearTimeout(timeoutId);
-        console.error('🔥 ERRO NO ENDPOINT /api/gerar-resposta:', error);
-        console.error('🔥 STACK TRACE:', error.stack);
-        
-        res.status(500).json({
-            success: false,
-            error: 'Erro interno do servidor',
-            message: error.message
-        });
-    }
-});
 
 // Rota para gerar resposta RA via API OpenAI (endpoint principal com sistema de aprendizado)
 app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
@@ -3284,255 +3252,77 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
         });
         
-        // Sistema de aprendizado ATIVADO para usar modelos da planilha
+        // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
         let conhecimentoFeedback = '';
         
-        // Carregar feedbacks e modelos relevantes  
-        const feedbacksRespostasLocal = await loadFeedbacksRespostas();
-        const modelosRespostasLocal = await loadModelosRespostas();
+        console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
         
-        // SISTEMA DE APRENDIZADO SEPARADO - CARREGAR DADOS DA PLANILHA PARA CONSULTA
-        let dadosAprendizado = {
-            modelosCoerentes: [],
-            feedbacksRelevantes: [],
-            fonte: 'local'
-        };
-        
-        // DEBUG: Verificar status do Google Sheets
-        console.log('🔍 DEBUG - Status do Google Sheets para aprendizado:', {
-            googleSheetsIntegration: !!googleSheetsIntegration,
-            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
-            tipoSolicitacao: dadosFormulario.tipo_solicitacao
-        });
-        
-        // Tentar carregar da planilha primeiro (com controle de quota)
+        // Verificar se Google Sheets está ativo
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                console.log('📚 SISTEMA DE APRENDIZADO: Carregando dados da planilha...');
-                dadosAprendizado = await carregarDadosAprendizadoCompleto(dadosFormulario.tipo_solicitacao);
-                console.log(`✅ APRENDIZADO: Carregados ${dadosAprendizado.modelosCoerentes.length} modelos e ${dadosAprendizado.feedbacksRelevantes.length} feedbacks da planilha`);
-            } catch (error) {
-                console.error('❌ Erro no sistema de aprendizado (planilha):', error.message);
-                console.log('🔄 Fallback para dados locais...');
-                dadosAprendizado = await carregarDadosAprendizadoLocal(dadosFormulario.tipo_solicitacao);
-            }
-        } else {
-            console.log('📚 SISTEMA DE APRENDIZADO: Usando dados locais (Google Sheets inativo)');
-            dadosAprendizado = await carregarDadosAprendizadoLocal(dadosFormulario.tipo_solicitacao);
-        }
-        
-        const feedbacksRelevantes = feedbacksRespostasLocal?.respostas?.filter(fb => 
-            fb.dadosFormulario?.tipo_solicitacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase()) ||
-            fb.contexto?.tipoSituacao?.toLowerCase().includes(dadosFormulario.tipo_solicitacao?.toLowerCase())
-        ) || [];
-        
-        // SISTEMA DE APRENDIZADO ATIVADO - USAR DADOS CARREGADOS
-        const modelosRelevantes = dadosAprendizado.modelosCoerentes || [];
-        const feedbacksRelevantesAprendizado = dadosAprendizado.feedbacksRelevantes || [];
-        
-        console.log('🧠 SISTEMA DE APRENDIZADO ATIVADO:', {
-            tipoSolicitacao: dadosFormulario.tipo_solicitacao,
-            fonte: dadosAprendizado.fonte,
-            timestamp: dadosAprendizado.timestamp,
-            modelosCoerentes: modelosRelevantes.length,
-            feedbacksRelevantes: feedbacksRelevantesAprendizado.length,
-            modelosEncontrados: modelosRelevantes.map(m => ({
-                tipo: m.dadosFormulario?.tipo_solicitacao || m.tipo_situacao,
-                resposta: m.respostaAprovada?.substring(0, 50) + '...'
-            }))
-        });
-        
-        // APLICAR APRENDIZADO NO CONHECIMENTO
-        if (modelosRelevantes.length > 0) {
-            console.log('🎯 APLICANDO APRENDIZADO: Modelos coerentes encontrados!');
-        } else {
-            console.log('⚠️ APRENDIZADO: Nenhum modelo coerente encontrado para esta solicitação');
-        }
-        
-        // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES - DESABILITADO PARA ESTABILIDADE
-        if (false) {
-            conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES:\n';
-            conhecimentoFeedback += 'Com base em feedbacks anteriores de situações similares, siga estas diretrizes:\n\n';
-            
-            // Extrair padrões dos feedbacks e determinar cláusulas
-            const padroes = new Set();
-            const exemplos = [];
-            const clausulasPorTipo = {};
-            
-            feedbacksRelevantes.forEach((fb, index) => {
-                if (fb.feedback) {
-                    padroes.add(fb.feedback);
+                console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
+                
+                // Carregar modelos coerentes da planilha
+                const modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
+                
+                // Carregar feedbacks da planilha
+                const feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
+                console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
+                
+                // APLICAR MODELOS COERENTES
+                if (modelosCoerentes.length > 0) {
+                    console.log('🎯 APLICANDO MODELOS COERENTES DA PLANILHA!');
+                    conhecimentoFeedback += '\n\n🧠 MODELOS COERENTES DA PLANILHA (SEGUIR ESTE PADRÃO):\n';
+                    conhecimentoFeedback += `Baseado em ${modelosCoerentes.length} respostas aprovadas como "coerentes" para situações similares:\n\n`;
                     
-                    // Determinar cláusula baseada no tipo de situação
-                    const tipoSituacao = fb.contexto.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao || '';
-                    let clausulaAplicavel = '';
-                    
-                    if (tipoSituacao.toLowerCase().includes('pix') || tipoSituacao.toLowerCase().includes('portabilidade') || tipoSituacao.toLowerCase().includes('chave')) {
-                        clausulaAplicavel = 'Cláusula 7 - Vínculo da Chave Pix e Quitação Automática';
-                    } else if (tipoSituacao.toLowerCase().includes('quitação') || tipoSituacao.toLowerCase().includes('liquidação') || tipoSituacao.toLowerCase().includes('encerramento')) {
-                        clausulaAplicavel = 'Cláusula 8 - Liquidação Antecipada';
-                    } else if (tipoSituacao.toLowerCase().includes('inadimplência') || tipoSituacao.toLowerCase().includes('vencimento')) {
-                        clausulaAplicavel = 'Cláusula 10 - Inadimplência e Vencimento Antecipado';
-                    } else if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('dados') || tipoSituacao.toLowerCase().includes('lgpd')) {
-                        clausulaAplicavel = 'Cláusula 14 - Proteção de Dados (LGPD)';
-                    }
-                    
-                    if (clausulaAplicavel) {
-                        if (!clausulasPorTipo[tipoSituacao]) {
-                            clausulasPorTipo[tipoSituacao] = new Set();
-                        }
-                        clausulasPorTipo[tipoSituacao].add(clausulaAplicavel);
-                    }
-                    
-                    exemplos.push({
-                        feedback: fb.feedback,
-                        contexto: `${tipoSituacao} - ${fb.contexto.motivoSolicitacao || fb.dadosFormulario?.motivo_solicitacao || ''}`,
-                        clausula: clausulaAplicavel,
-                        resposta: fb.respostaReformulada.substring(0, 200)
+                    modelosCoerentes.forEach((modelo, index) => {
+                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
+                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
+                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
+                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
+                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada.substring(0, 400)}..."\n\n`;
                     });
-                }
-            });
-            
-            // Adicionar padrões identificados
-            if (padroes.size > 0) {
-                conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (OBRIGATÓRIOS):\n';
-                Array.from(padroes).forEach((padrao, index) => {
-                    conhecimentoFeedback += `${index + 1}. ${padrao}\n`;
-                });
-                conhecimentoFeedback += '\n';
-            }
-            
-            // Adicionar cláusulas por tipo de situação
-            if (Object.keys(clausulasPorTipo).length > 0) {
-                conhecimentoFeedback += '⚖️ CLÁUSULAS CCB POR TIPO DE SITUAÇÃO:\n';
-                Object.keys(clausulasPorTipo).forEach(tipo => {
-                    const clausulas = Array.from(clausulasPorTipo[tipo]);
-                    conhecimentoFeedback += `• **${tipo}**: ${clausulas.join(', ')}\n`;
-                });
-                conhecimentoFeedback += '\n';
-            }
-            
-            // Adicionar exemplos de boas práticas
-            if (exemplos.length > 0) {
-                conhecimentoFeedback += '✅ EXEMPLOS DE BOAS PRÁTICAS:\n';
-                exemplos.slice(0, 3).forEach((exemplo, index) => {
-                    conhecimentoFeedback += `${index + 1}. Contexto: ${exemplo.contexto}\n`;
-                    if (exemplo.clausula) {
-                        conhecimentoFeedback += `   Cláusula CCB: ${exemplo.clausula}\n`;
-                    }
-                    conhecimentoFeedback += `   Aplicar: ${exemplo.feedback}\n`;
-                    conhecimentoFeedback += `   Exemplo: "${exemplo.resposta}..."\n\n`;
-                });
-            }
-            
-            conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para gerar uma resposta de alta qualidade desde o início, aplicando os padrões identificados e a cláusula CCB correta para cada tipo de situação.\n';
-        }
-        
-        // PRIORIDADE 3: CONSULTAR FEEDBACKS_RESPOSTAS.JSON COMO BASE DE CONHECIMENTO
-        if (feedbacksRespostasLocal.respostas && feedbacksRespostasLocal.respostas.length > 0) {
-            const feedbacksRelevantesRespostas = feedbacksRespostasLocal.respostas.filter(fb => {
-                const tipoSituacao = fb.contexto?.tipoSituacao || fb.dadosFormulario?.tipo_solicitacao || '';
-                return tipoSituacao.toLowerCase() === dadosFormulario.tipo_solicitacao.toLowerCase();
-            });
-            
-            if (false) {
-                if (!conhecimentoFeedback) {
-                    conhecimentoFeedback = '\n\n🧠 BASE DE CONHECIMENTO - FEEDBACKS DE RESPOSTAS RA:\n';
+                    
+                    conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
                 } else {
-                    conhecimentoFeedback += '\n\n📚 CONHECIMENTO COMPLEMENTAR - FEEDBACKS DE RESPOSTAS RA:\n';
+                    console.log('⚠️ NENHUM MODELO COERENTE ENCONTRADO na planilha para esta solicitação');
                 }
                 
-                conhecimentoFeedback += `Baseado em ${feedbacksRelevantesRespostas.length} feedbacks de respostas RA para "${dadosFormulario.tipo_solicitacao}":\n\n`;
-                
-                // Analisar problemas mais comuns
-                const problemasComuns = {};
-                const exemplosRespostas = [];
-                
-                feedbacksRelevantesRespostas.forEach(fb => {
-                    if (fb.feedback) {
-                        // Extrair problemas identificados
-                        const problemas = fb.feedback.match(/informacoes-incorretas|nao-condiz-solucao|falta-clareza|nao-empatico|tom-inadequado/g);
-                        if (problemas) {
-                            problemas.forEach(problema => {
-                                problemasComuns[problema] = (problemasComuns[problema] || 0) + 1;
-                            });
-                        }
-                        
-                        exemplosRespostas.push({
-                            feedback: fb.feedback,
-                            respostaReformulada: fb.respostaReformulada,
-                            timestamp: fb.timestamp
-                        });
-                    }
-                });
-                
-                // Adicionar problemas mais comuns
-                if (Object.keys(problemasComuns).length > 0) {
-                    conhecimentoFeedback += '⚠️ PROBLEMAS MAIS COMUNS IDENTIFICADOS:\n';
-                    Object.entries(problemasComuns)
-                        .sort(([,a], [,b]) => b - a)
-                        .forEach(([problema, count]) => {
-                            conhecimentoFeedback += `- ${problema.replace(/-/g, ' ').toUpperCase()}: ${count} ocorrências\n`;
-                        });
-                    conhecimentoFeedback += '\n';
-                }
-                
-                // Adicionar exemplos de correções
-                if (exemplosRespostas.length > 0) {
-                    conhecimentoFeedback += '✅ EXEMPLOS DE CORREÇÕES APLICADAS:\n';
-                    exemplosRespostas.slice(0, 3).forEach((exemplo, index) => {
-                        conhecimentoFeedback += `${index + 1}. Data: ${exemplo.timestamp}\n`;
-                        conhecimentoFeedback += `   Problema: "${exemplo.feedback}"\n`;
-                        conhecimentoFeedback += `   Correção aplicada: "${exemplo.respostaReformulada.substring(0, 200)}..."\n\n`;
+                // APLICAR FEEDBACKS RELEVANTES
+                if (feedbacksRelevantes.length > 0) {
+                    console.log('🎯 APLICANDO FEEDBACKS DA PLANILHA!');
+                    conhecimentoFeedback += '\n\n⚠️ FEEDBACKS DA PLANILHA (EVITAR ESTES ERROS):\n';
+                    conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} feedbacks de situações similares:\n\n`;
+                    
+                    feedbacksRelevantes.forEach((fb, index) => {
+                        conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
+                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior.substring(0, 150)}..."\n`;
+                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada.substring(0, 150)}..."\n\n`;
                     });
+                    
+                    conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para evitar erros similares.\n';
+                } else {
+                    console.log('⚠️ NENHUM FEEDBACK RELEVANTE ENCONTRADO na planilha para esta solicitação');
                 }
                 
-                conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento dos feedbacks de respostas RA para evitar os problemas identificados e aplicar as correções já validadas.\n';
+            } catch (error) {
+                console.error('❌ ERRO ao consultar planilha:', error.message);
+                console.log('🔄 Continuando sem aprendizado da planilha...');
             }
+        } else {
+            console.log('⚠️ GOOGLE SHEETS INATIVO - Continuando sem aprendizado da planilha');
         }
-        
-        // SISTEMA DE APRENDIZADO ATIVADO - APLICAR CONHECIMENTO DOS MODELOS COERENTES
-        if (modelosRelevantes.length > 0) {
-            conhecimentoFeedback += '\n\n🧠 SISTEMA DE APRENDIZADO ATIVADO - MODELOS COERENTES ENCONTRADOS:\n';
-            conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} respostas que foram marcadas como "coerentes" para situações similares (fonte: ${dadosAprendizado.fonte}), use estes exemplos como referência:\n\n`;
-            
-            modelosRelevantes.forEach((modelo, index) => {
-                conhecimentoFeedback += `📋 **MODELO COERENTE ${index + 1}** (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
-                conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
-                conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
-                conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
-                conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada.substring(0, 500)}..."\n\n`;
-            });
-            
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA DO SISTEMA DE APRENDIZADO: Use estes modelos coerentes como base para estruturar sua resposta, adaptando o conteúdo para os dados específicos fornecidos acima. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados. Estes modelos foram validados como corretos e devem ser seguidos.\n';
-        }
-        
-        // APLICAR CONHECIMENTO DOS FEEDBACKS RELEVANTES
-        if (feedbacksRelevantesAprendizado.length > 0) {
-            conhecimentoFeedback += '\n\n⚠️ FEEDBACKS RELEVANTES PARA EVITAR ERROS:\n';
-            conhecimentoFeedback += `Baseado em ${feedbacksRelevantesAprendizado.length} feedbacks de situações similares, evite estes problemas:\n\n`;
-            
-            feedbacksRelevantesAprendizado.slice(0, 3).forEach((feedback, index) => {
-                conhecimentoFeedback += `❌ **ERRO ${index + 1}** (${feedback.tipoSituacao}):\n`;
-                conhecimentoFeedback += `   📅 Data: ${feedback.timestamp}\n`;
-                conhecimentoFeedback += `   🚫 Problema: "${feedback.feedback}"\n`;
-                conhecimentoFeedback += `   ✅ Correção: "${feedback.respostaReformulada.substring(0, 300)}..."\n\n`;
-            });
-            
-            conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento dos feedbacks para evitar erros similares e aplicar as correções já validadas.\n';
-        }
-        
         
         // Verificar se o conhecimento foi construído
         if (conhecimentoFeedback && conhecimentoFeedback.length > 100) {
-            console.log('✅ CONHECIMENTO DE FEEDBACK INCLUÍDO NO PROMPT');
+            console.log('✅ CONHECIMENTO DA PLANILHA INCLUÍDO NO PROMPT');
             console.log('📊 Estatísticas do conhecimento:');
             console.log(`   - Tamanho: ${conhecimentoFeedback.length} caracteres`);
-            console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS RECENTES')}`);
-            console.log(`   - Contém respostas aprovadas: ${conhecimentoFeedback.includes('RESPOSTAS COERENTES')}`);
-            console.log(`   - Contém padrões: ${conhecimentoFeedback.includes('PADRÕES IDENTIFICADOS')}`);
+            console.log(`   - Contém modelos: ${conhecimentoFeedback.includes('MODELOS COERENTES')}`);
+            console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS DA PLANILHA')}`);
         } else {
-            console.log('⚠️ NENHUM CONHECIMENTO DE FEEDBACK DISPONÍVEL');
+            console.log('⚠️ NENHUM CONHECIMENTO DA PLANILHA DISPONÍVEL');
             console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
         }
 
@@ -3613,7 +3403,9 @@ A resposta deve ser uma formulação completa que:
 
 ${conhecimentoFeedback || ''}
 
-Formule uma resposta personalizada e completa que responda diretamente à solicitação do cliente, explicando como a solução implementada resolve o problema fundamentada nas cláusulas contratuais.`;
+🎯 INSTRUÇÃO CRÍTICA: Use o conhecimento dos modelos coerentes para gerar uma resposta de alta qualidade desde o início, aplicando a estrutura e abordagem dos modelos aprovados.
+
+IMPORTANTE: A resposta deve ser específica para esta situação, não genérica. Use os dados fornecidos e o conhecimento dos modelos coerentes para criar uma resposta personalizada e de alta qualidade.`;
 
         // Configurar timeout de 30 segundos
         const controller = new AbortController();
