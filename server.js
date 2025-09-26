@@ -2000,30 +2000,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
     
     await saveAprendizadoScript(aprendizado);
     
-    // Registrar no Google Sheets se ativo
-    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-        try {
-            const respostaData = {
-                id: Date.now(),
-                tipo: 'resposta',
-                tipoSituacao: tipoSituacao,
-                motivoSolicitacao: motivoSolicitacao,
-                respostaAprovada: respostaAprovada,
-                dadosFormulario: dadosFormulario,
-                timestamp: obterTimestampBrasil(),
-                userProfile: userData ? `${userData.nome} (${userData.email})` : 'N/A',
-                userName: userData?.nome || 'N/A',
-                userEmail: userData?.email || 'N/A'
-            };
-            googleSheetsIntegration.registrarRespostaCoerente(respostaData).then(() => {
-                        console.log('📋 Resposta coerente salva no Google Sheets');
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar resposta coerente:', error.message);
-                    });
-        } catch (error) {
-            console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
-        }
-    }
+    // NOTA: Registro no Google Sheets é feito em saveModelosRespostas para evitar duplicação
     
     console.log('📝 Resposta coerente adicionada ao aprendizado do script:', tipoSituacao);
     console.log('👤 Usuário que marcou como coerente:', userData ? `${userData.nome} (${userData.email})` : 'N/A');
