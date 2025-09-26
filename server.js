@@ -3340,14 +3340,105 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         }
         
         // Continuar com o resto do código do endpoint generate-response...
-        // (Vou copiar o resto do código)
+        // Construir o prompt com o conhecimento aplicado
         
-        // ... resto do código será copiado na próxima edição
-        
-        res.json({
-            success: true,
-            result: 'Sistema de aprendizado ativado - resposta será gerada com base nos modelos coerentes encontrados'
+        const prompt = `
+📌 GERAÇÃO DE RESPOSTA RA COM SISTEMA DE APRENDIZADO ATIVADO
+
+Você é responsável por gerar respostas para o Reclame Aqui seguindo o script estruturado e aplicando o conhecimento dos modelos coerentes.
+
+DADOS DE ENTRADA:
+- Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
+- Motivo da solicitação: ${dadosFormulario.motivo_solicitacao}
+- Solução implementada: ${dadosFormulario.solucao_implementada}
+- Texto do cliente: ${dadosFormulario.texto_cliente}
+- Histórico de atendimento: ${dadosFormulario.historico_atendimento}
+- Observações internas: ${dadosFormulario.observacoes_internas}
+
+${conhecimentoFeedback || ''}
+
+⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
+
+1. ANÁLISE DA SITUAÇÃO:
+- Identifique o tipo de solicitação (exclusão, portabilidade, quitação, etc.)
+- Analise o contexto específico (motivo, solução implementada, histórico)
+- Considere as observações internas e histórico de atendimento
+
+2. APLICAÇÃO DO CONHECIMENTO:
+- Use os modelos coerentes como referência para estrutura e tom
+- Evite os erros identificados nos feedbacks
+- Mantenha consistência com respostas aprovadas anteriormente
+
+3. GERAÇÃO DA RESPOSTA:
+- Estruture a resposta seguindo o padrão dos modelos coerentes
+- Seja específico sobre a solução implementada
+- Integre o histórico de atendimento quando relevante
+- Use tom profissional e empático
+
+4. VERIFICAÇÃO FINAL:
+- Confirme que a resposta é específica (não genérica)
+- Verifique se menciona a solução implementada
+- Garanta que o tom está adequado para o RA
+
+🎯 INSTRUÇÃO CRÍTICA: Use o conhecimento dos modelos coerentes para gerar uma resposta de alta qualidade desde o início, aplicando a estrutura e abordagem dos modelos aprovados.
+
+IMPORTANTE: A resposta deve ser específica para esta situação, não genérica. Use os dados fornecidos e o conhecimento dos modelos coerentes para criar uma resposta personalizada e de alta qualidade.`;
+
+        // Fazer a requisição para a OpenAI
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: envVars.OPENAI_MODEL || 'gpt-4o',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um especialista em atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7,
+                max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
+            })
         });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const resposta = data.choices[0].message.content;
+            
+            // Verificar se a resposta foi gerada com aprendizado
+            const temAprendizado = conhecimentoFeedback && conhecimentoFeedback.length > 100;
+            
+            if (temAprendizado) {
+                console.log('✅ Resposta gerada com aprendizado aplicado - mantendo resposta da IA');
+            } else {
+                console.log('⚠️ Resposta gerada sem aprendizado - usando resposta da IA');
+            }
+            
+            // Atualizar estatísticas
+            updateEstatisticas('respostas_geradas');
+            
+            res.json({
+                success: true,
+                result: resposta,
+                aprendizadoAplicado: temAprendizado,
+                modelosUtilizados: modelosRelevantes.length,
+                feedbacksUtilizados: feedbacksRelevantesAprendizado.length
+            });
+        } else {
+            const errorData = await response.text();
+            res.status(400).json({
+                success: false,
+                error: 'Erro na API OpenAI',
+                details: errorData
+            });
+        }
         
     } catch (error) {
         clearTimeout(timeoutId);
