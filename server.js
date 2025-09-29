@@ -620,7 +620,7 @@ async function saveFeedbacksModeracoes(feedbacks) {
                         };
                         
                         // SALVAMENTO SIMPLES - SEM AWAIT
-                        googleSheetsIntegration.registrarFeedback(moderacaoData).then(() => {
+                        googleSheetsIntegration.registrarFeedbackModeracao(moderacaoData).then(() => {
                             console.log('📋 Moderação salva no Google Sheets:', ultimaModeracao.id);
                         }).catch(error => {
                             console.error('❌ Erro ao salvar moderação:', error.message);
@@ -1058,9 +1058,23 @@ async function carregarDadosAprendizadoCompleto(tipoSolicitacao) {
         // Carregar feedbacks relevantes da planilha
         const feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(tipoSolicitacao);
         
+        // Aguardar para evitar quota
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Carregar moderações coerentes da planilha
+        const moderacoesCoerentes = await carregarModeracoesCoerentesDaPlanilha();
+        
+        // Aguardar para evitar quota
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Carregar feedbacks de moderação da planilha
+        const feedbacksModeracoes = await carregarFeedbacksModeracoesDaPlanilha();
+        
         return {
             modelosCoerentes,
             feedbacksRelevantes,
+            moderacoesCoerentes,
+            feedbacksModeracoes,
             fonte: 'planilha',
             timestamp: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
         };
@@ -1149,6 +1163,60 @@ async function carregarModelosCoerentesDaPlanilha(tipoSolicitacao) {
         
     } catch (error) {
         console.error('❌ Erro ao carregar modelos coerentes da planilha:', error.message);
+        return [];
+    }
+}
+
+// Carregar moderações coerentes da planilha
+async function carregarModeracoesCoerentesDaPlanilha() {
+    if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+        console.log('⚠️ Google Sheets não está ativo. Não é possível carregar moderações da planilha.');
+        return [];
+    }
+
+    try {
+        console.log('📋 Carregando moderações coerentes da planilha...');
+        
+        // Usar a integração do Google Sheets
+        const todasModeracoes = await googleSheetsIntegration.obterModeracoesCoerentes();
+        
+        if (!todasModeracoes || todasModeracoes.length === 0) {
+            console.log('📋 Nenhuma moderação coerente encontrada na planilha');
+            return [];
+        }
+        
+        console.log(`📋 ${todasModeracoes.length} moderações coerentes carregadas da planilha`);
+        return todasModeracoes;
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar moderações coerentes da planilha:', error.message);
+        return [];
+    }
+}
+
+// Carregar feedbacks de moderação da planilha
+async function carregarFeedbacksModeracoesDaPlanilha() {
+    if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+        console.log('⚠️ Google Sheets não está ativo. Não é possível carregar feedbacks de moderação da planilha.');
+        return [];
+    }
+
+    try {
+        console.log('📋 Carregando feedbacks de moderação da planilha...');
+        
+        // Usar a integração do Google Sheets
+        const todosFeedbacks = await googleSheetsIntegration.obterFeedbacksModeracoes();
+        
+        if (!todosFeedbacks || todosFeedbacks.length === 0) {
+            console.log('📋 Nenhum feedback de moderação encontrado na planilha');
+            return [];
+        }
+        
+        console.log(`📋 ${todosFeedbacks.length} feedbacks de moderação carregados da planilha`);
+        return todosFeedbacks;
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar feedbacks de moderação da planilha:', error.message);
         return [];
     }
 }
@@ -2332,7 +2400,7 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
 }
 
 // Adicionar feedback de moderação (APENAS para aba Moderação RA)
-async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado) {
+async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado, dadosModeracao = null, userData = null) {
     const feedbacks = loadFeedbacksModeracoes();
     
     const novoFeedback = {
@@ -2341,11 +2409,35 @@ async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulad
         tipo: 'moderacao',
         textoNegado: textoNegado,
         motivoNegativa: motivoNegativa,
-        textoReformulado: textoReformulado
+        textoReformulado: textoReformulado,
+        dadosModeracao: dadosModeracao,
+        userData: userData
     };
     
     feedbacks.moderacoes.push(novoFeedback);
     await saveFeedbacksModeracoes(feedbacks);
+    
+    // Registrar no Google Sheets se ativo
+    if (googleSheetsIntegration.isActive()) {
+        const feedbackData = {
+            id: novoFeedback.id,
+            tipo: 'moderacao',
+            dadosModeracao: dadosModeracao,
+            textoNegado: textoNegado,
+            motivoNegativa: motivoNegativa,
+            textoReformulado: textoReformulado,
+            userProfile: userData ? `${userData.nome} (${userData.email})` : 'N/A',
+            userName: userData?.nome || 'N/A',
+            userEmail: userData?.email || 'N/A'
+        };
+        
+        // SALVAMENTO SIMPLES - SEM AWAIT
+        googleSheetsIntegration.registrarFeedbackModeracao(feedbackData).then(() => {
+            console.log('📋 Feedback de moderação salvo no Google Sheets:', novoFeedback.id);
+        }).catch(error => {
+            console.error('❌ Erro ao salvar feedback de moderação:', error.message);
+        });
+    }
     
     console.log('📝 Feedback de moderação adicionado (aba Moderação RA):', novoFeedback.id);
     return novoFeedback;
@@ -3983,7 +4075,7 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
             });
         }
         
-        const { motivoNegativa, textoNegado } = req.body;
+        const { motivoNegativa, textoNegado, dadosModeracao } = req.body;
         
         if (!motivoNegativa || !textoNegado) {
             return res.status(400).json({
@@ -4145,7 +4237,7 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
             const textoReformulado = data.choices[0].message.content;
             
             // Salvar feedback para aprendizado futuro
-            addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado);
+            addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado, dadosModeracao, req.userData);
             
             res.json({
                 success: true,
@@ -5614,6 +5706,27 @@ app.post('/api/save-modelo-moderacao', (req, res) => {
         
         // Salvar como modelo de moderação aprovada
         const modelo = addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
+        
+        // Registrar no Google Sheets se ativo
+        if (googleSheetsIntegration.isActive()) {
+            const moderacaoData = {
+                id: modelo.id,
+                tipo: 'moderacao',
+                dadosModeracao: dadosModeracao,
+                linhaRaciocinio: linhaRaciocinio,
+                textoModeracao: textoModeracao,
+                userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
+                userName: req.userData?.nome || 'N/A',
+                userEmail: req.userData?.email || 'N/A'
+            };
+            
+            // SALVAMENTO SIMPLES - SEM AWAIT
+            googleSheetsIntegration.registrarModeracaoCoerente(moderacaoData).then(() => {
+                console.log('📋 Moderação coerente salva no Google Sheets:', modelo.id);
+            }).catch(error => {
+                console.error('❌ Erro ao salvar moderação coerente:', error.message);
+            });
+        }
         
         // Incrementar estatística global
         incrementarEstatisticaGlobal('moderacoes_coerentes');

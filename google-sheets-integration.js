@@ -196,7 +196,9 @@ class GoogleSheetsIntegration {
         const cacheKeys = {
             'modelos': 'modelos_respostas',
             'feedbacks': 'feedbacks_respostas',
-            'all': ['modelos_respostas', 'feedbacks_respostas']
+            'feedbacks_moderacoes': 'feedbacks_moderacoes',
+            'moderacoes_coerentes': 'moderacoes_coerentes',
+            'all': ['modelos_respostas', 'feedbacks_respostas', 'feedbacks_moderacoes', 'moderacoes_coerentes']
         };
 
         const keys = cacheKeys[dataType] || [dataType];
@@ -208,6 +210,12 @@ class GoogleSheetsIntegration {
         }
         if (dataType === 'feedbacks' || dataType === 'all') {
             return await this.obterFeedbacksRespostas();
+        }
+        if (dataType === 'feedbacks_moderacoes' || dataType === 'all') {
+            return await this.obterFeedbacksModeracoes();
+        }
+        if (dataType === 'moderacoes_coerentes' || dataType === 'all') {
+            return await this.obterModeracoesCoerentes();
         }
     }
 
@@ -277,6 +285,22 @@ class GoogleSheetsIntegration {
                 'User Agent',
                 'Duração Sessão (min)',
                 'Status'
+            ]);
+
+            await this.ensureSheetExists('Moderações', [
+                'Data/Hora',
+                'ID',
+                'Tipo',
+                'Solicitação Cliente',
+                'Resposta Empresa',
+                'Consideração Final',
+                'Motivo Moderação',
+                'Texto Moderação Anterior',
+                'Feedback',
+                'Texto Moderação Reformulado',
+                'Linha Raciocínio',
+                'Status Aprovação',
+                'Observações Internas'
             ]);
 
             console.log('✅ Planilhas verificadas/criadas com sucesso');
@@ -413,6 +437,100 @@ class GoogleSheetsIntegration {
 
         } catch (error) {
             console.error('❌ Erro ao registrar resposta coerente no Google Sheets:', error.message);
+            this.handleQuotaError(error);
+            return false;
+        }
+    }
+
+    /**
+     * Registra um feedback de moderação no Google Sheets
+     */
+    async registrarFeedbackModeracao(feedbackData) {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Feedback de moderação não registrado.');
+            return false;
+        }
+
+        try {
+            // Rate limiting para operações de escrita
+            await this.waitForRateLimit();
+            
+            // Invalidar cache relacionado para forçar atualização
+            this.invalidateCache(['feedbacks_moderacoes']);
+            
+            // Criar perfil do usuário para a coluna ID
+            const userProfile = feedbackData.userProfile || 
+                (feedbackData.userEmail ? `${feedbackData.userName || 'Usuário'} (${feedbackData.userEmail})` : 'N/A');
+
+            const row = [
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
+                feedbackData.id || '', // Coluna B: ID
+                feedbackData.tipo || 'moderacao', // Coluna C: Tipo
+                feedbackData.dadosModeracao?.solicitacaoCliente || '', // Coluna D: Solicitação Cliente
+                feedbackData.dadosModeracao?.respostaEmpresa || '', // Coluna E: Resposta Empresa
+                feedbackData.dadosModeracao?.consideracaoFinal || '', // Coluna F: Consideração Final
+                feedbackData.dadosModeracao?.motivoModeracao || '', // Coluna G: Motivo Moderação
+                feedbackData.textoNegado || '', // Coluna H: Texto Moderação Anterior
+                feedbackData.motivoNegativa || '', // Coluna I: Feedback
+                feedbackData.textoReformulado || '', // Coluna J: Texto Moderação Reformulado
+                feedbackData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
+                'Pendente', // Coluna L: Status Aprovação
+                feedbackData.observacoesInternas || '' // Coluna M: Observações Internas
+            ];
+
+            await googleSheetsConfig.appendRow('Moderações!A:Z', row);
+            console.log('✅ Feedback de moderação registrado no Google Sheets com perfil do usuário:', userProfile);
+            return true;
+
+        } catch (error) {
+            console.error('❌ Erro ao registrar feedback de moderação no Google Sheets:', error.message);
+            this.handleQuotaError(error);
+            return false;
+        }
+    }
+
+    /**
+     * Registra uma moderação coerente no Google Sheets
+     */
+    async registrarModeracaoCoerente(moderacaoData) {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Moderação coerente não registrada.');
+            return false;
+        }
+
+        try {
+            // Rate limiting para operações de escrita
+            await this.waitForRateLimit();
+            
+            // Invalidar cache relacionado para forçar atualização
+            this.invalidateCache(['moderacoes_coerentes']);
+            
+            // Criar perfil do usuário para a coluna ID
+            const userProfile = moderacaoData.userProfile || 
+                (moderacaoData.userEmail ? `${moderacaoData.userName || 'Usuário'} (${moderacaoData.userEmail})` : 'N/A');
+
+            const row = [
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
+                moderacaoData.id || '', // Coluna B: ID
+                moderacaoData.tipo || 'moderacao', // Coluna C: Tipo
+                moderacaoData.dadosModeracao?.solicitacaoCliente || '', // Coluna D: Solicitação Cliente
+                moderacaoData.dadosModeracao?.respostaEmpresa || '', // Coluna E: Resposta Empresa
+                moderacaoData.dadosModeracao?.consideracaoFinal || '', // Coluna F: Consideração Final
+                moderacaoData.dadosModeracao?.motivoModeracao || '', // Coluna G: Motivo Moderação
+                '', // Coluna H: Texto Moderação Anterior (vazio para moderações aprovadas)
+                '', // Coluna I: Feedback (vazio para moderações aprovadas)
+                moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // Coluna J: Texto Moderação Reformulado
+                moderacaoData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
+                'Aprovada', // Coluna L: Status Aprovação
+                moderacaoData.observacoesInternas || '' // Coluna M: Observações Internas
+            ];
+
+            await googleSheetsConfig.appendRow('Moderações!A:Z', row);
+            console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
+            return true;
+
+        } catch (error) {
+            console.error('❌ Erro ao registrar moderação coerente no Google Sheets:', error.message);
             this.handleQuotaError(error);
             return false;
         }
@@ -601,6 +719,158 @@ class GoogleSheetsIntegration {
             
         } catch (error) {
             console.error('❌ Erro ao obter modelos do Google Sheets:', error.message);
+            this.handleQuotaError(error);
+            return [];
+        }
+    }
+
+    /**
+     * Obtém todos os feedbacks de moderações da planilha
+     */
+    async obterFeedbacksModeracoes() {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Não é possível obter feedbacks de moderações.');
+            return [];
+        }
+
+        try {
+            console.log('📚 Obtendo feedbacks de moderações do Google Sheets...');
+            
+            // Verificar cache primeiro
+            const cacheKey = 'feedbacks_moderacoes';
+            const cachedData = this.getFromCache(cacheKey);
+            if (cachedData) {
+                return cachedData;
+            }
+            
+            // Verificar se googleSheetsConfig está inicializado
+            console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
+                existe: !!googleSheetsConfig,
+                isInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+            });
+            
+            if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+                console.log('⚠️ googleSheetsConfig não está inicializado');
+                return [];
+            }
+            
+            // Rate limiting
+            await this.waitForRateLimit();
+            
+            // Ler dados da planilha de moderações
+            const range = 'Moderações!A1:Z1000';
+            const data = await googleSheetsConfig.readData(range);
+            
+            if (!data || data.length <= 1) {
+                console.log('📚 Nenhum feedback de moderação encontrado no Google Sheets');
+                return [];
+            }
+            
+            // Converter dados da planilha para array de objetos
+            const headers = data[0];
+            const feedbacks = [];
+            
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                if (row[0]) { // Se tem ID
+                    const feedback = {};
+                    headers.forEach((header, index) => {
+                        if (row[index] !== undefined) {
+                            feedback[header] = row[index];
+                        }
+                    });
+                    // Filtrar apenas feedbacks (com texto de moderação anterior e feedback)
+                    if (feedback['Texto Moderação Anterior'] && feedback['Feedback']) {
+                        feedbacks.push(feedback);
+                    }
+                }
+            }
+            
+            console.log(`✅ ${feedbacks.length} feedbacks de moderação obtidos do Google Sheets`);
+            
+            // Salvar no cache
+            this.setCache(cacheKey, feedbacks);
+            
+            return feedbacks;
+            
+        } catch (error) {
+            console.error('❌ Erro ao obter feedbacks de moderação do Google Sheets:', error.message);
+            this.handleQuotaError(error);
+            return [];
+        }
+    }
+
+    /**
+     * Obtém todas as moderações coerentes da planilha
+     */
+    async obterModeracoesCoerentes() {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo. Não é possível obter moderações coerentes.');
+            return [];
+        }
+
+        try {
+            console.log('📚 Obtendo moderações coerentes do Google Sheets...');
+            
+            // Verificar cache primeiro
+            const cacheKey = 'moderacoes_coerentes';
+            const cachedData = this.getFromCache(cacheKey);
+            if (cachedData) {
+                return cachedData;
+            }
+            
+            // Verificar se googleSheetsConfig está inicializado
+            console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
+                existe: !!googleSheetsConfig,
+                isInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+            });
+            
+            if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+                console.log('⚠️ googleSheetsConfig não está inicializado');
+                return [];
+            }
+            
+            // Rate limiting
+            await this.waitForRateLimit();
+            
+            // Ler dados da planilha de moderações
+            const range = 'Moderações!A1:Z1000';
+            const data = await googleSheetsConfig.readData(range);
+            
+            if (!data || data.length <= 1) {
+                console.log('📚 Nenhuma moderação coerente encontrada no Google Sheets');
+                return [];
+            }
+            
+            // Converter dados da planilha para array de objetos
+            const headers = data[0];
+            const moderacoes = [];
+            
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                if (row[0]) { // Se tem ID
+                    const moderacao = {};
+                    headers.forEach((header, index) => {
+                        if (row[index] !== undefined) {
+                            moderacao[header] = row[index];
+                        }
+                    });
+                    // Filtrar apenas moderações aprovadas (sem feedback)
+                    if (moderacao['Status Aprovação'] === 'Aprovada' && !moderacao['Feedback']) {
+                        moderacoes.push(moderacao);
+                    }
+                }
+            }
+            
+            console.log(`✅ ${moderacoes.length} moderações coerentes obtidas do Google Sheets`);
+            
+            // Salvar no cache
+            this.setCache(cacheKey, moderacoes);
+            
+            return moderacoes;
+            
+        } catch (error) {
+            console.error('❌ Erro ao obter moderações coerentes do Google Sheets:', error.message);
             this.handleQuotaError(error);
             return [];
         }
