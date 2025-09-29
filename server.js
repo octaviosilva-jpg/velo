@@ -2431,7 +2431,8 @@ async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulad
     await saveFeedbacksModeracoes(feedbacks);
     
     // Registrar no Google Sheets se ativo
-    if (googleSheetsIntegration.isActive()) {
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        console.log('📋 Google Sheets ativo - registrando feedback de moderação...');
         const feedbackData = {
             id: novoFeedback.id,
             tipo: 'moderacao',
@@ -2444,12 +2445,20 @@ async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulad
             userEmail: userData?.email || 'N/A'
         };
         
+        console.log('📋 Dados do feedback para Google Sheets:', {
+            id: feedbackData.id,
+            tipo: feedbackData.tipo,
+            userProfile: feedbackData.userProfile
+        });
+        
         // SALVAMENTO SIMPLES - SEM AWAIT
         googleSheetsIntegration.registrarFeedbackModeracao(feedbackData).then(() => {
-            console.log('📋 Feedback de moderação salvo no Google Sheets:', novoFeedback.id);
+            console.log('✅ Feedback de moderação salvo no Google Sheets:', novoFeedback.id);
         }).catch(error => {
             console.error('❌ Erro ao salvar feedback de moderação:', error.message);
         });
+    } else {
+        console.log('⚠️ Google Sheets não está ativo - feedback de moderação não será registrado');
     }
     
     console.log('📝 Feedback de moderação adicionado (aba Moderação RA):', novoFeedback.id);
@@ -5764,10 +5773,11 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
         }
         
         // Salvar como modelo de moderação aprovada
-        const modelo = addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
+        const modelo = await addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
         
         // Registrar no Google Sheets se ativo
-        if (googleSheetsIntegration.isActive()) {
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            console.log('📋 Google Sheets ativo - registrando moderação coerente...');
             const moderacaoData = {
                 id: modelo.id,
                 tipo: 'moderacao',
@@ -5779,12 +5789,20 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 userEmail: req.userData?.email || 'N/A'
             };
             
+            console.log('📋 Dados da moderação para Google Sheets:', {
+                id: moderacaoData.id,
+                tipo: moderacaoData.tipo,
+                userProfile: moderacaoData.userProfile
+            });
+            
             // SALVAMENTO SIMPLES - SEM AWAIT
             googleSheetsIntegration.registrarModeracaoCoerente(moderacaoData).then(() => {
-                console.log('📋 Moderação coerente salva no Google Sheets:', modelo.id);
+                console.log('✅ Moderação coerente salva no Google Sheets:', modelo.id);
             }).catch(error => {
                 console.error('❌ Erro ao salvar moderação coerente:', error.message);
             });
+        } else {
+            console.log('⚠️ Google Sheets não está ativo - moderação coerente não será registrada');
         }
         
         // Incrementar estatística global
