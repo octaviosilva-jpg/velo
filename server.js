@@ -5294,29 +5294,33 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
                 syncResult = { googleSheets: 'Registrado em addModeloResposta' };
                 console.log('✅ Modelo já registrado no Google Sheets via addModeloResposta');
                 
-                // Tentar sincronizar com arquivos locais também (backup)
-                const localServerUrl = 'http://localhost:3001';
-                const syncData = {
-                    modeloResposta: modelo,
-                    aprendizadoScript: aprendizadoScriptMemoria
-                };
-                
-                // Tentar sincronizar (não bloquear se falhar)
-                fetch(`${localServerUrl}/api/sync-vercel-to-local`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(syncData)
-                }).then(response => response.json())
-                .then(result => {
-                    console.log('✅ Sincronização com arquivos locais:', result);
-                    if (syncResult) {
-                        syncResult.localFiles = result;
-                    }
-                }).catch(error => {
-                    console.log('⚠️ Servidor local não disponível para sincronização:', error.message);
-                });
+                // Tentar sincronizar com arquivos locais também (backup) - apenas em desenvolvimento
+                if (!process.env.VERCEL) {
+                    const localServerUrl = 'http://localhost:3001';
+                    const syncData = {
+                        modeloResposta: modelo,
+                        aprendizadoScript: aprendizadoScriptMemoria
+                    };
+                    
+                    // Tentar sincronizar (não bloquear se falhar)
+                    fetch(`${localServerUrl}/api/sync-vercel-to-local`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(syncData)
+                    }).then(response => response.json())
+                    .then(result => {
+                        console.log('✅ Sincronização com arquivos locais:', result);
+                        if (syncResult) {
+                            syncResult.localFiles = result;
+                        }
+                    }).catch(error => {
+                        console.log('⚠️ Servidor local não disponível para sincronização:', error.message);
+                    });
+                } else {
+                    console.log('📊 Modo produção - sincronização local desabilitada');
+                }
                 
             } catch (error) {
                 console.log('⚠️ Erro na sincronização automática:', error.message);
