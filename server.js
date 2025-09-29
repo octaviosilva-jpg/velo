@@ -3261,7 +3261,7 @@ Com base no conteúdo analisado, verifique os 3 manuais oficiais do RA:
 - Manual de Moderação – Bancos, Instituições Financeiras e Meios
 
 Identifique violações específicas:
-- Há informações falsas ou divergentes da realidade no conteúdo?
+- Há informações incorretas ou que não condizem com os registros internos no conteúdo?
 - O caso já estava resolvido antes da abertura da reclamação?
 - Houve omissão da solução aplicada na plataforma pelo cliente?
 - Há linguagem ofensiva, acusações genéricas ou sem provas?
@@ -3278,7 +3278,7 @@ Identifique violações específicas:
 Esse bloco não vai para o RA, mas é obrigatório na saída. Estrutura:
 - Análise do conteúdo: resuma o que o cliente alegou, como a empresa respondeu, e o que o cliente disse na consideração final
 - Fatos reais comprovados: descreva o que realmente ocorreu, com datas, registros e documentos (internos ou oficiais)
-- Divergência/violação identificada: aponte especificamente onde o conteúdo (solicitação, resposta ou consideração) foge da realidade, está desatualizado ou infringe regras do RA
+- Divergência/violação identificada: aponte especificamente onde o conteúdo (solicitação, resposta ou consideração) contém informações incorretas, está desatualizado ou infringe regras do RA
 - Base normativa: indique explicitamente:
   * Qual manual do RA dá respaldo (citar manual + seção, se aplicável)
   * Qual cláusula contratual ou termo aceito pelo cliente fundamenta o pedido
@@ -3287,11 +3287,12 @@ Esse bloco não vai para o RA, mas é obrigatório na saída. Estrutura:
 5. CONSTRUÇÃO DA RESPOSTA FINAL DE MODERAÇÃO:
 Esse é o texto que vai ser enviado ao RA. Deve ser:
 - Baseado na análise real do conteúdo (solicitação, resposta, consideração)
-- Objetivo e técnico
+- Objetivo e técnico, utilizando termos objetivos e técnicos
 - Impessoal (sem "eu", "nós sentimos", etc.)
-- Sem tom emocional
+- Sem tom emocional ou juízo de valor
 - Estruturado em 3 parágrafos curtos
-- Focado nas violações específicas identificadas no conteúdo analisado
+- Focado nos fatos e provas, sem dar impressão de defesa contra o cliente
+- Priorizar a exposição clara da solução já aplicada e a divergência objetiva com o relato
 
 MODELO FIXO OBRIGATÓRIO - USE EXATAMENTE ESTA ESTRUTURA:
 
@@ -3300,9 +3301,9 @@ TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA):
 
 Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo baseado na análise do conteúdo real - solicitação, resposta e consideração final do consumidor].
 
-Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos que divergem do que foi apresentado pelo cliente]. Ressaltamos que [especificar qual parte do conteúdo - solicitação, resposta ou consideração - diverge da realidade], enquadrando-se nas hipóteses de moderação previstas no [manual aplicável específico].
+Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos que não condizem com o que foi apresentado pelo cliente]. Ressaltamos que [especificar qual parte do conteúdo - solicitação, resposta ou consideração - contém informações incorretas], enquadrando-se na hipótese específica de moderação "[informação incorreta sobre solução já aplicada]" prevista no [manual aplicável específico].
 
-Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
+Dessa forma, solicitamos a moderação da publicação, conforme regras vigentes da plataforma."
 
 ⚠️ IMPORTANTE: O texto final DEVE seguir EXATAMENTE esta estrutura de 3 parágrafos. NÃO use outros formatos como "Prezados Senhores", "Atenciosamente", ou estruturas diferentes.
 
