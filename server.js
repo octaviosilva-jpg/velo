@@ -5805,7 +5805,154 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
     }
 });
 
-// Endpoint para gerar explicações baseadas em feedbacks (sem API OpenAI)
+// Função para gerar mensagem explicativa com respostas fixas
+function gerarMensagemExplicativa(tema, contexto) {
+    const explicacoes = {
+        'malha-fina': `
+            <p><strong>Prezado(a) cliente,</strong></p>
+            <p>Vamos esclarecer sobre a Malha Fina:</p>
+            <ol>
+                <li><strong>O que é:</strong> É um sistema de fiscalização da Receita Federal que identifica inconsistências na declaração do IR.</li>
+                <li><strong>Como funciona:</strong> O sistema compara as informações declaradas com dados de terceiros.</li>
+                <li><strong>Prazo para resposta:</strong> Você tem 30 dias para se manifestar após receber a notificação.</li>
+                <li><strong>Como resolver:</strong> É necessário apresentar documentos que comprovem as informações declaradas.</li>
+                <li><strong>Penalidades:</strong> Caso não seja respondida, pode gerar multas e juros.</li>
+            </ol>
+            <p>Nossa equipe está disponível para orientações sobre como proceder em seu caso específico.</p>
+        `,
+        'exclusao': `
+            <p><strong>Prezado(a) cliente,</strong></p>
+            <p>Se você deseja excluir sua conta na Velotax, preparamos um passo a passo simples. Você pode fazer isso de duas formas:</p>
+            
+            <p><strong>🔹 1. Pelo aplicativo</strong></p>
+            <ol>
+                <li>Abra o app da Velotax no seu celular.</li>
+                <li>Toque no ícone de Impostos</li>
+                <li>Selecione a opção "DARFs para investidores".</li>
+                <li>No canto superior direito, toque no ícone de menu (☰).</li>
+                <li>Role a tela lateral esquerda até encontrar a opção "Conta".</li>
+                <li>Role até o final e toque em "Excluir conta".</li>
+            </ol>
+            
+            <p><strong>🔹 2. Pelo site</strong></p>
+            <ol>
+                <li>Acesse: www.velotax.com.br</li>
+                <li>Faça login com seu CPF e senha.</li>
+                <li>No menu inferior, do lado esquerdo, clique em "Conta".</li>
+                <li>Role a página até o final e clique em "Excluir conta".</li>
+            </ol>
+            
+            <p><strong>⚠️ Importante</strong></p>
+            <p>A exclusão será feita conforme a Lei Geral de Proteção de Dados (LGPD), garantindo segurança e privacidade. Todas as informações registradas (declarações, relatórios e documentos fiscais) serão apagadas definitivamente. Lembrando que a exclusão de seus dados não cancela planos ativos em cobrança.</p>
+        `,
+        'procuracoes': `
+            <p><strong>Prezado(a) cliente,</strong></p>
+            <p>Para revogar procurações no eCAC, siga os passos abaixo:</p>
+            <ol>
+                <li>Acesse www.gov.br/receitafederal</li>
+                <li>Clique em "eCAC" e faça login</li>
+                <li>No menu, selecione "Procurações"</li>
+                <li>Escolha "Revogar Procuração"</li>
+                <li>Selecione a procuração a ser revogada</li>
+                <li>Confirme a operação</li>
+            </ol>
+            <p>A revogação é imediata e você receberá confirmação por e-mail.</p>
+            <p>Em caso de dificuldades, nossa equipe está disponível para orientações.</p>
+        `,
+        'ccb': `
+            <p><strong>Prezado(a) cliente,</strong></p>
+            <p>A Cédula de Crédito Bancário (CCB) é um título de crédito que representa uma promessa de pagamento. Vamos esclarecer todas as cláusulas contratuais:</p>
+            
+            <p><strong>📋 CLÁUSULAS DA CCB:</strong></p>
+            
+            <p><strong>Cláusula 1 - Partes e Definições:</strong><br>
+            Identifica quem empresta (credor/instituição), quem toma o crédito (devedor/cliente) e define termos usados no contrato como "Chave Pix", "Conta de Pagamento" e "Antecipação".</p>
+            
+            <p><strong>Cláusula 2 - Objeto do Contrato:</strong><br>
+            Explica qual operação está sendo contratada — antecipação de restituição, empréstimo com garantia de restituição, ou outra modalidade.</p>
+            
+            <p><strong>Cláusula 3 - Valor, Liberação e Conta de Crédito:</strong><br>
+            Estabelece o montante, data de liberação e conta para depósito do valor contratado.</p>
+            
+            <p><strong>Cláusula 4 - Vencimento e Forma de Pagamento:</strong><br>
+            Define quando e como a dívida será paga — parcelamento, vencimento único ou amortizações. A dívida será quitada automaticamente com o crédito da restituição do Imposto de Renda.</p>
+            
+            <p><strong>Cláusula 5 - Juros, Encargos e Forma de Cálculo:</strong><br>
+            Especifica os juros remuneratórios, juros de mora, encargos, periodicidade de capitalização e método de cálculo.</p>
+            
+            <p><strong>⚠️ IMPORTANTE:</strong><br>
+            É fundamental que você leia atentamente todas as cláusulas do contrato antes de assinar, compreendendo os termos, condições, taxas de juros, prazos e consequências do não cumprimento das obrigações assumidas.</p>
+            
+            <p>Nossa equipe está disponível para orientações adicionais sobre qualquer cláusula específica da CCB.</p>
+        `,
+        'credito-trabalhador': `
+            <p><strong>📌 Empréstimo do Trabalhador – Resumo</strong></p>
+            
+            <p><strong>O que é:</strong><br>
+            Linha de crédito consignado, com parcelas descontadas direto do salário ou benefício.</p>
+            
+            <p><strong>Vantagens:</strong></p>
+            <ul>
+                <li>Sem boletos ou lembretes de pagamento.</li>
+                <li>Valor liberado via Pix (CPF).</li>
+            </ul>
+            
+            <p><strong>Durante o contrato:</strong></p>
+            <ul>
+                <li>Desconto em folha (holerite/contracheque).</li>
+                <li>Em caso de demissão, o desconto para, mas o saldo devedor deve ser pago por boleto/Pix.</li>
+                <li>Verbas rescisórias podem ser usadas para abater a dívida.</li>
+            </ul>
+            
+            <p><strong>Critérios de elegibilidade:</strong></p>
+            
+            <p><strong>👤 Colaborador</strong></p>
+            <ul>
+                <li>Idade: 18 a 62 anos (homens) / 18 a 65 anos (mulheres).</li>
+                <li>CLT há pelo menos 12 meses.</li>
+                <li>Empregado(a) doméstico(a).</li>
+                <li>Diretor(a) com recolhimento de FGTS.</li>
+            </ul>
+            
+            <p><strong>🏢 Empresa</strong></p>
+            <ul>
+                <li>CNPJ ativo há pelo menos 36 meses.</li>
+            </ul>
+            
+            <p><strong>🚫 Não pode solicitar:</strong></p>
+            <ul>
+                <li>Funcionários afastados pelo INSS.</li>
+                <li>Em aviso prévio.</li>
+                <li>Já desligados no sistema.</li>
+            </ul>
+            
+            <p>Nossa equipe está disponível para orientações adicionais sobre o Crédito do Trabalhador.</p>
+        `,
+        'credito-pessoal': `
+            <p><strong>Prezado(a) cliente,</strong></p>
+            <p>Vamos esclarecer sobre o Crédito Pessoal:</p>
+            <ol>
+                <li><strong>O que é:</strong> É um empréstimo sem destinação específica para uso pessoal</li>
+                <li><strong>Características:</strong> Valor fixo, prazo determinado e parcelas mensais</li>
+                <li><strong>Finalidade:</strong> Pode ser usado para qualquer necessidade pessoal</li>
+                <li><strong>Análise:</strong> Baseada na renda e histórico de crédito do cliente</li>
+                <li><strong>Documentação:</strong> Comprovantes de renda e documentos pessoais</li>
+            </ol>
+            <p>Nossa equipe está disponível para orientações sobre crédito pessoal.</p>
+        `
+    };
+    
+    let explicacao = explicacoes[tema] || '<p>Explicação não disponível para este tema.</p>';
+    
+    if (contexto.trim()) {
+        explicacao = explicacao.replace('<p><strong>Prezado(a) cliente,</strong></p>', 
+            `<p><strong>Prezado(a) cliente,</strong></p><p><strong>Contexto:</strong> ${contexto}</p>`);
+    }
+    
+    return explicacao;
+}
+
+// Endpoint para gerar explicações com respostas fixas do sistema
 app.post('/api/generate-explanation', async (req, res) => {
     try {
         const { tema } = req.body;
@@ -5817,9 +5964,8 @@ app.post('/api/generate-explanation', async (req, res) => {
             });
         }
         
-        // Obter feedbacks relevantes para o tema (APENAS feedbacks de respostas)
-        const feedbacks = loadFeedbacksRespostas();
-        const explicacao = gerarExplicacaoBaseadaEmFeedbacks(tema, feedbacks);
+        // Gerar explicação usando as respostas fixas do sistema
+        const explicacao = gerarMensagemExplicativa(tema, '');
         
         // Incrementar estatística global
         await incrementarEstatisticaGlobal('explicacoes_geradas');
@@ -5827,8 +5973,8 @@ app.post('/api/generate-explanation', async (req, res) => {
         res.json({
             success: true,
             result: explicacao,
-            baseadaEmFeedbacks: true,
-            totalFeedbacks: feedbacks.respostas.length + feedbacks.moderacoes.length
+            baseadaEmFeedbacks: false,
+            totalFeedbacks: 0
         });
         
     } catch (error) {
