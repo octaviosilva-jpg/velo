@@ -5940,6 +5940,87 @@ app.get('/api/google-sheets-status', async (req, res) => {
     }
 });
 
+// Endpoint para verificar quota e status detalhado do Google Sheets
+app.get('/api/google-sheets-quota-status', async (req, res) => {
+    console.log('🎯 Endpoint /api/google-sheets-quota-status chamado');
+    try {
+        const envVars = loadEnvFile();
+        
+        // Verificar configurações
+        const configStatus = {
+            googleSheetsId: envVars.GOOGLE_SHEETS_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            enableGoogleSheets: envVars.ENABLE_GOOGLE_SHEETS,
+            serviceAccountEmail: envVars.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            privateKey: envVars.GOOGLE_PRIVATE_KEY ? 'CONFIGURADO' : 'NÃO CONFIGURADO',
+            projectId: envVars.GOOGLE_PROJECT_ID ? 'CONFIGURADO' : 'NÃO CONFIGURADO'
+        };
+        
+        // Verificar status da integração
+        const integrationStatus = {
+            googleSheetsInitialized: global.googleSheetsInitialized || false,
+            googleSheetsIntegrationActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            googleSheetsConfigInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
+        };
+        
+        // Testar conectividade e quota
+        let quotaStatus = {
+            canConnect: false,
+            quotaExceeded: false,
+            lastError: null,
+            testTimestamp: new Date().toISOString()
+        };
+        
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                console.log('🔍 Testando conectividade e quota do Google Sheets...');
+                const testResult = await googleSheetsIntegration.checkApiStatus();
+                quotaStatus.canConnect = testResult;
+                
+                if (!testResult) {
+                    quotaStatus.quotaExceeded = true;
+                    quotaStatus.lastError = 'Falha na conectividade - possível quota excedida';
+                }
+            } catch (error) {
+                console.error('❌ Erro ao testar quota:', error.message);
+                quotaStatus.lastError = error.message;
+                
+                // Verificar se é erro de quota
+                if (error.message.includes('quota') || 
+                    error.message.includes('exceeded') || 
+                    error.message.includes('429') ||
+                    error.message.includes('rate limit')) {
+                    quotaStatus.quotaExceeded = true;
+                }
+            }
+        }
+        
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            config: configStatus,
+            integration: integrationStatus,
+            quota: quotaStatus,
+            recommendations: quotaStatus.quotaExceeded ? [
+                'Quota da API do Google Sheets pode ter sido excedida',
+                'Aguarde alguns minutos antes de tentar novamente',
+                'Considere implementar rate limiting mais agressivo',
+                'Verifique o Google Cloud Console para monitorar uso da quota'
+            ] : [
+                'Google Sheets funcionando normalmente',
+                'Continue monitorando o uso da quota'
+            ]
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar quota do Google Sheets:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para sincronizar estatísticas com Google Sheets
 app.post('/api/sync-estatisticas', async (req, res) => {
     console.log('🎯 Endpoint /api/sync-estatisticas chamado');

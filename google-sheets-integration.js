@@ -261,19 +261,53 @@ class GoogleSheetsIntegration {
      * Trata erros de quota do Google Sheets
      */
     handleQuotaError(error) {
+        console.log('🔍 Analisando erro do Google Sheets:', error.message);
+        
+        // Detectar erros de quota excedida
         if (error.message && (error.message.includes('quota') || error.message.includes('esgotado') || error.message.includes('exceeded'))) {
-            console.log('⚠️ Quota do Google Sheets esgotada. Aumentando intervalo de rate limiting...');
-            this.minRequestInterval = Math.min(this.minRequestInterval * 2, 10000); // Máximo 10 segundos
+            console.log('⚠️ QUOTA EXCEDIDA! Aumentando drasticamente o intervalo de rate limiting...');
+            this.minRequestInterval = Math.min(this.minRequestInterval * 3, 30000); // Máximo 30 segundos
+            this.lastQuotaError = Date.now();
             return true;
         }
         
         // Verificar outros tipos de erro que podem indicar problemas de API
         if (error.message && (error.message.includes('403') || error.message.includes('429') || error.message.includes('rate limit'))) {
             console.log('⚠️ Rate limit ou erro de permissão detectado. Aguardando antes de tentar novamente...');
-            this.minRequestInterval = Math.min(this.minRequestInterval * 2, 15000); // Máximo 15 segundos
+            this.minRequestInterval = Math.min(this.minRequestInterval * 2, 20000); // Máximo 20 segundos
+            this.lastQuotaError = Date.now();
             return true;
         }
         
+        // Detectar erros de timeout ou conectividade
+        if (error.message && (error.message.includes('timeout') || error.message.includes('socket hang up') || error.message.includes('ECONNRESET'))) {
+            console.log('⚠️ Problemas de conectividade detectados. Aumentando intervalo...');
+            this.minRequestInterval = Math.min(this.minRequestInterval * 1.5, 15000); // Máximo 15 segundos
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Verifica se deve aguardar devido a problemas recentes de quota
+     */
+    shouldWaitForQuotaRecovery() {
+        if (!this.lastQuotaError) return false;
+        
+        const timeSinceLastError = Date.now() - this.lastQuotaError;
+        const recoveryTime = 5 * 60 * 1000; // 5 minutos
+        
+        if (timeSinceLastError < recoveryTime) {
+            const remainingTime = Math.ceil((recoveryTime - timeSinceLastError) / 1000);
+            console.log(`⏳ Aguardando recuperação de quota: ${remainingTime}s restantes`);
+            return true;
+        }
+        
+        // Reset do erro após recuperação
+        this.lastQuotaError = null;
+        this.minRequestInterval = 2000; // Reset para intervalo normal
+        console.log('✅ Quota recuperada - resetando intervalos');
         return false;
     }
 
@@ -497,6 +531,12 @@ class GoogleSheetsIntegration {
             return false;
         }
 
+        // Verificar se deve aguardar recuperação de quota
+        if (this.shouldWaitForQuotaRecovery()) {
+            console.log('⏳ Aguardando recuperação de quota antes de registrar feedback');
+            return false;
+        }
+
         try {
             // Verificar status da API antes de tentar registrar
             const apiStatus = await this.checkApiStatus();
@@ -562,6 +602,12 @@ class GoogleSheetsIntegration {
     async registrarModeracaoCoerente(moderacaoData) {
         if (!this.isActive()) {
             console.log('⚠️ Google Sheets não está ativo. Moderação coerente não registrada.');
+            return false;
+        }
+
+        // Verificar se deve aguardar recuperação de quota
+        if (this.shouldWaitForQuotaRecovery()) {
+            console.log('⏳ Aguardando recuperação de quota antes de registrar moderação');
             return false;
         }
 
