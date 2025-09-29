@@ -6092,6 +6092,69 @@ app.get('/api/debug-moderacoes-status', async (req, res) => {
     }
 });
 
+// Endpoint para forçar recuperação de quota do Google Sheets
+app.post('/api/force-quota-recovery', async (req, res) => {
+    console.log('🎯 Endpoint /api/force-quota-recovery chamado');
+    try {
+        if (!googleSheetsIntegration) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets Integration não está inicializada'
+            });
+        }
+        
+        // Forçar reset da quota recovery
+        googleSheetsIntegration.lastQuotaError = null;
+        googleSheetsIntegration.minRequestInterval = 2000; // Reset para intervalo normal
+        
+        console.log('🔄 Forçando reset da recuperação de quota...');
+        
+        // Testar conectividade imediatamente
+        let testResult = false;
+        let testError = null;
+        
+        try {
+            testResult = await googleSheetsIntegration.checkApiStatus();
+            console.log('✅ Teste de conectividade:', testResult ? 'SUCESSO' : 'FALHA');
+        } catch (error) {
+            testError = error.message;
+            console.error('❌ Erro no teste de conectividade:', error.message);
+        }
+        
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            quotaRecovery: {
+                lastQuotaError: null,
+                minRequestInterval: 2000,
+                resetSuccessful: true
+            },
+            connectivityTest: {
+                canConnect: testResult,
+                error: testError,
+                message: testResult ? 'Google Sheets funcionando normalmente' : 'Ainda há problemas de conectividade'
+            },
+            recommendations: testResult ? [
+                '✅ Quota recuperada com sucesso!',
+                'Google Sheets está funcionando normalmente',
+                'Pode tentar registrar moderações novamente'
+            ] : [
+                '⚠️ Quota resetada mas ainda há problemas de conectividade',
+                'Aguarde mais alguns minutos',
+                'Verifique se não há outros problemas de API'
+            ]
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao forçar recuperação de quota:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para sincronizar estatísticas com Google Sheets
 app.post('/api/sync-estatisticas', async (req, res) => {
     console.log('🎯 Endpoint /api/sync-estatisticas chamado');
