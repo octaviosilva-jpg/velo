@@ -5710,10 +5710,10 @@ app.post('/api/sync-estatisticas', async (req, res) => {
     console.log('🎯 Endpoint /api/sync-estatisticas chamado');
     try {
         if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
-            return res.status(400).json({
-                success: false,
-                error: 'Google Sheets não está ativo',
-                message: 'Não é possível sincronizar estatísticas sem Google Sheets ativo'
+            return res.status(200).json({
+                success: true,
+                message: 'Google Sheets não configurado - sincronização ignorada',
+                googleSheetsActive: false
             });
         }
 
