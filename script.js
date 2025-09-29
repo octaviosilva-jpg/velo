@@ -1686,7 +1686,7 @@ function gerarTextoModeracao(motivoModeracao, consideracaoFinal) {
 
 // ===== FUNÇÕES DE EXPLICAÇÕES =====
 
-function gerarExplicacao() {
+async function gerarExplicacao() {
     const tema = document.getElementById('tema-explicacao').value;
     
     if (!tema) {
@@ -1694,12 +1694,40 @@ function gerarExplicacao() {
         return;
     }
     
-    const explicacao = gerarMensagemExplicativa(tema, '');
+    // Mostrar loading
+    showLoadingMessage('Gerando explicação baseada em feedbacks...');
     
-    document.getElementById('explicacao-content').innerHTML = explicacao;
-    document.getElementById('explicacao-resultado').style.display = 'block';
-    
-    showSuccessMessage('Explicação gerada com sucesso!');
+    try {
+        // Chamar o endpoint do servidor para gerar explicação
+        const response = await fetch('/api/generate-explanation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tema: tema
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const explicacao = data.result;
+            
+            document.getElementById('explicacao-content').innerHTML = explicacao;
+            document.getElementById('explicacao-resultado').style.display = 'block';
+            
+            // Recarregar estatísticas globais do servidor
+            carregarEstatisticasGlobais();
+            
+            showSuccessMessage('Explicação gerada com sucesso baseada em feedbacks!');
+        } else {
+            throw new Error(data.error || 'Erro ao gerar explicação');
+        }
+    } catch (error) {
+        console.error('Erro ao gerar explicação:', error);
+        showErrorMessage('Erro ao gerar explicação. Tente novamente.');
+    }
 }
 
 function gerarMensagemExplicativa(tema, contexto) {
