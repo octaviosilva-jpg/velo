@@ -4,7 +4,7 @@
 
 // ================== CONFIGURAÇÕES ==================
 let DOMINIO_PERMITIDO = "@velotax.com.br"; // Domínio corporativo
-let CLIENT_ID = '108948157850402889475'; // Client ID do Google OAuth
+let CLIENT_ID = null; // Será carregado do servidor
 
 // Verificar se estamos em modo de desenvolvimento ou produção
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -39,12 +39,12 @@ async function carregarConfiguracoes() {
                 console.warn('⚠️ CLIENT_ID pode estar incompleto:', CLIENT_ID);
             }
         } else {
-            console.log('⚠️ Usando CLIENT_ID padrão');
-            CLIENT_ID = '108948157850402889475'; // Fallback
+            console.log('⚠️ CLIENT_ID não configurado no servidor');
+            CLIENT_ID = null; // Sem fallback hardcoded
         }
     } catch (error) {
-        console.log('⚠️ Erro ao carregar configurações, usando padrão:', error);
-        CLIENT_ID = '108948157850402889475'; // Fallback
+        console.log('⚠️ Erro ao carregar configurações:', error);
+        CLIENT_ID = null; // Sem fallback hardcoded
     }
 }
 

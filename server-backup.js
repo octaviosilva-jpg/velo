@@ -2164,7 +2164,7 @@ function loadEnvFile() {
                 APP_VERSION: process.env.APP_VERSION || '2.0.0',
                 DEBUG_MODE: process.env.DEBUG_MODE || 'false',
                 LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-                GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '108948157850402889475',
+                GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || null,
                 DOMINIO_PERMITIDO: process.env.DOMINIO_PERMITIDO || '@velotax.com.br',
                 // Google Sheets
                 GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID,
@@ -4613,7 +4613,7 @@ app.get('/api/google-config', (req, res) => {
     try {
         // Carregar configurações do arquivo .env
         const envVars = loadEnvFile();
-        const clientId = envVars.GOOGLE_CLIENT_ID || '108948157850402889475';
+        const clientId = envVars.GOOGLE_CLIENT_ID || null;
         const dominioPermitido = envVars.DOMINIO_PERMITIDO || '@velotax.com.br';
         
         console.log('🔧 GOOGLE_CLIENT_ID carregado:', clientId);

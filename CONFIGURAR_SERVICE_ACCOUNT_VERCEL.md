@@ -12,11 +12,10 @@ Acesse: https://vercel.com/dashboard → Seu Projeto → Settings → Environmen
 ### 📋 Adicione estas variáveis:
 
 ```
-GOOGLE_SHEETS_ID=1y8D6ifk3ucamTNwAB9SCM-2m93mkbMm6IA_qHagCAjI
+GOOGLE_SHEETS_ID=SEU_GOOGLE_SHEETS_ID_AQUI
 ENABLE_GOOGLE_SHEETS=true
-GOOGLE_SERVICE_ACCOUNT_EMAIL=seu-service-account@projeto.iam.gserviceaccount.com
+GOOGLE_SERVICE_ACCOUNT_EMAIL=SEU_SERVICE_ACCOUNT_EMAIL@PROJETO.iam.gserviceaccount.com
 GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nSUA_CHAVE_PRIVADA_AQUI\n-----END PRIVATE KEY-----
-GOOGLE_PROJECT_ID=seu-projeto-id
 ```
 
 ## 🔑 Como Obter as Credenciais do Service Account
@@ -48,7 +47,7 @@ Do arquivo JSON baixado, copie:
 ## 📊 Compartilhar Planilha com Service Account
 
 ### 1. Abra sua planilha
-- https://docs.google.com/spreadsheets/d/1y8D6ifk3ucamTNwAB9SCM-2m93mkbMm6IA_qHagCAjI
+- https://docs.google.com/spreadsheets/d/SEU_GOOGLE_SHEETS_ID_AQUI
 
 ### 2. Compartilhe com Service Account
 - Compartilhar → Adicionar pessoas

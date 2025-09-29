@@ -114,3 +114,4 @@ google-sheets-token.json
 
 # Environment configuration (sensitive data)
 config.env
+.env
