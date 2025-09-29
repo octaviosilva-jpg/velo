@@ -1720,30 +1720,114 @@ async function addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeraca
     return novoModelo;
 }
 
-// Obter modelos de moderação relevantes
-async function getModelosModeracaoRelevantes(motivoModeracao) {
+// Obter modelos de moderação relevantes - VERSÃO MELHORADA
+async function getModelosModeracaoRelevantes(motivoModeracao, dadosModeracao = null) {
     const modelos = await loadModelosModeracoes();
     const relevantes = [];
     
     modelos.modelos.forEach(modelo => {
+        let score = 0;
         let isRelevante = false;
         
-        // Verificar correspondência de motivo de moderação
+        // 1. Correspondência exata de motivo de moderação
         if (modelo.motivoModeracao && motivoModeracao) {
             if (modelo.motivoModeracao.toLowerCase() === motivoModeracao.toLowerCase()) {
+                score += 5; // Máxima relevância
+                isRelevante = true;
+            } else if (modelo.motivoModeracao.toLowerCase().includes(motivoModeracao.toLowerCase()) ||
+                      motivoModeracao.toLowerCase().includes(modelo.motivoModeracao.toLowerCase())) {
+                score += 3;
                 isRelevante = true;
             }
         }
         
+        // 2. Análise de contexto similar se dados disponíveis
+        if (dadosModeracao && modelo.dadosModeracao) {
+            const modeloDados = modelo.dadosModeracao;
+            const contextoDados = dadosModeracao;
+            
+            // Verificar similaridade na solicitação do cliente
+            if (modeloDados.solicitacaoCliente && contextoDados.solicitacaoCliente) {
+                const similaridade = calcularSimilaridade(
+                    modeloDados.solicitacaoCliente.toLowerCase(),
+                    contextoDados.solicitacaoCliente.toLowerCase()
+                );
+                if (similaridade > 0.3) {
+                    score += 2;
+                    isRelevante = true;
+                }
+            }
+            
+            // Verificar similaridade na resposta da empresa
+            if (modeloDados.respostaEmpresa && contextoDados.respostaEmpresa) {
+                const similaridade = calcularSimilaridade(
+                    modeloDados.respostaEmpresa.toLowerCase(),
+                    contextoDados.respostaEmpresa.toLowerCase()
+                );
+                if (similaridade > 0.3) {
+                    score += 2;
+                    isRelevante = true;
+                }
+            }
+            
+            // Verificar similaridade na consideração final
+            if (modeloDados.consideracaoFinal && contextoDados.consideracaoFinal) {
+                const similaridade = calcularSimilaridade(
+                    modeloDados.consideracaoFinal.toLowerCase(),
+                    contextoDados.consideracaoFinal.toLowerCase()
+                );
+                if (similaridade > 0.3) {
+                    score += 1;
+                    isRelevante = true;
+                }
+            }
+        }
+        
+        // 3. Busca por palavras-chave específicas de moderação
+        if (modelo.textoModeracao && dadosModeracao) {
+            const textoModelo = modelo.textoModeracao.toLowerCase();
+            const contextoTexto = (dadosModeracao.solicitacaoCliente + ' ' + 
+                                 dadosModeracao.respostaEmpresa + ' ' + 
+                                 dadosModeracao.consideracaoFinal).toLowerCase();
+            
+            const palavrasModeracao = ['pix', 'portabilidade', 'quitação', 'restituição', 'ccb', 'contrato', 'manual'];
+            const temPalavraModeracao = palavrasModeracao.some(palavra => 
+                textoModelo.includes(palavra) && contextoTexto.includes(palavra)
+            );
+            
+            if (temPalavraModeracao) {
+                score += 1;
+                isRelevante = true;
+            }
+        }
+        
+        // 4. Verificar qualidade do modelo (texto bem estruturado)
+        if (modelo.textoModeracao && modelo.textoModeracao.length > 200) {
+            const temEstrutura = modelo.textoModeracao.includes('Prezados') && 
+                                modelo.textoModeracao.includes('conforme') &&
+                                modelo.textoModeracao.includes('solicitamos');
+            if (temEstrutura) {
+                score += 1;
+            }
+        }
+        
         if (isRelevante) {
+            modelo.relevanceScore = score;
             relevantes.push(modelo);
         }
     });
     
-    // Ordenar por timestamp mais recente e retornar os últimos 3
+    // Ordenar por score de relevância e timestamp, retornar os mais relevantes
     return relevantes
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 3);
+        .sort((a, b) => {
+            // Primeiro por score de relevância (maior primeiro)
+            if (b.relevanceScore !== a.relevanceScore) {
+                return b.relevanceScore - a.relevanceScore;
+            }
+            // Depois por timestamp mais recente
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        })
+        .slice(0, 5); // Aumentar para 5 modelos mais relevantes
 }
 
 // ===== FUNÇÕES PARA APRENDIZADO DIRETO NO SCRIPT DE FORMULAÇÃO =====
@@ -2506,27 +2590,119 @@ function getRelevantFeedbacks(tipo, contexto) {
             }
         });
     } else if (tipo === 'moderacao') {
-        // Usar APENAS feedbacks de moderações (aba Moderação RA)
+        // Usar APENAS feedbacks de moderações (aba Moderação RA) - VERSÃO MELHORADA
         const feedbacks = loadFeedbacksModeracoes();
         feedbacks.moderacoes.forEach(feedback => {
+            let score = 0;
+            let isRelevante = false;
+            
+            // 1. Correspondência exata de motivo de negativa
             if (feedback.motivoNegativa && contexto.motivoNegativa) {
                 const motivoFeedback = feedback.motivoNegativa.toLowerCase();
                 const motivoContexto = contexto.motivoNegativa.toLowerCase();
                 
-                if (motivoFeedback.includes(motivoContexto) || 
-                    motivoContexto.includes(motivoFeedback) ||
-                    motivoFeedback.includes('resposta não condizente') ||
-                    motivoFeedback.includes('tom inadequado')) {
-                relevantes.push(feedback);
+                if (motivoFeedback === motivoContexto) {
+                    score += 5; // Máxima relevância
+                    isRelevante = true;
+                } else if (motivoFeedback.includes(motivoContexto) || motivoContexto.includes(motivoFeedback)) {
+                    score += 3;
+                    isRelevante = true;
                 }
+            }
+            
+            // 2. Busca por padrões de erro comuns
+            const padroesErro = [
+                'resposta não condizente', 'tom inadequado', 'sem relação com os fatos',
+                'informação falsa', 'ofensivo', 'duplicidade', 'spam'
+            ];
+            
+            if (feedback.motivoNegativa) {
+                const motivoLower = feedback.motivoNegativa.toLowerCase();
+                const temPadraoComum = padroesErro.some(padrao => motivoLower.includes(padrao));
+                if (temPadraoComum) {
+                    score += 2;
+                    isRelevante = true;
+                }
+            }
+            
+            // 3. Análise de contexto similar (solicitação, resposta, consideração)
+            if (feedback.dadosModeracao && contexto.dadosModeracao) {
+                const fbDados = feedback.dadosModeracao;
+                const ctxDados = contexto.dadosModeracao;
+                
+                // Verificar similaridade na solicitação do cliente
+                if (fbDados.solicitacaoCliente && ctxDados.solicitacaoCliente) {
+                    const similaridade = calcularSimilaridade(
+                        fbDados.solicitacaoCliente.toLowerCase(),
+                        ctxDados.solicitacaoCliente.toLowerCase()
+                    );
+                    if (similaridade > 0.3) {
+                        score += 1;
+                        isRelevante = true;
+                    }
+                }
+                
+                // Verificar similaridade na resposta da empresa
+                if (fbDados.respostaEmpresa && ctxDados.respostaEmpresa) {
+                    const similaridade = calcularSimilaridade(
+                        fbDados.respostaEmpresa.toLowerCase(),
+                        ctxDados.respostaEmpresa.toLowerCase()
+                    );
+                    if (similaridade > 0.3) {
+                        score += 1;
+                        isRelevante = true;
+                    }
+                }
+            }
+            
+            // 4. Busca por palavras-chave específicas de moderação
+            if (feedback.textoNegado && contexto.dadosModeracao) {
+                const textoNegado = feedback.textoNegado.toLowerCase();
+                const contextoTexto = (contexto.dadosModeracao.solicitacaoCliente + ' ' + 
+                                     contexto.dadosModeracao.respostaEmpresa).toLowerCase();
+                
+                const palavrasModeracao = ['pix', 'portabilidade', 'quitação', 'restituição', 'ccb', 'contrato'];
+                const temPalavraModeracao = palavrasModeracao.some(palavra => 
+                    textoNegado.includes(palavra) && contextoTexto.includes(palavra)
+                );
+                
+                if (temPalavraModeracao) {
+                    score += 1;
+                    isRelevante = true;
+                }
+            }
+            
+            if (isRelevante) {
+                feedback.relevanceScore = score;
+                relevantes.push(feedback);
             }
         });
     }
     
-    // Ordenar por timestamp mais recente e retornar os últimos 5
+    // Ordenar por score de relevância e timestamp, retornar os mais relevantes
     return relevantes
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 5);
+        .sort((a, b) => {
+            // Primeiro por score de relevância (maior primeiro)
+            if (b.relevanceScore !== a.relevanceScore) {
+                return b.relevanceScore - a.relevanceScore;
+            }
+            // Depois por timestamp mais recente
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        })
+        .slice(0, 8); // Aumentar para 8 feedbacks mais relevantes
+}
+
+// Função auxiliar para calcular similaridade simples entre textos
+function calcularSimilaridade(texto1, texto2) {
+    if (!texto1 || !texto2) return 0;
+    
+    const palavras1 = texto1.split(/\s+/).filter(p => p.length > 3);
+    const palavras2 = texto2.split(/\s+/).filter(p => p.length > 3);
+    
+    if (palavras1.length === 0 || palavras2.length === 0) return 0;
+    
+    const palavrasComuns = palavras1.filter(palavra => palavras2.includes(palavra));
+    return palavrasComuns.length / Math.max(palavras1.length, palavras2.length);
 }
 
 // Gerar explicação baseada em feedbacks salvos (APENAS feedbacks de respostas)
@@ -3199,32 +3375,40 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
             });
         }
         
-        // Obter feedbacks relevantes para melhorar a geração de moderação
+        // Obter feedbacks relevantes para melhorar a geração de moderação - VERSÃO MELHORADA
         const feedbacksRelevantes = getRelevantFeedbacks('moderacao', {
-            motivoNegativa: dadosModeracao.motivoModeracao
+            motivoNegativa: dadosModeracao.motivoModeracao,
+            dadosModeracao: dadosModeracao
         });
         
-        // Obter modelos de moderação aprovados
-        const modelosRelevantes = getModelosModeracaoRelevantes(dadosModeracao.motivoModeracao);
+        // Obter modelos de moderação aprovados - VERSÃO MELHORADA
+        const modelosRelevantes = await getModelosModeracaoRelevantes(dadosModeracao.motivoModeracao, dadosModeracao);
         
         let conhecimentoFeedback = '';
         
-        // PRIORIDADE 1: MODELOS APROVADOS (seguir este padrão)
+        // PRIORIDADE 1: MODELOS APROVADOS (seguir este padrão) - VERSÃO MELHORADA
         if (modelosRelevantes.length > 0) {
             conhecimentoFeedback = '\n\n✅ MODELOS DE MODERAÇÃO APROVADOS (SEGUIR ESTE PADRÃO):\n';
             conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} moderações aprovadas para "${dadosModeracao.motivoModeracao}":\n\n`;
             
             modelosRelevantes.forEach((modelo, index) => {
-                conhecimentoFeedback += `${index + 1}. 📅 Data: ${modelo.timestamp}\n`;
+                conhecimentoFeedback += `${index + 1}. 📅 Data: ${modelo.timestamp} (Score: ${modelo.relevanceScore})\n`;
                 conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivoModeracao}\n`;
                 conhecimentoFeedback += `   📝 Linha de raciocínio: "${modelo.linhaRaciocinio.substring(0, 200)}..."\n`;
-                conhecimentoFeedback += `   ✅ Texto aprovado: "${modelo.textoModeracao.substring(0, 200)}..."\n\n`;
+                conhecimentoFeedback += `   ✅ Texto aprovado: "${modelo.textoModeracao.substring(0, 300)}..."\n`;
+                
+                // Incluir contexto do modelo se disponível
+                if (modelo.dadosModeracao) {
+                    conhecimentoFeedback += `   📋 Contexto: Solicitação: "${modelo.dadosModeracao.solicitacaoCliente?.substring(0, 100)}..."\n`;
+                    conhecimentoFeedback += `   📋 Resposta: "${modelo.dadosModeracao.respostaEmpresa?.substring(0, 100)}..."\n`;
+                }
+                conhecimentoFeedback += '\n';
             });
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos aprovados como referência para gerar uma moderação de alta qualidade, seguindo a mesma estrutura e abordagem.\n';
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos aprovados como referência para gerar uma moderação de alta qualidade, seguindo a mesma estrutura, tom e abordagem. Analise os padrões de sucesso e aplique-os ao caso atual.\n';
         }
         
-        // PRIORIDADE 2: FEEDBACKS DE ERROS (evitar estes problemas)
+        // PRIORIDADE 2: FEEDBACKS DE ERROS (evitar estes problemas) - VERSÃO MELHORADA
         if (feedbacksRelevantes.length > 0) {
             if (conhecimentoFeedback) {
                 conhecimentoFeedback += '\n\n⚠️ ERROS IDENTIFICADOS (EVITAR):\n';
@@ -3235,12 +3419,19 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
             conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} moderações negadas anteriormente, evite os seguintes erros:\n\n`;
             
             feedbacksRelevantes.forEach((fb, index) => {
-                conhecimentoFeedback += `${index + 1}. ❌ ERRO IDENTIFICADO: "${fb.motivoNegativa}"\n`;
-                conhecimentoFeedback += `   📝 Texto original negado: "${fb.textoNegado.substring(0, 200)}..."\n`;
-                conhecimentoFeedback += `   ✅ Texto reformulado aprovado: "${fb.textoReformulado.substring(0, 200)}..."\n\n`;
+                conhecimentoFeedback += `${index + 1}. ❌ ERRO IDENTIFICADO: "${fb.motivoNegativa}" (Score: ${fb.relevanceScore})\n`;
+                conhecimentoFeedback += `   📝 Texto original negado: "${fb.textoNegado.substring(0, 250)}..."\n`;
+                conhecimentoFeedback += `   ✅ Texto reformulado aprovado: "${fb.textoReformulado.substring(0, 250)}..."\n`;
+                
+                // Incluir contexto do feedback se disponível
+                if (fb.dadosModeracao) {
+                    conhecimentoFeedback += `   📋 Contexto: Solicitação: "${fb.dadosModeracao.solicitacaoCliente?.substring(0, 100)}..."\n`;
+                    conhecimentoFeedback += `   📋 Resposta: "${fb.dadosModeracao.respostaEmpresa?.substring(0, 100)}..."\n`;
+                }
+                conhecimentoFeedback += '\n';
             });
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento para evitar erros similares e aplicar as correções identificadas.\n';
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento para evitar erros similares e aplicar as correções identificadas. Analise os padrões de erro e garanta que sua moderação não repita os mesmos problemas.\n';
         }
         
         const prompt = `
