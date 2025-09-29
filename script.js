@@ -36,6 +36,16 @@ const SITE_EMPRESA = 'https://www.velotax.com.br';
 let historicoStats = [];
 const HISTORICO_KEY = 'velotax_historico_stats';
 
+// Estatísticas globais do servidor
+let estatisticasGlobais = {
+    respostas_geradas: 0,
+    respostas_coerentes: 0,
+    moderacoes_geradas: 0,
+    moderacoes_coerentes: 0,
+    revisoes_texto: 0,
+    explicacoes_geradas: 0
+};
+
 // Carregar estatísticas globais do servidor
 async function carregarEstatisticasGlobais() {
     try {
@@ -44,8 +54,10 @@ async function carregarEstatisticasGlobais() {
         const data = await response.json();
         
         if (data.success) {
+            console.log('📊 Dados recebidos do servidor:', data);
             estatisticasGlobais = data.estatisticas;
             console.log('✅ Estatísticas globais carregadas:', estatisticasGlobais);
+            console.log('📅 Última atualização:', data.lastUpdated);
             atualizarEstatisticasNaInterface();
         } else {
             console.error('❌ Erro ao carregar estatísticas globais:', data.error);
@@ -3042,10 +3054,41 @@ function toggleHistorico() {
     }
 }
 
+// Sincronizar estatísticas com Google Sheets
+async function sincronizarEstatisticasComPlanilha() {
+    try {
+        console.log('🔄 Sincronizando estatísticas com Google Sheets...');
+        const response = await fetch('/api/sync-estatisticas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('✅ Estatísticas sincronizadas com Google Sheets:', data.estatisticas);
+            showSuccessMessage('Estatísticas sincronizadas com a planilha!');
+        } else {
+            console.error('❌ Erro ao sincronizar estatísticas:', data.error);
+            showErrorMessage('Erro ao sincronizar estatísticas: ' + data.error);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao sincronizar estatísticas:', error);
+        showErrorMessage('Erro ao sincronizar estatísticas com a planilha');
+    }
+}
+
 // Inicializar sistema de histórico
 function inicializarHistorico() {
     // Carregar apenas estatísticas globais do servidor
     carregarEstatisticasGlobais();
+    
+    // Sincronizar com Google Sheets após 3 segundos
+    setTimeout(() => {
+        sincronizarEstatisticasComPlanilha();
+    }, 3000);
 }
 
 function showSuccessMessage(message) {
