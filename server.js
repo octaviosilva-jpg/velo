@@ -6021,6 +6021,77 @@ app.get('/api/google-sheets-quota-status', async (req, res) => {
     }
 });
 
+// Endpoint para verificar status específico das moderações
+app.get('/api/debug-moderacoes-status', async (req, res) => {
+    console.log('🎯 Endpoint /api/debug-moderacoes-status chamado');
+    try {
+        // Verificar status do Google Sheets
+        const googleSheetsStatus = {
+            isActive: googleSheetsIntegration ? googleSheetsIntegration.isActive() : false,
+            isInitialized: global.googleSheetsInitialized || false,
+            lastError: null
+        };
+        
+        // Testar conectividade
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                const apiStatus = await googleSheetsIntegration.checkApiStatus();
+                googleSheetsStatus.apiWorking = apiStatus;
+            } catch (error) {
+                googleSheetsStatus.apiWorking = false;
+                googleSheetsStatus.lastError = error.message;
+            }
+        }
+        
+        // Verificar últimas moderações salvas
+        const modelosModeracoes = await loadModelosModeracoes();
+        const feedbacksModeracoes = loadFeedbacksModeracoes();
+        
+        const ultimasModeracoes = {
+            modelosAprovados: modelosModeracoes.modelos.slice(-5).map(m => ({
+                id: m.id,
+                timestamp: m.timestamp,
+                motivoModeracao: m.motivoModeracao,
+                status: 'Aprovada (Modelo)'
+            })),
+            feedbacksPendentes: feedbacksModeracoes.moderacoes.slice(-5).map(f => ({
+                id: f.id,
+                timestamp: f.timestamp,
+                motivoNegativa: f.motivoNegativa,
+                status: 'Pendente (Feedback)'
+            }))
+        };
+        
+        res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            googleSheets: googleSheetsStatus,
+            ultimasModeracoes: ultimasModeracoes,
+            recomendacoes: !googleSheetsStatus.isActive ? [
+                'Google Sheets não está ativo - moderações não estão sendo registradas',
+                'Verifique as variáveis de ambiente na Vercel',
+                'Teste o endpoint /api/google-sheets-quota-status para diagnóstico detalhado'
+            ] : !googleSheetsStatus.apiWorking ? [
+                'Google Sheets ativo mas API não está funcionando',
+                'Possível problema de quota ou conectividade',
+                'Aguarde alguns minutos e tente novamente'
+            ] : [
+                'Google Sheets funcionando normalmente',
+                'Moderações marcadas como "Coerente" devem aparecer como "Aprovada"',
+                'Se ainda aparecer "Pendente", verifique os logs do servidor'
+            ]
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao verificar status das moderações:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para sincronizar estatísticas com Google Sheets
 app.post('/api/sync-estatisticas', async (req, res) => {
     console.log('🎯 Endpoint /api/sync-estatisticas chamado');
