@@ -5718,6 +5718,37 @@ app.get('/api/estatisticas-globais', (req, res) => {
     }
 });
 
+// Endpoint para verificar status da API do Google Sheets
+app.get('/api/google-sheets-status', async (req, res) => {
+    console.log('🎯 Endpoint /api/google-sheets-status chamado');
+    try {
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.json({
+                success: false,
+                active: false,
+                message: 'Google Sheets não está ativo'
+            });
+        }
+
+        const apiStatus = await googleSheetsIntegration.checkApiStatus();
+        
+        res.json({
+            success: true,
+            active: true,
+            apiWorking: apiStatus,
+            message: apiStatus ? 'Google Sheets funcionando normalmente' : 'Problemas na API do Google Sheets'
+        });
+        
+    } catch (error) {
+        console.error('Erro ao verificar status do Google Sheets:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para sincronizar estatísticas com Google Sheets
 app.post('/api/sync-estatisticas', async (req, res) => {
     console.log('🎯 Endpoint /api/sync-estatisticas chamado');

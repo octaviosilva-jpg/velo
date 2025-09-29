@@ -117,6 +117,44 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * Verifica o status da API do Google Sheets
+     */
+    async checkApiStatus() {
+        if (!this.isActive()) {
+            console.log('⚠️ Google Sheets não está ativo');
+            return false;
+        }
+
+        try {
+            console.log('🔍 Verificando status da API do Google Sheets...');
+            
+            // Tentar uma operação simples para verificar se a API está funcionando
+            const sheets = googleSheetsConfig.getSheets();
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            
+            // Fazer uma requisição simples para verificar conectividade
+            const response = await sheets.spreadsheets.get({
+                spreadsheetId: spreadsheetId,
+                fields: 'properties.title'
+            });
+            
+            console.log('✅ API do Google Sheets funcionando. Planilha:', response.data.properties.title);
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Erro ao verificar status da API do Google Sheets:', error.message);
+            
+            // Verificar se é erro de quota
+            if (error.message.includes('quota') || error.message.includes('exceeded') || error.message.includes('429')) {
+                console.log('⚠️ Quota da API do Google Sheets excedida');
+                this.handleQuotaError(error);
+            }
+            
+            return false;
+        }
+    }
+
+    /**
      * Rate limiting para evitar esgotamento de quota
      */
     async waitForRateLimit() {
@@ -223,11 +261,19 @@ class GoogleSheetsIntegration {
      * Trata erros de quota do Google Sheets
      */
     handleQuotaError(error) {
-        if (error.message && error.message.includes('quota') || error.message.includes('esgotado')) {
+        if (error.message && (error.message.includes('quota') || error.message.includes('esgotado') || error.message.includes('exceeded'))) {
             console.log('⚠️ Quota do Google Sheets esgotada. Aumentando intervalo de rate limiting...');
             this.minRequestInterval = Math.min(this.minRequestInterval * 2, 10000); // Máximo 10 segundos
             return true;
         }
+        
+        // Verificar outros tipos de erro que podem indicar problemas de API
+        if (error.message && (error.message.includes('403') || error.message.includes('429') || error.message.includes('rate limit'))) {
+            console.log('⚠️ Rate limit ou erro de permissão detectado. Aguardando antes de tentar novamente...');
+            this.minRequestInterval = Math.min(this.minRequestInterval * 2, 15000); // Máximo 15 segundos
+            return true;
+        }
+        
         return false;
     }
 
@@ -452,6 +498,13 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Verificar status da API antes de tentar registrar
+            const apiStatus = await this.checkApiStatus();
+            if (!apiStatus) {
+                console.log('⚠️ API do Google Sheets não está funcionando. Feedback não registrado.');
+                return false;
+            }
+
             // Rate limiting para operações de escrita
             await this.waitForRateLimit();
             
@@ -513,6 +566,13 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            // Verificar status da API antes de tentar registrar
+            const apiStatus = await this.checkApiStatus();
+            if (!apiStatus) {
+                console.log('⚠️ API do Google Sheets não está funcionando. Moderação não registrada.');
+                return false;
+            }
+
             // Rate limiting para operações de escrita
             await this.waitForRateLimit();
             
