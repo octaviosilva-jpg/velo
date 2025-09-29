@@ -839,7 +839,7 @@ function saveEstatisticasGlobais(estatisticas) {
 }
 
 // Incrementar estatística global
-function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
+async function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
     console.log(`📊 Incrementando estatística global: ${tipo} (+${quantidade})`);
     
     const estatisticas = loadEstatisticasGlobais();
@@ -880,6 +880,19 @@ function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
     
     saveEstatisticasGlobais(estatisticas);
     console.log(`✅ Estatística ${tipo} atualizada: ${estatisticas.estatisticas[tipo]}`);
+    
+    // 🔄 SINCRONIZAR COM GOOGLE SHEETS AUTOMATICAMENTE
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            console.log('📊 Sincronizando estatísticas com Google Sheets...');
+            await googleSheetsIntegration.registrarEstatisticas(estatisticas.estatisticas);
+            console.log('✅ Estatísticas sincronizadas com Google Sheets');
+        } catch (error) {
+            console.error('❌ Erro ao sincronizar estatísticas com Google Sheets:', error.message);
+        }
+    } else {
+        console.log('⚠️ Google Sheets não está ativo - estatísticas não sincronizadas');
+    }
 }
 
 // ===== SISTEMA DE APRENDIZADO SEPARADO =====
@@ -3412,7 +3425,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
             }
             
             // Incrementar estatística global
-            incrementarEstatisticaGlobal('moderacoes_geradas');
+            await incrementarEstatisticaGlobal('moderacoes_geradas');
             
             res.json({
                 success: true,
@@ -3648,7 +3661,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
             }
             
             // Atualizar estatísticas
-            incrementarEstatisticaGlobal('respostas_geradas');
+            await incrementarEstatisticaGlobal('respostas_geradas');
             
             res.json({
                 success: true,
@@ -4011,7 +4024,7 @@ Equipe Velotax`;
             }
             
             // Incrementar estatística global
-            incrementarEstatisticaGlobal('respostas_geradas');
+            await incrementarEstatisticaGlobal('respostas_geradas');
             
             res.json({
                 success: true,
@@ -5246,7 +5259,7 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
         const modelo = await addModeloResposta(dadosFormulario, respostaAprovada, userData);
         
         // Incrementar estatística global
-        incrementarEstatisticaGlobal('respostas_coerentes');
+        await incrementarEstatisticaGlobal('respostas_coerentes');
         
         // Se estiver na Vercel, salvar diretamente no Google Sheets
         let syncResult = null;
@@ -5467,7 +5480,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
         console.log('✅ Revisão de texto gerada com sucesso');
 
         // Incrementar estatística global
-        incrementarEstatisticaGlobal('revisoes_texto');
+        await incrementarEstatisticaGlobal('revisoes_texto');
 
         res.json({
             success: true,
@@ -5691,8 +5704,49 @@ app.get('/api/estatisticas-globais', (req, res) => {
     }
 });
 
+// Endpoint para sincronizar estatísticas com Google Sheets
+app.post('/api/sync-estatisticas', async (req, res) => {
+    console.log('🎯 Endpoint /api/sync-estatisticas chamado');
+    try {
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets não está ativo',
+                message: 'Não é possível sincronizar estatísticas sem Google Sheets ativo'
+            });
+        }
+
+        const estatisticas = loadEstatisticasGlobais();
+        console.log('📊 Sincronizando estatísticas:', estatisticas.estatisticas);
+        
+        const success = await googleSheetsIntegration.registrarEstatisticas(estatisticas.estatisticas);
+        
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Estatísticas sincronizadas com sucesso!',
+                estatisticas: estatisticas.estatisticas
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Erro ao sincronizar estatísticas',
+                message: 'Falha na sincronização com Google Sheets'
+            });
+        }
+        
+    } catch (error) {
+        console.error('Erro ao sincronizar estatísticas:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para salvar moderação como modelo (quando clicar em "Coerente")
-app.post('/api/save-modelo-moderacao', (req, res) => {
+app.post('/api/save-modelo-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/save-modelo-moderacao chamado');
     try {
         const { dadosModeracao, linhaRaciocinio, textoModeracao } = req.body;
@@ -5729,7 +5783,7 @@ app.post('/api/save-modelo-moderacao', (req, res) => {
         }
         
         // Incrementar estatística global
-        incrementarEstatisticaGlobal('moderacoes_coerentes');
+        await incrementarEstatisticaGlobal('moderacoes_coerentes');
         
         res.json({
             success: true,
@@ -5752,7 +5806,7 @@ app.post('/api/save-modelo-moderacao', (req, res) => {
 });
 
 // Endpoint para gerar explicações baseadas em feedbacks (sem API OpenAI)
-app.post('/api/generate-explanation', (req, res) => {
+app.post('/api/generate-explanation', async (req, res) => {
     try {
         const { tema } = req.body;
         
@@ -5768,7 +5822,7 @@ app.post('/api/generate-explanation', (req, res) => {
         const explicacao = gerarExplicacaoBaseadaEmFeedbacks(tema, feedbacks);
         
         // Incrementar estatística global
-        incrementarEstatisticaGlobal('explicacoes_geradas');
+        await incrementarEstatisticaGlobal('explicacoes_geradas');
 
         res.json({
             success: true,
