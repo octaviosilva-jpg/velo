@@ -34,10 +34,14 @@ class GoogleSheetsConfig {
                 console.log('⚠️ Usando OAuth2 (pode não funcionar na Vercel)');
             }
 
-            this.sheets = google.sheets({ version: 'v4', auth: this.auth });
+            this.sheets = google.sheets({ 
+                version: 'v4', 
+                auth: this.auth,
+                timeout: 10000 // 10 segundos de timeout
+            });
             this.spreadsheetId = spreadsheetId;
             this.initialized = true;
-            console.log('✅ Google Sheets API inicializado com sucesso');
+            console.log('✅ Google Sheets API inicializado com sucesso (timeout: 10s)');
             return true;
 
         } catch (error) {

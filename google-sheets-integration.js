@@ -484,6 +484,20 @@ class GoogleSheetsIntegration {
 
         } catch (error) {
             console.error('❌ Erro ao registrar feedback de moderação no Google Sheets:', error.message);
+            
+            // Se for erro de socket hang up, tentar novamente uma vez
+            if (error.message.includes('socket hang up') || error.message.includes('timeout')) {
+                console.log('🔄 Tentando novamente após erro de conectividade...');
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Aguardar 2 segundos
+                    await googleSheetsConfig.appendRow('Moderações!A:Z', row);
+                    console.log('✅ Feedback de moderação registrado no Google Sheets (retry bem-sucedido)');
+                    return true;
+                } catch (retryError) {
+                    console.error('❌ Retry falhou:', retryError.message);
+                }
+            }
+            
             this.handleQuotaError(error);
             return false;
         }
