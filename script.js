@@ -3172,6 +3172,169 @@ window.velotaxConfig = {
     SITE_EMPRESA
 };
 
+// Função para reformular moderação após negativa
+function reformularAposNegativa() {
+    console.log('🔄 Iniciando reformulação após negativa...');
+    
+    // Verificar se há texto de moderação gerado
+    const textoModeracao = document.getElementById('texto-moderacao');
+    if (!textoModeracao || !textoModeracao.innerText.trim()) {
+        showErrorMessage('Nenhuma solicitação de moderação foi gerada ainda. Gere uma solicitação primeiro.');
+        return;
+    }
+    
+    // Mostrar modal para solicitar motivo da negativa
+    const modalHtml = `
+        <div class="modal fade" id="negativaModal" tabindex="-1" aria-labelledby="negativaModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="negativaModalLabel">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Reformular após Negativa do RA
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="motivo-negativa" class="form-label">
+                                <strong>Motivo da Negativa pelo Reclame Aqui:</strong>
+                            </label>
+                            <textarea 
+                                class="form-control" 
+                                id="motivo-negativa" 
+                                rows="4" 
+                                placeholder="Ex: Resposta não condizente com os fatos, tom inadequado, sem relação com a solicitação, etc."
+                                required
+                            ></textarea>
+                            <div class="form-text">
+                                Descreva o motivo específico pelo qual o RA negou a moderação para que possamos reformular adequadamente.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" onclick="processarReformulacaoAposNegativa()">
+                            <i class="fas fa-redo me-1"></i>
+                            Reformular Solicitação
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal anterior se existir
+    const modalAnterior = document.getElementById('negativaModal');
+    if (modalAnterior) {
+        modalAnterior.remove();
+    }
+    
+    // Adicionar modal ao DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('negativaModal'));
+    modal.show();
+}
+
+// Função para processar reformulação após negativa
+async function processarReformulacaoAposNegativa() {
+    const motivoNegativa = document.getElementById('motivo-negativa').value.trim();
+    
+    if (!motivoNegativa) {
+        showErrorMessage('Por favor, informe o motivo da negativa pelo RA.');
+        return;
+    }
+    
+    // Fechar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('negativaModal'));
+    modal.hide();
+    
+    // Mostrar loading
+    showLoadingMessage('Reformulando solicitação de moderação com base no motivo da negativa...');
+    
+    try {
+        // Obter dados da moderação atual
+        const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
+        const respostaEmpresa = document.getElementById('resposta-empresa').value;
+        const motivoModeracao = document.getElementById('motivo-moderacao').value;
+        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        const textoNegado = document.getElementById('texto-moderacao').innerText;
+        
+        // Chamar o endpoint do servidor para reformulação
+        const response = await fetch('/api/reformulate-moderation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                textoNegado: textoNegado,
+                motivoNegativa: motivoNegativa,
+                dadosModeracao: {
+                    solicitacaoCliente: solicitacaoCliente,
+                    respostaEmpresa: respostaEmpresa,
+                    motivoModeracao: motivoModeracao,
+                    consideracaoFinal: consideracaoFinal
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Atualizar o texto de moderação com a versão reformulada
+            const textoModeracao = document.getElementById('texto-moderacao');
+            textoModeracao.innerHTML = data.result;
+            
+            // Atualizar linha de raciocínio para indicar reformulação
+            const linhaRaciocinio = document.getElementById('linha-raciocinio');
+            linhaRaciocinio.innerHTML = gerarLinhaRaciocinioModeracaoReformulada(
+                motivoModeracao, 
+                solicitacaoCliente, 
+                respostaEmpresa, 
+                motivoNegativa
+            );
+            
+            // Mostrar seção de feedback
+            const feedbackSection = document.getElementById('feedback-moderacao');
+            feedbackSection.style.display = 'block';
+            
+            // Atualizar conteúdo do feedback
+            const feedbackContent = feedbackSection.querySelector('.response-box');
+            if (feedbackContent) {
+                feedbackContent.innerHTML = `
+                    <div class="alert alert-warning border-start border-warning border-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Reformulação Realizada
+                        </h6>
+                        <p class="mb-2"><strong>Motivo da Negativa:</strong> ${motivoNegativa}</p>
+                        <p class="mb-0">A solicitação foi reformulada com base no feedback do Reclame Aqui para melhor adequação às regras de moderação.</p>
+                    </div>
+                `;
+            }
+            
+            showSuccessMessage('Solicitação de moderação reformulada com sucesso!');
+            
+            // Limpar modal
+            setTimeout(() => {
+                const modal = document.getElementById('negativaModal');
+                if (modal) {
+                    modal.remove();
+                }
+            }, 500);
+            
+        } else {
+            showErrorMessage(data.error || 'Erro ao reformular solicitação de moderação.');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao reformular moderação:', error);
+        showErrorMessage('Erro ao conectar com o servidor. Verifique sua conexão.');
+    }
+}
+
 // Log de inicialização
 console.log('🚀 Velotax Bot - Funções exportadas para uso global');
 console.log('📋 Configurações disponíveis:', window.velotaxConfig);
