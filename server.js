@@ -7483,16 +7483,19 @@ app.get('/api/test-sheets-register', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar resposta coerente
-        googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData }).then(result => {
-            console.log('📝 Resultado da resposta:', result);
-        }).catch(error => {
+        let resultado = null;
+        try {
+            resultado = await googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData }, true);
+            console.log('📝 Resultado da resposta:', resultado);
+        } catch (error) {
             console.error('❌ Erro na resposta:', error.message);
-        });
+            resultado = { error: error.message };
+        }
         
         res.json({
             success: true,
             message: 'Teste de registro concluído',
-            result: respostaResult,
+            result: resultado,
             testData: testData,
             envVars: envVars,
             timestamp: new Date().toISOString()
