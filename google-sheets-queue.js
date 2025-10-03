@@ -15,9 +15,18 @@ class GoogleSheetsQueue {
 
     /**
      * Adiciona item à fila
+     * @param {object} item - Item a ser adicionado
+     * @param {boolean} instantaneo - Se true, processa imediatamente sem aguardar fila
      */
-    addToQueue(item) {
-        console.log('📋 Adicionando item à fila do Google Sheets:', item.type);
+    addToQueue(item, instantaneo = false) {
+        console.log('📋 Adicionando item à fila do Google Sheets:', item.type, instantaneo ? '(INSTANTÂNEO)' : '');
+        
+        if (instantaneo) {
+            // Processar imediatamente sem adicionar à fila
+            console.log('⚡ Processamento instantâneo solicitado');
+            return this.processItemDirectly(item);
+        }
+        
         this.queue.push({
             ...item,
             id: Date.now() + Math.random(),
@@ -28,6 +37,32 @@ class GoogleSheetsQueue {
         // Inicia processamento se não estiver rodando
         if (!this.processing) {
             this.processQueue();
+        }
+    }
+
+    /**
+     * Processa um item diretamente sem aguardar fila
+     */
+    async processItemDirectly(item) {
+        try {
+            console.log('⚡ Processando item diretamente:', item.type);
+            const result = await this.processItem(item);
+            console.log('✅ Item processado diretamente com sucesso:', item.type);
+            return result;
+        } catch (error) {
+            console.error('❌ Erro ao processar item diretamente:', error.message);
+            // Se falhar, adicionar à fila normal para retry
+            console.log('🔄 Adicionando à fila normal para retry...');
+            this.queue.push({
+                ...item,
+                id: Date.now() + Math.random(),
+                retries: 0,
+                addedAt: new Date()
+            });
+            if (!this.processing) {
+                this.processQueue();
+            }
+            throw error;
         }
     }
 

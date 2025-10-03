@@ -1517,7 +1517,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
                 userName: novoModelo.userData?.nome || 'N/A',
                 userEmail: novoModelo.userData?.email || 'N/A'
             };
-            await googleSheetsQueue.addToQueue('registrarRespostaCoerente', respostaData, true); // true = instantâneo
+            await googleSheetsQueue.addToQueue({ type: 'registrarRespostaCoerente', data: respostaData }, true); // true = instantâneo
             console.log('✅ NOVA resposta coerente registrada INSTANTANEAMENTE no Google Sheets (ID:', novoModelo.id, ')');
         } catch (error) {
             console.error('❌ Erro ao registrar nova resposta coerente no Google Sheets:', error.message);
@@ -2115,7 +2115,7 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
                 userName: userData?.nome || 'N/A',
                 userEmail: userData?.email || 'N/A'
             };
-            await googleSheetsQueue.addToQueue('registrarFeedback', feedbackData, true); // true = instantâneo
+            await googleSheetsQueue.addToQueue({ type: 'registrarFeedback', data: feedbackData }, true); // true = instantâneo
             console.log('✅ Feedback registrado INSTANTANEAMENTE no Google Sheets (ID:', feedbackData.id, ')');
         } catch (error) {
             console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
@@ -6919,7 +6919,7 @@ app.post('/api/test-google-sheets', async (req, res) => {
         });
         
         // Tentar registrar resposta coerente
-        googleSheetsQueue.addToQueue('registrarRespostaCoerente', testData).then(result => {
+        googleSheetsQueue.addToQueue({ type: 'registrarRespostaCoerente', data: testData }).then(result => {
             console.log('📝 Resultado da resposta:', result);
         }).catch(error => {
             console.error('❌ Erro na resposta:', error.message);
@@ -7489,7 +7489,7 @@ app.get('/api/test-sheets-register', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar resposta coerente
-        googleSheetsQueue.addToQueue('registrarRespostaCoerente', testData).then(result => {
+        googleSheetsQueue.addToQueue({ type: 'registrarRespostaCoerente', data: testData }).then(result => {
             console.log('📝 Resultado da resposta:', result);
         }).catch(error => {
             console.error('❌ Erro na resposta:', error.message);
