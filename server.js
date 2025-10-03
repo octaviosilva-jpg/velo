@@ -11,75 +11,7 @@ const googleSheetsIntegration = require('./google-sheets-integration');
 const googleSheetsConfig = require('./google-sheets-config');
 
 // ===== SISTEMA DE FILA PARA GOOGLE SHEETS =====
-class GoogleSheetsQueue {
-    constructor() {
-        this.queue = [];
-        this.isProcessing = false;
-        this.processingInterval = 500; // 500ms entre processamentos (mais rápido)
-    }
-
-    async addToQueue(operation, data, instant = false) {
-        // Se for instantâneo, processar diretamente sem fila
-        if (instant) {
-            try {
-                console.log(`⚡ Processamento INSTANTÂNEO: ${operation}`);
-                const result = await googleSheetsIntegration[operation](data);
-                console.log(`✅ Processamento instantâneo concluído: ${operation}`);
-                return result;
-            } catch (error) {
-                console.error(`❌ Erro no processamento instantâneo ${operation}:`, error.message);
-                throw error;
-            }
-        }
-        
-        // Processamento normal com fila
-        return new Promise((resolve, reject) => {
-            this.queue.push({
-                operation,
-                data,
-                resolve,
-                reject,
-                timestamp: Date.now()
-            });
-            
-            if (!this.isProcessing) {
-                this.processQueue();
-            }
-        });
-    }
-
-    async processQueue() {
-        if (this.isProcessing || this.queue.length === 0) {
-            return;
-        }
-
-        this.isProcessing = true;
-        console.log(`🔄 Processando fila do Google Sheets: ${this.queue.length} itens`);
-
-        while (this.queue.length > 0) {
-            const item = this.queue.shift();
-            
-            try {
-                console.log(`📝 Processando: ${item.operation}`);
-                const result = await googleSheetsIntegration[item.operation](item.data);
-                item.resolve(result);
-            } catch (error) {
-                console.error(`❌ Erro ao processar ${item.operation}:`, error.message);
-                item.reject(error);
-            }
-
-            // Aguardar intervalo entre processamentos
-            if (this.queue.length > 0) {
-                await new Promise(resolve => setTimeout(resolve, this.processingInterval));
-            }
-        }
-
-        this.isProcessing = false;
-        console.log('✅ Fila do Google Sheets processada');
-    }
-}
-
-const googleSheetsQueue = new GoogleSheetsQueue();
+const googleSheetsQueue = require('./google-sheets-queue');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
