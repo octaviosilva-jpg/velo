@@ -7082,6 +7082,33 @@ app.get('/api/test-sheets-simple', async (req, res) => {
             isInitialized: googleSheetsConfig ? googleSheetsConfig.isInitialized() : false
         };
         
+        // Tentar adicionar uma linha de teste se estiver ativo
+        let testeEscrita = null;
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                console.log('✍️ Tentando adicionar linha de teste...');
+                const linhaTeste = [
+                    new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+                    'TESTE-' + Date.now(),
+                    'teste',
+                    'Teste de integração',
+                    'Esta é uma linha de teste para verificar se a escrita está funcionando',
+                    'teste',
+                    'teste de integração',
+                    '',
+                    '',
+                    '',
+                    'Teste'
+                ];
+                await googleSheetsConfig.appendRow('Respostas Coerentes!A:Z', linhaTeste);
+                console.log('✅ Linha de teste adicionada com sucesso');
+                testeEscrita = { success: true, linha: linhaTeste };
+            } catch (error) {
+                console.error('❌ Erro ao adicionar linha de teste:', error.message);
+                testeEscrita = { error: error.message };
+            }
+        }
+        
         res.json({
             success: true,
             message: 'Teste simples concluído',
@@ -7090,6 +7117,7 @@ app.get('/api/test-sheets-simple', async (req, res) => {
             globalStatus: {
                 googleSheetsInitialized: global.googleSheetsInitialized || false
             },
+            testeEscrita: testeEscrita,
             timestamp: new Date().toISOString()
         });
         
