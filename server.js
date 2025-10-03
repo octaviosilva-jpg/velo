@@ -471,7 +471,7 @@ function loadFeedbacksRespostas() {
 }
 
 // Salvar feedbacks de respostas
-function saveFeedbacksRespostas(feedbacks) {
+async function saveFeedbacksRespostas(feedbacks) {
     try {
         console.log('🔍 DEBUG - saveFeedbacksRespostas chamada com:', feedbacks.respostas?.length || 0, 'feedbacks');
         feedbacks.lastUpdated = obterTimestampBrasil();
@@ -544,12 +544,9 @@ function saveFeedbacksRespostas(feedbacks) {
                         userEmail: ultimoFeedback.userData?.email || 'N/A'
                     };
                     
-                    // SALVAMENTO SIMPLES - SEM AWAIT
-                    googleSheetsIntegration.registrarFeedback(feedbackData).then(() => {
-                        console.log('📋 Feedback salvo no Google Sheets:', ultimoFeedback.id);
-                    }).catch(error => {
-                        console.error('❌ Erro ao salvar feedback:', error.message);
-                    });
+                    // SALVAMENTO VIA FILA - COM AWAIT
+                    await googleSheetsQueue.addToQueue({ type: 'feedback', data: feedbackData }, true);
+                    console.log('📋 Feedback salvo no Google Sheets:', ultimoFeedback.id);
                 }
             } catch (error) {
                 console.error('❌ Erro ao processar feedback:', error.message);
@@ -619,12 +616,9 @@ async function saveFeedbacksModeracoes(feedbacks) {
                             userEmail: ultimaModeracao.userData?.email || 'N/A'
                         };
                         
-                        // SALVAMENTO SIMPLES - SEM AWAIT
-                        googleSheetsIntegration.registrarFeedbackModeracao(moderacaoData).then(() => {
-                            console.log('📋 Moderação salva no Google Sheets:', ultimaModeracao.id);
-                        }).catch(error => {
-                            console.error('❌ Erro ao salvar moderação:', error.message);
-                        });
+                        // SALVAMENTO VIA FILA - COM AWAIT
+                        await googleSheetsQueue.addToQueue({ type: 'feedback', data: moderacaoData }, true);
+                        console.log('📋 Moderação salva no Google Sheets:', ultimaModeracao.id);
                     }
                 } catch (error) {
                     console.error('❌ Erro ao processar moderação:', error.message);
@@ -1517,7 +1511,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
                 userName: novoModelo.userData?.nome || 'N/A',
                 userEmail: novoModelo.userData?.email || 'N/A'
             };
-            await googleSheetsQueue.addToQueue({ type: 'registrarRespostaCoerente', data: respostaData }, true); // true = instantâneo
+            await googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: respostaData }, true); // true = instantâneo
             console.log('✅ NOVA resposta coerente registrada INSTANTANEAMENTE no Google Sheets (ID:', novoModelo.id, ')');
         } catch (error) {
             console.error('❌ Erro ao registrar nova resposta coerente no Google Sheets:', error.message);
@@ -2115,7 +2109,7 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
                 userName: userData?.nome || 'N/A',
                 userEmail: userData?.email || 'N/A'
             };
-            await googleSheetsQueue.addToQueue({ type: 'registrarFeedback', data: feedbackData }, true); // true = instantâneo
+            await googleSheetsQueue.addToQueue({ type: 'feedback', data: feedbackData }, true); // true = instantâneo
             console.log('✅ Feedback registrado INSTANTANEAMENTE no Google Sheets (ID:', feedbackData.id, ')');
         } catch (error) {
             console.error('❌ Erro ao registrar feedback no Google Sheets:', error.message);
@@ -2487,7 +2481,7 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
         respostas: [...(feedbacks.respostas || []), novoFeedback]
     };
     
-    saveFeedbacksRespostas(feedbacksCopy);
+    await saveFeedbacksRespostas(feedbacksCopy);
     
     // Também adicionar ao aprendizado direto do script
     await addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
@@ -5358,7 +5352,7 @@ app.delete('/api/feedbacks/respostas', async (req, res) => {
             respostas: [],
             lastUpdated: obterTimestampBrasil()
         };
-        saveFeedbacksRespostas(feedbacksVazios);
+        await saveFeedbacksRespostas(feedbacksVazios);
         res.json({
             success: true,
             message: 'Feedbacks de respostas limpos com sucesso'
@@ -6919,7 +6913,7 @@ app.post('/api/test-google-sheets', async (req, res) => {
         });
         
         // Tentar registrar resposta coerente
-        googleSheetsQueue.addToQueue({ type: 'registrarRespostaCoerente', data: testData }).then(result => {
+        googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData }).then(result => {
             console.log('📝 Resultado da resposta:', result);
         }).catch(error => {
             console.error('❌ Erro na resposta:', error.message);
@@ -7489,7 +7483,7 @@ app.get('/api/test-sheets-register', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar resposta coerente
-        googleSheetsQueue.addToQueue({ type: 'registrarRespostaCoerente', data: testData }).then(result => {
+        googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData }).then(result => {
             console.log('📝 Resultado da resposta:', result);
         }).catch(error => {
             console.error('❌ Erro na resposta:', error.message);
