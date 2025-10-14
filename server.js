@@ -13,8 +13,18 @@ const googleSheetsConfig = require('./google-sheets-config');
 // ===== SISTEMA DE FILA PARA GOOGLE SHEETS =====
 const googleSheetsQueue = require('./google-sheets-queue');
 
+// ===== SISTEMAS DE MONITORAMENTO E RECUPERAÇÃO =====
+const GoogleSheetsMonitor = require('./google-sheets-monitor');
+const GoogleSheetsQueueRobust = require('./google-sheets-queue-robust');
+const GoogleSheetsDiagnostics = require('./google-sheets-diagnostics');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ===== INSTÂNCIAS GLOBAIS DOS SISTEMAS DE MONITORAMENTO =====
+let googleSheetsMonitor = null;
+let googleSheetsQueueRobust = null;
+let googleSheetsDiagnostics = null;
 
 // ===== SISTEMA DE APRENDIZADO BASEADO EM FEEDBACK SEPARADO POR ABA =====
 // ===== FUNÇÕES UTILITÁRIAS PARA DATAS =====
@@ -2417,6 +2427,48 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
     
     // Também adicionar ao aprendizado direto do script
     await addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
+    
+    // Registrar no Google Sheets usando fila robusta se disponível
+    if (googleSheetsQueueRobust && googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        console.log('📋 Adicionando feedback à fila robusta do Google Sheets...');
+        try {
+            await googleSheetsQueueRobust.enqueue({
+                type: 'registrarFeedback',
+                data: {
+                    tipo: 'resposta',
+                    dadosFormulario: dadosFormulario,
+                    respostaAnterior: respostaAnterior,
+                    feedback: feedback,
+                    respostaReformulada: respostaReformulada,
+                    userData: userData,
+                    timestamp: novoFeedback.timestamp
+                },
+                priority: 'high'
+            });
+            console.log('✅ Feedback adicionado à fila robusta');
+        } catch (error) {
+            console.error('❌ Erro ao adicionar feedback à fila robusta:', error.message);
+        }
+    } else {
+        console.log('⚠️ Fila robusta não disponível - usando método direto');
+        // Fallback para método direto
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                await googleSheetsIntegration.registrarFeedback({
+                    tipo: 'resposta',
+                    dadosFormulario: dadosFormulario,
+                    respostaAnterior: respostaAnterior,
+                    feedback: feedback,
+                    respostaReformulada: respostaReformulada,
+                    userData: userData,
+                    timestamp: novoFeedback.timestamp
+                });
+                console.log('✅ Feedback registrado diretamente no Google Sheets');
+            } catch (error) {
+                console.error('❌ Erro ao registrar feedback diretamente:', error.message);
+            }
+        }
+    }
     
     console.log('📝 Feedback de resposta adicionado (aba Respostas RA):', novoFeedback.id);
     return novoFeedback;
@@ -6472,6 +6524,152 @@ app.get('/api/verificacao/completa', (req, res) => {
     }
 });
 
+// ===== ENDPOINTS DE MONITORAMENTO E DIAGNÓSTICO =====
+
+// Endpoint para status de saúde do Google Sheets
+app.get('/api/google-sheets/health', async (req, res) => {
+    try {
+        if (!googleSheetsDiagnostics) {
+            return res.status(503).json({
+                success: false,
+                error: 'Sistema de diagnóstico não inicializado'
+            });
+        }
+        
+        const healthReport = googleSheetsDiagnostics.getHealthReport();
+        res.json({
+            success: true,
+            data: healthReport
+        });
+    } catch (error) {
+        console.error('Erro ao obter status de saúde:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para diagnóstico completo
+app.get('/api/google-sheets/diagnostic', async (req, res) => {
+    try {
+        if (!googleSheetsDiagnostics) {
+            return res.status(503).json({
+                success: false,
+                error: 'Sistema de diagnóstico não inicializado'
+            });
+        }
+        
+        const diagnostic = await googleSheetsDiagnostics.runFullDiagnostic();
+        res.json({
+            success: true,
+            data: diagnostic
+        });
+    } catch (error) {
+        console.error('Erro ao executar diagnóstico:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para status da fila
+app.get('/api/google-sheets/queue-status', async (req, res) => {
+    try {
+        if (!googleSheetsQueueRobust) {
+            return res.status(503).json({
+                success: false,
+                error: 'Sistema de fila não inicializado'
+            });
+        }
+        
+        const queueStatus = googleSheetsQueueRobust.getQueueStatus();
+        res.json({
+            success: true,
+            data: queueStatus
+        });
+    } catch (error) {
+        console.error('Erro ao obter status da fila:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para forçar recuperação
+app.post('/api/google-sheets/force-recovery', async (req, res) => {
+    try {
+        if (!googleSheetsDiagnostics) {
+            return res.status(503).json({
+                success: false,
+                error: 'Sistema de diagnóstico não inicializado'
+            });
+        }
+        
+        const recovery = await googleSheetsDiagnostics.forceRecovery();
+        res.json({
+            success: recovery.success,
+            data: recovery
+        });
+    } catch (error) {
+        console.error('Erro ao forçar recuperação:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para teste de escrita
+app.post('/api/google-sheets/test-write', async (req, res) => {
+    try {
+        if (!googleSheetsDiagnostics) {
+            return res.status(503).json({
+                success: false,
+                error: 'Sistema de diagnóstico não inicializado'
+            });
+        }
+        
+        const testResult = await googleSheetsDiagnostics.testWriteOperation();
+        res.json({
+            success: testResult.success,
+            data: testResult
+        });
+    } catch (error) {
+        console.error('Erro ao testar escrita:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para teste de leitura
+app.post('/api/google-sheets/test-read', async (req, res) => {
+    try {
+        if (!googleSheetsDiagnostics) {
+            return res.status(503).json({
+                success: false,
+                error: 'Sistema de diagnóstico não inicializado'
+            });
+        }
+        
+        const testResult = await googleSheetsDiagnostics.testReadOperation();
+        res.json({
+            success: testResult.success,
+            data: testResult
+        });
+    } catch (error) {
+        console.error('Erro ao testar leitura:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor'
+        });
+    }
+});
+
 // Middleware para rotas não encontradas
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -6511,6 +6709,17 @@ async function initializeGoogleSheets(envVars = null) {
                 console.log('✅ Google Sheets integrado com sucesso');
                 // Garantir que a instância global esteja disponível
                 global.googleSheetsIntegration = googleSheetsIntegration;
+                
+                // Inicializar sistemas de monitoramento
+                console.log('🔧 Inicializando sistemas de monitoramento...');
+                googleSheetsMonitor = new GoogleSheetsMonitor(googleSheetsIntegration);
+                googleSheetsQueueRobust = new GoogleSheetsQueueRobust(googleSheetsIntegration, googleSheetsMonitor);
+                googleSheetsDiagnostics = new GoogleSheetsDiagnostics(googleSheetsIntegration, googleSheetsMonitor, googleSheetsQueueRobust);
+                
+                // Iniciar monitoramento
+                googleSheetsMonitor.startMonitoring();
+                console.log('✅ Sistemas de monitoramento inicializados');
+                
             } else {
                 console.log('⚠️ Google Sheets não pôde ser inicializado');
             }
