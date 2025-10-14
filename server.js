@@ -2461,12 +2461,17 @@ async function addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulad
             userProfile: feedbackData.userProfile
         });
         
-        // SALVAMENTO SIMPLES - SEM AWAIT
-        googleSheetsIntegration.registrarFeedbackModeracao(feedbackData).then(() => {
-            console.log('✅ Feedback de moderação salvo no Google Sheets:', novoFeedback.id);
-        }).catch(error => {
+        // SALVAMENTO COM AWAIT PARA GARANTIR REGISTRO
+        try {
+            const resultado = await googleSheetsIntegration.registrarFeedbackModeracao(feedbackData);
+            if (resultado) {
+                console.log('✅ Feedback de moderação salvo no Google Sheets:', novoFeedback.id);
+            } else {
+                console.log('⚠️ Falha ao salvar feedback de moderação no Google Sheets:', novoFeedback.id);
+            }
+        } catch (error) {
             console.error('❌ Erro ao salvar feedback de moderação:', error.message);
-        });
+        }
     } else {
         console.log('⚠️ Google Sheets não está ativo - feedback de moderação não será registrado');
     }
@@ -6158,12 +6163,17 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 userProfile: moderacaoData.userProfile
             });
             
-            // SALVAMENTO SIMPLES - SEM AWAIT
-            googleSheetsIntegration.registrarModeracaoCoerente(moderacaoData).then(() => {
-                console.log('✅ Moderação coerente salva no Google Sheets:', modelo.id);
-            }).catch(error => {
+            // SALVAMENTO COM AWAIT PARA GARANTIR REGISTRO
+            try {
+                const resultado = await googleSheetsIntegration.registrarModeracaoCoerente(moderacaoData);
+                if (resultado) {
+                    console.log('✅ Moderação coerente salva no Google Sheets:', modelo.id);
+                } else {
+                    console.log('⚠️ Falha ao salvar moderação coerente no Google Sheets:', modelo.id);
+                }
+            } catch (error) {
                 console.error('❌ Erro ao salvar moderação coerente:', error.message);
-            });
+            }
         } else {
             console.log('⚠️ Google Sheets não está ativo - moderação coerente não será registrada');
         }
@@ -6838,18 +6848,20 @@ app.post('/api/test-google-sheets', async (req, res) => {
         console.log('📝 Dados de teste:', testData);
         
         // Tentar registrar feedback
-        googleSheetsIntegration.registrarFeedback(testData).then(result => {
-            console.log('📝 Resultado do feedback:', result);
-        }).catch(error => {
+        try {
+            const resultado = await googleSheetsIntegration.registrarFeedback(testData);
+            console.log('📝 Resultado do feedback:', resultado);
+        } catch (error) {
             console.error('❌ Erro no feedback:', error.message);
-        });
+        }
         
         // Tentar registrar resposta coerente
-        googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData }).then(result => {
-            console.log('📝 Resultado da resposta:', result);
-        }).catch(error => {
+        try {
+            const resultado = await googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData });
+            console.log('📝 Resultado da resposta:', resultado);
+        } catch (error) {
             console.error('❌ Erro na resposta:', error.message);
-        });
+        }
         
         res.json({
             success: true,
