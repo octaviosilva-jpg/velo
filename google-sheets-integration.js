@@ -1,4 +1,5 @@
 const googleSheetsConfig = require('./google-sheets-config');
+const googleSheetsFallback = require('./google-sheets-fallback');
 const fs = require('fs');
 
 class GoogleSheetsIntegration {
@@ -14,13 +15,42 @@ class GoogleSheetsIntegration {
     }
 
     /**
-     * Inicializa a integração com Google Sheets
+     * Inicializa a integração com Google Sheets usando sistema de fallback
      */
     async initialize(envVars = null) {
         try {
-            console.log('🔧 Inicializando integração com Google Sheets...');
+            console.log('🔧 Inicializando integração com Google Sheets (sistema de fallback)...');
             
-            // Google Sheets habilitado para Vercel com Service Account
+            // 1. Primeiro, tentar usar o sistema de fallback
+            const fallbackSuccess = await googleSheetsFallback.initialize();
+            
+            if (fallbackSuccess) {
+                console.log(`✅ Sistema de fallback funcionou usando método: ${googleSheetsFallback.getMethod()}`);
+                
+                const credentials = googleSheetsFallback.getCredentials();
+                const spreadsheetId = googleSheetsFallback.getSpreadsheetId();
+                
+                if (credentials && spreadsheetId) {
+                    this.spreadsheetId = spreadsheetId;
+                    this.initialized = await googleSheetsConfig.initializeWithCredentials(credentials, spreadsheetId);
+                    
+                    if (this.initialized) {
+                        console.log('✅ Integração com Google Sheets inicializada com sucesso via fallback');
+                        await this.ensureSheetsExist();
+                        this.startCacheCleanup();
+                        return true;
+                    }
+                } else if (spreadsheetId) {
+                    // Configuração mínima - apenas ID da planilha
+                    console.log('⚠️ Configuração mínima detectada - apenas ID da planilha');
+                    this.spreadsheetId = spreadsheetId;
+                    this.initialized = false; // Não inicializar completamente
+                    return false;
+                }
+            }
+            
+            // 2. Fallback para método antigo (compatibilidade)
+            console.log('🔄 Tentando método de inicialização antigo...');
             
             // Carregar configurações do ambiente
             const spreadsheetId = envVars?.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEETS_ID;

@@ -9,6 +9,7 @@ const crypto = require('crypto');
 // ===== INTEGRAÇÃO COM GOOGLE SHEETS =====
 const googleSheetsIntegration = require('./google-sheets-integration');
 const googleSheetsConfig = require('./google-sheets-config');
+const googleSheetsFallback = require('./google-sheets-fallback');
 
 // ===== SISTEMA DE FILA PARA GOOGLE SHEETS =====
 const googleSheetsQueue = require('./google-sheets-queue');
@@ -6914,6 +6915,43 @@ app.get('/api/debug-env', (req, res) => {
             success: false,
             error: 'Erro interno do servidor',
             message: error.message
+        });
+    }
+});
+
+// Endpoint para forçar inicialização do Google Sheets
+app.post('/api/force-initialize-google-sheets', async (req, res) => {
+    console.log('🎯 Endpoint /api/force-initialize-google-sheets chamado');
+    try {
+        console.log('🔄 Forçando inicialização do Google Sheets...');
+        
+        // Tentar inicializar usando o sistema de fallback
+        const success = await googleSheetsIntegration.initialize();
+        
+        if (success) {
+            console.log('✅ Google Sheets inicializado com sucesso!');
+            return res.json({
+                success: true,
+                message: 'Google Sheets inicializado com sucesso',
+                timestamp: new Date().toISOString(),
+                method: googleSheetsFallback ? googleSheetsFallback.getMethod() : 'unknown'
+            });
+        } else {
+            console.log('⚠️ Google Sheets não pôde ser inicializado');
+            return res.json({
+                success: false,
+                message: 'Google Sheets não pôde ser inicializado',
+                timestamp: new Date().toISOString(),
+                diagnostic: googleSheetsFallback ? googleSheetsFallback.getDiagnosticInfo() : null
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao forçar inicialização do Google Sheets:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });

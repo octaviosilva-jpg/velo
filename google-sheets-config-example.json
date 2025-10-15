@@ -1,0 +1,11 @@
+{
+  "spreadsheetId": "SEU_GOOGLE_SHEETS_ID_AQUI",
+  "serviceAccountEmail": "seu-service-account@projeto.iam.gserviceaccount.com",
+  "projectId": "seu-projeto-id",
+  "description": "Arquivo de configuração de exemplo para Google Sheets",
+  "instructions": [
+    "1. Substitua os valores pelos seus dados reais",
+    "2. Renomeie este arquivo para 'google-sheets-config.json'",
+    "3. Certifique-se de que a planilha está compartilhada com o Service Account"
+  ]
+}
