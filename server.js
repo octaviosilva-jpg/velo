@@ -961,27 +961,63 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario)
     let promptFinal = scriptPadrao;
     
     if (dadosPlanilha && (dadosPlanilha.modelosCoerentes?.length > 0 || dadosPlanilha.feedbacksRelevantes?.length > 0)) {
-        promptFinal += '\n\n🧠 CONHECIMENTO APLICADO DA PLANILHA:\n';
+        promptFinal += '\n\n🧠 CONHECIMENTO APLICADO DA BASE DE APRENDIZADO:\n';
+        promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
         
-        // Adicionar modelos coerentes
+        // Adicionar modelos coerentes COMPLETOS
         if (dadosPlanilha.modelosCoerentes?.length > 0) {
-            promptFinal += '\n✅ MODELOS COERENTES APROVADOS (use como referência):\n';
-            dadosPlanilha.modelosCoerentes.forEach((modelo, index) => {
-                promptFinal += `${index + 1}. Resposta aprovada: "${modelo.respostaAprovada?.substring(0, 200)}..."\n`;
-                promptFinal += `   Contexto: ${modelo.dadosFormulario?.tipo_solicitacao} - ${modelo.dadosFormulario?.motivo_solicitacao}\n\n`;
+            promptFinal += '\n✅ MODELOS DE RESPOSTAS APROVADAS (siga estes padrões):\n\n';
+            promptFinal += `📊 Total de ${dadosPlanilha.modelosCoerentes.length} modelos aprovados para referência:\n\n`;
+            
+            dadosPlanilha.modelosCoerentes.slice(0, 5).forEach((modelo, index) => {
+                promptFinal += `━━━ MODELO ${index + 1} ━━━\n`;
+                promptFinal += `📋 Tipo: ${modelo['Tipo Solicitação'] || modelo.dadosFormulario?.tipo_solicitacao || 'N/A'}\n`;
+                promptFinal += `🎯 Motivo: ${modelo['Motivo Solicitação'] || modelo.dadosFormulario?.motivo_solicitacao || 'N/A'}\n`;
+                promptFinal += `📝 Texto do Cliente: ${modelo['Texto Cliente'] || modelo.dadosFormulario?.texto_cliente || 'N/A'}\n`;
+                promptFinal += `\n✅ RESPOSTA APROVADA (use como referência de qualidade):\n`;
+                promptFinal += `${modelo['Resposta Aprovada'] || modelo.respostaAprovada || 'N/A'}\n`;
+                promptFinal += `\n💡 Solução Implementada: ${modelo['Solução Implementada'] || modelo.dadosFormulario?.solucao_implementada || 'N/A'}\n`;
+                promptFinal += `📜 Histórico: ${modelo['Histórico Atendimento'] || modelo.dadosFormulario?.historico_atendimento || 'N/A'}\n`;
+                promptFinal += `\n`;
             });
+            
+            promptFinal += '\n🎯 INSTRUÇÃO: Analise cuidadosamente estas respostas aprovadas. Observe:\n';
+            promptFinal += '   - A estrutura e organização do texto\n';
+            promptFinal += '   - O tom profissional e empático usado\n';
+            promptFinal += '   - Como integram a solução implementada com o problema do cliente\n';
+            promptFinal += '   - As referências legais (CCB, LGPD) quando aplicáveis\n';
+            promptFinal += '   - A personalização para cada caso específico\n\n';
         }
         
-        // Adicionar feedbacks relevantes
+        // Adicionar feedbacks relevantes COMPLETOS
         if (dadosPlanilha.feedbacksRelevantes?.length > 0) {
-            promptFinal += '\n⚠️ FEEDBACKS DE CORREÇÃO (evite estes erros):\n';
-            dadosPlanilha.feedbacksRelevantes.forEach((feedback, index) => {
-                promptFinal += `${index + 1}. ❌ Erro identificado: "${feedback.feedback?.substring(0, 150)}..."\n`;
-                promptFinal += `   ✅ Resposta corrigida: "${feedback.respostaReformulada?.substring(0, 150)}..."\n\n`;
+            promptFinal += '\n⚠️ FEEDBACKS DE CORREÇÃO (aprenda com estes erros):\n\n';
+            promptFinal += `📊 Total de ${dadosPlanilha.feedbacksRelevantes.length} feedbacks para evitar erros:\n\n`;
+            
+            dadosPlanilha.feedbacksRelevantes.slice(0, 5).forEach((feedback, index) => {
+                promptFinal += `━━━ FEEDBACK ${index + 1} ━━━\n`;
+                promptFinal += `❌ ERRO IDENTIFICADO:\n${feedback.feedback || feedback.Feedback || 'N/A'}\n\n`;
+                promptFinal += `📝 RESPOSTA ORIGINAL (com problema):\n${feedback.respostaAnterior || feedback['Resposta Anterior'] || 'N/A'}\n\n`;
+                promptFinal += `✅ RESPOSTA CORRIGIDA (use como referência):\n${feedback.respostaReformulada || feedback['Resposta Reformulada'] || 'N/A'}\n`;
+                promptFinal += `\n`;
             });
+            
+            promptFinal += '\n🎯 INSTRUÇÃO: Evite cometer os mesmos erros identificados nos feedbacks acima.\n';
+            promptFinal += '   - Não seja genérico - seja específico para o caso\n';
+            promptFinal += '   - Não ignore a solução implementada - explique como ela resolve o problema\n';
+            promptFinal += '   - Não use linguagem muito técnica ou muito informal\n';
+            promptFinal += '   - Não deixe de mencionar aspectos legais quando relevante\n\n';
         }
         
-        promptFinal += '\n🎯 INSTRUÇÃO CRÍTICA: Use os modelos aprovados como referência e evite os erros identificados nos feedbacks.';
+        promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+        promptFinal += '\n🎯 INSTRUÇÃO CRÍTICA FINAL:\n';
+        promptFinal += 'Use TODA a base de conhecimento acima para gerar uma resposta de ALTA QUALIDADE desde o início.\n';
+        promptFinal += 'Siga os padrões das respostas aprovadas e evite os erros dos feedbacks.\n';
+        promptFinal += 'Sua resposta deve ser TÃO BOA QUANTO as respostas aprovadas mostradas acima.\n';
+        promptFinal += 'Não gere uma resposta genérica - use os dados específicos fornecidos e o conhecimento da base.\n\n';
+    } else {
+        console.log('⚠️ AVISO: Nenhum conhecimento da base de aprendizado disponível');
+        promptFinal += '\n\n⚠️ AVISO: Gerando resposta sem base de aprendizado. Siga rigorosamente o script padrão.\n\n';
     }
     
     return promptFinal;
@@ -4040,11 +4076,27 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         // Primeiro, tentar carregar dados da planilha
         let dadosPlanilha = null;
         try {
+            console.log('🔍 [DEBUG] Tentando carregar dados da planilha para:', dadosFormulario.tipo_solicitacao);
             dadosPlanilha = await carregarDadosAprendizadoCompleto(dadosFormulario.tipo_solicitacao);
             console.log('✅ Dados da planilha carregados:', {
                 modelos: dadosPlanilha?.modelosCoerentes?.length || 0,
-                feedbacks: dadosPlanilha?.feedbacksRelevantes?.length || 0
+                feedbacks: dadosPlanilha?.feedbacksRelevantes?.length || 0,
+                fonte: dadosPlanilha?.fonte || 'desconhecida'
             });
+            
+            // Log detalhado dos modelos carregados
+            if (dadosPlanilha?.modelosCoerentes?.length > 0) {
+                console.log('📋 [DEBUG] Primeiros modelos carregados:');
+                dadosPlanilha.modelosCoerentes.slice(0, 2).forEach((modelo, index) => {
+                    console.log(`   Modelo ${index + 1}:`, {
+                        tipo: modelo['Tipo Solicitação'] || modelo.dadosFormulario?.tipo_solicitacao,
+                        temResposta: !!(modelo['Resposta Aprovada'] || modelo.respostaAprovada),
+                        tamanhoResposta: (modelo['Resposta Aprovada'] || modelo.respostaAprovada || '').length
+                    });
+                });
+            } else {
+                console.log('⚠️ [DEBUG] NENHUM MODELO COERENTE ENCONTRADO!');
+            }
         } catch (error) {
             console.log('⚠️ Erro ao carregar dados da planilha:', error.message);
             console.log('🔄 Continuando com script padrão...');
