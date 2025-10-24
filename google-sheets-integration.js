@@ -455,9 +455,18 @@ class GoogleSheetsIntegration {
      * Registra um feedback no Google Sheets
      */
     async registrarFeedback(feedbackData) {
+        console.log('🔍 [DEBUG] Tentando registrar feedback...');
+        console.log('🔍 [DEBUG] Google Sheets ativo?', this.isActive());
+        
+        // Tentar inicializar se não estiver ativo
         if (!this.isActive()) {
-            console.log('⚠️ Google Sheets não está ativo. Feedback não registrado.');
-            return false;
+            console.log('⚠️ Google Sheets não está ativo. Tentando inicializar...');
+            const inicializado = await this.initialize();
+            if (!inicializado) {
+                console.log('❌ Não foi possível inicializar Google Sheets. Feedback não registrado.');
+                return false;
+            }
+            console.log('✅ Google Sheets inicializado com sucesso para registrar feedback');
         }
 
         try {
@@ -512,9 +521,15 @@ class GoogleSheetsIntegration {
         console.log('🔍 [DEBUG] Google Sheets ativo?', this.isActive());
         console.log('🔍 [DEBUG] Dados recebidos:', JSON.stringify(respostaData, null, 2));
         
+        // Tentar inicializar se não estiver ativo
         if (!this.isActive()) {
-            console.log('⚠️ Google Sheets não está ativo. Resposta não registrada.');
-            return false;
+            console.log('⚠️ Google Sheets não está ativo. Tentando inicializar...');
+            const inicializado = await this.initialize();
+            if (!inicializado) {
+                console.log('❌ Não foi possível inicializar Google Sheets. Resposta não registrada.');
+                return false;
+            }
+            console.log('✅ Google Sheets inicializado com sucesso para registrar resposta');
         }
 
         try {
@@ -556,9 +571,18 @@ class GoogleSheetsIntegration {
      * Registra um feedback de moderação no Google Sheets
      */
     async registrarFeedbackModeracao(feedbackData) {
+        console.log('🔍 [DEBUG] Tentando registrar feedback de moderação...');
+        console.log('🔍 [DEBUG] Google Sheets ativo?', this.isActive());
+        
+        // Tentar inicializar se não estiver ativo
         if (!this.isActive()) {
-            console.log('⚠️ Google Sheets não está ativo. Feedback de moderação não registrado.');
-            return false;
+            console.log('⚠️ Google Sheets não está ativo. Tentando inicializar...');
+            const inicializado = await this.initialize();
+            if (!inicializado) {
+                console.log('❌ Não foi possível inicializar Google Sheets. Feedback de moderação não registrado.');
+                return false;
+            }
+            console.log('✅ Google Sheets inicializado com sucesso para registrar feedback');
         }
 
         // Verificar se deve aguardar recuperação de quota
@@ -568,12 +592,14 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            console.log('🔍 [DEBUG] Verificando status da API...');
             // Verificar status da API antes de tentar registrar
             const apiStatus = await this.checkApiStatus();
             if (!apiStatus) {
                 console.log('⚠️ API do Google Sheets não está funcionando. Feedback não registrado.');
                 return false;
             }
+            console.log('✅ [DEBUG] API do Google Sheets está funcionando');
 
             // Rate limiting para operações de escrita
             await this.waitForRateLimit();
@@ -630,9 +656,18 @@ class GoogleSheetsIntegration {
      * Registra uma moderação coerente no Google Sheets
      */
     async registrarModeracaoCoerente(moderacaoData) {
+        console.log('🔍 [DEBUG] Tentando registrar moderação coerente...');
+        console.log('🔍 [DEBUG] Google Sheets ativo?', this.isActive());
+        
+        // Tentar inicializar se não estiver ativo
         if (!this.isActive()) {
-            console.log('⚠️ Google Sheets não está ativo. Moderação coerente não registrada.');
-            return false;
+            console.log('⚠️ Google Sheets não está ativo. Tentando inicializar...');
+            const inicializado = await this.initialize();
+            if (!inicializado) {
+                console.log('❌ Não foi possível inicializar Google Sheets. Moderação coerente não registrada.');
+                return false;
+            }
+            console.log('✅ Google Sheets inicializado com sucesso para registrar moderação');
         }
 
         // Verificar se deve aguardar recuperação de quota
@@ -642,12 +677,14 @@ class GoogleSheetsIntegration {
         }
 
         try {
+            console.log('🔍 [DEBUG] Verificando status da API...');
             // Verificar status da API antes de tentar registrar
             const apiStatus = await this.checkApiStatus();
             if (!apiStatus) {
                 console.log('⚠️ API do Google Sheets não está funcionando. Moderação não registrada.');
                 return false;
             }
+            console.log('✅ [DEBUG] API do Google Sheets está funcionando');
 
             // Rate limiting para operações de escrita
             await this.waitForRateLimit();
