@@ -288,7 +288,21 @@ async function gerarRespostaOpenAI() {
         
     } catch (error) {
         console.error('Erro ao gerar resposta:', error);
-        showErrorMessage('Erro ao gerar resposta. Tente novamente.');
+        
+        // Mostrar mensagem de erro mais específica se disponível
+        let errorMsg = 'Erro ao gerar resposta.';
+        if (error.message) {
+            // Se a mensagem contém detalhes, mostrar apenas a primeira linha (erro principal)
+            const errorLines = error.message.split('\n');
+            errorMsg = errorLines[0];
+            
+            // Se houver detalhes, logar no console
+            if (errorLines.length > 1) {
+                console.error('Detalhes do erro:', errorLines.slice(1).join('\n'));
+            }
+        }
+        
+        showErrorMessage(errorMsg);
     }
 }
 
@@ -324,8 +338,20 @@ async function gerarRespostaRAViaAPI(dadosResposta) {
             console.log('✅ Resposta gerada com sucesso pelo servidor');
             return data.result;
         } else {
-            console.error('❌ Erro do servidor:', data.error);
-            throw new Error(data.error || 'Erro desconhecido do servidor');
+            // Log detalhado do erro
+            console.error('❌ Erro do servidor:', {
+                error: data.error,
+                details: data.details,
+                statusCode: data.statusCode
+            });
+            
+            // Criar mensagem de erro mais detalhada
+            let errorMessage = data.error || 'Erro desconhecido do servidor';
+            if (data.details) {
+                errorMessage += `\n\nDetalhes: ${data.details}`;
+            }
+            
+            throw new Error(errorMessage);
         }
         
     } catch (error) {

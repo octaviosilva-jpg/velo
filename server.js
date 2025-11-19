@@ -3157,6 +3157,72 @@ function validateApiKey(apiKey) {
     return true;
 }
 
+// Tratar erros da API OpenAI de forma detalhada
+function tratarErroOpenAI(response, errorData) {
+    let errorMessage = 'Erro na API OpenAI';
+    let errorDetails = errorData;
+    let statusCode = response?.status || 400;
+    
+    // Tentar parsear o erro para dar mensagem mais específica
+    try {
+        const errorJson = typeof errorData === 'string' ? JSON.parse(errorData) : errorData;
+        const errorType = errorJson.error?.type || '';
+        const errorCode = errorJson.error?.code || '';
+        const errorMsg = errorJson.error?.message || '';
+        
+        console.error('❌ Erro detalhado da API OpenAI:', {
+            status: statusCode,
+            statusText: response?.statusText || '',
+            type: errorType,
+            code: errorCode,
+            message: errorMsg
+        });
+        
+        // Identificar tipo específico de erro
+        if (statusCode === 401) {
+            if (errorMsg.includes('Invalid API key') || errorMsg.includes('Incorrect API key')) {
+                errorMessage = 'Chave da API OpenAI inválida ou incorreta';
+                errorDetails = 'A chave da API configurada não é válida. Verifique se a chave está correta na Vercel (Environment Variables).';
+            } else if (errorMsg.includes('expired') || errorMsg.includes('revoked')) {
+                errorMessage = 'Chave da API OpenAI expirada ou revogada';
+                errorDetails = 'A chave da API foi desativada ou expirou. Gere uma nova chave no painel da OpenAI e atualize na Vercel.';
+            } else {
+                errorMessage = 'Chave da API OpenAI não autorizada';
+                errorDetails = 'A chave da API não tem permissão para acessar o serviço. Verifique se a chave está ativa no painel da OpenAI.';
+            }
+        } else if (statusCode === 429) {
+            errorMessage = 'Limite de requisições excedido';
+            errorDetails = 'Você atingiu o limite de requisições da API OpenAI. Aguarde alguns minutos ou verifique seu plano de uso.';
+        } else if (statusCode === 402 || errorMsg.includes('insufficient_quota') || errorMsg.includes('billing')) {
+            errorMessage = 'Créditos insuficientes na conta OpenAI';
+            errorDetails = 'Sua conta da OpenAI não tem créditos suficientes. Adicione créditos no painel da OpenAI (https://platform.openai.com/account/billing).';
+        } else if (statusCode === 403) {
+            errorMessage = 'Acesso negado à API OpenAI';
+            errorDetails = 'A chave da API não tem permissão para acessar este recurso. Verifique as permissões da chave.';
+        } else {
+            errorMessage = `Erro na API OpenAI (${statusCode})`;
+            errorDetails = errorMsg || (typeof errorData === 'string' ? errorData : JSON.stringify(errorData));
+        }
+    } catch (parseError) {
+        // Se não conseguir parsear, usar a mensagem original
+        console.error('❌ Erro ao parsear resposta da API:', parseError);
+        errorDetails = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
+    }
+    
+    console.error('❌ Erro na API OpenAI:', {
+        status: statusCode,
+        message: errorMessage,
+        details: errorDetails
+    });
+    
+    return {
+        success: false,
+        error: errorMessage,
+        details: errorDetails,
+        statusCode: statusCode
+    };
+}
+
 // Criptografar dados sensíveis
 function encryptSensitiveData(data, key) {
     try {
@@ -3373,11 +3439,9 @@ app.post('/api/test-openai', rateLimitMiddleware, async (req, res) => {
                 timestamp: new Date().toISOString()
             });
         } else {
-            res.status(400).json({
-                success: false,
-                error: 'Erro na conexão com OpenAI',
-                message: 'Verifique sua chave da API'
-            });
+            const errorData = await response.text();
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            res.status(errorResponse.statusCode).json(errorResponse);
         }
         
     } catch (error) {
@@ -3386,6 +3450,70 @@ app.post('/api/test-openai', rateLimitMiddleware, async (req, res) => {
             success: false,
             error: 'Erro interno do servidor',
             message: 'Não foi possível testar a conexão'
+        });
+    }
+});
+
+// Rota para testar a chave configurada automaticamente (sem precisar passar a chave)
+app.get('/api/test-openai-configured', rateLimitMiddleware, async (req, res) => {
+    try {
+        console.log('🔍 Testando chave OpenAI configurada automaticamente...');
+        
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        
+        console.log('🔍 Status da chave:', {
+            temApiKey: !!apiKey,
+            tamanhoApiKey: apiKey ? apiKey.length : 0,
+            formatoValido: apiKey ? apiKey.startsWith('sk-') : false
+        });
+        
+        if (!validateApiKey(apiKey)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Chave da API não configurada ou inválida',
+                details: 'A chave da API não está configurada na Vercel ou está em formato inválido. Verifique as Environment Variables na Vercel.',
+                configurada: false,
+                formatoValido: false
+            });
+        }
+        
+        // Fazer teste simples com OpenAI
+        console.log('📡 Testando conexão com OpenAI...');
+        const response = await fetch('https://api.openai.com/v1/models', {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            console.log('✅ Conexão com OpenAI bem-sucedida!');
+            res.json({
+                success: true,
+                message: 'Conexão com OpenAI bem-sucedida',
+                configurada: true,
+                formatoValido: true,
+                timestamp: new Date().toISOString()
+            });
+        } else {
+            const errorData = await response.text();
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            console.error('❌ Erro ao testar OpenAI:', errorResponse);
+            res.status(errorResponse.statusCode).json({
+                ...errorResponse,
+                configurada: true,
+                formatoValido: true
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao testar OpenAI:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: 'Não foi possível testar a conexão',
+            details: error.message
         });
     }
 });
@@ -3671,11 +3799,8 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
             });
         } else {
             const errorData = await response.text();
-            res.status(400).json({
-                success: false,
-                error: 'Erro na API OpenAI',
-                details: errorData
-            });
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            res.status(errorResponse.statusCode).json(errorResponse);
         }
     } catch (error) {
         console.error('Erro ao gerar moderação:', error);
@@ -3917,11 +4042,8 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
             });
         } else {
             const errorData = await response.text();
-            res.status(400).json({
-                success: false,
-                error: 'Erro na API OpenAI',
-                details: errorData
-            });
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            res.status(errorResponse.statusCode).json(errorResponse);
         }
         
     } catch (error) {
@@ -4298,11 +4420,8 @@ Equipe Velotax`;
             });
         } else {
             const errorData = await response.text();
-            res.status(400).json({
-                success: false,
-                error: 'Erro na API OpenAI',
-                details: errorData
-            });
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            res.status(errorResponse.statusCode).json(errorResponse);
         }
         } catch (fetchError) {
             clearTimeout(timeoutId);
@@ -4524,11 +4643,8 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
             });
         } else {
             const errorData = await response.text();
-            res.status(400).json({
-                success: false,
-                error: 'Erro na API OpenAI',
-                details: errorData
-            });
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            res.status(errorResponse.statusCode).json(errorResponse);
         }
     } catch (error) {
         console.error('Erro ao reformular moderação:', error);
@@ -4885,11 +5001,8 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
             });
         } else {
             const errorData = await response.text();
-            res.status(400).json({
-                success: false,
-                error: 'Erro na API OpenAI',
-                details: errorData
-            });
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            res.status(errorResponse.statusCode).json(errorResponse);
         }
     } catch (error) {
         console.error('Erro ao reformular resposta RA:', error);
@@ -5737,12 +5850,8 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
 
         if (!response.ok) {
             const errorData = await response.text();
-            console.error('❌ Erro na API OpenAI:', errorData);
-            return res.status(400).json({
-                success: false,
-                error: 'Erro na API OpenAI',
-                details: errorData
-            });
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            return res.status(errorResponse.statusCode).json(errorResponse);
         }
 
         const data = await response.json();
