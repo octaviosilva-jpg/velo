@@ -960,22 +960,32 @@ function gerarContextoEspecifico(tipoSolicitacao) {
 function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario) {
     let promptFinal = scriptPadrao;
     
-    if (dadosPlanilha && (dadosPlanilha.modelosCoerentes?.length > 0 || dadosPlanilha.feedbacksRelevantes?.length > 0)) {
+    // Filtrar modelos com resposta válida primeiro
+    const modelosComResposta = dadosPlanilha?.modelosCoerentes?.filter(modelo => {
+        const resposta = modelo['Resposta Aprovada'] || modelo.respostaAprovada || '';
+        return resposta && resposta.trim().length > 0;
+    }) || [];
+    
+    if (dadosPlanilha && (modelosComResposta.length > 0 || dadosPlanilha.feedbacksRelevantes?.length > 0)) {
         promptFinal += '\n\n🧠 CONHECIMENTO APLICADO DA BASE DE APRENDIZADO:\n';
         promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
         
-        // Adicionar modelos coerentes COMPLETOS
-        if (dadosPlanilha.modelosCoerentes?.length > 0) {
+        if (modelosComResposta.length > 0) {
             promptFinal += '\n✅ MODELOS DE RESPOSTAS APROVADAS (siga estes padrões):\n\n';
-            promptFinal += `📊 Total de ${dadosPlanilha.modelosCoerentes.length} modelos aprovados para referência:\n\n`;
+            promptFinal += `📊 Total de ${modelosComResposta.length} modelos aprovados para referência:\n\n`;
             
-            dadosPlanilha.modelosCoerentes.slice(0, 5).forEach((modelo, index) => {
+            modelosComResposta.slice(0, 5).forEach((modelo, index) => {
+                const resposta = modelo['Resposta Aprovada'] || modelo.respostaAprovada || '';
+                if (!resposta || resposta.trim().length === 0) {
+                    return; // Pular modelos sem resposta
+                }
+                
                 promptFinal += `━━━ MODELO ${index + 1} ━━━\n`;
                 promptFinal += `📋 Tipo: ${modelo['Tipo Solicitação'] || modelo.dadosFormulario?.tipo_solicitacao || 'N/A'}\n`;
                 promptFinal += `🎯 Motivo: ${modelo['Motivo Solicitação'] || modelo.dadosFormulario?.motivo_solicitacao || 'N/A'}\n`;
                 promptFinal += `📝 Texto do Cliente: ${modelo['Texto Cliente'] || modelo.dadosFormulario?.texto_cliente || 'N/A'}\n`;
                 promptFinal += `\n✅ RESPOSTA APROVADA (use como referência de qualidade):\n`;
-                promptFinal += `${modelo['Resposta Aprovada'] || modelo.respostaAprovada || 'N/A'}\n`;
+                promptFinal += `${resposta}\n`;
                 promptFinal += `\n💡 Solução Implementada: ${modelo['Solução Implementada'] || modelo.dadosFormulario?.solucao_implementada || 'N/A'}\n`;
                 promptFinal += `📜 Histórico: ${modelo['Histórico Atendimento'] || modelo.dadosFormulario?.historico_atendimento || 'N/A'}\n`;
                 promptFinal += `\n`;
@@ -1138,13 +1148,16 @@ async function carregarModelosCoerentesDaPlanilha(tipoSolicitacao) {
             return [];
         }
         
-        // Filtrar modelos relevantes para o tipo de solicitação
+        // Filtrar modelos relevantes para o tipo de solicitação E que tenham resposta aprovada
         const modelos = todosModelos.filter(modelo => {
             const tipoSituacao = modelo['Tipo Solicitação'] || modelo.tipo_situacao || '';
-            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase());
+            const temResposta = !!(modelo['Resposta Aprovada'] || modelo.respostaAprovada);
+            const respostaValida = (modelo['Resposta Aprovada'] || modelo.respostaAprovada || '').trim().length > 0;
+            
+            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase()) && temResposta && respostaValida;
         });
         
-        console.log(`✅ Carregados ${modelos.length} modelos coerentes da planilha`);
+        console.log(`✅ Carregados ${modelos.length} modelos coerentes da planilha (com resposta válida)`);
         return modelos;
         
     } catch (error) {
@@ -3757,11 +3770,17 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
                     conhecimentoFeedback += `Baseado em ${modelosCoerentes.length} respostas aprovadas como "coerentes" para situações similares:\n\n`;
                     
                     modelosCoerentes.forEach((modelo, index) => {
-                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
-                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
-                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
-                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
-                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada?.substring(0, 400) || 'N/A'}..."\n\n`;
+                        const resposta = modelo['Resposta Aprovada'] || modelo.respostaAprovada || '';
+                        // Pular modelos sem resposta válida
+                        if (!resposta || resposta.trim().length === 0) {
+                            return;
+                        }
+                        
+                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao || modelo['Tipo Solicitação'] || 'N/A'}):\n`;
+                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp || 'N/A'}\n`;
+                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao || modelo['Motivo Solicitação'] || 'N/A'}\n`;
+                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada || modelo['Solução Implementada'] || 'N/A'}\n`;
+                        conhecimentoFeedback += `   📝 Resposta aprovada: "${resposta.substring(0, 400)}${resposta.length > 400 ? '...' : ''}"\n\n`;
                     });
                     
                     conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
@@ -4027,11 +4046,17 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                     conhecimentoFeedback += `Baseado em ${modelosCoerentes.length} respostas aprovadas como "coerentes" para situações similares:\n\n`;
                     
                     modelosCoerentes.forEach((modelo, index) => {
-                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao}):\n`;
-                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp}\n`;
-                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao}\n`;
-                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada}\n`;
-                        conhecimentoFeedback += `   📝 Resposta aprovada: "${modelo.respostaAprovada?.substring(0, 400) || 'N/A'}..."\n\n`;
+                        const resposta = modelo['Resposta Aprovada'] || modelo.respostaAprovada || '';
+                        // Pular modelos sem resposta válida
+                        if (!resposta || resposta.trim().length === 0) {
+                            return;
+                        }
+                        
+                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao || modelo['Tipo Solicitação'] || 'N/A'}):\n`;
+                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp || 'N/A'}\n`;
+                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao || modelo['Motivo Solicitação'] || 'N/A'}\n`;
+                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada || modelo['Solução Implementada'] || 'N/A'}\n`;
+                        conhecimentoFeedback += `   📝 Resposta aprovada: "${resposta.substring(0, 400)}${resposta.length > 400 ? '...' : ''}"\n\n`;
                     });
                     
                     conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
