@@ -3938,6 +3938,13 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             console.log('⚠️ GOOGLE SHEETS INATIVO - Continuando sem aprendizado da planilha');
         }
         
+        // ADICIONAR CONHECIMENTO DE PRODUTOS SE MENCIONADOS
+        const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
+        if (conhecimentoProdutos) {
+            conhecimentoFeedback += conhecimentoProdutos;
+            console.log('✅ CONHECIMENTO DE PRODUTOS INCLUÍDO NO PROMPT');
+        }
+        
         // Verificar se o conhecimento foi construído
         if (conhecimentoFeedback && conhecimentoFeedback.length > 100) {
             console.log('✅ CONHECIMENTO DA PLANILHA INCLUÍDO NO PROMPT');
@@ -3945,6 +3952,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             console.log(`   - Tamanho: ${conhecimentoFeedback.length} caracteres`);
             console.log(`   - Contém modelos: ${conhecimentoFeedback.includes('MODELOS COERENTES')}`);
             console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS DA PLANILHA')}`);
+            console.log(`   - Contém produtos: ${conhecimentoFeedback.includes('CONHECIMENTO DO PRODUTO')}`);
         } else {
             console.log('⚠️ NENHUM CONHECIMENTO DA PLANILHA DISPONÍVEL');
             console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
@@ -4211,6 +4219,13 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             console.log('⚠️ GOOGLE SHEETS INATIVO - Continuando sem aprendizado da planilha');
         }
         
+        // ADICIONAR CONHECIMENTO DE PRODUTOS SE MENCIONADOS
+        const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
+        if (conhecimentoProdutos) {
+            conhecimentoFeedback += conhecimentoProdutos;
+            console.log('✅ CONHECIMENTO DE PRODUTOS INCLUÍDO NO PROMPT');
+        }
+        
         // Verificar se o conhecimento foi construído
         if (conhecimentoFeedback && conhecimentoFeedback.length > 100) {
             console.log('✅ CONHECIMENTO DA PLANILHA INCLUÍDO NO PROMPT');
@@ -4218,6 +4233,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             console.log(`   - Tamanho: ${conhecimentoFeedback.length} caracteres`);
             console.log(`   - Contém modelos: ${conhecimentoFeedback.includes('MODELOS COERENTES')}`);
             console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS DA PLANILHA')}`);
+            console.log(`   - Contém produtos: ${conhecimentoFeedback.includes('CONHECIMENTO DO PRODUTO')}`);
         } else {
             console.log('⚠️ NENHUM CONHECIMENTO DA PLANILHA DISPONÍVEL');
             console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
@@ -4872,6 +4888,13 @@ INSTRUÇÕES PARA REFORMULAÇÃO:
 - Aborde todos os aspectos da reclamação do cliente`;
         }
 
+        // ADICIONAR CONHECIMENTO DE PRODUTOS SE MENCIONADOS
+        const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
+        if (conhecimentoProdutos) {
+            conhecimentoFeedback += conhecimentoProdutos;
+            console.log('✅ CONHECIMENTO DE PRODUTOS INCLUÍDO NO PROMPT DE REFORMULAÇÃO');
+        }
+        
         prompt += `
 
 ${conhecimentoFeedback || ''}
@@ -6448,6 +6471,71 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
     }
 });
 
+// Função para detectar produtos mencionados e retornar conhecimento completo
+function obterConhecimentoProdutos(dadosFormulario) {
+    let conhecimentoProdutos = '';
+    
+    if (!dadosFormulario) {
+        return conhecimentoProdutos;
+    }
+    
+    // Texto completo para análise (juntar todos os campos relevantes)
+    const textoCompleto = [
+        dadosFormulario.texto_cliente || '',
+        dadosFormulario.solucao_implementada || '',
+        dadosFormulario.historico_atendimento || '',
+        dadosFormulario.observacoes_internas || '',
+        dadosFormulario.tipo_solicitacao || '',
+        dadosFormulario.motivo_solicitacao || ''
+    ].join(' ').toLowerCase();
+    
+    // Detectar menções aos produtos
+    const mencionaCreditoTrabalhador = 
+        textoCompleto.includes('crédito do trabalhador') ||
+        textoCompleto.includes('credito do trabalhador') ||
+        textoCompleto.includes('crédito trabalhador') ||
+        textoCompleto.includes('credito trabalhador') ||
+        textoCompleto.includes('consignado') ||
+        textoCompleto.includes('empréstimo consignado') ||
+        textoCompleto.includes('emprestimo consignado') ||
+        textoCompleto.includes('desconto em folha') ||
+        textoCompleto.includes('desconto na folha');
+    
+    const mencionaCreditoPessoal = 
+        textoCompleto.includes('crédito pessoal') ||
+        textoCompleto.includes('credito pessoal') ||
+        textoCompleto.includes('empréstimo pessoal') ||
+        textoCompleto.includes('emprestimo pessoal') ||
+        textoCompleto.includes('open finance') ||
+        textoCompleto.includes('openfinance');
+    
+    // Adicionar conhecimento do Crédito do Trabalhador se mencionado
+    if (mencionaCreditoTrabalhador) {
+        console.log('📚 DETECTADO: Crédito do Trabalhador mencionado - incluindo conhecimento completo');
+        const explicacao = gerarMensagemExplicativa('credito-trabalhador', '');
+        // Remover tags HTML para usar em texto puro
+        const textoLimpo = explicacao.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        conhecimentoProdutos += '\n\n📚 CONHECIMENTO DO PRODUTO - CRÉDITO DO TRABALHADOR:\n';
+        conhecimentoProdutos += 'Use estas informações completas sobre o Crédito do Trabalhador para formular uma resposta precisa e fundamentada:\n\n';
+        conhecimentoProdutos += textoLimpo;
+        conhecimentoProdutos += '\n\n🎯 INSTRUÇÃO: Use este conhecimento sobre o Crédito do Trabalhador para explicar corretamente o produto, seus processos, prazos e características quando relevante na resposta.\n';
+    }
+    
+    // Adicionar conhecimento do Crédito Pessoal se mencionado
+    if (mencionaCreditoPessoal) {
+        console.log('📚 DETECTADO: Crédito Pessoal mencionado - incluindo conhecimento completo');
+        const explicacao = gerarMensagemExplicativa('credito-pessoal', '');
+        // Remover tags HTML para usar em texto puro
+        const textoLimpo = explicacao.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        conhecimentoProdutos += '\n\n📚 CONHECIMENTO DO PRODUTO - CRÉDITO PESSOAL:\n';
+        conhecimentoProdutos += 'Use estas informações completas sobre o Crédito Pessoal para formular uma resposta precisa e fundamentada:\n\n';
+        conhecimentoProdutos += textoLimpo;
+        conhecimentoProdutos += '\n\n🎯 INSTRUÇÃO: Use este conhecimento sobre o Crédito Pessoal para explicar corretamente o produto, seus processos, prazos e características quando relevante na resposta.\n';
+    }
+    
+    return conhecimentoProdutos;
+}
+
 // Função para gerar mensagem explicativa com respostas fixas
 function gerarMensagemExplicativa(tema, contexto) {
     const explicacoes = {
@@ -6529,59 +6617,249 @@ function gerarMensagemExplicativa(tema, contexto) {
             <p>Nossa equipe está disponível para orientações adicionais sobre qualquer cláusula específica da CCB.</p>
         `,
         'credito-trabalhador': `
-            <p><strong>📌 Empréstimo do Trabalhador – Resumo</strong></p>
+            <p><strong>👷‍♂️ Crédito do Trabalhador - Informações Completas</strong></p>
             
-            <p><strong>O que é:</strong><br>
-            Linha de crédito consignado, com parcelas descontadas direto do salário ou benefício.</p>
+            <p><strong>O que é o Crédito do Trabalhador?</strong></p>
+            <p>O Crédito do Trabalhador é uma modalidade de consignado que oferece mais praticidade e segurança, pois as parcelas são descontadas diretamente do salário ou benefício, sem risco de atraso ou esquecimento. Essa estrutura garante maior controle financeiro, diferentemente do empréstimo pessoal, em que o cliente precisa administrar boletos ou débitos automáticos. Além disso, por ser consignado, costuma apresentar taxas mais acessíveis, tornando-se uma opção mais vantajosa e estável para quem busca crédito com condições mais favoráveis.</p>
             
-            <p><strong>Vantagens:</strong></p>
+            <p><strong>📋 Base Legal:</strong> Lei 15.179 de 25/07/2025 (alteração da Lei 10.820 de 2003).</p>
+            <p><strong>⚙️ Mecanismo:</strong> Desconto via Guia de pagamento do FGTS.</p>
+            
+            <p><strong>👥 Para quem é destinado?</strong></p>
+            <p>O Crédito do Trabalhador é exclusivo para:</p>
             <ul>
-                <li>Sem boletos ou lembretes de pagamento.</li>
-                <li>Valor liberado via Pix (CPF).</li>
+                <li><strong>Trabalhadores domésticos</strong> - Categoria 104 do eSocial</li>
+                <li><strong>Trabalhadores com carteira assinada (CLT)</strong> - Categoria 101 do eSocial</li>
+                <li><strong>Diretores com conta no FGTS</strong> - Categoria 721 do eSocial</li>
             </ul>
             
-            <p><strong>Durante o contrato:</strong></p>
+            <p><strong>✅ Critérios específicos do Velotax:</strong></p>
             <ul>
-                <li>Desconto em folha (holerite/contracheque).</li>
-                <li>Em caso de demissão, o desconto para, mas o saldo devedor deve ser pago por boleto/Pix.</li>
-                <li>Verbas rescisórias podem ser usadas para abater a dívida.</li>
+                <li>Tempo mínimo de vínculo: <strong>12 meses</strong></li>
+                <li>Empresa com status "Ativa" e mais de <strong>24 meses</strong> de cadastramento</li>
             </ul>
             
-            <p><strong>Critérios de elegibilidade:</strong></p>
-            
-            <p><strong>👤 Colaborador</strong></p>
+            <p><strong>💰 Exemplo de Cálculo da Margem:</strong></p>
             <ul>
-                <li>Idade: 18 a 62 anos (homens) / 18 a 65 anos (mulheres).</li>
-                <li>CLT há pelo menos 12 meses.</li>
-                <li>Empregado(a) doméstico(a).</li>
-                <li>Diretor(a) com recolhimento de FGTS.</li>
+                <li>Salário Líquido: R$ 2.000,00</li>
+                <li>Margem Consignável: 25%</li>
+                <li>Valor Disponível: R$ 500,00</li>
             </ul>
             
-            <p><strong>🏢 Empresa</strong></p>
+            <p><strong>⏰ Prazos Importantes:</strong></p>
             <ul>
-                <li>CNPJ ativo há pelo menos 36 meses.</li>
+                <li><strong>Liberação:</strong> Via PIX CPF</li>
+                <li><strong>Tempo:</strong> Até 30 minutos</li>
+                <li><strong>Carência para o 1º vencimento de parcela:</strong> 60 ou 92 dias</li>
             </ul>
             
-            <p><strong>🚫 Não pode solicitar:</strong></p>
+            <p><strong>🚫 Não elegíveis:</strong></p>
             <ul>
-                <li>Funcionários afastados pelo INSS.</li>
-                <li>Em aviso prévio.</li>
-                <li>Já desligados no sistema.</li>
+                <li>Funcionários afastados</li>
+                <li>Funcionários em aviso prévio</li>
+                <li>Funcionários com data de demissão incluída</li>
             </ul>
+            
+            <p><strong>🎁 Benefícios para o Cliente:</strong></p>
+            <ul>
+                <li><strong>Taxa de juros reduzida:</strong> Em comparação a outros tipos de crédito, como cartão de crédito e empréstimo pessoal</li>
+                <li><strong>Parcelas fixas e previsíveis:</strong> Sem surpresas no orçamento mensal, facilitando o planejamento financeiro</li>
+                <li><strong>Troca de dívidas caras:</strong> Possibilidade de substituir dívidas com juros altos por um empréstimo mais justo</li>
+                <li><strong>Praticidade:</strong> Desconto automático na folha de pagamento, sem preocupação com boletos</li>
+                <li><strong>Acesso facilitado ao crédito:</strong> Especialmente para trabalhadores que encontram barreiras em outros tipos de empréstimo</li>
+                <li><strong>Processo 100% digital:</strong> Todo o processo pode ser realizado pelo aplicativo Velotax, sem burocracia</li>
+            </ul>
+            
+            <p><strong>📱 Passo a Passo da Contratação:</strong></p>
+            <p><strong>Processo 100% digital e simplificado</strong></p>
+            <ol>
+                <li><strong>Acesso e Autorização:</strong> O cliente acessa o aplicativo do Velotax e seleciona a opção Crédito do Trabalhador. Autoriza a Consulta de Margem (validade: 45 dias).</li>
+                <li><strong>Análise e Validação:</strong> O Velotax valida a elegibilidade, vínculo, margem e informações da empresa do cliente.</li>
+                <li><strong>Proposta e Assinatura:</strong> Após aprovação, o cliente recebe a proposta com as condições, confirma no app e assina o contrato digital.</li>
+                <li><strong>Averbação:</strong> O contrato é averbado no sistema (disponível das 06h às 22h, 7 dias por semana).</li>
+                <li><strong>Liberação do Crédito:</strong> O valor é disponibilizado exclusivamente via PIX CPF em até 30 minutos após a averbação.</li>
+            </ol>
+            
+            <p><strong>📄 Documentação Necessária:</strong></p>
+            <ul>
+                <li>Selfie com liveness</li>
+                <li>Cópia do RG/CPF/CNH</li>
+            </ul>
+            
+            <p><strong>📅 Datas de Contratação e Vencimento:</strong></p>
+            <ul>
+                <li><strong>Até dia 20:</strong> Vencimento da primeira parcela 2 meses depois</li>
+                <li><strong>A partir do dia 21:</strong> Vencimento da primeira parcela 3 meses depois</li>
+            </ul>
+            
+            <p><strong>❌ Resultado Negativo:</strong></p>
+            <p>A análise de crédito pode resultar em aprovação ou não. Se o resultado for negativo, informe apenas que não há oferta disponível no momento. O cliente poderá realizar uma nova tentativa após 30 dias. Caso necessário, oriente a entrar em contato com o suporte para mais informações.</p>
+            
+            <p><strong>⚠️ Possível motivo de atrito:</strong></p>
+            <p>O repasse do consignado é realizado pela Caixa Econômica Federal, e a baixa do pagamento pode levar até 2 dias úteis após o envio pela empresa. Por esse motivo, mesmo que o cliente tenha solicitado o cancelamento dentro do prazo de 7 dias, ainda pode ocorrer a cobrança da primeira parcela após o período de carência (60 a 92 dias). Nesses casos, é importante orientar o cliente com clareza e acolhimento, registrar um chamado imediatamente e acionar o supervisor para acompanhamento da situação.</p>
+            
+            <p><strong>❓ Perguntas Frequentes:</strong></p>
+            <p><strong>Quem pode solicitar o Crédito do Trabalhador?</strong><br>
+            Trabalhadores com carteira assinada (CLT), incluindo domésticos e diretores com conta no FGTS, com vínculo mínimo de 12 meses.</p>
+            
+            <p><strong>Qual o valor máximo das parcelas?</strong><br>
+            No Velotax, as parcelas podem comprometer no máximo 25% do salário líquido, embora a lei permita até 35%.</p>
+            
+            <p><strong>Posso ter mais de um empréstimo ao mesmo tempo?</strong><br>
+            É permitido um empréstimo por vínculo de trabalho. Inicialmente, o Velotax permite no máximo um contrato por CPF.</p>
+            
+            <p><strong>Como o FGTS pode ser usado nesse empréstimo?</strong><br>
+            O FGTS pode ser usado como garantia para reduzir os juros. Em caso de demissão, o saldo pode quitar parte ou toda a dívida restante.</p>
+            
+            <p><strong>Posso cancelar o empréstimo depois de contratado?</strong><br>
+            Sim, você tem até 7 dias corridos após receber o dinheiro para devolver o valor e cancelar, sem multa.</p>
+            
+            <p><strong>Tenho restrição no nome, posso contratar?</strong><br>
+            Em muitos casos, sim. A análise considera a política de crédito, avaliando além de restrições, a existência de emprego estável e outros fatores.</p>
+            
+            <p><strong>Já quitei meu contrato. Em quanto tempo consta no sistema a baixa e a desaverbação? E quando posso solicitar o Crédito do Trabalhador novamente?</strong><br>
+            Após a quitação, a baixa e a desaverbação do contrato acontecem em até 2 dias úteis. Somente após esse prazo o sistema libera a possibilidade de contratar novamente o Crédito do Trabalhador. Em resumo: o cliente pode solicitar um novo crédito a partir de 2 dias úteis após a quitação.</p>
+            
+            <p><strong>💡 Como o Atendimento Deve se Posicionar:</strong></p>
+            <p>Use uma <strong>linguagem clara</strong> e <strong>acolhedora</strong>. Evite começar a conversa com termos difíceis ou muito técnicos, que podem gerar confusão logo no início. Explique de forma didática o funcionamento do produto e seus benefícios. Confirme o entendimento do cliente sobre como funciona o desconto em folha. Reforce a transparência: todas as condições estarão descritas no contrato acessível pelo app.</p>
+            
+            <p><strong>Dicas para um atendimento eficaz:</strong></p>
+            <ul>
+                <li>Seja <strong>acolhedor</strong> e demonstre interesse genuíno em ajudar</li>
+                <li>Ofereça soluções personalizadas de acordo com o perfil do cliente</li>
+                <li>Garanta a <strong>confiança</strong> e <strong>fidelização</strong> através do seu atendimento</li>
+            </ul>
+            
+            <p><strong>Exemplo de explicação:</strong><br>
+            "O valor da parcela é descontado direto do seu salário, o que facilita o controle financeiro e permite juros menores."</p>
             
             <p>Nossa equipe está disponível para orientações adicionais sobre o Crédito do Trabalhador.</p>
         `,
         'credito-pessoal': `
-            <p><strong>Prezado(a) cliente,</strong></p>
-            <p>Vamos esclarecer sobre o Crédito Pessoal:</p>
+            <p><strong>💰 Crédito Pessoal Velotax - Informações Completas</strong></p>
+            
+            <p><strong>O que é o Empréstimo Pessoal?</strong></p>
+            <p>O Empréstimo Pessoal é uma linha de crédito concedida a pessoas físicas por instituições financeiras. Nessa modalidade, o cliente recebe um valor e o paga em parcelas mensais com juros, sem a necessidade de oferecer garantias ou justificar o uso do dinheiro. Esse tipo de crédito oferece flexibilidade e praticidade, podendo ser utilizado para diferentes finalidades, como quitar dívidas, investir em educação, cobrir emergências ou realizar projetos pessoais.</p>
+            
+            <p><strong>📋 Características do Produto - Empréstimo Pessoal Velotax:</strong></p>
+            <ul>
+                <li><strong>Valor do limite:</strong> R$ 500,00</li>
+                <li><strong>Parcelamento:</strong> 4 parcelas, com vencimento a cada 30 dias</li>
+                <li><strong>Data de vencimento:</strong> Definida automaticamente, com base na movimentação financeira do cliente via Open Finance</li>
+                <li><strong>Contratos ativos:</strong> Não é permitido ter mais de um contrato ativo ao mesmo tempo</li>
+                <li><strong>Pagamento antecipado:</strong> Possível pelo app, mas não garante liberação imediata de novo crédito nem aumento de limite</li>
+                <li><strong>Cobrança em atraso:</strong> Operações inadimplentes serão tratadas pela equipe interna de cobrança do Velotax</li>
+                <li><strong>Faixa etária:</strong> 18 a 75 anos para todos os clientes</li>
+            </ul>
+            
+            <p><strong>🔗 O que é Open Finance?</strong></p>
+            <p>O Open Finance é como se fosse uma "ponte segura" que conecta diferentes bancos e instituições financeiras. Ele permite que você, com a sua autorização, compartilhe suas informações financeiras (como saldo, histórico de movimentações ou limites de crédito) de um banco para outro. Assim, em vez de cada banco conhecer só uma parte da sua vida financeira, eles passam a ter uma visão mais completa — e isso ajuda a oferecer melhores condições de crédito, taxas mais baixas e serviços feitos sob medida para você.</p>
+            
+            <p><strong>⚙️ Como funciona na prática:</strong></p>
             <ol>
-                <li><strong>O que é:</strong> É um empréstimo sem destinação específica para uso pessoal</li>
-                <li><strong>Características:</strong> Valor fixo, prazo determinado e parcelas mensais</li>
-                <li><strong>Finalidade:</strong> Pode ser usado para qualquer necessidade pessoal</li>
-                <li><strong>Análise:</strong> Baseada na renda e histórico de crédito do cliente</li>
-                <li><strong>Documentação:</strong> Comprovantes de renda e documentos pessoais</li>
+                <li><strong>Consentimento:</strong> Você decide se quer ou não compartilhar seus dados e escolhe exatamente qual banco ou empresa poderá acessá-los</li>
+                <li><strong>Compartilhamento seguro:</strong> Esses dados viajam por um sistema de segurança chamado API, que funciona como uma "ponte digital": onde só a instituição autorizada consegue acessar</li>
+                <li><strong>Benefícios para você:</strong> Com essas informações, os bancos conseguem entender melhor o seu perfil e oferecer soluções personalizadas, como fácil contratação, aumento do limite de crédito e investimentos mais adequados ao seu bolso</li>
             </ol>
-            <p>Nossa equipe está disponível para orientações sobre crédito pessoal.</p>
+            
+            <p><strong>💡 Exemplo simples:</strong><br>
+            O Open Finance é como uma estrada com pedágio: só passa quem tem autorização, garantindo que a viagem seja segura. A API é o carro blindado que transporta as informações nessa estrada, protegendo tudo durante o trajeto.</p>
+            
+            <p><strong>ℹ️ Saiba que:</strong><br>
+            Durante a jornada de contratação, pode aparecer para o cliente o símbolo de um 'b' amarelo ao autorizar a conexão com o Open Finance. A Belvo é a empresa autorizada que atua como nossa parceira na tecnologia do Open Finance.</p>
+            
+            <p><strong>📱 Como Contratar o Crédito Pessoal?</strong></p>
+            <p><strong>O processo é simples e 100% digital, feito diretamente no aplicativo Velotax:</strong></p>
+            <ol>
+                <li><strong>Acesso ao produto:</strong> O cliente acessa o aplicativo Velotax e seleciona o ícone do Empréstimo Pessoal na tela inicial</li>
+                <li><strong>Apresentação do produto:</strong> É exibida uma tela com as principais características do empréstimo</li>
+                <li><strong>Conexão com o Open Finance:</strong> O cliente autoriza a conexão para análise de crédito e risco de fraude</li>
+                <li><strong>Oferta de crédito:</strong> Se aprovado, o cliente visualiza o limite disponível (atualmente R$ 500,00)</li>
+                <li><strong>Proposta de empréstimo:</strong> O aplicativo apresenta simulação com: valor contratado, juros e encargos (sigla CET), valor total a pagar, data da primeira parcela e número de parcelas</li>
+                <li><strong>Orientação de pagamento:</strong> O cliente é informado sobre a importância de manter os pagamentos em dia e que poderá quitar via Pix Copia e Cola</li>
+                <li><strong>Confirmação e assinatura:</strong> O cliente revisa todas as condições, lê a CCB (Contrato de Crédito Bancário) e assina digitalmente para confirmar a contratação</li>
+                <li><strong>Liberação do crédito:</strong> O app mostra a confirmação e, em poucos minutos, o valor contratado é creditado na mesma conta corrente vinculada ao Open Finance</li>
+            </ol>
+            
+            <p><strong>❌ Resultado Negativo:</strong></p>
+            <p>A análise de crédito pode resultar em aprovação ou não. Se o resultado for negativo, informe apenas que não há oferta disponível no momento. O cliente poderá realizar uma nova tentativa após 30 dias. Caso necessário, oriente a entrar em contato com o suporte para mais informações.</p>
+            
+            <p><strong>🚫 Cancelamento do Produto – Empréstimo Pessoal Velotax:</strong></p>
+            <ul>
+                <li>O cliente poderá solicitar o cancelamento do contrato em até 7 dias após a contratação, conforme previsto em lei</li>
+                <li>Para o cancelamento, será necessário devolver o valor integral recebido, por meio de PIX</li>
+                <li>Após esse prazo, não será mais possível cancelar o contrato. O cliente deverá seguir com o pagamento das parcelas pelo aplicativo Velotax, conforme as condições contratadas, incluindo a incidência de juros e encargos previstos no contrato</li>
+            </ul>
+            
+            <p><strong>💳 Como Quitar o Empréstimo?</strong></p>
+            <ol>
+                <li>Acessar a página inicial do app Velotax</li>
+                <li>Rolar até a seção "Próximos Pagamentos"</li>
+                <li>Selecionar "Crédito Pessoal"</li>
+                <li>Conferir o valor a ser quitado</li>
+                <li>Escolher uma das opções de pagamento disponíveis: PIX ou cartão de crédito</li>
+            </ol>
+            
+            <p>O cliente poderá antecipar parcelas diretamente pelo aplicativo Velotax ou aguardar os lembretes de cobrança enviados por notificações. O pagamento será realizado preferencialmente via Pix Copia e Cola. O cartão de crédito poderá ser oferecido como alternativa, em especial para clientes em atraso.</p>
+            
+            <p><strong>⚠️ Em caso de não pagamento:</strong> Poderão ser aplicadas medidas de cobrança, incluindo negativação em órgãos de proteção ao crédito e, em alguns casos, protesto em cartório.</p>
+            
+            <p><strong>📌 Observações Importantes:</strong></p>
+            <ul>
+                <li>A análise de crédito é feita via Open Finance</li>
+                <li><strong>Bancos disponíveis atualmente:</strong> Nubank, Itaú (Pessoa Física), Bradesco (Pessoa Física), Santander (Pessoa Física), Banco do Brasil, Caixa Econômica</li>
+                <li>Caso o banco desejado não esteja disponível, não será possível seguir com a vinculação</li>
+                <li><strong>Tempo de análise:</strong> até 5 minutos. Se a tela "Aguarde" estiver ativa, oriente o cliente a permanecer aguardando</li>
+                <li><strong>Após a aprovação:</strong> o valor é enviado à conta do cliente entre 30 minutos e 24 horas</li>
+                <li><strong>Limite inicial:</strong> até R$ 500,00</li>
+                <li><strong>Parcelamento:</strong> em até 4 vezes</li>
+            </ul>
+            
+            <p><strong>❓ Perguntas Frequentes sobre o Crédito Pessoal Velotax:</strong></p>
+            
+            <p><strong>1. O cliente pode alterar o valor da oferta inicial ou reduzir os juros?</strong><br>
+            Resposta: Não. Nesta versão inicial, o valor é fixo em R$ 500,00, parcelado em até 4 vezes, com taxa de juros de 19% a.m.</p>
+            
+            <p><strong>2. O cliente já possui outro produto ativo com o Velotax. Ele pode contratar o Empréstimo Pessoal simultaneamente?</strong><br>
+            Resposta: Não. Clientes que já contrataram o Crédito do Trabalhador ou que possuem débitos de Antecipação IRPF precisam quitar esses produtos antes de solicitar o Empréstimo Pessoal.</p>
+            
+            <p><strong>3. O consentimento do Open Finance é obrigatório?</strong><br>
+            Resposta: Sim. O cliente só poderá avançar para a análise de crédito mediante consentimento no Open Finance.</p>
+            
+            <p><strong>4. Após o consentimento, o empréstimo é aprovado automaticamente?</strong><br>
+            Resposta: Não. As informações financeiras do cliente são avaliadas para verificar se há crédito disponível.</p>
+            
+            <p><strong>5. O cliente pode ser aprovado com conta em qualquer banco?</strong><br>
+            Resposta: Não. No momento, aceitamos apenas clientes com conta no Itaú, Bradesco, Santander, Banco do Brasil, Nubank e Inter.</p>
+            
+            <p><strong>6. O cliente realizou o consentimento, mas a tela não avançou. Isso significa que houve problema?</strong><br>
+            Resposta: Não. O processo de análise via Open Finance pode levar entre 2 e 5 minutos para validar todas as informações.</p>
+            
+            <p><strong>7. O cliente realizou o consentimento, mas o crédito não foi aprovado. Ele pode solicitar novamente?</strong><br>
+            Resposta: Sim. O cliente poderá tentar novamente após 30 dias.</p>
+            
+            <p><strong>8. É necessária biometria ou envio de documentos para contratar o Empréstimo Pessoal?</strong><br>
+            Resposta: Não. Nesta primeira versão do produto, não haverá exigência de biometria ou envio de documentos adicionais.</p>
+            
+            <p><strong>9. O empréstimo foi aprovado, mas o cliente ainda não tem certeza se deseja contratar. Ele pode finalizar depois?</strong><br>
+            Resposta: Sim. A proposta permanece válida por 10 dias.</p>
+            
+            <p><strong>10. O empréstimo foi aprovado, mas a chave Pix do cliente foi recusada. Ele pode corrigir?</strong><br>
+            Resposta: Sim. A chave Pix deve ser obrigatoriamente o CPF do cliente e estar vinculada à mesma conta informada no Open Finance. Basta refazer o processo e tentar novamente.</p>
+            
+            <p><strong>11. O cliente pode escolher a data de vencimento das parcelas?</strong><br>
+            Resposta: Não. A data de vencimento será definida automaticamente, de acordo com a análise do fluxo financeiro via Open Finance.</p>
+            
+            <p><strong>12. O cliente pode pagar o empréstimo com cartão de crédito?</strong><br>
+            Resposta: Sim, mas essa opção será disponibilizada preferencialmente para clientes em atraso.</p>
+            
+            <p><strong>13. O cliente pagou em atraso. Isso aumenta o valor da parcela?</strong><br>
+            Resposta: Sim. Em caso de atraso, será cobrada multa de 2% e encargos de 1% ao mês.</p>
+            
+            <p><strong>14. O cliente não pagou a dívida. Ele pode ser negativado?</strong><br>
+            Resposta: Sim. Caso o atraso não seja regularizado, o contrato poderá ser enviado aos órgãos de proteção ao crédito.</p>
+            
+            <p>Nossa equipe está disponível para orientações adicionais sobre o Crédito Pessoal Velotax.</p>
         `
     };
     
