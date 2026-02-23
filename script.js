@@ -3516,6 +3516,22 @@ async function buscarSolicitacoes() {
                         `;
                     } else {
                         detalhesExpandidos = `
+                            <div class="campo-detalhe" style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-bottom: 15px;">
+                                <div class="campo-label" style="font-size: 1.1rem; color: #856404;">
+                                    <i class="fas fa-file-alt me-2"></i>Texto de Moderação (Essencial):
+                                </div>
+                                <div class="campo-valor" style="margin-top: 10px; font-weight: 500;">
+                                    ${solicitacao.textoModeracao || 'N/A'}
+                                </div>
+                            </div>
+                            <div class="campo-detalhe" style="background-color: #d1ecf1; padding: 15px; border-left: 4px solid #0dcaf0; margin-bottom: 15px;">
+                                <div class="campo-label" style="font-size: 1.1rem; color: #055160;">
+                                    <i class="fas fa-building me-2"></i>Resposta da Empresa (Essencial):
+                                </div>
+                                <div class="campo-valor" style="margin-top: 10px; font-weight: 500;">
+                                    ${solicitacao.respostaEmpresa || 'N/A'}
+                                </div>
+                            </div>
                             <div class="campo-detalhe">
                                 <div class="campo-label">Motivo da Moderação:</div>
                                 <div class="campo-valor">${solicitacao.motivoModeracao || 'N/A'}</div>
@@ -3524,14 +3540,18 @@ async function buscarSolicitacoes() {
                                 <div class="campo-label">Solicitação do Cliente:</div>
                                 <div class="campo-valor">${solicitacao.solicitacaoCliente || 'N/A'}</div>
                             </div>
+                            ${solicitacao.consideracaoFinal ? `
                             <div class="campo-detalhe">
-                                <div class="campo-label">Resposta da Empresa:</div>
-                                <div class="campo-valor">${solicitacao.respostaEmpresa || 'N/A'}</div>
+                                <div class="campo-label">Consideração Final:</div>
+                                <div class="campo-valor">${solicitacao.consideracaoFinal}</div>
                             </div>
+                            ` : ''}
+                            ${solicitacao.linhaRaciocinio ? `
                             <div class="campo-detalhe">
-                                <div class="campo-label">Texto de Moderação:</div>
-                                <div class="campo-valor">${solicitacao.textoModeracao || 'N/A'}</div>
+                                <div class="campo-label">Linha de Raciocínio:</div>
+                                <div class="campo-valor">${solicitacao.linhaRaciocinio}</div>
                             </div>
+                            ` : ''}
                         `;
                     }
                     

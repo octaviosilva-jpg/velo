@@ -5191,8 +5191,10 @@ app.get('/api/solicitacoes', async (req, res) => {
                             solicitacaoCliente: moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '',
                             respostaEmpresa: moderacao['Resposta Empresa'] || moderacao.respostaEmpresa || '',
                             motivoModeracao: moderacao['Motivo Moderação'] || moderacao.motivoModeracao || '',
-                            textoModeracao: moderacao['Texto Moderação'] || moderacao.textoModeracao || '',
-                            status: moderacao.Status || 'Aprovada'
+                            textoModeracao: moderacao['Texto Moderação Reformulado'] || moderacao['Texto Moderação'] || moderacao.textoModeracao || '',
+                            linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
+                            consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
+                            status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada'
                         });
                     });
                 }
