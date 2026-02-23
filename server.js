@@ -6345,8 +6345,12 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
             const rangeRespostas = 'Respostas Coerentes!A1:Z1000';
             const dataRespostas = await googleSheetsConfig.readData(rangeRespostas);
             
+            console.log(`📋 Respostas Coerentes - Total linhas recebidas: ${dataRespostas ? dataRespostas.length : 0}`);
+            
             if (dataRespostas && dataRespostas.length > 1) {
                 const headersRespostas = dataRespostas[0];
+                console.log('📋 Cabeçalhos Respostas:', headersRespostas);
+                
                 // Encontrar índice da coluna "Status Aprovação" ou "Status"
                 const statusIndex = headersRespostas.findIndex(h => 
                     h === 'Status Aprovação' || 
@@ -6355,15 +6359,20 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                     h.toLowerCase().includes('status')
                 );
                 
-                console.log(`📋 Respostas Coerentes - Total linhas: ${dataRespostas.length - 1}, Índice Status: ${statusIndex}`);
+                console.log(`📋 Índice da coluna Status: ${statusIndex}`);
                 
+                let contador = 0;
                 respostasHoje = dataRespostas.slice(1).filter((row, index) => {
                     // Coluna A (índice 0) = Data/Hora
                     const dataResposta = row[0];
-                    if (!dataResposta) return false;
+                    if (!dataResposta) {
+                        console.log(`⚠️ Linha ${index + 2}: sem data`);
+                        return false;
+                    }
+                    
+                    const dataStr = String(dataResposta).trim();
                     
                     // Verificar se a data é de hoje
-                    const dataStr = String(dataResposta).trim();
                     const isHoje = verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO);
                     
                     // Verificar status (se encontrou a coluna)
@@ -6371,14 +6380,22 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                     if (statusIndex >= 0) {
                         const status = String(row[statusIndex] || '').trim();
                         isAprovada = status === 'Aprovada' || status === '';
+                        console.log(`📋 Linha ${index + 2}: Data=${dataStr}, Status=${status}, isHoje=${isHoje}, isAprovada=${isAprovada}`);
+                    } else {
+                        console.log(`📋 Linha ${index + 2}: Data=${dataStr}, Status=N/A (coluna não encontrada), isHoje=${isHoje}, isAprovada=${isAprovada}`);
                     }
                     
                     if (isHoje && isAprovada) {
-                        console.log(`✅ Resposta encontrada (linha ${index + 2}): Data=${dataStr}, Status=${statusIndex >= 0 ? row[statusIndex] : 'N/A'}`);
+                        contador++;
+                        console.log(`✅ Resposta ${contador} encontrada (linha ${index + 2}): Data=${dataStr}`);
                     }
                     
                     return isHoje && isAprovada;
                 }).length;
+                
+                console.log(`📊 Respostas do dia ${dataHojeBR}: ${respostasHoje}`);
+            } else {
+                console.log('⚠️ Nenhuma linha encontrada na planilha Respostas Coerentes');
             }
             
             // ===== BUSCAR MODERAÇÕES =====
@@ -6386,8 +6403,12 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
             const rangeModeracoes = 'Moderações!A1:Z1000';
             const dataModeracoes = await googleSheetsConfig.readData(rangeModeracoes);
             
+            console.log(`📋 Moderações - Total linhas recebidas: ${dataModeracoes ? dataModeracoes.length : 0}`);
+            
             if (dataModeracoes && dataModeracoes.length > 1) {
                 const headersModeracoes = dataModeracoes[0];
+                console.log('📋 Cabeçalhos Moderações:', headersModeracoes);
+                
                 // Encontrar índices das colunas
                 const statusIndex = headersModeracoes.findIndex(h => 
                     h === 'Status Aprovação' || 
@@ -6400,15 +6421,20 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                     h.toLowerCase().includes('feedback')
                 );
                 
-                console.log(`📋 Moderações - Total linhas: ${dataModeracoes.length - 1}, Índice Status: ${statusIndex}, Índice Feedback: ${feedbackIndex}`);
+                console.log(`📋 Índice Status: ${statusIndex}, Índice Feedback: ${feedbackIndex}`);
                 
+                let contador = 0;
                 moderacoesHoje = dataModeracoes.slice(1).filter((row, index) => {
                     // Coluna A (índice 0) = Data/Hora
                     const dataModeracao = row[0];
-                    if (!dataModeracao) return false;
+                    if (!dataModeracao) {
+                        console.log(`⚠️ Linha ${index + 2}: sem data`);
+                        return false;
+                    }
+                    
+                    const dataStr = String(dataModeracao).trim();
                     
                     // Verificar se a data é de hoje
-                    const dataStr = String(dataModeracao).trim();
                     const isHoje = verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO);
                     
                     // Verificar status
@@ -6425,15 +6451,22 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                         semFeedback = !feedback || feedback === '';
                     }
                     
+                    console.log(`📋 Linha ${index + 2}: Data=${dataStr}, Status=${statusIndex >= 0 ? row[statusIndex] : 'N/A'}, Feedback=${feedbackIndex >= 0 ? row[feedbackIndex] : 'N/A'}, isHoje=${isHoje}, isAprovada=${isAprovada}, semFeedback=${semFeedback}`);
+                    
                     if (isHoje && isAprovada && semFeedback) {
-                        console.log(`✅ Moderação encontrada (linha ${index + 2}): Data=${dataStr}, Status=${statusIndex >= 0 ? row[statusIndex] : 'N/A'}, Feedback=${feedbackIndex >= 0 ? row[feedbackIndex] : 'N/A'}`);
+                        contador++;
+                        console.log(`✅ Moderação ${contador} encontrada (linha ${index + 2}): Data=${dataStr}`);
                     }
                     
                     return isHoje && isAprovada && semFeedback;
                 }).length;
+                
+                console.log(`📊 Moderações do dia ${dataHojeBR}: ${moderacoesHoje}`);
+            } else {
+                console.log('⚠️ Nenhuma linha encontrada na planilha Moderações');
             }
             
-            console.log(`📊 RESULTADO FINAL - Data: ${dataHojeBR} | Respostas: ${respostasHoje} | Moderações: ${moderacoesHoje}`);
+            console.log(`📊 RESULTADO FINAL - Data: ${dataHojeBR} (${dataHojeISO}) | Respostas: ${respostasHoje} | Moderações: ${moderacoesHoje}`);
             
         } catch (error) {
             console.error('❌ Erro ao buscar estatísticas da planilha:', error.message);
