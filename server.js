@@ -5167,6 +5167,8 @@ app.get('/api/solicitacoes', async (req, res) => {
                             textoCliente: resposta['Texto Cliente'] || resposta.textoCliente || '',
                             resposta: resposta['Resposta Aprovada'] || resposta.respostaAprovada || '',
                             solucaoImplementada: resposta['Solução Implementada'] || resposta.solucaoImplementada || '',
+                            historicoAtendimento: resposta['Histórico Atendimento'] || resposta.historicoAtendimento || '',
+                            observacoesInternas: resposta['Observações Internas'] || resposta.observacoesInternas || '',
                             status: resposta.Status || 'Aprovada'
                         });
                     });

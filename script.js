@@ -3443,15 +3443,16 @@ async function buscarSolicitacoes() {
             if (solicitacoes.length === 0) {
                 tabela.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted">
+                        <td colspan="6" class="text-center text-muted">
                             <i class="fas fa-inbox me-2"></i>
                             Nenhuma solicitação encontrada para o período selecionado.
                         </td>
                     </tr>
                 `;
             } else {
-                // Preencher tabela
-                tabela.innerHTML = solicitacoes.map(solicitacao => {
+                // Preencher tabela com estrutura expansível
+                tabela.innerHTML = solicitacoes.map((solicitacao, index) => {
+                    const solicitacaoId = `solicitacao-${solicitacao.tipo}-${solicitacao.id || index}`;
                     const tipoBadge = solicitacao.tipo === 'resposta' 
                         ? '<span class="badge bg-success">Resposta</span>'
                         : '<span class="badge bg-warning">Moderação</span>';
@@ -3460,27 +3461,99 @@ async function buscarSolicitacoes() {
                         ? '<span class="badge bg-success">Aprovada</span>'
                         : '<span class="badge bg-secondary">' + (solicitacao.status || 'N/A') + '</span>';
                     
-                    let detalhes = '';
+                    let detalhesResumo = '';
                     if (solicitacao.tipo === 'resposta') {
-                        detalhes = `
+                        detalhesResumo = `
                             <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
                             <strong>Motivo:</strong> ${solicitacao.motivoSolicitacao || 'N/A'}<br>
                             <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
                         `;
                     } else {
-                        detalhes = `
+                        detalhesResumo = `
                             <strong>Motivo:</strong> ${solicitacao.motivoModeracao || 'N/A'}<br>
                             <small class="text-muted">${(solicitacao.solicitacaoCliente || '').substring(0, 100)}${solicitacao.solicitacaoCliente && solicitacao.solicitacaoCliente.length > 100 ? '...' : ''}</small>
                         `;
                     }
                     
+                    // Criar conteúdo de detalhes expandidos
+                    let detalhesExpandidos = '';
+                    if (solicitacao.tipo === 'resposta') {
+                        detalhesExpandidos = `
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Tipo de Solicitação:</div>
+                                <div class="campo-valor">${solicitacao.tipoSolicitacao || 'N/A'}</div>
+                            </div>
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Motivo da Solicitação:</div>
+                                <div class="campo-valor">${solicitacao.motivoSolicitacao || 'N/A'}</div>
+                            </div>
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Texto do Cliente:</div>
+                                <div class="campo-valor">${solicitacao.textoCliente || 'N/A'}</div>
+                            </div>
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Resposta Aprovada:</div>
+                                <div class="campo-valor">${solicitacao.resposta || 'N/A'}</div>
+                            </div>
+                            ${solicitacao.solucaoImplementada ? `
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Solução Implementada:</div>
+                                <div class="campo-valor">${solicitacao.solucaoImplementada}</div>
+                            </div>
+                            ` : ''}
+                            ${solicitacao.historicoAtendimento ? `
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Histórico de Atendimento:</div>
+                                <div class="campo-valor">${solicitacao.historicoAtendimento}</div>
+                            </div>
+                            ` : ''}
+                            ${solicitacao.observacoesInternas ? `
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Observações Internas:</div>
+                                <div class="campo-valor">${solicitacao.observacoesInternas}</div>
+                            </div>
+                            ` : ''}
+                        `;
+                    } else {
+                        detalhesExpandidos = `
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Motivo da Moderação:</div>
+                                <div class="campo-valor">${solicitacao.motivoModeracao || 'N/A'}</div>
+                            </div>
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Solicitação do Cliente:</div>
+                                <div class="campo-valor">${solicitacao.solicitacaoCliente || 'N/A'}</div>
+                            </div>
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Resposta da Empresa:</div>
+                                <div class="campo-valor">${solicitacao.respostaEmpresa || 'N/A'}</div>
+                            </div>
+                            <div class="campo-detalhe">
+                                <div class="campo-label">Texto de Moderação:</div>
+                                <div class="campo-valor">${solicitacao.textoModeracao || 'N/A'}</div>
+                            </div>
+                        `;
+                    }
+                    
                     return `
                         <tr>
+                            <td>
+                                <button class="btn-expandir" onclick="toggleDetalhesSolicitacao('${solicitacaoId}')" title="Expandir/Colapsar detalhes">
+                                    <i class="fas fa-chevron-down" id="icon-${solicitacaoId}"></i>
+                                </button>
+                            </td>
                             <td>${solicitacao.data || 'N/A'}</td>
                             <td>${tipoBadge}</td>
                             <td><small>${solicitacao.id || 'N/A'}</small></td>
-                            <td><small>${detalhes}</small></td>
+                            <td><small>${detalhesResumo}</small></td>
                             <td>${statusBadge}</td>
+                        </tr>
+                        <tr id="${solicitacaoId}" class="detalhes-expandidos">
+                            <td colspan="6">
+                                <div class="detalhes-content">
+                                    ${detalhesExpandidos}
+                                </div>
+                            </td>
                         </tr>
                     `;
                 }).join('');
@@ -3492,13 +3565,35 @@ async function buscarSolicitacoes() {
         console.error('Erro ao buscar solicitações:', error);
         tabela.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center text-danger">
+                <td colspan="6" class="text-center text-danger">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     Erro ao buscar solicitações: ${error.message}
                 </td>
             </tr>
         `;
         showErrorMessage('Erro ao buscar solicitações: ' + error.message);
+    }
+}
+
+// Função para expandir/colapsar detalhes da solicitação
+function toggleDetalhesSolicitacao(solicitacaoId) {
+    const detalhesRow = document.getElementById(solicitacaoId);
+    const icon = document.getElementById(`icon-${solicitacaoId}`);
+    
+    if (!detalhesRow || !icon) {
+        console.error('Elemento não encontrado:', solicitacaoId);
+        return;
+    }
+    
+    // Alternar classe show para mostrar/ocultar
+    if (detalhesRow.classList.contains('show')) {
+        detalhesRow.classList.remove('show');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    } else {
+        detalhesRow.classList.add('show');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
     }
 }
 
@@ -3515,9 +3610,16 @@ function exportarSolicitacoes() {
     let csv = 'Data/Hora,Tipo,ID,Detalhes,Status\n';
     
     linhas.forEach(linha => {
+        // Ignorar linhas de detalhes expandidos
+        if (linha.classList.contains('detalhes-expandidos')) {
+            return;
+        }
+        
         const celulas = linha.querySelectorAll('td');
-        if (celulas.length === 5) {
-            const valores = Array.from(celulas).map(celula => {
+        // Agora são 6 colunas (incluindo a coluna de ação)
+        if (celulas.length >= 5) {
+            // Pular a primeira coluna (botão expandir) e pegar as outras
+            const valores = Array.from(celulas).slice(1).map(celula => {
                 // Remover HTML e pegar apenas texto
                 const texto = celula.textContent.trim().replace(/\n/g, ' ').replace(/,/g, ';');
                 return `"${texto}"`;
