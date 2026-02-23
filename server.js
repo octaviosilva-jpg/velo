@@ -6325,23 +6325,33 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         
         if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
             try {
-                // Buscar respostas do dia
+                // Buscar respostas do dia - apenas aprovadas/coerentes
                 const respostas = await googleSheetsIntegration.obterModelosRespostas();
                 if (respostas && respostas.length > 0) {
+                    // obterModelosRespostas já filtra por Status Aprovação === 'Aprovada'
+                    // Agora filtrar também por data de hoje
                     respostasHoje = respostas.filter(resposta => {
+                        const status = resposta['Status Aprovação'] || resposta.Status || '';
                         const dataResposta = resposta['Data/Hora'] || resposta.data || '';
-                        return verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
+                        // Garantir que está aprovada E é de hoje
+                        return (status === 'Aprovada' || status === '') && verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
                     }).length;
                 }
                 
-                // Buscar moderações do dia
+                // Buscar moderações do dia - apenas aprovadas/coerentes
                 const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
                 if (moderacoes && moderacoes.length > 0) {
+                    // obterModeracoesCoerentes já filtra por Status Aprovação === 'Aprovada' e sem Feedback
+                    // Agora filtrar também por data de hoje
                     moderacoesHoje = moderacoes.filter(moderacao => {
+                        const status = moderacao['Status Aprovação'] || moderacao.Status || '';
                         const dataModeracao = moderacao['Data/Hora'] || moderacao.data || '';
-                        return verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
+                        // Garantir que está aprovada, sem feedback E é de hoje
+                        return status === 'Aprovada' && !moderacao['Feedback'] && verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
                     }).length;
                 }
+                
+                console.log(`📊 Estatísticas do dia ${dataHojeBR}: ${respostasHoje} respostas coerentes, ${moderacoesHoje} moderações coerentes`);
             } catch (error) {
                 console.error('❌ Erro ao buscar estatísticas da planilha:', error.message);
             }

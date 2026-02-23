@@ -132,11 +132,7 @@ async function atualizarEstatisticasNaInterface() {
         }
     }
     
-    // Atualizar histórico se estiver visível
-    const historicoPanel = document.getElementById('historico-panel');
-    if (historicoPanel && historicoPanel.style.display !== 'none') {
-        exibirHistorico();
-    }
+    // Histórico removido - funcionalidade obsoleta
 }
 
 // Histórico de respostas
@@ -658,102 +654,11 @@ async function sincronizarDadosLocais() {
     }
 }
 
-// Função para visualizar modelos salvos no localStorage
-function visualizarModelosSalvos() {
-    const modelos = JSON.parse(localStorage.getItem('modelos_respostas_coerentes') || '[]');
-    
-    if (modelos.length === 0) {
-        showErrorMessage('Nenhum modelo salvo encontrado no localStorage.');
-        return;
-    }
-    
-    let html = `
-        <div class="modal fade" id="modalModelosSalvos" tabindex="-1">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="fas fa-database me-2"></i>
-                            Modelos de Respostas Coerentes Salvos
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Total de modelos salvos:</strong> ${modelos.length}
-                        </div>
-                        <div class="row">
-    `;
-    
-    modelos.forEach((modelo, index) => {
-        const dataFormatada = new Date(modelo.timestamp).toLocaleString('pt-BR');
-        html += `
-            <div class="col-md-6 mb-3">
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="fas fa-file-alt me-2"></i>
-                            Modelo #${index + 1}
-                        </h6>
-                        <small class="text-muted">ID: ${modelo.id}</small>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Tipo:</strong> ${modelo.tipo_situacao}</p>
-                        <p><strong>Motivo:</strong> ${modelo.motivo_solicitacao}</p>
-                        <p><strong>Data:</strong> ${dataFormatada}</p>
-                        <p><strong>Resposta:</strong></p>
-                        <div class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;">
-                            ${modelo.respostaAprovada.substring(0, 200)}${modelo.respostaAprovada.length > 200 ? '...' : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += `
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                        <button type="button" class="btn btn-danger" onclick="limparModelosSalvos()">
-                            <i class="fas fa-trash me-2"></i>
-                            Limpar Todos os Modelos
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remover modal existente se houver
-    const modalExistente = document.getElementById('modalModelosSalvos');
-    if (modalExistente) {
-        modalExistente.remove();
-    }
-    
-    // Adicionar modal ao DOM
-    document.body.insertAdjacentHTML('beforeend', html);
-    
-    // Mostrar modal
-    const modal = new bootstrap.Modal(document.getElementById('modalModelosSalvos'));
-    modal.show();
-}
+// Função removida - funcionalidade obsoleta (substituída pelo modal de solicitações)
+// function visualizarModelosSalvos() { ... }
 
-// Função para limpar modelos salvos
-function limparModelosSalvos() {
-    if (confirm('Tem certeza que deseja limpar todos os modelos salvos? Esta ação não pode ser desfeita.')) {
-        localStorage.removeItem('modelos_respostas_coerentes');
-        showSuccessMessage('✅ Todos os modelos salvos foram removidos.');
-        
-        // Fechar modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalModelosSalvos'));
-        if (modal) {
-            modal.hide();
-        }
-    }
-}
+// Função removida - funcionalidade obsoleta
+// function limparModelosSalvos() { ... }
 
 // Função para solicitar feedback do usuário antes da reformulação
 function solicitarFeedbackParaReformulacao(dadosAtuais, respostaAtual) {
@@ -3219,121 +3124,11 @@ function adicionarAoHistorico(tipo, quantidade = 1) {
 }
 
 // Exibir histórico
-function exibirHistorico() {
-    const historicoContent = document.getElementById('historico-content');
-    
-    // Carregar histórico do servidor
-    carregarHistoricoDoServidor();
-}
-
-// Carregar histórico do servidor
-async function carregarHistoricoDoServidor() {
-    try {
-        console.log('📊 Carregando histórico do servidor...');
-        const response = await fetch('/api/estatisticas-globais');
-        const data = await response.json();
-        
-        if (data.success && data.historico) {
-            exibirHistoricoServidor(data.historico);
-        } else {
-            document.getElementById('historico-content').innerHTML = `
-                <div class="historico-empty">
-                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                    <p>Erro ao carregar histórico</p>
-                    <small>Tente novamente em alguns instantes</small>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('❌ Erro ao carregar histórico do servidor:', error);
-        document.getElementById('historico-content').innerHTML = `
-            <div class="historico-empty">
-                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                <p>Erro ao carregar histórico</p>
-                <small>Tente novamente em alguns instantes</small>
-            </div>
-        `;
-    }
-}
-
-// Exibir histórico do servidor
-function exibirHistoricoServidor(historicoServidor) {
-    const historicoContent = document.getElementById('historico-content');
-    
-    if (!historicoServidor || historicoServidor.length === 0) {
-        historicoContent.innerHTML = `
-            <div class="historico-empty">
-                <i class="fas fa-inbox fa-2x mb-2"></i>
-                <p>Nenhum histórico disponível</p>
-                <small>As estatísticas aparecerão aqui conforme o uso</small>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = '';
-    historicoServidor.forEach(entrada => {
-        const data = new Date(entrada.data);
-        const dataFormatada = data.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-        
-        const respostas = entrada.respostas_geradas || 0;
-        const moderacoes = entrada.moderacoes_geradas || 0;
-        const respostasCoerentes = entrada.respostas_coerentes || 0;
-        const moderacoesCoerentes = entrada.moderacoes_coerentes || 0;
-        const revisoes = entrada.revisoes_texto || 0;
-        const explicacoes = entrada.explicacoes_geradas || 0;
-        
-        html += `
-            <div class="historico-item">
-                <div class="historico-data">
-                    <i class="fas fa-calendar-day me-1"></i>
-                    ${dataFormatada}
-                </div>
-                <div class="historico-stats">
-                    <div class="historico-stat respostas">
-                        <i class="fas fa-reply"></i>
-                        <span>${respostas} respostas</span>
-                    </div>
-                    <div class="historico-stat moderacoes">
-                        <i class="fas fa-gavel"></i>
-                        <span>${moderacoes} moderações</span>
-                    </div>
-                    <div class="historico-stat coerentes">
-                        <i class="fas fa-check-circle"></i>
-                        <span>${respostasCoerentes + moderacoesCoerentes} coerentes</span>
-                    </div>
-                    <div class="historico-stat revisoes">
-                        <i class="fas fa-edit"></i>
-                        <span>${revisoes} revisões</span>
-                    </div>
-                    <div class="historico-stat explicacoes">
-                        <i class="fas fa-book"></i>
-                        <span>${explicacoes} explicações</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    historicoContent.innerHTML = html;
-}
-
-// Toggle do painel de histórico
-function toggleHistorico() {
-    const panel = document.getElementById('historico-panel');
-    const isVisible = panel.style.display !== 'none';
-    
-    if (isVisible) {
-        panel.style.display = 'none';
-    } else {
-        panel.style.display = 'block';
-        exibirHistorico();
-    }
-}
+// Funções removidas - funcionalidade obsoleta (histórico removido)
+// function exibirHistorico() { ... }
+// async function carregarHistoricoDoServidor() { ... }
+// function exibirHistoricoServidor(historicoServidor) { ... }
+// function toggleHistorico() { ... }
 
 // Sincronizar estatísticas com Google Sheets
 async function sincronizarEstatisticasComPlanilha() {
@@ -3714,8 +3509,8 @@ window.velotaxBot = {
     copiarResposta,
     verHistorico,
     fecharHistorico,
-    toggleHistorico,
-    visualizarModelosSalvos,
+    // toggleHistorico, // Removido - funcionalidade obsoleta
+    // visualizarModelosSalvos, // Removido - funcionalidade obsoleta
     testarFuncao,
     avaliarResposta,
     avaliarModeracao,
