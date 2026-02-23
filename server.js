@@ -6323,38 +6323,64 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         let respostasHoje = 0;
         let moderacoesHoje = 0;
         
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive() && googleSheetsConfig && googleSheetsConfig.isInitialized()) {
             try {
-                // Buscar respostas do dia - apenas aprovadas/coerentes
-                const respostas = await googleSheetsIntegration.obterModelosRespostas();
-                if (respostas && respostas.length > 0) {
-                    // obterModelosRespostas já filtra por Status Aprovação === 'Aprovada'
-                    // Agora filtrar também por data de hoje
-                    respostasHoje = respostas.filter(resposta => {
-                        const status = resposta['Status Aprovação'] || resposta.Status || '';
-                        const dataResposta = resposta['Data/Hora'] || resposta.data || '';
-                        // Garantir que está aprovada E é de hoje
-                        return (status === 'Aprovada' || status === '') && verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
+                // Buscar diretamente da planilha "Respostas Coerentes" - coluna A (índice 0) = Data/Hora
+                const rangeRespostas = 'Respostas Coerentes!A1:Z1000';
+                const dataRespostas = await googleSheetsConfig.readData(rangeRespostas);
+                
+                if (dataRespostas && dataRespostas.length > 1) {
+                    const headersRespostas = dataRespostas[0];
+                    const statusIndex = headersRespostas.findIndex(h => h === 'Status Aprovação' || h === 'Status');
+                    
+                    respostasHoje = dataRespostas.slice(1).filter(row => {
+                        if (!row[0]) return false; // Se não tem Data/Hora, ignorar
+                        
+                        // Coluna A (índice 0) = Data/Hora
+                        const dataResposta = row[0] || '';
+                        const status = statusIndex >= 0 ? (row[statusIndex] || '') : '';
+                        
+                        // Verificar se está aprovada E é de hoje
+                        const isAprovada = status === 'Aprovada' || status === '';
+                        const isHoje = verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
+                        
+                        return isAprovada && isHoje;
                     }).length;
                 }
                 
-                // Buscar moderações do dia - apenas aprovadas/coerentes
-                const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
-                if (moderacoes && moderacoes.length > 0) {
-                    // obterModeracoesCoerentes já filtra por Status Aprovação === 'Aprovada' e sem Feedback
-                    // Agora filtrar também por data de hoje
-                    moderacoesHoje = moderacoes.filter(moderacao => {
-                        const status = moderacao['Status Aprovação'] || moderacao.Status || '';
-                        const dataModeracao = moderacao['Data/Hora'] || moderacao.data || '';
-                        // Garantir que está aprovada, sem feedback E é de hoje
-                        return status === 'Aprovada' && !moderacao['Feedback'] && verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
+                // Buscar diretamente da planilha "Moderações" - coluna A (índice 0) = Data/Hora
+                const rangeModeracoes = 'Moderações!A1:Z1000';
+                const dataModeracoes = await googleSheetsConfig.readData(rangeModeracoes);
+                
+                if (dataModeracoes && dataModeracoes.length > 1) {
+                    const headersModeracoes = dataModeracoes[0];
+                    const statusIndex = headersModeracoes.findIndex(h => h === 'Status Aprovação' || h === 'Status');
+                    const feedbackIndex = headersModeracoes.findIndex(h => h === 'Feedback');
+                    
+                    moderacoesHoje = dataModeracoes.slice(1).filter(row => {
+                        if (!row[0]) return false; // Se não tem Data/Hora, ignorar
+                        
+                        // Coluna A (índice 0) = Data/Hora
+                        const dataModeracao = row[0] || '';
+                        const status = statusIndex >= 0 ? (row[statusIndex] || '') : '';
+                        const feedback = feedbackIndex >= 0 ? (row[feedbackIndex] || '') : '';
+                        
+                        // Verificar se está aprovada, sem feedback E é de hoje
+                        const isAprovada = status === 'Aprovada';
+                        const semFeedback = !feedback || feedback === '';
+                        const isHoje = verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
+                        
+                        return isAprovada && semFeedback && isHoje;
                     }).length;
                 }
                 
                 console.log(`📊 Estatísticas do dia ${dataHojeBR}: ${respostasHoje} respostas coerentes, ${moderacoesHoje} moderações coerentes`);
             } catch (error) {
                 console.error('❌ Erro ao buscar estatísticas da planilha:', error.message);
+                console.error('Stack:', error.stack);
             }
+        } else {
+            console.log('⚠️ Google Sheets não está ativo ou não inicializado');
         }
         
         res.json({
@@ -6377,26 +6403,37 @@ function verificarDataHoje(dataStr, dataHojeISO, dataHojeBR) {
     if (!dataStr) return false;
     
     try {
-        // Formato brasileiro: DD/MM/YYYY
-        if (dataStr.includes('/')) {
-            const partes = dataStr.split(' ')[0].split('/');
+        // Remover espaços extras e normalizar
+        const dataLimpa = String(dataStr).trim();
+        
+        // Formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY HH:MM:SS
+        if (dataLimpa.includes('/')) {
+            const partes = dataLimpa.split(' ')[0].split('/');
             if (partes.length === 3) {
                 const [dia, mes, ano] = partes;
                 const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-                return dataFormatada === dataHojeISO;
+                const resultado = dataFormatada === dataHojeISO;
+                if (resultado) {
+                    console.log(`✅ Data corresponde: ${dataLimpa} -> ${dataFormatada} === ${dataHojeISO}`);
+                }
+                return resultado;
             }
         }
         
-        // Formato ISO: YYYY-MM-DD
-        if (dataStr.includes('-')) {
-            const dataParte = dataStr.split('T')[0].split(' ')[0];
-            return dataParte === dataHojeISO;
+        // Formato ISO: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+        if (dataLimpa.includes('-')) {
+            const dataParte = dataLimpa.split('T')[0].split(' ')[0];
+            const resultado = dataParte === dataHojeISO;
+            if (resultado) {
+                console.log(`✅ Data corresponde: ${dataLimpa} -> ${dataParte} === ${dataHojeISO}`);
+            }
+            return resultado;
         }
         
-        // Comparar com formato BR
-        if (dataStr.includes(dataHojeBR.split('/')[0]) && 
-            dataStr.includes(dataHojeBR.split('/')[1]) && 
-            dataStr.includes(dataHojeBR.split('/')[2])) {
+        // Comparar com formato BR (verificar se contém dia, mês e ano de hoje)
+        const [diaHoje, mesHoje, anoHoje] = dataHojeBR.split('/');
+        if (dataLimpa.includes(diaHoje) && dataLimpa.includes(mesHoje) && dataLimpa.includes(anoHoje)) {
+            console.log(`✅ Data corresponde (formato BR): ${dataLimpa}`);
             return true;
         }
     } catch (e) {
