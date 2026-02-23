@@ -191,7 +191,7 @@ function pontuarFeedbacks() {
         }
         
         // Critério 3: Dados do formulário completos (0-20 pontos)
-        if (feedback.dadosFormulario?.tipo_solicitacao && feedback.dadosFormulario?.motivo_solicitacao) {
+        if (feedback.dadosFormulario?.tipo_solicitacao && feedback.dadosFormulario?.id_reclamacao) {
             pontuacao += 20;
             criterios.push('Dados do formulário completos (+20)');
         } else if (feedback.dadosFormulario?.tipo_solicitacao) {
@@ -475,7 +475,7 @@ async function saveFeedbacksRespostas(feedbacks) {
                         respostaReformulada: ultimoFeedback.respostaReformulada || 'N/A',
                         dadosFormulario: {
                             tipo_solicitacao: ultimoFeedback.dadosFormulario?.tipo_solicitacao || ultimoFeedback.contexto?.tipoSituacao || 'N/A',
-                            motivo_solicitacao: ultimoFeedback.dadosFormulario?.motivo_solicitacao || ultimoFeedback.contexto?.motivoSolicitacao || 'N/A',
+                            id_reclamacao: ultimoFeedback.dadosFormulario?.id_reclamacao || ultimoFeedback.contexto?.idReclamacao || 'N/A',
                             solucao_implementada: ultimoFeedback.dadosFormulario?.solucao_implementada || '',
                             historico_atendimento: ultimoFeedback.dadosFormulario?.historico_atendimento || '',
                             observacoes_internas: ultimoFeedback.dadosFormulario?.observacoes_internas || '',
@@ -842,7 +842,7 @@ Você é um especialista em atendimento ao cliente da Velotax, empresa de anteci
 
 DADOS ESPECÍFICOS DO CASO:
 - Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
-- Motivo da solicitação: ${dadosFormulario.motivo_solicitacao}
+- ID da Reclamação: ${dadosFormulario.id_reclamacao}
 - Solução implementada: ${dadosFormulario.solucao_implementada}
 - Texto do cliente: ${dadosFormulario.texto_cliente}
 - Histórico de atendimento: ${dadosFormulario.historico_atendimento}
@@ -1461,7 +1461,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     console.log('🚀 FUNÇÃO addModeloResposta INICIADA!');
     console.log('📝 Dados recebidos:', {
         tipo_solicitacao: dadosFormulario.tipo_solicitacao,
-        motivo_solicitacao: dadosFormulario.motivo_solicitacao,
+        id_reclamacao: dadosFormulario.id_reclamacao,
         resposta_length: respostaAprovada ? respostaAprovada.length : 0,
         userData: userData ? `${userData.nome} (${userData.email})` : 'N/A'
     });
@@ -1473,13 +1473,13 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
         id: Date.now(),
         timestamp: obterTimestampBrasil(),
         tipo_situacao: dadosFormulario.tipo_solicitacao,
-        motivo_solicitacao: dadosFormulario.motivo_solicitacao,
+        id_reclamacao: dadosFormulario.id_reclamacao,
         dadosFormulario: dadosFormulario,
         respostaAprovada: respostaAprovada,
         userData: userData, // Incluir dados do usuário
         contexto: {
             tipoSituacao: dadosFormulario.tipo_solicitacao,
-            motivoSolicitacao: dadosFormulario.motivo_solicitacao
+            idReclamacao: dadosFormulario.id_reclamacao
         }
     };
     
@@ -1495,7 +1495,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
                 id: novoModelo.id,
                 tipo: 'resposta',
                 tipoSituacao: novoModelo.tipo_situacao || 'N/A',
-                motivoSolicitacao: novoModelo.motivo_solicitacao || 'N/A',
+                idReclamacao: novoModelo.id_reclamacao || 'N/A',
                 respostaAprovada: novoModelo.respostaAprovada || 'N/A',
                 dadosFormulario: novoModelo.dadosFormulario || {},
                 timestamp: novoModelo.timestamp,
@@ -1516,7 +1516,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     
     // Também adicionar ao aprendizado direto do script
     console.log('🧠 Adicionando ao aprendizado do script...');
-    await addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.motivo_solicitacao, respostaAprovada, dadosFormulario, userData);
+    await addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.id_reclamacao, respostaAprovada, dadosFormulario, userData);
     console.log('✅ Aprendizado do script concluído');
     
     // IMPORTANTE: Se houve feedback anterior, salvar também no aprendizado
@@ -2113,7 +2113,7 @@ async function addFeedbackAprendizado(tipoSituacao, feedback, respostaReformulad
 }
 
 // Adicionar resposta coerente ao aprendizado do script
-async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada, dadosFormulario, userData = null) {
+async function addRespostaCoerenteAprendizado(tipoSituacao, idReclamacao, respostaAprovada, dadosFormulario, userData = null) {
     const aprendizado = await loadAprendizadoScript();
     
     if (!aprendizado.tiposSituacao[tipoSituacao]) {
@@ -2128,7 +2128,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
     const novaResposta = {
         id: Date.now(),
         timestamp: obterTimestampBrasil(),
-        motivoSolicitacao: motivoSolicitacao,
+        idReclamacao: idReclamacao,
         respostaAprovada: respostaAprovada,
         dadosFormulario: dadosFormulario,
         userData: userData
@@ -2143,7 +2143,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
     }
     
     // Identificar padrões automaticamente
-    await identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada);
+    await identificarPadroesAprendizado(tipoSituacao, idReclamacao, respostaAprovada);
     
     await saveAprendizadoScript(aprendizado);
     
@@ -2154,7 +2154,7 @@ async function addRespostaCoerenteAprendizado(tipoSituacao, motivoSolicitacao, r
 }
 
 // Identificar padrões automaticamente
-async function identificarPadroesAprendizado(tipoSituacao, motivoSolicitacao, respostaAprovada) {
+async function identificarPadroesAprendizado(tipoSituacao, idReclamacao, respostaAprovada) {
     console.log('🔍 Identificando padrões para:', tipoSituacao);
     const aprendizado = await loadAprendizadoScript();
     
@@ -5475,7 +5475,7 @@ app.post('/api/sincronizar-feedbacks-pendentes', async (req, res) => {
                 if (tipoSituacao && modelo.respostaAprovada) {
                     await addRespostaCoerenteAprendizado(
                         tipoSituacao,
-                        modelo.motivo_solicitacao,
+                        modelo.id_reclamacao || modelo.dadosFormulario?.id_reclamacao,
                         modelo.respostaAprovada,
                         modelo.dadosFormulario,
                         modelo.userData

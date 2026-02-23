@@ -488,7 +488,7 @@ class GoogleSheetsIntegration {
                 feedbackData.feedback || '', // Coluna F: Feedback
                 feedbackData.respostaReformulada || '', // Coluna G: Resposta Reformulada
                 feedbackData.dadosFormulario?.tipo_solicitacao || feedbackData.tipoSituacao || '', // Coluna H: Tipo Solicitação
-                feedbackData.dadosFormulario?.motivo_solicitacao || '', // Coluna I: Motivo Solicitação
+                feedbackData.dadosFormulario?.id_reclamacao || '', // Coluna I: ID da Reclamação
                 feedbackData.dadosFormulario?.solucao_implementada || '', // Coluna J: Solução Implementada
                 feedbackData.dadosFormulario?.historico_atendimento || '', // Coluna K: Histórico Atendimento
                 feedbackData.dadosFormulario?.observacoes_internas || '' // Coluna L: Observações Internas
@@ -549,7 +549,7 @@ class GoogleSheetsIntegration {
                 respostaData.textoCliente || respostaData.dadosFormulario?.texto_cliente || '', // Coluna D: Texto Cliente
                 respostaData.respostaAprovada || respostaData.respostaFinal || '', // Coluna E: Resposta Aprovada
                 respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '', // Coluna F: Tipo Solicitação
-                respostaData.dadosFormulario?.motivo_solicitacao || respostaData.motivoSolicitacao || '', // Coluna G: Motivo Solicitação
+                respostaData.dadosFormulario?.id_reclamacao || respostaData.idReclamacao || '', // Coluna G: ID da Reclamação
                 respostaData.dadosFormulario?.solucao_implementada || '', // Coluna H: Solução Implementada
                 respostaData.dadosFormulario?.historico_atendimento || '', // Coluna I: Histórico Atendimento
                 respostaData.dadosFormulario?.observacoes_internas || '', // Coluna J: Observações Internas

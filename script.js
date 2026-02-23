@@ -233,7 +233,7 @@ async function gerarRespostaOpenAI() {
     console.log('🔍 Verificando elementos do DOM...');
     
     const tipoSituacao = document.getElementById('tipo-situacao');
-    const motivoSolicitacao = document.getElementById('motivo-solicitacao');
+    const idReclamacao = document.getElementById('id-reclamacao');
     const reclamacao = document.getElementById('reclamacao-text');
     const solucao = document.getElementById('solucao-implementada');
     const historico = document.getElementById('historico-atendimento');
@@ -241,21 +241,21 @@ async function gerarRespostaOpenAI() {
     
     console.log('🔍 Elementos encontrados:', {
         tipoSituacao: tipoSituacao ? 'OK' : 'NÃO ENCONTRADO',
-        motivoSolicitacao: motivoSolicitacao ? 'OK' : 'NÃO ENCONTRADO',
+        idReclamacao: idReclamacao ? 'OK' : 'NÃO ENCONTRADO',
         reclamacao: reclamacao ? 'OK' : 'NÃO ENCONTRADO',
         solucao: solucao ? 'OK' : 'NÃO ENCONTRADO',
         historico: historico ? 'OK' : 'NÃO ENCONTRADO',
         observacoes: observacoes ? 'OK' : 'NÃO ENCONTRADO'
     });
     
-    if (!tipoSituacao || !motivoSolicitacao || !reclamacao || !solucao) {
+    if (!tipoSituacao || !idReclamacao || !reclamacao || !solucao) {
         console.error('❌ Elementos obrigatórios não encontrados!');
         showErrorMessage('Erro: Elementos do formulário não encontrados. Verifique se a página carregou corretamente.');
         return;
     }
     
     const tipoSituacaoValue = tipoSituacao.value;
-    const motivoSolicitacaoValue = motivoSolicitacao.value;
+    const idReclamacaoValue = idReclamacao.value.trim();
     const reclamacaoValue = reclamacao.value;
     const solucaoValue = solucao.value;
     const historicoValue = historico.value;
@@ -263,13 +263,13 @@ async function gerarRespostaOpenAI() {
     
     console.log('Dados coletados:', {
         tipoSituacao: tipoSituacaoValue,
-        motivoSolicitacao: motivoSolicitacaoValue,
+        idReclamacao: idReclamacaoValue,
         reclamacao: reclamacaoValue.substring(0, 50) + '...',
         solucao: solucaoValue.substring(0, 50) + '...'
     });
     
     // Validação dos campos obrigatórios
-    if (!tipoSituacaoValue || !motivoSolicitacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim()) || !solucaoValue || (typeof solucaoValue === 'string' && !solucaoValue.trim())) {
+    if (!tipoSituacaoValue || !idReclamacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim()) || !solucaoValue || (typeof solucaoValue === 'string' && !solucaoValue.trim())) {
         console.log('Validação falhou - campos obrigatórios não preenchidos');
         showErrorMessage('Por favor, preencha todos os campos obrigatórios (*).');
         return;
@@ -286,7 +286,7 @@ async function gerarRespostaOpenAI() {
         // Preparar dados para envio ao servidor
         const dadosResposta = {
             tipo_solicitacao: tipoSituacaoValue,
-            motivo_solicitacao: motivoSolicitacaoValue,
+            id_reclamacao: idReclamacaoValue,
             texto_cliente: reclamacaoValue,
             solucao_implementada: solucaoValue,
             historico_atendimento: historicoValue,
@@ -405,7 +405,7 @@ async function chamarOpenAI(dados) {
 
 ### Dados recebidos:
 - Tipo de solicitação: ${dados.tipo_solicitacao}
-- Motivo da solicitação: ${dados.motivo_solicitacao}
+- ID da Reclamação: ${dados.id_reclamacao}
 - Reclamação do cliente: ${dados.texto_cliente}
 - Solução implementada: ${dados.solucao_implementada}
 - Histórico de atendimento: ${dados.historico_atendimento || 'Nenhum'}
@@ -471,17 +471,8 @@ function gerarRespostaSimulada(dados) {
         resposta += 'Conforme já havíamos encaminhado anteriormente, ' + dados.historico_atendimento.toLowerCase() + '.\n\n';
     }
     
-    // Fechamento baseado no motivo
-    switch (dados.motivo_solicitacao) {
-        case 'pedido-desculpas':
-            resposta += 'Pedimos desculpas pelo transtorno causado e agradecemos sua compreensão.\n\n';
-            break;
-        case 'confirmacao-solucao':
-            resposta += 'Consideramos este assunto encerrado e agradecemos sua compreensão.\n\n';
-            break;
-        default:
-            resposta += 'Seguimos à disposição para ajudar.\n\n';
-    }
+    // Fechamento padrão
+    resposta += 'Seguimos à disposição para ajudar.\n\n';
     
     return resposta.trim();
 }
@@ -504,7 +495,7 @@ async function avaliarResposta(tipoAvaliacao) {
     // Obter dados atuais do formulário
     const dadosAtuais = {
         tipo_solicitacao: document.getElementById('tipo-situacao').value,
-        motivo_solicitacao: document.getElementById('motivo-solicitacao').value,
+        id_reclamacao: document.getElementById('id-reclamacao').value.trim(),
         texto_cliente: document.getElementById('reclamacao-text').value,
         solucao_implementada: document.getElementById('solucao-implementada').value,
         historico_atendimento: document.getElementById('historico-atendimento').value,
@@ -567,12 +558,12 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
             id: Date.now(),
             timestamp: new Date().toISOString(),
             tipo_situacao: dadosAtuais.tipo_solicitacao,
-            motivo_solicitacao: dadosAtuais.motivo_solicitacao,
+            id_reclamacao: dadosAtuais.id_reclamacao,
             dadosFormulario: dadosAtuais,
             respostaAprovada: respostaAprovada,
             contexto: {
                 tipoSituacao: dadosAtuais.tipo_solicitacao,
-                motivoSolicitacao: dadosAtuais.motivo_solicitacao
+                idReclamacao: dadosAtuais.id_reclamacao
             }
         };
         
@@ -899,7 +890,7 @@ async function reformularRespostaOpenAI(dados, respostaAnterior) {
 
 ### Dados recebidos:
 - Tipo de solicitação: ${dados.tipo_solicitacao}
-- Motivo da solicitação: ${dados.motivo_solicitacao}
+- ID da Reclamação: ${dados.id_reclamacao}
 - Reclamação do cliente: ${dados.texto_cliente}
 - Solução implementada: ${dados.solucao_implementada}
 - Histórico de atendimento: ${dados.historico_atendimento || 'Nenhum'}
@@ -1012,7 +1003,7 @@ function carregarDoHistorico(index) {
     if (item) {
         // Carregar dados no formulário
         document.getElementById('tipo-situacao').value = item.dados.tipo_solicitacao;
-        document.getElementById('motivo-solicitacao').value = item.dados.motivo_solicitacao;
+        document.getElementById('id-reclamacao').value = item.dados.id_reclamacao || '';
         document.getElementById('reclamacao-text').value = item.dados.texto_cliente;
         document.getElementById('solucao-implementada').value = item.dados.solucao_implementada;
         document.getElementById('historico-atendimento').value = item.dados.historico_atendimento;
@@ -1035,7 +1026,7 @@ function salvarRascunho() {
     const dadosRascunho = {
         id: Date.now(),
         tipo_situacao: document.getElementById('tipo-situacao').value,
-        motivo_solicitacao: document.getElementById('motivo-solicitacao').value,
+        id_reclamacao: document.getElementById('id-reclamacao').value.trim(),
         reclamacao: document.getElementById('reclamacao-text').value,
         solucao: document.getElementById('solucao-implementada').value,
         historico: document.getElementById('historico-atendimento').value,
@@ -1063,7 +1054,7 @@ function carregarRascunho() {
     const rascunho = rascunhos[0];
     
     document.getElementById('tipo-situacao').value = rascunho.tipo_situacao;
-    document.getElementById('motivo-solicitacao').value = rascunho.motivo_solicitacao;
+    document.getElementById('id-reclamacao').value = rascunho.id_reclamacao || '';
     document.getElementById('reclamacao-text').value = rascunho.reclamacao;
     document.getElementById('solucao-implementada').value = rascunho.solucao;
     document.getElementById('historico-atendimento').value = rascunho.historico;
@@ -1122,7 +1113,7 @@ const exemplosTeste = [
     {
         nome: "Exclusão de Cadastro - Realizada",
         tipoSituacao: "exclusao-cadastro",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12345",
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
         historicoAtendimento: "Cliente já havia solicitado exclusão via WhatsApp em 15/01/2025, mas não recebeu confirmação.",
@@ -1131,7 +1122,7 @@ const exemplosTeste = [
     {
         nome: "Exclusão de Cadastro - Negada",
         tipoSituacao: "exclusao-cadastro",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12346",
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
         historicoAtendimento: "Cliente possui operação em andamento que impede a exclusão.",
@@ -1140,7 +1131,7 @@ const exemplosTeste = [
     {
         nome: "Liberação de Chave Pix - Realizada",
         tipoSituacao: "exclusao-chave-pix-cpf",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12347",
         reclamacaoCliente: "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
         solucaoImplementada: "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
         historicoAtendimento: "Cliente já havia tentado fazer a portabilidade anteriormente.",
@@ -1149,7 +1140,7 @@ const exemplosTeste = [
     {
         nome: "Liberação de Chave Pix - Negada",
         tipoSituacao: "exclusao-chave-pix-cpf",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12348",
         reclamacaoCliente: "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
         solucaoImplementada: "Não foi possível realizar a liberação da chave Pix devido a operação ativa.",
         historicoAtendimento: "Cliente possui antecipação em andamento que impede a liberação.",
@@ -1158,7 +1149,7 @@ const exemplosTeste = [
     {
         nome: "Quitação - Realizada",
         tipoSituacao: "quitacao",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12349",
         reclamacaoCliente: "Cliente questiona sobre quitação de antecipação. Ele acredita que já quitou mas ainda aparece débito.",
         solucaoImplementada: "Antecipação quitada automaticamente em 31/07/2025 quando restituição foi depositada pela Receita Federal.",
         historicoAtendimento: "Cliente recebeu restituição do IR em 31/07/2025.",
@@ -1167,7 +1158,7 @@ const exemplosTeste = [
     {
         nome: "SERASA/SPC - Inclusão",
         tipoSituacao: "juros-abusivos",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12350",
         reclamacaoCliente: "Cliente questiona inclusão em SERASA/SPC. Ele não entende por que foi incluído.",
         solucaoImplementada: "Antecipação não foi quitada na data prevista, resultando em inclusão nos órgãos de proteção ao crédito.",
         historicoAtendimento: "Cliente não quitou a antecipação no prazo estabelecido.",
@@ -1176,7 +1167,7 @@ const exemplosTeste = [
     {
         nome: "Análise em Andamento",
         tipoSituacao: "exclusao-cadastro",
-        motivoSolicitacao: "esclarecimento",
+        idReclamacao: "RA-12351",
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações.`,
         solucaoImplementada: "Solicitação em análise pela equipe técnica. Aguardando verificação de pendências.",
         historicoAtendimento: "Cliente fez a solicitação há 2 dias úteis.",
@@ -1185,7 +1176,7 @@ const exemplosTeste = [
     {
         nome: "Juros Abusivos - Análise",
         tipoSituacao: "juros-abusivos",
-        motivoSolicitacao: "reclamação",
+        idReclamacao: "RA-12352",
         reclamacaoCliente: "Cliente reclama de juros abusivos na antecipação. Ele acredita que os valores estão incorretos.",
         solucaoImplementada: "Análise dos cálculos em andamento pela equipe financeira. Verificando aplicação das taxas contratuais.",
         historicoAtendimento: "Cliente questionou os valores há 3 dias úteis.",
@@ -1202,7 +1193,7 @@ function testarFuncao() {
         // Verificar se os elementos existem
         const elementos = {
             'tipo-situacao': document.getElementById('tipo-situacao'),
-            'motivo-solicitacao': document.getElementById('motivo-solicitacao'),
+            'id-reclamacao': document.getElementById('id-reclamacao'),
             'reclamacao-text': document.getElementById('reclamacao-text'),
             'solucao-implementada': document.getElementById('solucao-implementada'),
             'historico-atendimento': document.getElementById('historico-atendimento'),
@@ -1235,7 +1226,7 @@ function testarFuncao() {
         console.log('Preenchendo campos com exemplo...');
         
         elementos['tipo-situacao'].value = exemplo.tipoSituacao;
-        elementos['motivo-solicitacao'].value = exemplo.motivoSolicitacao;
+        elementos['id-reclamacao'].value = exemplo.idReclamacao || '';
         elementos['reclamacao-text'].value = exemplo.reclamacaoCliente;
         elementos['solucao-implementada'].value = exemplo.solucaoImplementada;
         elementos['historico-atendimento'].value = exemplo.historicoAtendimento;
@@ -1244,7 +1235,7 @@ function testarFuncao() {
         // Verificar se os valores foram definidos
         console.log('Valores definidos:');
         console.log('- tipo-situacao:', elementos['tipo-situacao'].value);
-        console.log('- motivo-solicitacao:', elementos['motivo-solicitacao'].value);
+        console.log('- id-reclamacao:', elementos['id-reclamacao'].value);
         console.log('- reclamacao-text:', elementos['reclamacao-text'].value.substring(0, 50) + '...');
         console.log('- solucao-implementada:', elementos['solucao-implementada'].value.substring(0, 50) + '...');
         
@@ -3260,7 +3251,7 @@ async function buscarSolicitacoes() {
                     if (solicitacao.tipo === 'resposta') {
                         detalhesResumo = `
                             <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
-                            <strong>Motivo:</strong> ${solicitacao.motivoSolicitacao || 'N/A'}<br>
+                            <strong>ID da Reclamação:</strong> ${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}<br>
                             <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
                         `;
                     } else {
@@ -3279,8 +3270,8 @@ async function buscarSolicitacoes() {
                                 <div class="campo-valor">${solicitacao.tipoSolicitacao || 'N/A'}</div>
                             </div>
                             <div class="campo-detalhe">
-                                <div class="campo-label">Motivo da Solicitação:</div>
-                                <div class="campo-valor">${solicitacao.motivoSolicitacao || 'N/A'}</div>
+                                <div class="campo-label">ID da Reclamação:</div>
+                                <div class="campo-valor">${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}</div>
                             </div>
                             <div class="campo-detalhe">
                                 <div class="campo-label">Texto do Cliente:</div>
