@@ -198,6 +198,39 @@ class GoogleSheetsConfig {
     }
 
     /**
+     * Atualiza uma linha específica
+     * @param {string} range - Range da linha (ex: 'Sheet1!A2:Z2')
+     * @param {Array} values - Array de valores para atualizar
+     */
+    async updateRow(range, values) {
+        try {
+            if (!this.isInitialized()) {
+                throw new Error('Google Sheets API não foi inicializada');
+            }
+
+            const sheets = this.getSheets();
+            const spreadsheetId = this.getSpreadsheetId();
+
+            const request = {
+                spreadsheetId: spreadsheetId,
+                range: range,
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [values]
+                }
+            };
+
+            const response = await sheets.spreadsheets.values.update(request);
+            console.log('✅ Linha atualizada com sucesso');
+            return response.data;
+
+        } catch (error) {
+            console.error('❌ Erro ao atualizar linha:', error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Lê dados de uma planilha
      * @param {string} range - Range para ler (ex: 'Sheet1!A1:Z100')
      */

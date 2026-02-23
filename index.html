@@ -193,6 +193,9 @@
                 <button class="btn btn-sm btn-outline-success" onclick="visualizarModelosSalvos()" title="Ver Modelos Salvos">
                     <i class="fas fa-database"></i>
                 </button>
+                <button class="btn btn-sm btn-outline-info" onclick="abrirModalSolicitacoes()" title="Ver Todas as Solicitações">
+                    <i class="fas fa-list"></i>
+                </button>
             </div>
                         </div>
                         <div class="card-body">
@@ -780,5 +783,84 @@
         setTimeout(adjustInterfaceName, 100);
     </script>
     </div> <!-- Fechamento do app-wrapper -->
+
+    <!-- Modal de Solicitações -->
+    <div class="modal fade" id="modalSolicitacoes" tabindex="-1" aria-labelledby="modalSolicitacoesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="modalSolicitacoesLabel">
+                        <i class="fas fa-list me-2"></i>
+                        Todas as Solicitações
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Filtros -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="filtroDataInicio" class="form-label">Data Início:</label>
+                            <input type="date" class="form-control" id="filtroDataInicio">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtroDataFim" class="form-label">Data Fim:</label>
+                            <input type="date" class="form-control" id="filtroDataFim">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtroTipo" class="form-label">Tipo:</label>
+                            <select class="form-select" id="filtroTipo">
+                                <option value="todas">Todas</option>
+                                <option value="respostas">Respostas</option>
+                                <option value="moderacoes">Moderações</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" onclick="buscarSolicitacoes()">
+                                <i class="fas fa-search me-2"></i>
+                                Buscar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Informações -->
+                    <div class="alert alert-info" id="infoSolicitacoes" style="display: none;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="textoInfoSolicitacoes"></span>
+                    </div>
+
+                    <!-- Tabela de Solicitações -->
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Tipo</th>
+                                    <th>ID</th>
+                                    <th>Detalhes</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaSolicitacoes">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>
+                                        Carregando solicitações...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" onclick="exportarSolicitacoes()">
+                        <i class="fas fa-download me-2"></i>
+                        Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html> 

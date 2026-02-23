@@ -780,18 +780,56 @@ class GoogleSheetsIntegration {
                 'Explicações Geradas'
             ]);
 
-            const row = [
-                new Date().toLocaleDateString('pt-BR'),
-                estatisticas.respostas_geradas || 0,
-                estatisticas.respostas_coerentes || 0,
-                estatisticas.moderacoes_geradas || 0,
-                estatisticas.moderacoes_coerentes || 0,
-                estatisticas.revisoes_texto || 0,
-                estatisticas.explicacoes_geradas || 0
-            ];
-
-            await googleSheetsConfig.appendRow('Estatísticas!A:Z', row);
-            console.log('✅ Estatísticas registradas no Google Sheets');
+            const dataHoje = new Date().toLocaleDateString('pt-BR');
+            
+            // Tentar buscar dados existentes para atualizar em vez de sempre adicionar
+            try {
+                const range = 'Estatísticas!A2:G1000'; // Buscar todas as linhas (exceto cabeçalho)
+                const rows = await googleSheetsConfig.readData(range);
+                
+                // Procurar se já existe uma linha para hoje
+                let linhaEncontrada = -1;
+                if (rows && rows.length > 0) {
+                    linhaEncontrada = rows.findIndex(row => row && row[0] === dataHoje);
+                }
+                
+                const rowData = [
+                    dataHoje,
+                    estatisticas.respostas_geradas || 0,
+                    estatisticas.respostas_coerentes || 0,
+                    estatisticas.moderacoes_geradas || 0,
+                    estatisticas.moderacoes_coerentes || 0,
+                    estatisticas.revisoes_texto || 0,
+                    estatisticas.explicacoes_geradas || 0
+                ];
+                
+                if (linhaEncontrada >= 0) {
+                    // Atualizar linha existente (linhaEncontrada + 2 porque começa em A2)
+                    const linhaAtualizar = linhaEncontrada + 2;
+                    const updateRange = `Estatísticas!A${linhaAtualizar}:G${linhaAtualizar}`;
+                    await googleSheetsConfig.updateRow(updateRange, rowData);
+                    console.log(`✅ Estatísticas do dia ${dataHoje} atualizadas no Google Sheets`);
+                } else {
+                    // Adicionar nova linha se não existir
+                    await googleSheetsConfig.appendRow('Estatísticas!A:Z', rowData);
+                    console.log(`✅ Estatísticas do dia ${dataHoje} registradas no Google Sheets`);
+                }
+            } catch (error) {
+                // Se falhar ao buscar, adicionar nova linha
+                console.log('⚠️ Não foi possível verificar linha existente, adicionando nova linha:', error.message);
+                const rowData = [
+                    dataHoje,
+                    estatisticas.respostas_geradas || 0,
+                    estatisticas.respostas_coerentes || 0,
+                    estatisticas.moderacoes_geradas || 0,
+                    estatisticas.moderacoes_coerentes || 0,
+                    estatisticas.revisoes_texto || 0,
+                    estatisticas.explicacoes_geradas || 0
+                ];
+                await googleSheetsConfig.appendRow('Estatísticas!A:Z', rowData);
+                console.log(`✅ Estatísticas do dia ${dataHoje} registradas no Google Sheets (fallback)`);
+            }
+            
             return true;
 
         } catch (error) {

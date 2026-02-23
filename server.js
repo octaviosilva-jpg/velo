@@ -5133,6 +5133,132 @@ app.get('/api/feedbacks/moderacoes', (req, res) => {
     }
 });
 
+// Endpoint para buscar solicitações da planilha com filtro de período
+app.get('/api/solicitacoes', async (req, res) => {
+    try {
+        const { dataInicio, dataFim, tipo } = req.query;
+        
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(200).json({
+                success: true,
+                message: 'Google Sheets não configurado',
+                solicitacoes: [],
+                total: 0
+            });
+        }
+
+        console.log('📋 Buscando solicitações:', { dataInicio, dataFim, tipo });
+
+        const todasSolicitacoes = [];
+
+        // Buscar respostas coerentes
+        if (!tipo || tipo === 'respostas' || tipo === 'todas') {
+            try {
+                const respostas = await googleSheetsIntegration.obterModelosRespostas();
+                if (respostas && respostas.length > 0) {
+                    respostas.forEach(resposta => {
+                        todasSolicitacoes.push({
+                            tipo: 'resposta',
+                            data: resposta['Data/Hora'] || resposta.data || '',
+                            id: resposta.ID || resposta.id || '',
+                            tipoSolicitacao: resposta['Tipo Solicitação'] || resposta.tipoSituacao || '',
+                            motivoSolicitacao: resposta['Motivo Solicitação'] || resposta.motivoSolicitacao || '',
+                            textoCliente: resposta['Texto Cliente'] || resposta.textoCliente || '',
+                            resposta: resposta['Resposta Aprovada'] || resposta.respostaAprovada || '',
+                            solucaoImplementada: resposta['Solução Implementada'] || resposta.solucaoImplementada || '',
+                            status: resposta.Status || 'Aprovada'
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Erro ao buscar respostas:', error.message);
+            }
+        }
+
+        // Buscar moderações coerentes
+        if (!tipo || tipo === 'moderacoes' || tipo === 'todas') {
+            try {
+                const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
+                if (moderacoes && moderacoes.length > 0) {
+                    moderacoes.forEach(moderacao => {
+                        todasSolicitacoes.push({
+                            tipo: 'moderacao',
+                            data: moderacao['Data/Hora'] || moderacao.data || '',
+                            id: moderacao.ID || moderacao.id || '',
+                            solicitacaoCliente: moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '',
+                            respostaEmpresa: moderacao['Resposta Empresa'] || moderacao.respostaEmpresa || '',
+                            motivoModeracao: moderacao['Motivo Moderação'] || moderacao.motivoModeracao || '',
+                            textoModeracao: moderacao['Texto Moderação'] || moderacao.textoModeracao || '',
+                            status: moderacao.Status || 'Aprovada'
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Erro ao buscar moderações:', error.message);
+            }
+        }
+
+        // Filtrar por período se fornecido
+        let solicitacoesFiltradas = todasSolicitacoes;
+        
+        if (dataInicio || dataFim) {
+            solicitacoesFiltradas = todasSolicitacoes.filter(solicitacao => {
+                if (!solicitacao.data) return false;
+                
+                // Converter data para formato comparável
+                let dataSolicitacao;
+                try {
+                    // Tentar diferentes formatos de data
+                    if (solicitacao.data.includes('/')) {
+                        const [dia, mes, ano] = solicitacao.data.split(' ')[0].split('/');
+                        dataSolicitacao = new Date(ano, mes - 1, dia);
+                    } else {
+                        dataSolicitacao = new Date(solicitacao.data);
+                    }
+                } catch (e) {
+                    return false;
+                }
+
+                const inicio = dataInicio ? new Date(dataInicio + 'T00:00:00') : null;
+                const fim = dataFim ? new Date(dataFim + 'T23:59:59') : null;
+
+                if (inicio && dataSolicitacao < inicio) return false;
+                if (fim && dataSolicitacao > fim) return false;
+                
+                return true;
+            });
+        }
+
+        // Ordenar por data (mais recente primeiro)
+        solicitacoesFiltradas.sort((a, b) => {
+            const dataA = new Date(a.data || 0);
+            const dataB = new Date(b.data || 0);
+            return dataB - dataA;
+        });
+
+        console.log(`✅ ${solicitacoesFiltradas.length} solicitações encontradas`);
+
+        res.json({
+            success: true,
+            solicitacoes: solicitacoesFiltradas,
+            total: solicitacoesFiltradas.length,
+            filtros: {
+                dataInicio: dataInicio || null,
+                dataFim: dataFim || null,
+                tipo: tipo || 'todas'
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar solicitações:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar solicitações',
+            message: error.message
+        });
+    }
+});
+
 // Endpoint para visualizar feedbacks de explicações (aba Explicações)
 app.get('/api/feedbacks/explicacoes', (req, res) => {
     try {

@@ -3342,6 +3342,164 @@ function inicializarHistorico() {
     }, 3000);
 }
 
+// ===== MODAL DE SOLICITAÇÕES =====
+
+// Abrir modal de solicitações
+function abrirModalSolicitacoes() {
+    const modal = new bootstrap.Modal(document.getElementById('modalSolicitacoes'));
+    modal.show();
+    
+    // Definir data padrão (últimos 30 dias)
+    const hoje = new Date();
+    const dataFim = hoje.toISOString().split('T')[0];
+    const dataInicio = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    document.getElementById('filtroDataInicio').value = dataInicio;
+    document.getElementById('filtroDataFim').value = dataFim;
+    document.getElementById('filtroTipo').value = 'todas';
+    
+    // Buscar solicitações automaticamente
+    buscarSolicitacoes();
+}
+
+// Buscar solicitações da planilha
+async function buscarSolicitacoes() {
+    const dataInicio = document.getElementById('filtroDataInicio').value;
+    const dataFim = document.getElementById('filtroDataFim').value;
+    const tipo = document.getElementById('filtroTipo').value;
+    
+    const tabela = document.getElementById('tabelaSolicitacoes');
+    const infoDiv = document.getElementById('infoSolicitacoes');
+    const textoInfo = document.getElementById('textoInfoSolicitacoes');
+    
+    // Mostrar loading
+    tabela.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center text-muted">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Buscando solicitações...
+            </td>
+        </tr>
+    `;
+    infoDiv.style.display = 'none';
+    
+    try {
+        // Construir URL com parâmetros
+        const params = new URLSearchParams();
+        if (dataInicio) params.append('dataInicio', dataInicio);
+        if (dataFim) params.append('dataFim', dataFim);
+        if (tipo) params.append('tipo', tipo);
+        
+        const response = await fetch(`/api/solicitacoes?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const solicitacoes = data.solicitacoes || [];
+            
+            // Atualizar informação
+            textoInfo.textContent = `Total de ${solicitacoes.length} solicitação(ões) encontrada(s)`;
+            infoDiv.style.display = 'block';
+            
+            if (solicitacoes.length === 0) {
+                tabela.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            <i class="fas fa-inbox me-2"></i>
+                            Nenhuma solicitação encontrada para o período selecionado.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                // Preencher tabela
+                tabela.innerHTML = solicitacoes.map(solicitacao => {
+                    const tipoBadge = solicitacao.tipo === 'resposta' 
+                        ? '<span class="badge bg-success">Resposta</span>'
+                        : '<span class="badge bg-warning">Moderação</span>';
+                    
+                    const statusBadge = solicitacao.status === 'Aprovada'
+                        ? '<span class="badge bg-success">Aprovada</span>'
+                        : '<span class="badge bg-secondary">' + (solicitacao.status || 'N/A') + '</span>';
+                    
+                    let detalhes = '';
+                    if (solicitacao.tipo === 'resposta') {
+                        detalhes = `
+                            <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
+                            <strong>Motivo:</strong> ${solicitacao.motivoSolicitacao || 'N/A'}<br>
+                            <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
+                        `;
+                    } else {
+                        detalhes = `
+                            <strong>Motivo:</strong> ${solicitacao.motivoModeracao || 'N/A'}<br>
+                            <small class="text-muted">${(solicitacao.solicitacaoCliente || '').substring(0, 100)}${solicitacao.solicitacaoCliente && solicitacao.solicitacaoCliente.length > 100 ? '...' : ''}</small>
+                        `;
+                    }
+                    
+                    return `
+                        <tr>
+                            <td>${solicitacao.data || 'N/A'}</td>
+                            <td>${tipoBadge}</td>
+                            <td><small>${solicitacao.id || 'N/A'}</small></td>
+                            <td><small>${detalhes}</small></td>
+                            <td>${statusBadge}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        } else {
+            throw new Error(data.error || 'Erro ao buscar solicitações');
+        }
+    } catch (error) {
+        console.error('Erro ao buscar solicitações:', error);
+        tabela.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erro ao buscar solicitações: ${error.message}
+                </td>
+            </tr>
+        `;
+        showErrorMessage('Erro ao buscar solicitações: ' + error.message);
+    }
+}
+
+// Exportar solicitações
+function exportarSolicitacoes() {
+    const tabela = document.getElementById('tabelaSolicitacoes');
+    const linhas = tabela.querySelectorAll('tr');
+    
+    if (linhas.length === 0 || linhas[0].querySelector('td[colspan]')) {
+        showErrorMessage('Não há dados para exportar');
+        return;
+    }
+    
+    let csv = 'Data/Hora,Tipo,ID,Detalhes,Status\n';
+    
+    linhas.forEach(linha => {
+        const celulas = linha.querySelectorAll('td');
+        if (celulas.length === 5) {
+            const valores = Array.from(celulas).map(celula => {
+                // Remover HTML e pegar apenas texto
+                const texto = celula.textContent.trim().replace(/\n/g, ' ').replace(/,/g, ';');
+                return `"${texto}"`;
+            });
+            csv += valores.join(',') + '\n';
+        }
+    });
+    
+    // Criar blob e download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `solicitacoes_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showSuccessMessage('Solicitações exportadas com sucesso!');
+}
+
 function showSuccessMessage(message) {
     const successDiv = document.createElement('div');
     successDiv.className = 'success-message';
