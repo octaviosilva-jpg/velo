@@ -931,11 +931,15 @@ class GoogleSheetsIntegration {
                             modelo[header] = row[index];
                         }
                     });
-                    modelos.push(modelo);
+                    // Filtrar apenas respostas aprovadas/coerentes
+                    if (modelo['Status Aprovação'] === 'Aprovada' || !modelo['Status Aprovação']) {
+                        // Se não tem status, assumir que é aprovada (compatibilidade com dados antigos)
+                        modelos.push(modelo);
+                    }
                 }
             }
             
-            console.log(`✅ ${modelos.length} modelos obtidos do Google Sheets`);
+            console.log(`✅ ${modelos.length} respostas coerentes obtidas do Google Sheets`);
             
             // Salvar no cache
             this.setCache(cacheKey, modelos);

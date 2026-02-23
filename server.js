@@ -5152,12 +5152,18 @@ app.get('/api/solicitacoes', async (req, res) => {
 
         const todasSolicitacoes = [];
 
-        // Buscar respostas coerentes
+        // Buscar respostas coerentes (apenas aprovadas)
         if (!tipo || tipo === 'respostas' || tipo === 'todas') {
             try {
                 const respostas = await googleSheetsIntegration.obterModelosRespostas();
                 if (respostas && respostas.length > 0) {
-                    respostas.forEach(resposta => {
+                    // Filtrar apenas respostas aprovadas/coerentes
+                    const respostasAprovadas = respostas.filter(resposta => {
+                        const status = resposta['Status Aprovação'] || resposta.Status || '';
+                        return status === 'Aprovada' || status === '';
+                    });
+                    
+                    respostasAprovadas.forEach(resposta => {
                         todasSolicitacoes.push({
                             tipo: 'resposta',
                             data: resposta['Data/Hora'] || resposta.data || '',
@@ -5165,24 +5171,27 @@ app.get('/api/solicitacoes', async (req, res) => {
                             tipoSolicitacao: resposta['Tipo Solicitação'] || resposta.tipoSituacao || '',
                             motivoSolicitacao: resposta['Motivo Solicitação'] || resposta.motivoSolicitacao || '',
                             textoCliente: resposta['Texto Cliente'] || resposta.textoCliente || '',
-                            resposta: resposta['Resposta Aprovada'] || resposta.respostaAprovada || '',
+                            resposta: resposta['Resposta Aprovada'] || resposta.respostaAprovada || '', // Texto final aprovado
                             solucaoImplementada: resposta['Solução Implementada'] || resposta.solucaoImplementada || '',
                             historicoAtendimento: resposta['Histórico Atendimento'] || resposta.historicoAtendimento || '',
                             observacoesInternas: resposta['Observações Internas'] || resposta.observacoesInternas || '',
-                            status: resposta.Status || 'Aprovada'
+                            status: resposta['Status Aprovação'] || resposta.Status || 'Aprovada'
                         });
                     });
+                    
+                    console.log(`✅ ${respostasAprovadas.length} respostas coerentes encontradas (de ${respostas.length} total)`);
                 }
             } catch (error) {
                 console.error('❌ Erro ao buscar respostas:', error.message);
             }
         }
 
-        // Buscar moderações coerentes
+        // Buscar moderações coerentes (apenas aprovadas)
         if (!tipo || tipo === 'moderacoes' || tipo === 'todas') {
             try {
                 const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
                 if (moderacoes && moderacoes.length > 0) {
+                    // obterModeracoesCoerentes já filtra por Status Aprovação === 'Aprovada' e sem Feedback
                     moderacoes.forEach(moderacao => {
                         todasSolicitacoes.push({
                             tipo: 'moderacao',
@@ -5191,12 +5200,14 @@ app.get('/api/solicitacoes', async (req, res) => {
                             solicitacaoCliente: moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '',
                             respostaEmpresa: moderacao['Resposta Empresa'] || moderacao.respostaEmpresa || '',
                             motivoModeracao: moderacao['Motivo Moderação'] || moderacao.motivoModeracao || '',
-                            textoModeracao: moderacao['Texto Moderação Reformulado'] || moderacao['Texto Moderação'] || moderacao.textoModeracao || '',
+                            textoModeracao: moderacao['Texto Moderação Reformulado'] || moderacao['Texto Moderação'] || moderacao.textoModeracao || '', // Texto final aprovado
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada'
                         });
                     });
+                    
+                    console.log(`✅ ${moderacoes.length} moderações coerentes encontradas`);
                 }
             } catch (error) {
                 console.error('❌ Erro ao buscar moderações:', error.message);
