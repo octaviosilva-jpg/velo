@@ -68,28 +68,68 @@ async function carregarEstatisticasGlobais() {
 }
 
 // Atualizar estatísticas na interface
-function atualizarEstatisticasNaInterface() {
-    console.log('🔄 Atualizando interface com estatísticas globais:', estatisticasGlobais);
+async function atualizarEstatisticasNaInterface() {
+    console.log('🔄 Atualizando interface com estatísticas do dia');
     
-    // Atualizar contadores na interface com dados globais do servidor
-    const statItems = document.querySelectorAll('.stat-item');
-    
-    if (statItems.length >= 2) {
-        // Primeiro item: Respostas Hoje
-        const respostasValue = statItems[0].querySelector('.stat-value');
-        if (respostasValue) {
-            respostasValue.textContent = estatisticasGlobais.respostas_geradas || 0;
-            console.log('📝 Respostas atualizadas:', estatisticasGlobais.respostas_geradas);
-        }
+    // Buscar estatísticas do dia atual da planilha
+    try {
+        const response = await fetch('/api/estatisticas-hoje');
+        const data = await response.json();
         
-        // Segundo item: Moderações
-        const moderacoesValue = statItems[1].querySelector('.stat-value');
-        if (moderacoesValue) {
-            moderacoesValue.textContent = estatisticasGlobais.moderacoes_geradas || 0;
-            console.log('⚖️ Moderações atualizadas:', estatisticasGlobais.moderacoes_geradas);
+        if (data.success) {
+            // Atualizar contadores na interface com dados do dia
+            const statItems = document.querySelectorAll('.stat-item');
+            
+            if (statItems.length >= 2) {
+                // Primeiro item: Respostas Hoje
+                const respostasValue = statItems[0].querySelector('.stat-value');
+                if (respostasValue) {
+                    respostasValue.textContent = data.respostas_geradas || 0;
+                    console.log('📝 Respostas hoje atualizadas:', data.respostas_geradas);
+                }
+                
+                // Segundo item: Moderações Hoje
+                const moderacoesValue = statItems[1].querySelector('.stat-value');
+                if (moderacoesValue) {
+                    moderacoesValue.textContent = data.moderacoes_geradas || 0;
+                    console.log('⚖️ Moderações hoje atualizadas:', data.moderacoes_geradas);
+                }
+            } else {
+                console.log('⚠️ Elementos de estatísticas não encontrados');
+            }
+        } else {
+            // Fallback para estatísticas globais se o endpoint falhar
+            console.log('⚠️ Usando fallback para estatísticas globais');
+            const statItems = document.querySelectorAll('.stat-item');
+            
+            if (statItems.length >= 2) {
+                const respostasValue = statItems[0].querySelector('.stat-value');
+                if (respostasValue) {
+                    respostasValue.textContent = estatisticasGlobais.respostas_geradas || 0;
+                }
+                
+                const moderacoesValue = statItems[1].querySelector('.stat-value');
+                if (moderacoesValue) {
+                    moderacoesValue.textContent = estatisticasGlobais.moderacoes_geradas || 0;
+                }
+            }
         }
-    } else {
-        console.log('⚠️ Elementos de estatísticas não encontrados');
+    } catch (error) {
+        console.error('❌ Erro ao buscar estatísticas do dia:', error);
+        // Fallback para estatísticas globais
+        const statItems = document.querySelectorAll('.stat-item');
+        
+        if (statItems.length >= 2) {
+            const respostasValue = statItems[0].querySelector('.stat-value');
+            if (respostasValue) {
+                respostasValue.textContent = estatisticasGlobais.respostas_geradas || 0;
+            }
+            
+            const moderacoesValue = statItems[1].querySelector('.stat-value');
+            if (moderacoesValue) {
+                moderacoesValue.textContent = estatisticasGlobais.moderacoes_geradas || 0;
+            }
+        }
     }
     
     // Atualizar histórico se estiver visível

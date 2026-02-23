@@ -5148,6 +5148,7 @@ app.get('/api/solicitacoes', async (req, res) => {
         }
 
         console.log('📋 Buscando solicitações:', { dataInicio, dataFim, tipo });
+        console.log('📋 Parâmetros recebidos:', req.query);
 
         const todasSolicitacoes = [];
 
@@ -5198,32 +5199,65 @@ app.get('/api/solicitacoes', async (req, res) => {
             }
         }
 
-        // Filtrar por período se fornecido
+        // Filtrar por período se fornecido (sempre aplicar se datas forem fornecidas)
         let solicitacoesFiltradas = todasSolicitacoes;
         
+        // Aplicar filtro de data se fornecido (obrigatório quando datas são enviadas)
         if (dataInicio || dataFim) {
+            console.log('📅 Aplicando filtro de data:', { dataInicio, dataFim });
             solicitacoesFiltradas = todasSolicitacoes.filter(solicitacao => {
                 if (!solicitacao.data) return false;
                 
-                // Converter data para formato comparável
-                let dataSolicitacao;
-                try {
-                    // Tentar diferentes formatos de data
-                    if (solicitacao.data.includes('/')) {
-                        const [dia, mes, ano] = solicitacao.data.split(' ')[0].split('/');
-                        dataSolicitacao = new Date(ano, mes - 1, dia);
-                    } else {
-                        dataSolicitacao = new Date(solicitacao.data);
+                // Função auxiliar para converter data para formato comparável
+                const parsearData = (dataStr) => {
+                    if (!dataStr) return null;
+                    
+                    try {
+                        // Formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY HH:mm:ss
+                        if (dataStr.includes('/')) {
+                            const partes = dataStr.split(' ')[0].split('/');
+                            if (partes.length === 3) {
+                                const [dia, mes, ano] = partes;
+                                return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+                            }
+                        }
+                        
+                        // Formato ISO: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+                        if (dataStr.includes('-') || dataStr.includes('T')) {
+                            return new Date(dataStr);
+                        }
+                        
+                        // Tentar parse direto
+                        const parsed = new Date(dataStr);
+                        if (!isNaN(parsed.getTime())) {
+                            return parsed;
+                        }
+                    } catch (e) {
+                        console.log('⚠️ Erro ao parsear data:', dataStr, e.message);
                     }
-                } catch (e) {
-                    return false;
-                }
+                    
+                    return null;
+                };
+                
+                const dataSolicitacao = parsearData(solicitacao.data);
+                if (!dataSolicitacao) return false;
 
+                // Normalizar datas de filtro para comparar apenas a data (sem hora)
                 const inicio = dataInicio ? new Date(dataInicio + 'T00:00:00') : null;
                 const fim = dataFim ? new Date(dataFim + 'T23:59:59') : null;
 
-                if (inicio && dataSolicitacao < inicio) return false;
-                if (fim && dataSolicitacao > fim) return false;
+                // Comparar apenas a data (ignorar hora)
+                const dataSolicitacaoNormalizada = new Date(dataSolicitacao.getFullYear(), dataSolicitacao.getMonth(), dataSolicitacao.getDate());
+                
+                if (inicio) {
+                    const inicioNormalizado = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+                    if (dataSolicitacaoNormalizada < inicioNormalizado) return false;
+                }
+                
+                if (fim) {
+                    const fimNormalizado = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
+                    if (dataSolicitacaoNormalizada > fimNormalizado) return false;
+                }
                 
                 return true;
             });
@@ -5236,7 +5270,10 @@ app.get('/api/solicitacoes', async (req, res) => {
             return dataB - dataA;
         });
 
-        console.log(`✅ ${solicitacoesFiltradas.length} solicitações encontradas`);
+        console.log(`✅ ${solicitacoesFiltradas.length} solicitações encontradas (de ${todasSolicitacoes.length} total)`);
+        if (dataInicio || dataFim) {
+            console.log(`📅 Filtro aplicado: ${dataInicio || 'sem início'} até ${dataFim || 'sem fim'}`);
+        }
 
         res.json({
             success: true,
@@ -6210,6 +6247,90 @@ app.post('/api/validateGoogleToken', async (req, res) => {
 });
 
 // ===== ENDPOINTS DE ESTATÍSTICAS GLOBAIS =====
+
+// Endpoint para buscar estatísticas do dia atual da planilha
+app.get('/api/estatisticas-hoje', async (req, res) => {
+    console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
+    try {
+        const hoje = new Date();
+        const dataHoje = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dataHojeBR = hoje.toLocaleDateString('pt-BR'); // DD/MM/YYYY
+        
+        let respostasHoje = 0;
+        let moderacoesHoje = 0;
+        
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                // Buscar respostas do dia
+                const respostas = await googleSheetsIntegration.obterModelosRespostas();
+                if (respostas && respostas.length > 0) {
+                    respostasHoje = respostas.filter(resposta => {
+                        const dataResposta = resposta['Data/Hora'] || resposta.data || '';
+                        return verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
+                    }).length;
+                }
+                
+                // Buscar moderações do dia
+                const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
+                if (moderacoes && moderacoes.length > 0) {
+                    moderacoesHoje = moderacoes.filter(moderacao => {
+                        const dataModeracao = moderacao['Data/Hora'] || moderacao.data || '';
+                        return verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
+                    }).length;
+                }
+            } catch (error) {
+                console.error('❌ Erro ao buscar estatísticas da planilha:', error.message);
+            }
+        }
+        
+        res.json({
+            success: true,
+            data: dataHojeBR,
+            respostas_geradas: respostasHoje,
+            moderacoes_geradas: moderacoesHoje
+        });
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas do dia:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar estatísticas do dia'
+        });
+    }
+});
+
+// Função auxiliar para verificar se a data é hoje
+function verificarDataHoje(dataStr, dataHojeISO, dataHojeBR) {
+    if (!dataStr) return false;
+    
+    try {
+        // Formato brasileiro: DD/MM/YYYY
+        if (dataStr.includes('/')) {
+            const partes = dataStr.split(' ')[0].split('/');
+            if (partes.length === 3) {
+                const [dia, mes, ano] = partes;
+                const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                return dataFormatada === dataHojeISO;
+            }
+        }
+        
+        // Formato ISO: YYYY-MM-DD
+        if (dataStr.includes('-')) {
+            const dataParte = dataStr.split('T')[0].split(' ')[0];
+            return dataParte === dataHojeISO;
+        }
+        
+        // Comparar com formato BR
+        if (dataStr.includes(dataHojeBR.split('/')[0]) && 
+            dataStr.includes(dataHojeBR.split('/')[1]) && 
+            dataStr.includes(dataHojeBR.split('/')[2])) {
+            return true;
+        }
+    } catch (e) {
+        console.log('⚠️ Erro ao verificar data:', dataStr, e.message);
+    }
+    
+    return false;
+}
 
 app.get('/api/estatisticas-globais', (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-globais chamado');
