@@ -6329,12 +6329,25 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 const rangeRespostas = 'Respostas Coerentes!A1:Z1000';
                 const dataRespostas = await googleSheetsConfig.readData(rangeRespostas);
                 
+                console.log(`📋 Total de linhas na planilha Respostas Coerentes: ${dataRespostas ? dataRespostas.length : 0}`);
+                
                 if (dataRespostas && dataRespostas.length > 1) {
                     const headersRespostas = dataRespostas[0];
+                    console.log('📋 Cabeçalhos Respostas Coerentes:', headersRespostas);
+                    
                     const statusIndex = headersRespostas.findIndex(h => h === 'Status Aprovação' || h === 'Status');
+                    console.log(`📋 Índice da coluna Status: ${statusIndex}`);
+                    
+                    let totalLinhas = 0;
+                    let linhasComData = 0;
+                    let linhasAprovadas = 0;
+                    let linhasHoje = 0;
                     
                     respostasHoje = dataRespostas.slice(1).filter(row => {
+                        totalLinhas++;
+                        
                         if (!row[0]) return false; // Se não tem Data/Hora, ignorar
+                        linhasComData++;
                         
                         // Coluna A (índice 0) = Data/Hora
                         const dataResposta = row[0] || '';
@@ -6342,23 +6355,47 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                         
                         // Verificar se está aprovada E é de hoje
                         const isAprovada = status === 'Aprovada' || status === '';
-                        const isHoje = verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
+                        if (isAprovada) linhasAprovadas++;
                         
-                        return isAprovada && isHoje;
+                        const isHoje = verificarDataHoje(dataResposta, dataHoje, dataHojeBR);
+                        if (isHoje) linhasHoje++;
+                        
+                        const resultado = isAprovada && isHoje;
+                        if (resultado) {
+                            console.log(`✅ Resposta encontrada: Data=${dataResposta}, Status=${status}`);
+                        }
+                        
+                        return resultado;
                     }).length;
+                    
+                    console.log(`📊 Respostas - Total: ${totalLinhas}, Com Data: ${linhasComData}, Aprovadas: ${linhasAprovadas}, Hoje: ${linhasHoje}, Resultado: ${respostasHoje}`);
                 }
                 
                 // Buscar diretamente da planilha "Moderações" - coluna A (índice 0) = Data/Hora
                 const rangeModeracoes = 'Moderações!A1:Z1000';
                 const dataModeracoes = await googleSheetsConfig.readData(rangeModeracoes);
                 
+                console.log(`📋 Total de linhas na planilha Moderações: ${dataModeracoes ? dataModeracoes.length : 0}`);
+                
                 if (dataModeracoes && dataModeracoes.length > 1) {
                     const headersModeracoes = dataModeracoes[0];
+                    console.log('📋 Cabeçalhos Moderações:', headersModeracoes);
+                    
                     const statusIndex = headersModeracoes.findIndex(h => h === 'Status Aprovação' || h === 'Status');
                     const feedbackIndex = headersModeracoes.findIndex(h => h === 'Feedback');
+                    console.log(`📋 Índice da coluna Status: ${statusIndex}, Feedback: ${feedbackIndex}`);
+                    
+                    let totalLinhas = 0;
+                    let linhasComData = 0;
+                    let linhasAprovadas = 0;
+                    let linhasSemFeedback = 0;
+                    let linhasHoje = 0;
                     
                     moderacoesHoje = dataModeracoes.slice(1).filter(row => {
+                        totalLinhas++;
+                        
                         if (!row[0]) return false; // Se não tem Data/Hora, ignorar
+                        linhasComData++;
                         
                         // Coluna A (índice 0) = Data/Hora
                         const dataModeracao = row[0] || '';
@@ -6367,11 +6404,23 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                         
                         // Verificar se está aprovada, sem feedback E é de hoje
                         const isAprovada = status === 'Aprovada';
-                        const semFeedback = !feedback || feedback === '';
-                        const isHoje = verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
+                        if (isAprovada) linhasAprovadas++;
                         
-                        return isAprovada && semFeedback && isHoje;
+                        const semFeedback = !feedback || feedback === '';
+                        if (semFeedback) linhasSemFeedback++;
+                        
+                        const isHoje = verificarDataHoje(dataModeracao, dataHoje, dataHojeBR);
+                        if (isHoje) linhasHoje++;
+                        
+                        const resultado = isAprovada && semFeedback && isHoje;
+                        if (resultado) {
+                            console.log(`✅ Moderação encontrada: Data=${dataModeracao}, Status=${status}, Feedback=${feedback}`);
+                        }
+                        
+                        return resultado;
                     }).length;
+                    
+                    console.log(`📊 Moderações - Total: ${totalLinhas}, Com Data: ${linhasComData}, Aprovadas: ${linhasAprovadas}, Sem Feedback: ${linhasSemFeedback}, Hoje: ${linhasHoje}, Resultado: ${moderacoesHoje}`);
                 }
                 
                 console.log(`📊 Estatísticas do dia ${dataHojeBR}: ${respostasHoje} respostas coerentes, ${moderacoesHoje} moderações coerentes`);
@@ -6400,11 +6449,15 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
 
 // Função auxiliar para verificar se a data é hoje
 function verificarDataHoje(dataStr, dataHojeISO, dataHojeBR) {
-    if (!dataStr) return false;
+    if (!dataStr) {
+        console.log('⚠️ Data vazia');
+        return false;
+    }
     
     try {
         // Remover espaços extras e normalizar
         const dataLimpa = String(dataStr).trim();
+        console.log(`🔍 Verificando data: "${dataLimpa}" (hoje: ${dataHojeBR} / ${dataHojeISO})`);
         
         // Formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY HH:MM:SS
         if (dataLimpa.includes('/')) {
@@ -6413,9 +6466,7 @@ function verificarDataHoje(dataStr, dataHojeISO, dataHojeBR) {
                 const [dia, mes, ano] = partes;
                 const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
                 const resultado = dataFormatada === dataHojeISO;
-                if (resultado) {
-                    console.log(`✅ Data corresponde: ${dataLimpa} -> ${dataFormatada} === ${dataHojeISO}`);
-                }
+                console.log(`  → Formato BR: ${dataLimpa} -> ${dataFormatada} === ${dataHojeISO} ? ${resultado}`);
                 return resultado;
             }
         }
@@ -6424,18 +6475,21 @@ function verificarDataHoje(dataStr, dataHojeISO, dataHojeBR) {
         if (dataLimpa.includes('-')) {
             const dataParte = dataLimpa.split('T')[0].split(' ')[0];
             const resultado = dataParte === dataHojeISO;
-            if (resultado) {
-                console.log(`✅ Data corresponde: ${dataLimpa} -> ${dataParte} === ${dataHojeISO}`);
-            }
+            console.log(`  → Formato ISO: ${dataLimpa} -> ${dataParte} === ${dataHojeISO} ? ${resultado}`);
             return resultado;
         }
         
         // Comparar com formato BR (verificar se contém dia, mês e ano de hoje)
         const [diaHoje, mesHoje, anoHoje] = dataHojeBR.split('/');
-        if (dataLimpa.includes(diaHoje) && dataLimpa.includes(mesHoje) && dataLimpa.includes(anoHoje)) {
-            console.log(`✅ Data corresponde (formato BR): ${dataLimpa}`);
+        const contemDia = dataLimpa.includes(diaHoje);
+        const contemMes = dataLimpa.includes(mesHoje);
+        const contemAno = dataLimpa.includes(anoHoje);
+        if (contemDia && contemMes && contemAno) {
+            console.log(`  → Formato BR (contém): ${dataLimpa} contém ${diaHoje}/${mesHoje}/${anoHoje} ? true`);
             return true;
         }
+        
+        console.log(`  → Nenhum formato correspondeu`);
     } catch (e) {
         console.log('⚠️ Erro ao verificar data:', dataStr, e.message);
     }
