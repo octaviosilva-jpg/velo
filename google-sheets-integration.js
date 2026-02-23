@@ -922,6 +922,9 @@ class GoogleSheetsIntegration {
             const headers = data[0];
             const modelos = [];
             
+            // Debug: mostrar cabeçalhos para verificar nomes das colunas
+            console.log('📋 Cabeçalhos da planilha Respostas Coerentes:', headers);
+            
             for (let i = 1; i < data.length; i++) {
                 const row = data[i];
                 if (row[0]) { // Se tem ID
@@ -931,6 +934,11 @@ class GoogleSheetsIntegration {
                             modelo[header] = row[index];
                         }
                     });
+                    // Também armazenar por índice para acesso direto
+                    row.forEach((value, index) => {
+                        modelo[index] = value;
+                    });
+                    
                     // Filtrar apenas respostas aprovadas/coerentes
                     if (modelo['Status Aprovação'] === 'Aprovada' || !modelo['Status Aprovação']) {
                         // Se não tem status, assumir que é aprovada (compatibilidade com dados antigos)
@@ -1075,6 +1083,9 @@ class GoogleSheetsIntegration {
             const headers = data[0];
             const moderacoes = [];
             
+            // Debug: mostrar cabeçalhos para verificar nomes das colunas
+            console.log('📋 Cabeçalhos da planilha Moderações:', headers);
+            
             for (let i = 1; i < data.length; i++) {
                 const row = data[i];
                 if (row[0]) { // Se tem ID
@@ -1084,6 +1095,11 @@ class GoogleSheetsIntegration {
                             moderacao[header] = row[index];
                         }
                     });
+                    // Também armazenar por índice para acesso direto
+                    row.forEach((value, index) => {
+                        moderacao[index] = value;
+                    });
+                    
                     // Filtrar apenas moderações aprovadas (sem feedback)
                     if (moderacao['Status Aprovação'] === 'Aprovada' && !moderacao['Feedback']) {
                         moderacoes.push(moderacao);

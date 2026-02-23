@@ -5164,14 +5164,37 @@ app.get('/api/solicitacoes', async (req, res) => {
                     });
                     
                     respostasAprovadas.forEach(resposta => {
+                        // Buscar Resposta Final na coluna E (índice 4)
+                        // A coluna E é o índice 4 (A=0, B=1, C=2, D=3, E=4)
+                        const respostaFinal = resposta[4] !== undefined && resposta[4] !== null && resposta[4] !== '' 
+                            ? resposta[4] 
+                            : (resposta['Resposta Final'] || 
+                               resposta['Resposta Aprovada'] || 
+                               resposta['Resposta'] ||
+                               resposta.respostaFinal ||
+                               resposta.respostaAprovada || '');
+                        
+                        // Buscar Texto Cliente na coluna D (índice 3)
+                        const textoCliente = resposta[3] !== undefined && resposta[3] !== null && resposta[3] !== ''
+                            ? resposta[3]
+                            : (resposta['Texto Cliente'] || resposta.textoCliente || '');
+                        
+                        console.log('🔍 DEBUG Resposta:', {
+                            id: resposta.ID || resposta.id,
+                            colunaE: resposta[4],
+                            respostaFinal: respostaFinal,
+                            colunaD: resposta[3],
+                            textoCliente: textoCliente
+                        });
+                        
                         todasSolicitacoes.push({
                             tipo: 'resposta',
                             data: resposta['Data/Hora'] || resposta.data || '',
                             id: resposta.ID || resposta.id || '',
                             tipoSolicitacao: resposta['Tipo Solicitação'] || resposta.tipoSituacao || '',
                             motivoSolicitacao: resposta['Motivo Solicitação'] || resposta.motivoSolicitacao || '',
-                            textoCliente: resposta['Texto Cliente'] || resposta.textoCliente || '',
-                            resposta: resposta['Resposta Aprovada'] || resposta.respostaAprovada || '', // Texto final aprovado
+                            textoCliente: textoCliente || 'N/A', // Texto completo do cliente da coluna D
+                            resposta: respostaFinal || 'N/A', // Texto final aprovado da coluna E
                             solucaoImplementada: resposta['Solução Implementada'] || resposta.solucaoImplementada || '',
                             historicoAtendimento: resposta['Histórico Atendimento'] || resposta.historicoAtendimento || '',
                             observacoesInternas: resposta['Observações Internas'] || resposta.observacoesInternas || '',
@@ -5193,14 +5216,40 @@ app.get('/api/solicitacoes', async (req, res) => {
                 if (moderacoes && moderacoes.length > 0) {
                     // obterModeracoesCoerentes já filtra por Status Aprovação === 'Aprovada' e sem Feedback
                     moderacoes.forEach(moderacao => {
+                        // Buscar Texto Moderação Reformulado na coluna J (índice 9)
+                        // A coluna J é o índice 9 (A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9)
+                        const textoModeracaoFinal = moderacao[9] !== undefined && moderacao[9] !== null && moderacao[9] !== ''
+                            ? moderacao[9]
+                            : (moderacao['Texto Moderação Reformulado'] || 
+                               moderacao['Texto Moderação'] || 
+                               moderacao.textoModeracao || '');
+                        
+                        // Buscar Solicitação Cliente na coluna D (índice 3)
+                        const solicitacaoCliente = moderacao[3] !== undefined && moderacao[3] !== null && moderacao[3] !== ''
+                            ? moderacao[3]
+                            : (moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '');
+                        
+                        // Buscar Resposta Empresa na coluna E (índice 4)
+                        const respostaEmpresa = moderacao[4] !== undefined && moderacao[4] !== null && moderacao[4] !== ''
+                            ? moderacao[4]
+                            : (moderacao['Resposta Empresa'] || moderacao.respostaEmpresa || '');
+                        
+                        console.log('🔍 DEBUG Moderação:', {
+                            id: moderacao.ID || moderacao.id,
+                            colunaJ: moderacao[9],
+                            textoModeracaoFinal: textoModeracaoFinal,
+                            colunaD: moderacao[3],
+                            colunaE: moderacao[4]
+                        });
+                        
                         todasSolicitacoes.push({
                             tipo: 'moderacao',
                             data: moderacao['Data/Hora'] || moderacao.data || '',
                             id: moderacao.ID || moderacao.id || '',
-                            solicitacaoCliente: moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '',
-                            respostaEmpresa: moderacao['Resposta Empresa'] || moderacao.respostaEmpresa || '',
+                            solicitacaoCliente: solicitacaoCliente || 'N/A', // Solicitação completa do cliente da coluna D
+                            respostaEmpresa: respostaEmpresa || 'N/A', // Resposta da empresa da coluna E
                             motivoModeracao: moderacao['Motivo Moderação'] || moderacao.motivoModeracao || '',
-                            textoModeracao: moderacao['Texto Moderação Reformulado'] || moderacao['Texto Moderação'] || moderacao.textoModeracao || '', // Texto final aprovado
+                            textoModeracao: textoModeracaoFinal || 'N/A', // Texto final aprovado da coluna J
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada'
