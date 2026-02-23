@@ -6509,6 +6509,37 @@ function obterConhecimentoProdutos(dadosFormulario) {
         textoCompleto.includes('open finance') ||
         textoCompleto.includes('openfinance');
     
+    const mencionaSeguroDividaZero = 
+        textoCompleto.includes('seguro dívida zero') ||
+        textoCompleto.includes('seguro divida zero') ||
+        textoCompleto.includes('seguro dívida zero') ||
+        textoCompleto.includes('dívida zero') ||
+        textoCompleto.includes('divida zero') ||
+        textoCompleto.includes('seguro perda de renda') ||
+        textoCompleto.includes('seguro desemprego') ||
+        textoCompleto.includes('sabemi') ||
+        textoCompleto.includes('pitzi');
+    
+    const mencionaSeguroSaudeSimplificada = 
+        textoCompleto.includes('seguro saúde simplificada') ||
+        textoCompleto.includes('seguro saude simplificada') ||
+        textoCompleto.includes('seguro saúde') ||
+        textoCompleto.includes('seguro saude') ||
+        textoCompleto.includes('morte acidental') ||
+        textoCompleto.includes('doutor online') ||
+        textoCompleto.includes('telemedicina') ||
+        textoCompleto.includes('assistência odontológica') ||
+        textoCompleto.includes('assistencia odontologica');
+    
+    const mencionaClubeVelotax = 
+        textoCompleto.includes('clube velotax') ||
+        textoCompleto.includes('clube velotax') ||
+        textoCompleto.includes('vibe') ||
+        textoCompleto.includes('créditos vibe') ||
+        textoCompleto.includes('creditos vibe') ||
+        textoCompleto.includes('cupons de desconto') ||
+        textoCompleto.includes('descontos velotax');
+    
     // Adicionar conhecimento do Crédito do Trabalhador se mencionado
     if (mencionaCreditoTrabalhador) {
         console.log('📚 DETECTADO: Crédito do Trabalhador mencionado - incluindo conhecimento completo');
@@ -6531,6 +6562,42 @@ function obterConhecimentoProdutos(dadosFormulario) {
         conhecimentoProdutos += 'Use estas informações completas sobre o Crédito Pessoal para formular uma resposta precisa e fundamentada:\n\n';
         conhecimentoProdutos += textoLimpo;
         conhecimentoProdutos += '\n\n🎯 INSTRUÇÃO: Use este conhecimento sobre o Crédito Pessoal para explicar corretamente o produto, seus processos, prazos e características quando relevante na resposta.\n';
+    }
+    
+    // Adicionar conhecimento do Seguro Dívida Zero se mencionado
+    if (mencionaSeguroDividaZero) {
+        console.log('📚 DETECTADO: Seguro Dívida Zero mencionado - incluindo conhecimento completo');
+        const explicacao = gerarMensagemExplicativa('seguro-divida-zero', '');
+        // Remover tags HTML para usar em texto puro
+        const textoLimpo = explicacao.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        conhecimentoProdutos += '\n\n📚 CONHECIMENTO DO PRODUTO - SEGURO DÍVIDA ZERO:\n';
+        conhecimentoProdutos += 'Use estas informações completas sobre o Seguro Dívida Zero para formular uma resposta precisa e fundamentada:\n\n';
+        conhecimentoProdutos += textoLimpo;
+        conhecimentoProdutos += '\n\n🎯 INSTRUÇÃO: Use este conhecimento sobre o Seguro Dívida Zero para explicar corretamente o produto, seus processos, prazos, coberturas e características quando relevante na resposta.\n';
+    }
+    
+    // Adicionar conhecimento do Seguro Saúde Simplificada se mencionado
+    if (mencionaSeguroSaudeSimplificada) {
+        console.log('📚 DETECTADO: Seguro Saúde Simplificada mencionado - incluindo conhecimento completo');
+        const explicacao = gerarMensagemExplicativa('seguro-saude-simplificada', '');
+        // Remover tags HTML para usar em texto puro
+        const textoLimpo = explicacao.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        conhecimentoProdutos += '\n\n📚 CONHECIMENTO DO PRODUTO - SEGURO SAÚDE SIMPLIFICADA:\n';
+        conhecimentoProdutos += 'Use estas informações completas sobre o Seguro Saúde Simplificada para formular uma resposta precisa e fundamentada:\n\n';
+        conhecimentoProdutos += textoLimpo;
+        conhecimentoProdutos += '\n\n🎯 INSTRUÇÃO: Use este conhecimento sobre o Seguro Saúde Simplificada para explicar corretamente o produto, suas coberturas, assistências, prazos e características quando relevante na resposta.\n';
+    }
+    
+    // Adicionar conhecimento do Clube Velotax se mencionado
+    if (mencionaClubeVelotax) {
+        console.log('📚 DETECTADO: Clube Velotax mencionado - incluindo conhecimento completo');
+        const explicacao = gerarMensagemExplicativa('clube-velotax', '');
+        // Remover tags HTML para usar em texto puro
+        const textoLimpo = explicacao.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        conhecimentoProdutos += '\n\n📚 CONHECIMENTO DO PRODUTO - CLUBE VELOTAX:\n';
+        conhecimentoProdutos += 'Use estas informações completas sobre o Clube Velotax para formular uma resposta precisa e fundamentada:\n\n';
+        conhecimentoProdutos += textoLimpo;
+        conhecimentoProdutos += '\n\n🎯 INSTRUÇÃO: Use este conhecimento sobre o Clube Velotax para explicar corretamente o produto, seus benefícios, funcionamento, valores e características quando relevante na resposta.\n';
     }
     
     return conhecimentoProdutos;
@@ -6860,6 +6927,291 @@ function gerarMensagemExplicativa(tema, contexto) {
             Resposta: Sim. Caso o atraso não seja regularizado, o contrato poderá ser enviado aos órgãos de proteção ao crédito.</p>
             
             <p>Nossa equipe está disponível para orientações adicionais sobre o Crédito Pessoal Velotax.</p>
+        `,
+        'seguro-divida-zero': `
+            <p><strong>Seguro Dívida Zero Velotax - Informações Completas</strong></p>
+            
+            <p><strong>📋 O que é o Seguro Dívida Zero?</strong></p>
+            <p>O Seguro Dívida Zero (Perda de Renda) é uma proteção financeira exclusiva para clientes Velotax, desenhado para garantir que suas contas fiquem em dia, mesmo quando a vida sai do roteiro. É o "paraquedas" financeiro para quem trabalha com carteira assinada (CLT) e quer dormir tranquilo.</p>
+            
+            <p><strong>💰 Coberturas - Quanto o cliente recebe?</strong></p>
+            
+            <p><strong>1. Desemprego Involuntário (sem justa causa):</strong></p>
+            <ul>
+                <li><strong>Benefício:</strong> Cobre até 6 parcelas de R$ 1.000,00</li>
+                <li><strong>Total:</strong> Até R$ 6.000,00 para segurar as pontas</li>
+                <li><strong>Carência:</strong> 31 dias após contratar</li>
+                <li><strong>Franquia:</strong> 31 dias após o desemprego</li>
+            </ul>
+            
+            <p><strong>2. Incapacidade Temporária por Acidente Pessoal (DIT-AP):</strong></p>
+            <ul>
+                <li><strong>Benefício:</strong> Pagamento de diárias de até R$ 200,00</li>
+                <li><strong>Limite:</strong> Cobre no máximo 90 diárias</li>
+                <li><strong>Carência:</strong> Não tem (vale logo após contratar)</li>
+                <li><strong>Franquia:</strong> 15 dias de afastamento</li>
+            </ul>
+            
+            <p><strong>🎁 Benefícios Extras:</strong></p>
+            <ul>
+                <li><strong>Apoio Emocional:</strong> Orientação Psicológica por telefone com psicólogos para suporte preventivo e básico</li>
+                <li><strong>Sorteio Mensal:</strong> Todo mês, o cliente concorre a um sorteio de R$ 10.000,00 em dinheiro (bruto). O sorteio acontece todo último sábado do mês</li>
+            </ul>
+            
+            <p><strong>💵 Valor e Contratação:</strong></p>
+            <ul>
+                <li><strong>Valor:</strong> Apenas R$ 29,90 por mês (menos que uma pizza ou serviço de streaming!)</li>
+                <li><strong>Contratação:</strong> 100% online pelo App Velotax</li>
+            </ul>
+            
+            <p><strong>📱 Passo a Passo para Contratar:</strong></p>
+            <ol>
+                <li>Abra o App Velotax e vá na aba "Seguros"</li>
+                <li>No card "Seguro Dívida Zero", clique em "Simular agora"</li>
+                <li>Confira os detalhes e clique em "Continuar"</li>
+                <li>Escolha como pagar: Mensal, Anual à vista ou Parcelado em 12x</li>
+                <li>Pague com Pix ou Cartão de Crédito</li>
+                <li>Pronto! Quando aparecer a tela de "Parabéns", o cliente está protegido</li>
+            </ol>
+            
+            <p><strong>🔄 Cancelamento e Estorno (CDC - Art. 49):</strong></p>
+            
+            <p><strong>Prazo de 7 Dias (Direito de Arrependimento):</strong></p>
+            <p>O cliente tem 7 dias corridos após a contratação para desistir da compra.</p>
+            
+            <p><strong>Cenário A: Até 7 Dias (Responsabilidade Velotax):</strong></p>
+            <ul>
+                <li><strong>Ação:</strong> Realizar o estorno integral imediatamente</li>
+                <li><strong>Destino:</strong> Obrigatoriamente para a mesma conta/cartão de origem</li>
+                <li><strong>Script:</strong> "Como está dentro do prazo de 7 dias, processamos o seu cancelamento e o estorno será feito na conta de origem."</li>
+            </ul>
+            
+            <p><strong>Cenário B: Após 7 Dias (Responsabilidade Parceiro):</strong></p>
+            <ul>
+                <li><strong>Ação:</strong> Transferir a responsabilidade para a empresa parceira (Sabemi, Pitzi, etc.)</li>
+                <li><strong>Fluxo:</strong> Informar que o prazo de arrependimento expirou e fornecer os canais do parceiro</li>
+                <li><strong>Script:</strong> "A sua contratação tem mais de 7 dias. Por isso, o cancelamento deve ser tratado diretamente com a [Empresa Parceira] conforme o seu contrato."</li>
+            </ul>
+            
+            <p><strong>📞 Contatos para Suporte:</strong></p>
+            
+            <p><strong>Dúvidas gerais sobre o produto ou contratação:</strong></p>
+            <ul>
+                <li><strong>Fale com a Velotax:</strong></li>
+                <li>Chat no App</li>
+                <li>Telefones: 3003-7293 (Capitais) ou 0800 800 0049 (Outras localidades)</li>
+            </ul>
+            
+            <p><strong>Aconteceu um imprevisto? Precisa acionar o seguro, psicólogo ou ver sorteio?</strong></p>
+            <ul>
+                <li><strong>Fale direto com a seguradora parceira Sabemi:</strong></li>
+                <li>Sinistros e Geral: 0800 880 1900 ou WhatsApp (51) 9 9528-0140</li>
+                <li>Psicólogo: 0800 775 1911</li>
+            </ul>
+            
+            <p><strong>✅ Resumo do Seguro Dívida Zero:</strong></p>
+            <ul>
+                <li><strong>Público:</strong> Ideal para CLTs</li>
+                <li><strong>Preço:</strong> R$ 29,90/mês</li>
+                <li><strong>Cobre:</strong> Desemprego (até R$ 6 mil) e Acidentes (Diárias)</li>
+                <li><strong>Bônus:</strong> Psicólogo + Sorteio de R$ 10 mil</li>
+                <li><strong>Contratação:</strong> No App Velotax, em menos de 3 minutos</li>
+            </ul>
+            
+            <p><strong>💡 Dica Importante:</strong></p>
+            <p>Documente sempre: Data da contratação e motivo do cancelamento no ticket. Isso evita re-trabalho e reduz atritos no N2 ou Reclame Aqui.</p>
+        `,
+        'seguro-saude-simplificada': `
+            <p><strong>Seguro Saúde Simplificada Velotax - Informações Completas</strong></p>
+            
+            <p><strong>📋 O que é o Seguro Saúde Simplificada?</strong></p>
+            <p>Este é um seguro de <strong>Acidente Pessoal</strong>, ou seja, ele protege contra imprevistos graves. Foi desenhado para ser acessível e sem burocracia, oferecendo proteção financeira e uma ampla rede de assistências essenciais.</p>
+            
+            <p><strong>💼 Cobertura Principal: Morte Acidental (MA)</strong></p>
+            <ul>
+                <li><strong>O Que Cobre:</strong> Garante o pagamento de uma indenização aos beneficiários se a morte for exclusivamente decorrente de um acidente pessoal</li>
+                <li><strong>O Valor:</strong> O Capital Segurado é de R$ 2.000,00</li>
+                <li><strong>Nível:</strong> Nacional</li>
+                <li><strong>Carência:</strong> Não tem carência (começa a valer na contratação), exceto em caso de suicídio que possui carência de 2 anos ininterruptos</li>
+                <li><strong>Franquia:</strong> Não possui franquia</li>
+            </ul>
+            
+            <p><strong>🏥 Rede de Bem-Estar - Benefícios Diários:</strong></p>
+            <p>O grande valor deste seguro é o acesso imediato a uma ampla rede de assistências essenciais:</p>
+            
+            <p><strong>1. Doutor Online (Telemedicina):</strong></p>
+            <ul>
+                <li><strong>O Que Oferece:</strong> Consultas médicas emergenciais e eletivas por videochamada, com clínicos gerais e especialistas (Pediatria, Ginecologia, Cardiologia, Neurologia, etc.)</li>
+                <li><strong>Carência:</strong> 48h úteis</li>
+            </ul>
+            
+            <p><strong>2. Assistência Odontológica:</strong></p>
+            <ul>
+                <li><strong>O Que Oferece:</strong> Teleorientação inicial e, se for urgência comprovada, agendamento de consulta domiciliar com profissional credenciado em até 48h</li>
+                <li><strong>Carência:</strong> 48h úteis</li>
+            </ul>
+            
+            <p><strong>3. Orientação Psicológica:</strong></p>
+            <ul>
+                <li><strong>O Que Oferece:</strong> Atendimento telefônico com psicólogos para dar suporte preliminar, básico e preventivo em momentos sensíveis</li>
+                <li><strong>Carência:</strong> Não se aplica</li>
+            </ul>
+            
+            <p><strong>4. Orientação Nutricional:</strong></p>
+            <ul>
+                <li><strong>O Que Oferece:</strong> Esclarecimento de dúvidas sobre alimentação adequada e incentivo a uma rotina saudável por telefone</li>
+                <li><strong>Carência:</strong> Não se aplica</li>
+            </ul>
+            
+            <p><strong>5. Desconto em Medicamentos & Farmácia Online:</strong></p>
+            <ul>
+                <li><strong>Carência:</strong> 2 dias úteis</li>
+            </ul>
+            
+            <p><strong>💵 Valor e Contratação:</strong></p>
+            <ul>
+                <li><strong>Valor:</strong> Apenas R$ 19,90 por mês</li>
+                <li><strong>Contratação:</strong> 100% online pelo App Velotax</li>
+            </ul>
+            
+            <p><strong>📱 Passo a Passo para Contratar:</strong></p>
+            <ol>
+                <li>Abra o App Velotax e vá na aba "Seguros"</li>
+                <li>Clique em "Simular agora" no card do Seguro Saúde Simplificada</li>
+                <li>Escolha a melhor opção de pagamento: Mensal, Anual à vista ou Parcelado em 12x (no Pix ou Cartão)</li>
+                <li>Pronto! Confirme o pagamento e a proteção já começa a valer</li>
+            </ol>
+            
+            <p><strong>🤝 Parceiro Estratégico: Sabemi</strong></p>
+            <ul>
+                <li><strong>Segurança e Garantia:</strong> A Sabemi é a seguradora responsável por emitir sua apólice e garantir o pagamento de todas as indenizações</li>
+                <li><strong>Gestão de Assistências:</strong> Administra toda a rede de serviços (Doutor Online, Psicólogo, etc.) para assegurar que você tenha o melhor atendimento</li>
+                <li><strong>Papel na Parceria:</strong> Enquanto a Velotax oferece a tecnologia para contratação ágil, a Sabemi entrega a solidez financeira da proteção</li>
+            </ul>
+            
+            <p><strong>🔄 Cancelamento e Estorno (CDC - Art. 49):</strong></p>
+            
+            <p><strong>Prazo de 7 Dias (Direito de Arrependimento):</strong></p>
+            <p>O cliente tem 7 dias corridos após a contratação para desistir da compra.</p>
+            
+            <p><strong>Cenário A: Até 7 Dias (Responsabilidade Velotax):</strong></p>
+            <ul>
+                <li><strong>Ação:</strong> Realizar o estorno integral imediatamente</li>
+                <li><strong>Destino:</strong> Obrigatoriamente para a mesma conta/cartão de origem</li>
+                <li><strong>Script:</strong> "Como está dentro do prazo de 7 dias, processamos o seu cancelamento e o estorno será feito na conta de origem."</li>
+            </ul>
+            
+            <p><strong>Cenário B: Após 7 Dias (Responsabilidade Parceiro):</strong></p>
+            <ul>
+                <li><strong>Ação:</strong> Transferir a responsabilidade para a empresa parceira (Sabemi, Pitzi, etc.)</li>
+                <li><strong>Fluxo:</strong> Informar que o prazo de arrependimento expirou e fornecer os canais do parceiro</li>
+                <li><strong>Script:</strong> "A sua contratação tem mais de 7 dias. Por isso, o cancelamento deve ser tratado diretamente com a [Empresa Parceira] conforme o seu contrato."</li>
+            </ul>
+            
+            <p><strong>📞 Canais de Atendimento:</strong></p>
+            
+            <p><strong>Dúvidas sobre o produto (antes de contratar):</strong></p>
+            <ul>
+                <li>Fale Conosco ou Chat do App Velotax</li>
+            </ul>
+            
+            <p><strong>Acionar sinistro (Morte Acidental) ou Assistências em geral:</strong></p>
+            <ul>
+                <li><strong>Sabemi:</strong> 0800 880 1900 ou WhatsApp (51) 9 9528-0140</li>
+            </ul>
+            
+            <p><strong>Doutor Online/Odontológica (Tele Triagem):</strong></p>
+            <ul>
+                <li>0800 775 1911 (Central 24h) ou Chat Online</li>
+            </ul>
+            
+            <p><strong>Orientação Psicológica:</strong></p>
+            <ul>
+                <li>0800 775 1911</li>
+            </ul>
+            
+            <p><strong>💡 Dica Importante:</strong></p>
+            <p>Documente sempre: Data da contratação e motivo do cancelamento no ticket. Isso evita re-trabalho e reduz atritos no N2 ou Reclame Aqui.</p>
+            
+            <p><strong>✅ Resumo do Seguro Saúde Simplificada:</strong></p>
+            <ul>
+                <li><strong>Preço:</strong> R$ 19,90/mês</li>
+                <li><strong>Cobertura Principal:</strong> Morte Acidental (R$ 2.000,00)</li>
+                <li><strong>Benefícios:</strong> Telemedicina, Odontologia, Psicologia, Nutrição e Descontos em Farmácia</li>
+                <li><strong>Contratação:</strong> 100% online pelo App Velotax</li>
+            </ul>
+        `,
+        'clube-velotax': `
+            <p><strong>Clube Velotax - Informações Completas</strong></p>
+            
+            <p><strong>📋 O que é o Clube Velotax?</strong></p>
+            <p>O Clube Velotax é um serviço de assinatura exclusivo para clientes Velotax. É a plataforma exclusiva de descontos para transformar sua fidelidade em economia real. Em parceria com a Vibe, criamos um ecossistema de vantagens onde você não apenas economiza, mas ganha liberdade para comprar o que gosta nas melhores marcas do Brasil.</p>
+            
+            <p><strong>🎁 O que está incluso?</strong></p>
+            <p>Ao se tornar um membro, você tem acesso a:</p>
+            <ul>
+                <li><strong>Cupons de Desconto:</strong> Economia em eletrônicos, moda, alimentação e muito mais</li>
+                <li><strong>Sorteios Exclusivos:</strong> Chances reais de ganhar prêmios</li>
+                <li><strong>Crédito Imediato:</strong> Assim que você entra, já recebe R$ 100,00 em créditos Vibe para usar como quiser dentro da rede parceira</li>
+                <li><strong>Plataforma Integrada:</strong> Tudo dentro do app Velotax</li>
+                <li><strong>Atualizações Frequentes:</strong> Novas ofertas e marcas adicionadas regularmente pela Vibe</li>
+                <li><strong>Rede Nacional:</strong> Descontos válidos em todo o Brasil</li>
+                <li><strong>Liberdade de Escolha:</strong> Use seus R$ 100 em créditos nos cupons que preferir</li>
+            </ul>
+            
+            <p><strong>💡 Por que criamos o Clube?</strong></p>
+            <p>Nosso objetivo é simples: <strong>recompensar você</strong>. Queremos que a sua relação com a Velotax vá além dos impostos e finanças. Queremos estar presentes no seu café da manhã, na compra do seu novo celular e no lazer do final de semana, proporcionando acesso a produtos e serviços com preços muito mais vantajosos.</p>
+            
+            <p><strong>📱 Como funciona na prática?</strong></p>
+            <p>A contratação é 100% online, simples e segura, feita diretamente pelo seu aplicativo Velotax.</p>
+            
+            <p><strong>Sua Jornada de Economia:</strong></p>
+            <ol>
+                <li><strong>Assinatura:</strong> Acesse a aba "Clube" no App Velotax e faça sua adesão. O pagamento é feito via cartão de crédito com renovação automática (você não precisa se preocupar todo mês)</li>
+                <li><strong>Acesso Imediato:</strong> Após a confirmação, sua conta no parceiro Vibe é criada automaticamente. Você acessa tudo sem sair do app da Velotax</li>
+                <li><strong>Ganhe R$ 100:</strong> Ao entrar, seus créditos já estão lá esperando por você!</li>
+                <li><strong>Escolha e Economize:</strong> Navegue pelas categorias, escolha sua loja favorita, pegue seu cupom e utilize-o na finalização da compra no site do parceiro</li>
+            </ol>
+            
+            <p><strong>💵 Transparência: Valores e Cancelamento</strong></p>
+            <ul>
+                <li><strong>Investimento:</strong> Apenas R$ 19,90 por mês</li>
+                <li><strong>Sem Multas:</strong> Você pode cancelar quando quiser</li>
+                <li><strong>Como Cancelar:</strong> No próprio app, vá em Gestão de Conta > Clube Velotax > Cancelar Assinatura. A cobrança será interrompida para o mês seguinte</li>
+            </ul>
+            
+            <p><strong>⚠️ Importante:</strong></p>
+            <p>Nós garantimos o seu acesso à nossa plataforma com descontos. As regras específicas de cada cupom (validade e porcentagem) são definidas pelas lojas parceiras.</p>
+            
+            <p><strong>📞 Canais de Atendimento:</strong></p>
+            
+            <p><strong>Dúvidas sobre o Clube Velotax:</strong></p>
+            <p>Nossa equipe de atendimento Velotax está pronta para te orientar sobre as características do produto e o acesso à plataforma.</p>
+            <ul>
+                <li><strong>Capitais e Regiões Metropolitanas:</strong> 3003 7293</li>
+                <li><strong>Demais Localidades:</strong> 0800 800 0049</li>
+                <li><strong>Horário:</strong> Seg a Sex (08h às 19h) | Sáb (09h às 15h)</li>
+                <li><strong>Chat:</strong> No seu aplicativo</li>
+            </ul>
+            
+            <p><strong>Dúvidas sobre créditos e parceiros (Vibe):</strong></p>
+            <ul>
+                <li><strong>Telefone:</strong> 0800 731 2500</li>
+                <li><strong>Site:</strong> creditosvibe.com.br (Procure por "Fale com o Vibe!")</li>
+                <li><strong>Instagram:</strong> @minhamelhorvibe</li>
+            </ul>
+            
+            <p><strong>✅ Resumo do Clube Velotax:</strong></p>
+            <ul>
+                <li><strong>Preço:</strong> R$ 19,90/mês</li>
+                <li><strong>Crédito Inicial:</strong> R$ 100,00 em créditos Vibe</li>
+                <li><strong>Benefícios:</strong> Cupons de desconto, sorteios exclusivos, rede nacional</li>
+                <li><strong>Contratação:</strong> 100% online pelo App Velotax</li>
+                <li><strong>Cancelamento:</strong> Sem multas, pode cancelar quando quiser</li>
+            </ul>
+            
+            <p><strong>💡 Dica:</strong></p>
+            <p>Velotax & Vibe: Sua melhor escolha, sua melhor economia.</p>
         `
     };
     
