@@ -5799,46 +5799,82 @@ app.get('/api/solicitacoes', async (req, res) => {
         // Buscar moderações coerentes (apenas aprovadas)
         if (!tipo || tipo === 'moderacoes' || tipo === 'todas') {
             try {
-                // Primeiro, buscar todos os resultados da página "Resultados da Moderação"
+                // Buscar resultados das páginas "Moderações Aceitas" e "Moderações Negadas"
                 let resultadosMap = new Map(); // Map<ID, Resultado mais recente>
                 try {
-                    const resultadosData = await googleSheetsConfig.readData('Resultados da Moderação!A1:Z1000');
-                    if (resultadosData && resultadosData.length > 1) {
-                        // Processar resultados (pular cabeçalho na linha 0)
-                        for (let i = 1; i < resultadosData.length; i++) {
-                            const row = resultadosData[i];
-                            if (!row || row.length < 3) continue;
-                            
-                            const idModeracao = row[1] ? row[1].toString().trim() : ''; // Coluna B: ID da Moderação
-                            const resultado = row[2] ? row[2].toString().trim() : ''; // Coluna C: Resultado
-                            const dataRegistro = row[0] ? row[0].toString().trim() : ''; // Coluna A: Data/Hora do Registro
-                            
-                            if (idModeracao && (resultado === 'Aceita' || resultado === 'Negada')) {
-                                // Normalizar ID para comparação
-                                const idNormalized = idModeracao.replace(/\s+/g, '');
+                    // Buscar moderações aceitas
+                    try {
+                        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+                        if (aceitasData && aceitasData.length > 1) {
+                            for (let i = 1; i < aceitasData.length; i++) {
+                                const row = aceitasData[i];
+                                if (!row || row.length < 2) continue;
                                 
-                                // Se já existe um resultado para este ID, manter o mais recente
-                                if (!resultadosMap.has(idNormalized)) {
-                                    resultadosMap.set(idNormalized, { resultado, dataRegistro });
-                                } else {
-                                    const existente = resultadosMap.get(idNormalized);
-                                    // Comparar datas para manter o mais recente
-                                    if (dataRegistro && existente.dataRegistro) {
-                                        try {
-                                            const dataNova = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
-                                            const dataExistente = new Date(existente.dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
-                                            if (dataNova > dataExistente) {
-                                                resultadosMap.set(idNormalized, { resultado, dataRegistro });
+                                const idModeracao = row[1] ? row[1].toString().trim() : ''; // Coluna B: ID da Moderação
+                                const dataRegistro = row[0] ? row[0].toString().trim() : ''; // Coluna A: Data do Registro
+                                
+                                if (idModeracao) {
+                                    const idNormalized = idModeracao.replace(/\s+/g, '');
+                                    if (!resultadosMap.has(idNormalized)) {
+                                        resultadosMap.set(idNormalized, { resultado: 'Aceita', dataRegistro });
+                                    } else {
+                                        const existente = resultadosMap.get(idNormalized);
+                                        if (dataRegistro && existente.dataRegistro) {
+                                            try {
+                                                const dataNova = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                                const dataExistente = new Date(existente.dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                                if (dataNova > dataExistente) {
+                                                    resultadosMap.set(idNormalized, { resultado: 'Aceita', dataRegistro });
+                                                }
+                                            } catch (e) {
+                                                // Se não conseguir comparar, manter o existente
                                             }
-                                        } catch (e) {
-                                            // Se não conseguir comparar, manter o existente
                                         }
                                     }
                                 }
                             }
                         }
-                        console.log(`📊 ${resultadosMap.size} resultados encontrados na página "Resultados da Moderação"`);
+                    } catch (error) {
+                        console.log('⚠️ Erro ao buscar moderações aceitas:', error.message);
                     }
+                    
+                    // Buscar moderações negadas
+                    try {
+                        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+                        if (negadasData && negadasData.length > 1) {
+                            for (let i = 1; i < negadasData.length; i++) {
+                                const row = negadasData[i];
+                                if (!row || row.length < 2) continue;
+                                
+                                const idModeracao = row[1] ? row[1].toString().trim() : ''; // Coluna B: ID da Moderação
+                                const dataRegistro = row[0] ? row[0].toString().trim() : ''; // Coluna A: Data do Registro
+                                
+                                if (idModeracao) {
+                                    const idNormalized = idModeracao.replace(/\s+/g, '');
+                                    if (!resultadosMap.has(idNormalized)) {
+                                        resultadosMap.set(idNormalized, { resultado: 'Negada', dataRegistro });
+                                    } else {
+                                        const existente = resultadosMap.get(idNormalized);
+                                        if (dataRegistro && existente.dataRegistro) {
+                                            try {
+                                                const dataNova = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                                const dataExistente = new Date(existente.dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                                if (dataNova > dataExistente) {
+                                                    resultadosMap.set(idNormalized, { resultado: 'Negada', dataRegistro });
+                                                }
+                                            } catch (e) {
+                                                // Se não conseguir comparar, manter o existente
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.log('⚠️ Erro ao buscar moderações negadas:', error.message);
+                    }
+                    
+                    console.log(`📊 ${resultadosMap.size} resultados encontrados nas páginas "Moderações Aceitas" e "Moderações Negadas"`);
                 } catch (error) {
                     console.log('⚠️ Erro ao buscar resultados da moderação (continuando sem resultados):', error.message);
                 }
@@ -9023,9 +9059,6 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         // Por enquanto, deixar vazio, pode ser extraído depois se necessário
         const idReclamacao = '';
         
-        // Versão dos manuais (pode ser atualizada conforme necessário)
-        const versaoManuais = '2024';
-        
         let bloco1 = '';
         let bloco2 = '';
         let bloco3 = '';
@@ -9056,35 +9089,31 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             }
         }
         
-        // Criar linha para salvar na página "Resultados da Moderação"
-        const novaLinhaResultados = [
-            dataHoraRegistro,                    // Data/Hora do Registro
-            moderacaoIdTrimmed,                  // ID da Moderação
-            idReclamacao,                        // ID da Reclamação
-            resultado,                           // Resultado (Aceita/Negada)
-            temaModeracao,                       // Tema da Moderação
-            dataHoraModeracao,                   // Data/Hora da Moderação Original
-            solicitacaoCliente,                  // Solicitação do Cliente
-            respostaEmpresa,                     // Resposta da Empresa
-            motivoModeracao,                     // Motivo da Moderação
-            textoModeracao,                      // Texto de Moderação
-            linhaRaciocinio,                     // Linha de Raciocínio
-            consideracaoFinal,                   // Consideração Final
-            statusAprovacao,                     // Status Aprovação
-            observacoesInternas,                 // Observações Internas
-            bloco1,                              // Motivo da Negativa (Bloco 1)
-            bloco2,                              // Onde a Solicitação Errou (Bloco 2)
-            bloco3,                              // Como Corrigir (Bloco 3)
-            versaoManuais                        // Versão dos Manuais
-        ];
-        
-        // Salvar na página "Resultados da Moderação"
-        console.log(`💾 Salvando resultado na página "Resultados da Moderação"`);
-        await googleSheetsConfig.appendRow('Resultados da Moderação!A:Z', novaLinhaResultados);
-        console.log(`✅ Resultado salvo com sucesso na página "Resultados da Moderação"`);
-        
-        // Se resultado for "Negada", salvar também na página "Moderações Negadas"
-        if (resultado === 'Negada') {
+        // Salvar na página específica conforme o resultado
+        if (resultado === 'Aceita') {
+            // Salvar apenas na página "Moderações Aceitas"
+            const novaLinhaAceitas = [
+                dataHoraRegistro,                // Data do Registro
+                moderacaoIdTrimmed,              // ID da Moderação
+                idReclamacao,                    // ID da Reclamação
+                temaModeracao,                   // Tema
+                motivoModeracao,                 // Motivo Utilizado
+                textoModeracao,                  // Texto da Moderação Enviada
+                resultado,                       // Resultado
+                solicitacaoCliente,              // Solicitação do Cliente
+                respostaEmpresa,                 // Resposta da Empresa
+                consideracaoFinal,               // Consideração Final
+                linhaRaciocinio,                 // Linha de Raciocínio
+                dataHoraModeracao,               // Data/Hora da Moderação Original
+                statusAprovacao,                  // Status Aprovação
+                observacoesInternas              // Observações Internas
+            ];
+            
+            console.log(`💾 Salvando na página "Moderações Aceitas"`);
+            await googleSheetsConfig.appendRow('Moderações Aceitas!A:Z', novaLinhaAceitas);
+            console.log(`✅ Moderação aceita salva com sucesso na página "Moderações Aceitas"`);
+        } else if (resultado === 'Negada') {
+            // Salvar apenas na página "Moderações Negadas"
             const novaLinhaNegadas = [
                 dataHoraRegistro,                // Data do Registro
                 moderacaoIdTrimmed,              // ID da Moderação
@@ -9137,7 +9166,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
     }
 });
 
-// Endpoint para limpar resultado da moderação (remove a linha mais recente da página "Resultados da Moderação")
+// Endpoint para limpar resultado da moderação (remove a linha mais recente das páginas "Moderações Aceitas" ou "Moderações Negadas")
 app.post('/api/limpar-resultado-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/limpar-resultado-moderacao chamado');
     try {
@@ -9167,54 +9196,86 @@ app.post('/api/limpar-resultado-moderacao', async (req, res) => {
             });
         }
         
-        // Buscar resultados da página "Resultados da Moderação"
-        const resultadosData = await googleSheetsConfig.readData('Resultados da Moderação!A1:Z1000');
-        
-        if (!resultadosData || resultadosData.length <= 1) {
-            return res.status(404).json({
-                success: false,
-                error: 'Nenhum resultado encontrado na planilha'
-            });
-        }
-        
-        // Encontrar a linha mais recente com o ID correspondente
         const moderacaoIdTrimmed = moderacaoId.toString().trim();
         const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
-        let linhaEncontrada = -1;
         let linhaMaisRecente = -1;
         let dataMaisRecente = null;
+        let paginaEncontrada = null;
         
-        // Processar resultados (pular cabeçalho na linha 0)
-        for (let i = 1; i < resultadosData.length; i++) {
-            const row = resultadosData[i];
-            if (!row || row.length < 3) continue;
-            
-            const idModeracao = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
-            const dataRegistro = row[0] ? row[0].toString().trim() : '';
-            
-            if (idModeracao === moderacaoIdNormalized) {
-                // Encontrou um resultado para este ID
-                // Verificar se é o mais recente
-                if (dataMaisRecente === null) {
-                    linhaMaisRecente = i + 1; // +1 porque a planilha começa na linha 1
-                    dataMaisRecente = dataRegistro;
-                } else {
-                    // Comparar datas para manter o mais recente
-                    try {
-                        const dataAtual = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
-                        const dataExistente = new Date(dataMaisRecente.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
-                        if (dataAtual > dataExistente) {
+        // Buscar nas páginas "Moderações Aceitas" e "Moderações Negadas"
+        // Primeiro, tentar "Moderações Aceitas"
+        try {
+            const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+            if (aceitasData && aceitasData.length > 1) {
+                for (let i = 1; i < aceitasData.length; i++) {
+                    const row = aceitasData[i];
+                    if (!row || row.length < 2) continue;
+                    
+                    const idModeracao = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
+                    const dataRegistro = row[0] ? row[0].toString().trim() : '';
+                    
+                    if (idModeracao === moderacaoIdNormalized) {
+                        if (dataMaisRecente === null) {
                             linhaMaisRecente = i + 1;
                             dataMaisRecente = dataRegistro;
+                            paginaEncontrada = 'Moderações Aceitas';
+                        } else {
+                            try {
+                                const dataAtual = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                const dataExistente = new Date(dataMaisRecente.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                if (dataAtual > dataExistente) {
+                                    linhaMaisRecente = i + 1;
+                                    dataMaisRecente = dataRegistro;
+                                    paginaEncontrada = 'Moderações Aceitas';
+                                }
+                            } catch (e) {
+                                // Se não conseguir comparar, manter o existente
+                            }
                         }
-                    } catch (e) {
-                        // Se não conseguir comparar, manter o primeiro encontrado
                     }
                 }
             }
+        } catch (error) {
+            console.log('⚠️ Erro ao buscar moderações aceitas:', error.message);
         }
         
-        if (linhaMaisRecente === -1) {
+        // Depois, tentar "Moderações Negadas"
+        try {
+            const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+            if (negadasData && negadasData.length > 1) {
+                for (let i = 1; i < negadasData.length; i++) {
+                    const row = negadasData[i];
+                    if (!row || row.length < 2) continue;
+                    
+                    const idModeracao = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
+                    const dataRegistro = row[0] ? row[0].toString().trim() : '';
+                    
+                    if (idModeracao === moderacaoIdNormalized) {
+                        if (dataMaisRecente === null) {
+                            linhaMaisRecente = i + 1;
+                            dataMaisRecente = dataRegistro;
+                            paginaEncontrada = 'Moderações Negadas';
+                        } else {
+                            try {
+                                const dataAtual = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                const dataExistente = new Date(dataMaisRecente.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                if (dataAtual > dataExistente) {
+                                    linhaMaisRecente = i + 1;
+                                    dataMaisRecente = dataRegistro;
+                                    paginaEncontrada = 'Moderações Negadas';
+                                }
+                            } catch (e) {
+                                // Se não conseguir comparar, manter o existente
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Erro ao buscar moderações negadas:', error.message);
+        }
+        
+        if (linhaMaisRecente === -1 || !paginaEncontrada) {
             return res.status(404).json({
                 success: false,
                 error: `Nenhum resultado encontrado para a moderação com ID "${moderacaoIdTrimmed}"`
@@ -9222,8 +9283,8 @@ app.post('/api/limpar-resultado-moderacao', async (req, res) => {
         }
         
         // Deletar a linha mais recente
-        console.log(`🗑️ Deletando linha ${linhaMaisRecente} da página "Resultados da Moderação"`);
-        await googleSheetsConfig.deleteRow('Resultados da Moderação', linhaMaisRecente);
+        console.log(`🗑️ Deletando linha ${linhaMaisRecente} da página "${paginaEncontrada}"`);
+        await googleSheetsConfig.deleteRow(paginaEncontrada, linhaMaisRecente);
         console.log(`✅ Resultado removido com sucesso`);
         
         // Invalidar cache
@@ -9235,7 +9296,8 @@ app.post('/api/limpar-resultado-moderacao', async (req, res) => {
             success: true,
             message: 'Resultado da moderação removido com sucesso',
             moderacaoId: moderacaoId,
-            linhaRemovida: linhaMaisRecente
+            linhaRemovida: linhaMaisRecente,
+            pagina: paginaEncontrada
         });
         
     } catch (error) {

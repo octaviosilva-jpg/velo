@@ -434,6 +434,23 @@ class GoogleSheetsIntegration {
                 'Versão dos Manuais'
             ]);
 
+            await this.ensureSheetExists('Moderações Aceitas', [
+                'Data do Registro',
+                'ID da Moderação',
+                'ID da Reclamação',
+                'Tema',
+                'Motivo Utilizado',
+                'Texto da Moderação Enviada',
+                'Resultado',
+                'Solicitação do Cliente',
+                'Resposta da Empresa',
+                'Consideração Final',
+                'Linha de Raciocínio',
+                'Data/Hora da Moderação Original',
+                'Status Aprovação',
+                'Observações Internas'
+            ]);
+
             await this.ensureSheetExists('Moderações Negadas', [
                 'Data do Registro',
                 'ID da Moderação',
