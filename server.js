@@ -5777,7 +5777,8 @@ app.get('/api/solicitacoes', async (req, res) => {
                             textoModeracao: textoModeracaoFinal || 'N/A', // Texto final aprovado da coluna J
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
-                            status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada'
+                            status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
+                            resultadoModeracao: moderacao['Resultado da Moderação'] || moderacao[11] || null // Coluna L (índice 11)
                         });
                     });
                     
@@ -8652,6 +8653,109 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
         
     } catch (error) {
         console.error('Erro ao salvar modelo de moderação:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
+// Endpoint para registrar resultado da moderação (Aceita ou Negada)
+app.post('/api/registrar-resultado-moderacao', async (req, res) => {
+    console.log('🎯 Endpoint /api/registrar-resultado-moderacao chamado');
+    try {
+        const { moderacaoId, resultado } = req.body;
+        
+        // Validações
+        if (!moderacaoId || !moderacaoId.toString().trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da moderação é obrigatório'
+            });
+        }
+        
+        if (!resultado || (resultado !== 'Aceita' && resultado !== 'Negada')) {
+            return res.status(400).json({
+                success: false,
+                error: 'Resultado deve ser "Aceita" ou "Negada"'
+            });
+        }
+        
+        // Verificar se Google Sheets está ativo
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets não está configurado ou ativo'
+            });
+        }
+        
+        // Verificar se googleSheetsConfig está inicializado
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets API não foi inicializada'
+            });
+        }
+        
+        console.log(`📋 Registrando resultado da moderação ID ${moderacaoId}: ${resultado}`);
+        
+        // Ler dados da planilha para encontrar a linha correta
+        const range = 'Moderações!A1:Z1000';
+        const data = await googleSheetsConfig.readData(range);
+        
+        if (!data || data.length <= 1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Nenhuma moderação encontrada na planilha'
+            });
+        }
+        
+        // Encontrar a linha com o ID correspondente
+        // O ID está na coluna A (índice 0)
+        let linhaEncontrada = -1;
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            const rowId = row[0] ? row[0].toString().trim() : '';
+            if (rowId === moderacaoId.toString().trim()) {
+                linhaEncontrada = i + 1; // +1 porque a planilha começa na linha 1, mas o array em 0
+                break;
+            }
+        }
+        
+        if (linhaEncontrada === -1) {
+            return res.status(404).json({
+                success: false,
+                error: `Moderação com ID ${moderacaoId} não encontrada na planilha`
+            });
+        }
+        
+        // A coluna L é o índice 11 (A=0, B=1, ..., L=11)
+        // Atualizar a coluna L com o resultado
+        const colunaL = 'L';
+        const cellRange = `Moderações!${colunaL}${linhaEncontrada}`;
+        
+        console.log(`📝 Atualizando célula ${cellRange} com valor: ${resultado}`);
+        
+        await googleSheetsConfig.updateCell(cellRange, resultado);
+        
+        console.log(`✅ Resultado da moderação registrado com sucesso na linha ${linhaEncontrada}`);
+        
+        // Invalidar cache de moderações coerentes para forçar atualização
+        if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
+            googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
+        }
+        
+        res.json({
+            success: true,
+            message: `Resultado da moderação registrado: ${resultado}`,
+            moderacaoId: moderacaoId,
+            resultado: resultado,
+            linha: linhaEncontrada
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao registrar resultado da moderação:', error);
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor',

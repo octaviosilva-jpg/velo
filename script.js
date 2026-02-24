@@ -3970,6 +3970,31 @@ async function buscarSolicitacoes() {
                                 <div class="campo-valor">${solicitacao.linhaRaciocinio}</div>
                             </div>
                             ` : ''}
+                            <div class="campo-detalhe" style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #0d6efd; margin-top: 20px;">
+                                <div class="campo-label" style="font-size: 1.1rem; color: #0d6efd; margin-bottom: 15px;">
+                                    <i class="fas fa-clipboard-check me-2"></i>Resultado da Moderação:
+                                </div>
+                                ${solicitacao.resultadoModeracao ? `
+                                    <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
+                                        <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
+                                    </div>
+                                ` : `
+                                    <div class="alert alert-warning" style="margin-bottom: 15px;">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Nenhum resultado registrado.</strong> Por favor, registre o resultado final da moderação no Reclame Aqui.
+                                    </div>
+                                `}
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button class="btn btn-success" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Aceita', '${solicitacaoId}')" ${solicitacao.resultadoModeracao ? 'disabled' : ''}>
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        Moderação Aceita
+                                    </button>
+                                    <button class="btn btn-danger" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Negada', '${solicitacaoId}')" ${solicitacao.resultadoModeracao ? 'disabled' : ''}>
+                                        <i class="fas fa-times-circle me-2"></i>
+                                        Moderação Negada
+                                    </button>
+                                </div>
+                            </div>
                         `;
                     }
                     
@@ -4010,6 +4035,75 @@ async function buscarSolicitacoes() {
             </tr>
         `;
         showErrorMessage('Erro ao buscar solicitações: ' + error.message);
+    }
+}
+
+// Função para registrar resultado da moderação
+async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId) {
+    if (!moderacaoId) {
+        showErrorMessage('ID da moderação não encontrado. Não é possível registrar o resultado.');
+        return;
+    }
+    
+    if (!resultado || (resultado !== 'Aceita' && resultado !== 'Negada')) {
+        showErrorMessage('Resultado inválido. Selecione "Aceita" ou "Negada".');
+        return;
+    }
+    
+    // Confirmar ação
+    const confirmacao = confirm(`Deseja registrar que esta moderação foi ${resultado === 'Aceita' ? 'ACEITA' : 'NEGADA'} no Reclame Aqui?`);
+    if (!confirmacao) {
+        return;
+    }
+    
+    // Mostrar loading
+    const btnAceita = event.target.closest('.d-flex').querySelector('.btn-success');
+    const btnNegada = event.target.closest('.d-flex').querySelector('.btn-danger');
+    const btnOriginalText = event.target.innerHTML;
+    event.target.disabled = true;
+    event.target.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+    
+    try {
+        const response = await fetch('/api/registrar-resultado-moderacao', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                moderacaoId: moderacaoId,
+                resultado: resultado
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao registrar resultado da moderação');
+        }
+        
+        // Atualizar a interface - recarregar as solicitações
+        const filtroDataInicio = document.getElementById('filtroDataInicio').value;
+        const filtroDataFim = document.getElementById('filtroDataFim').value;
+        const filtroTipo = document.getElementById('filtroTipo').value;
+        
+        // Recarregar as solicitações para atualizar o resultado
+        await buscarSolicitacoes();
+        
+        // Re-expandir a linha que foi atualizada
+        setTimeout(() => {
+            const detalhesRow = document.getElementById(solicitacaoId);
+            if (detalhesRow && !detalhesRow.classList.contains('show')) {
+                toggleDetalhesSolicitacao(solicitacaoId);
+            }
+        }, 500);
+        
+        showSuccessMessage(`Resultado da moderação registrado com sucesso: ${resultado === 'Aceita' ? 'Moderação Aceita' : 'Moderação Negada'}`);
+        
+    } catch (error) {
+        console.error('Erro ao registrar resultado da moderação:', error);
+        showErrorMessage(error.message || 'Erro ao registrar resultado da moderação. Tente novamente.');
+        event.target.disabled = false;
+        event.target.innerHTML = btnOriginalText;
     }
 }
 
