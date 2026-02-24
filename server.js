@@ -5384,19 +5384,36 @@ app.get('/api/solicitacoes', async (req, res) => {
                             ? resposta[3]
                             : (resposta['Texto Cliente'] || resposta.textoCliente || '');
                         
+                        // Buscar ID da Reclamação na coluna G (índice 6)
+                        const idReclamacao = resposta[6] !== undefined && resposta[6] !== null && resposta[6] !== ''
+                            ? resposta[6]
+                            : (resposta['ID da Reclamação'] || resposta.idReclamacao || resposta.id_reclamacao || '');
+                        
+                        // Buscar Tipo de Situação na coluna J (índice 9)
+                        const tipoSituacao = resposta[9] !== undefined && resposta[9] !== null && resposta[9] !== ''
+                            ? resposta[9]
+                            : (resposta['Tipo de Situação'] || 
+                               resposta.tipoSituacao || 
+                               resposta.tipo_solicitacao || '');
+                        
                         console.log('🔍 DEBUG Resposta:', {
                             id: resposta.ID || resposta.id,
                             colunaE: resposta[4],
                             respostaFinal: respostaFinal,
                             colunaD: resposta[3],
-                            textoCliente: textoCliente
+                            textoCliente: textoCliente,
+                            colunaG: resposta[6],
+                            idReclamacao: idReclamacao,
+                            colunaJ: resposta[9],
+                            tipoSituacao: tipoSituacao
                         });
                         
                         todasSolicitacoes.push({
                             tipo: 'resposta',
                             data: resposta['Data/Hora'] || resposta.data || '',
                             id: resposta.ID || resposta.id || '',
-                            tipoSolicitacao: resposta['Tipo Solicitação'] || resposta.tipoSituacao || '',
+                            idReclamacao: idReclamacao || 'N/A', // ID da Reclamação da coluna G
+                            tipoSolicitacao: tipoSituacao || 'N/A', // Tipo de Situação da coluna J
                             motivoSolicitacao: resposta['Motivo Solicitação'] || resposta.motivoSolicitacao || '',
                             textoCliente: textoCliente || 'N/A', // Texto completo do cliente da coluna D
                             resposta: respostaFinal || 'N/A', // Texto final aprovado da coluna E
