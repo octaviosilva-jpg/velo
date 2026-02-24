@@ -3687,7 +3687,23 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
             });
         }
         
-        const { dadosModeracao } = req.body;
+        const { idReclamacao, dadosModeracao } = req.body;
+        
+        // Validação obrigatória do ID da reclamação
+        if (!idReclamacao || !idReclamacao.trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da Reclamação (Reclame Aqui) é obrigatório'
+            });
+        }
+        
+        // Validar se o ID contém apenas números
+        if (!/^\d+$/.test(idReclamacao.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da Reclamação deve conter apenas números'
+            });
+        }
         
         if (!dadosModeracao) {
             return res.status(400).json({
@@ -3695,6 +3711,9 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                 error: 'Dados de moderação não fornecidos'
             });
         }
+        
+        // Registrar o ID da reclamação para rastreabilidade
+        console.log(`📋 ID da Reclamação registrado: ${idReclamacao}`);
         
         // Obter feedbacks relevantes para melhorar a geração de moderação - VERSÃO MELHORADA
         const feedbacksRelevantes = getRelevantFeedbacks('moderacao', {
@@ -8227,7 +8246,23 @@ app.post('/api/sync-estatisticas', async (req, res) => {
 app.post('/api/save-modelo-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/save-modelo-moderacao chamado');
     try {
-        const { dadosModeracao, linhaRaciocinio, textoModeracao } = req.body;
+        const { idReclamacao, dadosModeracao, linhaRaciocinio, textoModeracao } = req.body;
+        
+        // Validar ID da reclamação
+        if (!idReclamacao || !idReclamacao.trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da Reclamação (Reclame Aqui) é obrigatório'
+            });
+        }
+        
+        // Validar se o ID contém apenas números
+        if (!/^\d+$/.test(idReclamacao.trim())) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da Reclamação deve conter apenas números'
+            });
+        }
         
         if (!dadosModeracao || !linhaRaciocinio || !textoModeracao) {
             return res.status(400).json({
@@ -8235,6 +8270,9 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 error: 'Dados de moderação, linha de raciocínio e texto de moderação são obrigatórios'
             });
         }
+        
+        // Registrar o ID da reclamação para rastreabilidade
+        console.log(`📋 ID da Reclamação registrado no modelo: ${idReclamacao}`);
         
         // Salvar como modelo de moderação aprovada
         const modelo = await addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
@@ -8244,6 +8282,7 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
             console.log('📋 Tentando registrar moderação coerente no Google Sheets...');
             const moderacaoData = {
                 id: modelo.id,
+                idReclamacao: idReclamacao, // ID da Reclamação para rastreabilidade (coluna M da planilha)
                 tipo: 'moderacao',
                 dadosModeracao: dadosModeracao,
                 linhaRaciocinio: linhaRaciocinio,

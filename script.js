@@ -1460,10 +1460,25 @@ function formatarTextoModeracao(texto) {
 }
 
 async function gerarModeracao() {
+    const idReclamacao = document.getElementById('id-reclamacao-moderacao').value.trim();
     const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
     const respostaEmpresa = document.getElementById('resposta-empresa').value;
     const motivoModeracao = document.getElementById('motivo-moderacao').value;
     const consideracaoFinal = document.getElementById('consideracao-final').value;
+    
+    // Validação obrigatória do ID da reclamação
+    if (!idReclamacao) {
+        showErrorMessage('Por favor, preencha o ID da Reclamação (Reclame Aqui). Este campo é obrigatório.');
+        document.getElementById('id-reclamacao-moderacao').focus();
+        return;
+    }
+    
+    // Validar se o ID contém apenas números
+    if (!/^\d+$/.test(idReclamacao)) {
+        showErrorMessage('O ID da Reclamação deve conter apenas números.');
+        document.getElementById('id-reclamacao-moderacao').focus();
+        return;
+    }
     
     if (!solicitacaoCliente || (typeof solicitacaoCliente === 'string' && !solicitacaoCliente.trim()) || !motivoModeracao) {
         showErrorMessage('Por favor, preencha a solicitação do cliente e selecione o motivo da moderação.');
@@ -1481,6 +1496,7 @@ async function gerarModeracao() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                idReclamacao: idReclamacao,
                 dadosModeracao: {
                     solicitacaoCliente: solicitacaoCliente,
                     respostaEmpresa: respostaEmpresa,
@@ -3341,6 +3357,7 @@ async function salvarModeracaoComoModelo() {
         console.log('🎯 Iniciando salvamento de moderação como modelo...');
         
         // Obter dados da moderação atual
+        const idReclamacao = document.getElementById('id-reclamacao-moderacao').value.trim();
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
         const respostaEmpresa = document.getElementById('resposta-empresa').value;
         const motivoModeracao = document.getElementById('motivo-moderacao').value;
@@ -3348,6 +3365,12 @@ async function salvarModeracaoComoModelo() {
         
         const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
         const textoModeracao = document.getElementById('texto-moderacao').innerText;
+        
+        // Validar ID da reclamação
+        if (!idReclamacao) {
+            showErrorMessage('ID da Reclamação é obrigatório para salvar como modelo.');
+            return;
+        }
         
         console.log('🔍 Elementos encontrados:', {
             linhaRaciocinioElement: document.getElementById('linha-raciocinio') ? 'OK' : 'NÃO ENCONTRADO',
@@ -3385,6 +3408,7 @@ async function salvarModeracaoComoModelo() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                idReclamacao: idReclamacao,
                 dadosModeracao: {
                     solicitacaoCliente: solicitacaoCliente,
                     respostaEmpresa: respostaEmpresa,
