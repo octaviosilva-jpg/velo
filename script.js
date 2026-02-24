@@ -2197,6 +2197,9 @@ function formatarAnaliseChanceModeracao(analise) {
     
     let html = '<div class="analise-chance-moderacao">';
     
+    // Extrair informações de impacto antes de formatar
+    const impactoInfo = extrairImpactoRevisao(analise);
+    
     // Formatar o conteúdo preservando a estrutura do prompt
     let conteudoFormatado = analise
         .replace(/\n\n\n+/g, '\n\n')  // Múltiplas quebras = dupla quebra
@@ -2207,21 +2210,147 @@ function formatarAnaliseChanceModeracao(analise) {
     
     // Destacar seções principais
     conteudoFormatado = conteudoFormatado
-        .replace(/📊 Análise da chance de moderação/gi, '<h5 class="text-primary mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📊 Análise da chance de moderação</h5>')
+        .replace(/📊 Análise da chance de moderação/gi, '<h5 class="text-primary mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📊 Chance de moderação (base)</h5>')
         .replace(/🧠 Fundamentação técnica/gi, '<h5 class="text-info mt-4 mb-3"><i class="fas fa-brain me-2"></i>🧠 Fundamentação técnica</h5>')
         .replace(/⚠️ Riscos de negativa/gi, '<h5 class="text-warning mt-4 mb-3"><i class="fas fa-exclamation-triangle me-2"></i>⚠️ Riscos de negativa</h5>')
         .replace(/🎯 Tese principal de moderação/gi, '<h5 class="text-success mt-4 mb-3"><i class="fas fa-bullseye me-2"></i>🎯 Tese principal de moderação</h5>')
         .replace(/🧩 Teses complementares/gi, '<h5 class="text-secondary mt-4 mb-3"><i class="fas fa-puzzle-piece me-2"></i>🧩 Teses complementares</h5>')
         .replace(/✍️ Revisão de Textos/gi, '<h5 class="text-dark mt-4 mb-3"><i class="fas fa-edit me-2"></i>✍️ Revisão de Textos (versão estratégica)</h5>')
+        .replace(/📈 Impacto da revisão de texto/gi, '<h5 class="text-success mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📈 Impacto da revisão de texto</h5>')
         .replace(/Chance estimada: (\d+%)/gi, '<strong class="text-primary fs-4">Chance estimada: $1</strong>')
-        .replace(/Classificação: (.+?)(<br>|<\/p>)/gi, '<span class="badge bg-info ms-2">$1</span>$2');
+        .replace(/Classificação: (.+?)(<br>|<\/p>)/gi, '<span class="badge bg-info ms-2">$1</span>$2')
+        .replace(/Antes da revisão: (\d+%)/gi, '<strong class="text-secondary">Antes da revisão: $1</strong>')
+        .replace(/Após a revisão: (\d+%)/gi, '<strong class="text-success">Após a revisão: $1</strong>')
+        .replace(/Variação estimada: ([+-]\d+%)/gi, '<strong class="text-primary">Variação estimada: $1</strong>');
     
     html += '<div class="alert alert-light border-start border-secondary border-4">';
     html += conteudoFormatado;
     html += '</div>';
+    
+    // Adicionar card destacado para o impacto se existir
+    if (impactoInfo.temImpacto) {
+        html += '<div class="card border-success mt-4">';
+        html += '<div class="card-header bg-success text-white">';
+        html += '<h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>📈 Impacto da Revisão de Texto</h6>';
+        html += '</div>';
+        html += '<div class="card-body">';
+        html += `<p class="mb-2"><strong>Chance antes da revisão:</strong> <span class="badge bg-secondary">${impactoInfo.antes}%</span></p>`;
+        html += `<p class="mb-2"><strong>Chance após a revisão:</strong> <span class="badge bg-success">${impactoInfo.depois}%</span></p>`;
+        html += `<p class="mb-3"><strong>Variação estimada:</strong> <span class="badge bg-primary">${impactoInfo.variacao}</span></p>`;
+        if (impactoInfo.justificativa) {
+            html += '<hr>';
+            html += '<h6 class="text-info"><i class="fas fa-brain me-2"></i>🧠 Justificativa técnica</h6>';
+            html += `<p class="text-muted">${impactoInfo.justificativa}</p>`;
+        }
+        html += '</div>';
+        html += '</div>';
+    }
+    
     html += '</div>';
     
     return html;
+}
+
+// Função para extrair informações de impacto da revisão
+function extrairImpactoRevisao(analise) {
+    if (!analise) return { temImpacto: false };
+    
+    const resultado = {
+        temImpacto: false,
+        antes: null,
+        depois: null,
+        variacao: null,
+        justificativa: null
+    };
+    
+    // Procurar pelo bloco de impacto (várias variações possíveis)
+    const marcadoresImpacto = [
+        '📈 Impacto da revisão de texto',
+        'Impacto da revisão de texto',
+        'IMPACTO DA REVISÃO'
+    ];
+    
+    let marcadorImpacto = -1;
+    for (const marcador of marcadoresImpacto) {
+        const index = analise.indexOf(marcador);
+        if (index !== -1) {
+            marcadorImpacto = index;
+            break;
+        }
+    }
+    
+    if (marcadorImpacto === -1) return resultado;
+    
+    resultado.temImpacto = true;
+    
+    // Extrair o texto do bloco de impacto
+    const textoImpacto = analise.substring(marcadorImpacto);
+    
+    // Extrair chance antes (várias variações)
+    const matchAntes = textoImpacto.match(/Antes da revisão:\s*(\d+)%/i) || 
+                       textoImpacto.match(/Chance antes:\s*(\d+)%/i) ||
+                       textoImpacto.match(/Antes:\s*(\d+)%/i);
+    if (matchAntes) {
+        resultado.antes = matchAntes[1];
+    }
+    
+    // Extrair chance depois (várias variações)
+    const matchDepois = textoImpacto.match(/Após a revisão:\s*(\d+)%/i) ||
+                        textoImpacto.match(/Chance após:\s*(\d+)%/i) ||
+                        textoImpacto.match(/Depois:\s*(\d+)%/i) ||
+                        textoImpacto.match(/Após:\s*(\d+)%/i);
+    if (matchDepois) {
+        resultado.depois = matchDepois[1];
+    }
+    
+    // Extrair variação (várias variações)
+    const matchVariacao = textoImpacto.match(/Variação estimada:\s*([+-]\d+%)/i) ||
+                          textoImpacto.match(/Variação:\s*([+-]\d+%)/i) ||
+                          textoImpacto.match(/Diferença:\s*([+-]\d+%)/i);
+    if (matchVariacao) {
+        resultado.variacao = matchVariacao[1];
+    }
+    
+    // Extrair justificativa
+    const marcadoresJustificativa = [
+        '🧠 Justificativa técnica',
+        'Justificativa técnica',
+        'JUSTIFICATIVA TÉCNICA'
+    ];
+    
+    let marcadorJustificativa = -1;
+    for (const marcador of marcadoresJustificativa) {
+        const index = textoImpacto.indexOf(marcador);
+        if (index !== -1) {
+            marcadorJustificativa = index;
+            break;
+        }
+    }
+    
+    if (marcadorJustificativa !== -1) {
+        // Encontrar qual marcador foi usado
+        let marcadorUsado = '';
+        for (const marcador of marcadoresJustificativa) {
+            if (textoImpacto.includes(marcador)) {
+                marcadorUsado = marcador;
+                break;
+            }
+        }
+        let justificativa = textoImpacto.substring(marcadorJustificativa + marcadorUsado.length).trim();
+        // Remover marcadores seguintes
+        const proximosMarcadores = ['🧠', '📊', '⚠️', '🎯', '🧩', '✍️', '📈', '🧭'];
+        for (const marcador of proximosMarcadores) {
+            const index = justificativa.indexOf(marcador);
+            if (index !== -1 && index > 50) { // Só remover se não for no início (pode ser parte do texto)
+                justificativa = justificativa.substring(0, index).trim();
+            }
+        }
+        // Limpar e limitar tamanho
+        justificativa = justificativa.replace(/^\s*[-•]\s*/gm, '').trim();
+        resultado.justificativa = justificativa.substring(0, 800); // Limitar tamanho
+    }
+    
+    return resultado;
 }
 
 // Função para separar os blocos da resposta de revisão
