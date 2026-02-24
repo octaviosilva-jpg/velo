@@ -413,26 +413,10 @@ class GoogleSheetsIntegration {
                 'Observações Internas'
             ]);
 
-            await this.ensureSheetExists('Resultados da Moderação', [
-                'Data/Hora do Registro',
-                'ID da Moderação',
-                'ID da Reclamação',
-                'Resultado',
-                'Tema da Moderação',
-                'Data/Hora da Moderação Original',
-                'Solicitação do Cliente',
-                'Resposta da Empresa',
-                'Motivo da Moderação',
-                'Texto de Moderação',
-                'Linha de Raciocínio',
-                'Consideração Final',
-                'Status Aprovação',
-                'Observações Internas',
-                'Motivo da Negativa (Bloco 1)',
-                'Onde a Solicitação Errou (Bloco 2)',
-                'Como Corrigir (Bloco 3)',
-                'Versão dos Manuais'
-            ]);
+            // Planilha "Resultados da Moderação" não é mais usada
+            // As moderações são salvas diretamente em "Moderações Aceitas" ou "Moderações Negadas"
+            // Removida para evitar erro de parsing
+            // await this.ensureSheetExists('Resultados da Moderação', [...]);
 
             await this.ensureSheetExists('Moderações Aceitas', [
                 'Data do Registro',
