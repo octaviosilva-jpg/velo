@@ -6311,6 +6311,40 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
+// Função auxiliar para extrair resposta revisada do resultado da análise
+function extrairRespostaRevisadaDoResultado(resultado) {
+    if (!resultado || typeof resultado !== 'string') return '';
+    
+    // Procurar pela seção "✍️ Revisão de Textos (versão estratégica)"
+    const marcadores = [
+        '✍️ Revisão de Textos (versão estratégica)',
+        'Revisão de Textos (versão estratégica)',
+        'REVISÃO DE TEXTOS',
+        'Resposta pública revisada'
+    ];
+    
+    for (const marcador of marcadores) {
+        const index = resultado.indexOf(marcador);
+        if (index !== -1) {
+            // Pegar o conteúdo após o marcador até o próximo marcador ou fim
+            let conteudo = resultado.substring(index + marcador.length).trim();
+            
+            // Remover marcadores seguintes se houver
+            const proximosMarcadores = ['🧠', '📊', '⚠️', '🎯', '🧩', '🔍', '📈'];
+            for (const proxMarcador of proximosMarcadores) {
+                const proxIndex = conteudo.indexOf(proxMarcador);
+                if (proxIndex !== -1) {
+                    conteudo = conteudo.substring(0, proxIndex).trim();
+                }
+            }
+            
+            return conteudo.trim();
+        }
+    }
+    
+    return '';
+}
+
 // Endpoint para análise de chance de moderação
 app.post('/api/chance-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/chance-moderacao chamado');
@@ -6660,6 +6694,29 @@ Exemplo (1 frase que vale ouro):
 
 Isso "ensina" o analista do RA a enxergar a omissão.
 
+⚠️ FORMATO DE SAÍDA DA REVISÃO DE TEXTOS (OBRIGATÓRIO):
+
+IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudação inicial e SEM assinatura final.
+
+A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
+
+Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
+- Responder diretamente à reclamação do consumidor
+- Explicar a solução implementada
+- Ser específico e detalhado
+- Demonstrar expertise técnica, transparência e compromisso
+- Estar sempre contextualizado para a Velotax
+- NUNCA incluir pedidos de desculpas ou expressões como "lamentamos", "sentimos muito", "nos desculpamos"
+- Ser firme e objetivo, sem excesso de tom acolhedor
+- Ter boa estruturação com parágrafos separados para facilitar a leitura
+
+NÃO inclua:
+- "Olá, [nome]" ou qualquer saudação
+- "Sou [nome], especialista..." ou apresentação
+- Informações de contato (telefones, site)
+- "Atenciosamente" ou assinatura
+- Qualquer estrutura de cabeçalho ou rodapé
+
 ⚠️ REGRA CRÍTICA
 
 A versão revisada DEVE SER AUTOMATICAMENTE INSERIDA na aba
@@ -6918,8 +6975,60 @@ Agora, execute TODAS as etapas da metodologia e entregue a análise completa no 
         }
 
         const data = await response.json();
-        const resultado = data.choices[0].message.content;
+        let resultado = data.choices[0].message.content;
         console.log('✅ Análise de chance de moderação gerada com sucesso');
+
+        // Extrair e formatar a resposta revisada
+        const respostaRevisada = extrairRespostaRevisadaDoResultado(resultado);
+        if (respostaRevisada && respostaRevisada.trim().length > 0) {
+            // Extrair nome do cliente da reclamação
+            const nomeCliente = extrairNomeCliente(reclamacaoCompleta);
+            
+            // Tentar obter nome do agente do userData se disponível, senão usar padrão
+            let nomeAgente = 'Agente';
+            if (req.user && req.user.nome) {
+                nomeAgente = obterPrimeiroNomeUsuario(req.user);
+            }
+            
+            // Aplicar formatação da resposta RA
+            const respostaFormatada = formatarRespostaRA(respostaRevisada, nomeCliente, nomeAgente);
+            
+            // Substituir a resposta revisada no resultado pela versão formatada
+            const marcadores = [
+                '✍️ Revisão de Textos (versão estratégica)',
+                'Revisão de Textos (versão estratégica)',
+                'REVISÃO DE TEXTOS'
+            ];
+            
+            for (const marcador of marcadores) {
+                const index = resultado.indexOf(marcador);
+                if (index !== -1) {
+                    // Encontrar onde começa o conteúdo após o marcador
+                    let inicioConteudo = index + marcador.length;
+                    // Pular quebras de linha e espaços
+                    while (inicioConteudo < resultado.length && 
+                           (resultado[inicioConteudo] === '\n' || resultado[inicioConteudo] === ' ' || resultado[inicioConteudo] === '\r')) {
+                        inicioConteudo++;
+                    }
+                    
+                    // Encontrar onde termina o conteúdo (próximo marcador ou fim)
+                    let fimConteudo = resultado.length;
+                    const proximosMarcadores = ['🧠', '📊', '⚠️', '🎯', '🧩', '🔍', '📈'];
+                    for (const proxMarcador of proximosMarcadores) {
+                        const proxIndex = resultado.indexOf(proxMarcador, inicioConteudo);
+                        if (proxIndex !== -1 && proxIndex < fimConteudo) {
+                            fimConteudo = proxIndex;
+                        }
+                    }
+                    
+                    // Substituir o conteúdo
+                    const antes = resultado.substring(0, inicioConteudo);
+                    const depois = resultado.substring(fimConteudo);
+                    resultado = antes + '\n\n' + respostaFormatada + '\n\n' + depois;
+                    break;
+                }
+            }
+        }
 
         // Incrementar estatística global
         await incrementarEstatisticaGlobal('revisoes_texto');
