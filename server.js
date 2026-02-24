@@ -12366,8 +12366,11 @@ app.get('/api/moderacoes', async (req, res) => {
  * GET /api/moderacao/:idModeracao
  */
 app.get('/api/moderacao/:idModeracao', async (req, res) => {
+    console.log('🔍 [API] Endpoint /api/moderacao/:idModeracao chamado');
+    console.log('🔍 [API] Parâmetros:', req.params);
     try {
         if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            console.error('❌ [API] Google Sheets não está inicializado');
             return res.status(503).json({
                 success: false,
                 error: 'Google Sheets não está inicializado'
@@ -12375,6 +12378,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         }
 
         const idModeracao = req.params.idModeracao.trim().replace(/\s+/g, ' ');
+        console.log('🔍 [API] Buscando moderação com ID:', idModeracao);
 
         // Buscar em aceitas
         const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
@@ -12464,6 +12468,12 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             }
         }
 
+        console.log('✅ [API] Moderação encontrada:', {
+            id: moderacao.idModeracao,
+            tipo: tipo,
+            tema: moderacao.tema
+        });
+
         res.json({
             success: true,
             moderacao: moderacao,
@@ -12472,7 +12482,8 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Erro ao obter detalhes da moderação:', error);
+        console.error('❌ [API] Erro ao obter detalhes da moderação:', error);
+        console.error('❌ [API] Stack trace:', error.stack);
         res.status(500).json({
             success: false,
             error: 'Erro ao obter detalhes da moderação',

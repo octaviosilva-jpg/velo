@@ -3981,9 +3981,9 @@ async function buscarSolicitacoes() {
                                                 <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
                                             </div>
                                             ${solicitacao.resultadoModeracao === 'Negada' ? `
-                                                <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa FASE 2 - Clique para ver os 3 blocos de análise">
+                                                <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa - Clique para ver os 3 blocos de análise">
                                                     <i class="fas fa-search me-1"></i>
-                                                    Ver Análise Completa (FASE 2)
+                                                    Ver Análise Completa
                                                 </button>
                                             ` : ''}
                                         </div>
@@ -4014,7 +4014,7 @@ async function buscarSolicitacoes() {
                                 <div class="mt-3">
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Análise Completa Disponível:</strong> Clique no botão "Ver Análise Completa (FASE 2)" acima para ver a análise detalhada com os 3 blocos (motivo da negativa, onde errou e como corrigir).
+                                        <strong>Análise Completa Disponível:</strong> Clique no botão "Ver Análise Completa" acima para ver a análise detalhada com os 3 blocos (motivo da negativa, onde errou e como corrigir).
                                     </div>
                                 </div>
                                 ` : ''}
@@ -4181,8 +4181,20 @@ async function verAnaliseCompletaNegada(moderacaoId) {
     try {
         console.log('📊 Buscando análise completa da moderação:', moderacaoId);
         
-        const response = await fetch(`/api/moderacao/${encodeURIComponent(moderacaoId)}`);
+        const url = `/api/moderacao/${encodeURIComponent(moderacaoId)}`;
+        console.log('🔗 URL da requisição:', url);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            console.error('❌ Erro HTTP:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('❌ Resposta do servidor:', errorText);
+            throw new Error(`Erro ao buscar moderação: ${response.status} ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('📥 Dados recebidos:', data);
         
         if (!data.success) {
             throw new Error(data.error || 'Erro ao carregar análise completa');
