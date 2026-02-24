@@ -878,34 +878,69 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
         return respostaTexto;
     }
     
-    // Se a resposta já estiver formatada (contém a estrutura completa), não reformatar
-    if (respostaTexto.includes('Permanecemos à disposição por meio de nossos canais oficiais') ||
+    // Garantir que temos um nome de agente válido
+    if (!nomeAgente || nomeAgente.trim() === '') {
+        nomeAgente = 'Agente';
+    }
+    
+    // Se a resposta já estiver formatada com a estrutura completa, verificar e atualizar se necessário
+    const jaTemEstruturaCompleta = respostaTexto.includes('Permanecemos à disposição por meio de nossos canais oficiais') ||
         respostaTexto.includes('3003-7293') ||
-        respostaTexto.includes('0800-800-0049')) {
-        // Verificar se já tem o nome do agente na assinatura, se não tiver, atualizar
-        if (nomeAgente && !respostaTexto.includes(`Sou ${nomeAgente}, especialista`)) {
-            // Tentar atualizar o nome do agente se estiver no formato antigo
-            respostaTexto = respostaTexto.replace(/Sou\s+[^,]+,\s+especialista/g, `Sou ${nomeAgente}, especialista`);
-            respostaTexto = respostaTexto.replace(/Atenciosamente,\s*[^\n]+\n\s*Equipe de Atendimento/g, `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
+        respostaTexto.includes('0800-800-0049');
+    
+    if (jaTemEstruturaCompleta) {
+        // Verificar se a estrutura está completa e correta
+        const temSaudacao = /Olá,\s+[^!]+!/.test(respostaTexto);
+        const temApresentacao = /Sou\s+[^,]+,?\s+especialista\s+de\s+atendimento/.test(respostaTexto);
+        const temContato = respostaTexto.includes('3003-7293') && respostaTexto.includes('0800-800-0049');
+        const temAssinatura = /Atenciosamente,/.test(respostaTexto);
+        
+        // Se já tem estrutura completa e correta, apenas atualizar nome do agente se necessário
+        if (temSaudacao && temApresentacao && temContato && temAssinatura) {
+            // Atualizar nome do agente se estiver diferente
+            if (nomeAgente !== 'Agente') {
+                respostaTexto = respostaTexto.replace(/Sou\s+[^,]+,\s+especialista/g, `Sou ${nomeAgente}, especialista`);
+                respostaTexto = respostaTexto.replace(/Atenciosamente,\s*\n\s*[^\n]+\s*\n\s*Equipe de Atendimento Velotax/g, 
+                    `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
+            }
+            return respostaTexto;
         }
-        return respostaTexto;
+        // Se tem estrutura mas está incompleta, remover e refazer
     }
     
-    // Remover formatações antigas se existirem (como "Prezado(a) cliente," no início)
+    // Limpar qualquer estrutura antiga ou incompleta
     let textoLimpo = respostaTexto.trim();
-    if (textoLimpo.startsWith('Prezado(a) cliente,') || textoLimpo.startsWith('Prezado cliente,') || 
-        textoLimpo.startsWith('Prezada cliente,')) {
-        // Remover a saudação antiga
-        textoLimpo = textoLimpo.replace(/^Prezad[oa]\(a\)?\s+cliente,?\s*/i, '').trim();
-    }
     
-    // Remover assinaturas antigas se existirem
-    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*Equipe\s+Velotax\s*$/i, '').trim();
+    // Remover saudações antigas
+    textoLimpo = textoLimpo.replace(/^(Olá|Oi|Prezado\(a\)?\s+cliente|Prezado\s+cliente|Prezada\s+cliente)[^!]*[!.,]\s*/i, '');
+    
+    // Remover apresentações antigas
+    textoLimpo = textoLimpo.replace(/^Sou\s+[^,]+,\s+especialista[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^[^,]+,\s+especialista\s+de\s+atendimento[^.]*\.\s*/i, '');
+    
+    // Remover "Espero que esteja bem" se estiver sozinho
+    textoLimpo = textoLimpo.replace(/^Espero\s+que\s+esteja\s+bem[.!]?\s*/i, '');
+    
+    // Remover "recebemos sua manifestação" se estiver no início
+    textoLimpo = textoLimpo.replace(/^[^.]*recebemos\s+sua\s+manifestação[^.]*\.\s*/i, '');
+    
+    // Remover informações de contato antigas
+    textoLimpo = textoLimpo.replace(/\n*Permanecemos\s+à\s+disposição[^.]*\.\s*/gi, '');
+    textoLimpo = textoLimpo.replace(/\n*📞\s*3003-7293[^\n]*\n*/g, '');
+    textoLimpo = textoLimpo.replace(/\n*📞\s*0800-800-0049[^\n]*\n*/g, '');
+    textoLimpo = textoLimpo.replace(/\n*🌐\s*www\.velotax\.com\.br\s*/g, '');
+    
+    // Remover assinaturas antigas
+    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*[^\n]*\s*\n*Equipe\s+de\s+Atendimento[^\n]*$/i, '');
+    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*Equipe\s+Velotax\s*$/i, '');
+    
+    // Limpar espaços extras e linhas vazias no início e fim
+    textoLimpo = textoLimpo.trim();
     
     // Usar nome do cliente se disponível, senão usar "cliente"
-    const saudacaoCliente = nomeCliente ? nomeCliente : 'cliente';
+    const saudacaoCliente = nomeCliente && nomeCliente.trim() !== '' ? nomeCliente : 'cliente';
     
-    // Construir a resposta formatada
+    // Construir a resposta formatada com a estrutura completa
     const respostaFormatada = `Olá, ${saudacaoCliente}!
 
 Espero que esteja bem.
@@ -996,7 +1031,27 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 - Ofereça canais de contato direto
 - Mantenha transparência total
 
-Gere uma resposta que demonstre expertise técnica, transparência e compromisso com a satisfação do cliente, sempre contextualizada para a Velotax e o tipo de solicitação específica.`;
+⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
+
+IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudação inicial e SEM assinatura final. 
+
+A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
+
+Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
+- Responder diretamente à solicitação do cliente
+- Explicar a solução implementada
+- Ser específico e detalhado
+- Demonstrar expertise técnica, transparência e compromisso com a satisfação do cliente
+- Estar sempre contextualizado para a Velotax e o tipo de solicitação específica
+
+NÃO inclua:
+- "Olá, [nome]" ou qualquer saudação
+- "Sou [nome], especialista..." ou apresentação
+- Informações de contato (telefones, site)
+- "Atenciosamente" ou assinatura
+- Qualquer estrutura de cabeçalho ou rodapé
+
+Gere APENAS o conteúdo explicativo do meio da resposta.`;
 }
 
 // Função auxiliar para gerar contexto específico por tipo de solicitação
@@ -5057,7 +5112,26 @@ e) Convite para contato direto
 - Evite repetições desnecessárias
 - Seja específico e detalhado
 
-Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos levantados no feedback.`;
+⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
+
+IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudação inicial e SEM assinatura final. 
+
+A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
+
+Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
+- Responder diretamente à solicitação do cliente
+- Explicar a solução implementada
+- Ser mais completo, eficaz e atender aos pontos levantados no feedback
+- Ser específico e detalhado (não genérico)
+
+NÃO inclua:
+- "Olá, [nome]" ou qualquer saudação
+- "Sou [nome], especialista..." ou apresentação
+- Informações de contato (telefones, site)
+- "Atenciosamente" ou assinatura
+- Qualquer estrutura de cabeçalho ou rodapé
+
+Gere APENAS o conteúdo explicativo do meio da resposta reformulada.`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
