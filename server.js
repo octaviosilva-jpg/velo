@@ -12377,11 +12377,14 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             });
         }
 
-        const idModeracao = req.params.idModeracao.trim().replace(/\s+/g, ' ');
+        const idModeracao = req.params.idModeracao.trim().replace(/\s+/g, '');
+        const idModeracaoNormalized = idModeracao.replace(/\s+/g, '');
         console.log('🔍 [API] Buscando moderação com ID:', idModeracao);
+        console.log('🔍 [API] ID normalizado (sem espaços):', idModeracaoNormalized);
 
         // Buscar em aceitas
         const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        console.log(`📊 [API] Total de linhas em Moderações Aceitas: ${aceitasData ? aceitasData.length - 1 : 0}`);
         let moderacao = null;
         let tipo = null;
 
@@ -12389,8 +12392,16 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             for (let i = 1; i < aceitasData.length; i++) {
                 const row = aceitasData[i];
                 if (!row || row.length < 6) continue;
-                const idRow = (row[1] || '').toString().trim().replace(/\s+/g, ' ');
-                if (idRow === idModeracao) {
+                const idRow = (row[1] || '').toString().trim().replace(/\s+/g, '');
+                const idRowNormalized = idRow.replace(/\s+/g, '');
+                
+                // Comparar tanto com espaços quanto sem espaços, e também como número se ambos forem numéricos
+                const idsCoincidem = idRowNormalized === idModeracaoNormalized || 
+                                    idRow === idModeracao ||
+                                    (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized) && Number(idRowNormalized) === Number(idModeracaoNormalized));
+                
+                if (idsCoincidem) {
+                    console.log(`✅ [API] Moderação encontrada em Moderações Aceitas (linha ${i + 1})`);
                     moderacao = {
                         idModeracao: idRow,
                         idReclamacao: (row[2] || '').toString().trim(),
@@ -12415,13 +12426,23 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         // Estrutura: [0]Data, [1]ID Moderação, [2]ID Reclamação, [3]Tema, [4]Motivo, [5]Texto,
         // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio
         if (!moderacao) {
+            console.log('🔍 [API] Não encontrado em Moderações Aceitas, buscando em Moderações Negadas...');
             const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+            console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
             if (negadasData && negadasData.length > 1) {
                 for (let i = 1; i < negadasData.length; i++) {
                     const row = negadasData[i];
                     if (!row || row.length < 10) continue;
-                    const idRow = (row[1] || '').toString().trim().replace(/\s+/g, ' ');
-                    if (idRow === idModeracao) {
+                    const idRow = (row[1] || '').toString().trim().replace(/\s+/g, '');
+                    const idRowNormalized = idRow.replace(/\s+/g, '');
+                    
+                    // Comparar tanto com espaços quanto sem espaços, e também como número se ambos forem numéricos
+                    const idsCoincidem = idRowNormalized === idModeracaoNormalized || 
+                                        idRow === idModeracao ||
+                                        (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized) && Number(idRowNormalized) === Number(idModeracaoNormalized));
+                    
+                    if (idsCoincidem) {
+                        console.log(`✅ [API] Moderação encontrada em Moderações Negadas (linha ${i + 1})`);
                         moderacao = {
                             idModeracao: idRow,
                             idReclamacao: (row[2] || '').toString().trim(),
@@ -12447,9 +12468,22 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         }
 
         if (!moderacao) {
+            console.error(`❌ [API] Moderação não encontrada com ID: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
+            console.error(`❌ [API] Verificadas ${aceitasData ? aceitasData.length - 1 : 0} moderações aceitas e ${negadasData ? negadasData.length - 1 : 0} moderações negadas`);
+            
+            // Log dos primeiros IDs encontrados para debug
+            if (aceitasData && aceitasData.length > 1) {
+                console.log('📋 [API] Primeiros IDs em Moderações Aceitas:', aceitasData.slice(1, 4).map(r => (r[1] || '').toString().trim()));
+            }
+            if (negadasData && negadasData.length > 1) {
+                console.log('📋 [API] Primeiros IDs em Moderações Negadas:', negadasData.slice(1, 4).map(r => (r[1] || '').toString().trim()));
+            }
+            
             return res.status(404).json({
                 success: false,
-                error: 'Moderação não encontrada'
+                error: `Moderação não encontrada com ID: ${idModeracao}`,
+                idBuscado: idModeracao,
+                idNormalizado: idModeracaoNormalized
             });
         }
 
