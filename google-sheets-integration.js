@@ -625,7 +625,7 @@ class GoogleSheetsIntegration {
                 feedbackData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
                 'Pendente', // Coluna L: Status Aprovação
                 feedbackData.observacoesInternas || '', // Coluna M: Observações Internas
-                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
+                '' // Coluna N: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
@@ -711,7 +711,7 @@ class GoogleSheetsIntegration {
                 moderacaoData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
                 'Aprovada', // Coluna L: Status Aprovação
                 moderacaoData.observacoesInternas || '', // Coluna M: Observações Internas
-                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
+                '' // Coluna N: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);

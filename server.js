@@ -5779,8 +5779,8 @@ app.get('/api/solicitacoes', async (req, res) => {
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
                             resultadoModeracao: (() => {
-                                // Buscar "Resultado da Moderação" na coluna O (índice 14)
-                                const resultado = moderacao['Resultado da Moderação'] || moderacao[14];
+                                // Buscar "Resultado da Moderação" na coluna N (índice 13)
+                                const resultado = moderacao['Resultado da Moderação'] || moderacao[13];
                                 // Validar se é um valor válido (Aceita ou Negada)
                                 // Ignorar valores como "Aprovada", "Pendente" que são do "Status Aprovação"
                                 if (resultado === 'Aceita' || resultado === 'Negada') {
@@ -8721,28 +8721,43 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         }
         
         // Encontrar a linha com o ID correspondente
-        // O ID está na coluna A (índice 0)
+        // O ID está na coluna B (índice 1) da página Moderações
         let linhaEncontrada = -1;
+        const moderacaoIdTrimmed = moderacaoId.toString().trim();
+        console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" na coluna B (índice 1)`);
+        
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
-            const rowId = row[0] ? row[0].toString().trim() : '';
-            if (rowId === moderacaoId.toString().trim()) {
+            const rowId = row[1] ? row[1].toString().trim() : '';
+            if (rowId === moderacaoIdTrimmed) {
                 linhaEncontrada = i + 1; // +1 porque a planilha começa na linha 1, mas o array em 0
+                console.log(`✅ ID encontrado na linha ${linhaEncontrada} (índice ${i})`);
                 break;
             }
         }
         
         if (linhaEncontrada === -1) {
+            // Log de debug: mostrar alguns IDs encontrados para ajudar no diagnóstico
+            const idsEncontrados = [];
+            for (let i = 1; i < Math.min(data.length, 6); i++) {
+                const row = data[i];
+                const rowId = row[1] ? row[1].toString().trim() : '';
+                if (rowId) {
+                    idsEncontrados.push(`Linha ${i + 1}: "${rowId}"`);
+                }
+            }
+            console.log(`❌ ID não encontrado. IDs encontrados nas primeiras linhas:`, idsEncontrados);
+            
             return res.status(404).json({
                 success: false,
-                error: `Moderação com ID ${moderacaoId} não encontrada na planilha`
+                error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada na planilha. Verifique se o ID está correto na coluna B.`
             });
         }
         
-        // A coluna O é o índice 14 (A=0, B=1, ..., O=14)
-        // Atualizar a coluna O com o resultado da moderação
-        const colunaO = 'O';
-        const cellRange = `Moderações!${colunaO}${linhaEncontrada}`;
+        // A coluna N é o índice 13 (A=0, B=1, ..., N=13)
+        // Atualizar a coluna N com o resultado da moderação
+        const colunaN = 'N';
+        const cellRange = `Moderações!${colunaN}${linhaEncontrada}`;
         
         console.log(`📝 Atualizando célula ${cellRange} com valor: ${resultado}`);
         
