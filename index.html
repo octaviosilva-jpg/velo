@@ -227,7 +227,7 @@
                                 </a>
                                 <a class="nav-link" href="#" data-tool="emails">
                                     <i class="fas fa-envelope me-2"></i>
-                                    E-mails Formais
+                                    Formulação de E-mail
                                 </a>
                                 <a class="nav-link" href="#" data-tool="faq">
                                     <i class="fas fa-question me-2"></i>
@@ -616,13 +616,13 @@
                             </div>
                         </div>
 
-                        <!-- E-mails Formais Tool -->
+                        <!-- Formulação de E-mail Tool -->
                         <div id="emails-tool" class="tool-panel">
                             <div class="card">
                                 <div class="card-header bg-dark text-white">
                                     <h5 class="mb-0">
                                         <i class="fas fa-envelope me-2"></i>
-                                        Redator de E-mails Formais
+                                        Formulação de E-mail
                                     </h5>
                                 </div>
                                 <div class="card-body">
@@ -630,28 +630,22 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="tipo-email" class="form-label">Tipo de E-mail:</label>
-                                                <select class="form-select" id="tipo-email">
+                                                <select class="form-select" id="tipo-email" required>
                                                     <option value="">Selecione o tipo...</option>
                                                     <option value="resposta-cliente">Resposta a Cliente</option>
-                                                    <option value="esclarecimento">Esclarecimento</option>
-                                                    <option value="solicitacao">Solicitação</option>
-                                                    <option value="confirmacao">Confirmação</option>
-                                                    <option value="outro">Outro</option>
+                                                    <option value="solicitacao-moderacao">Solicitação de Moderação</option>
+                                                    <option value="juridico">Jurídico</option>
                                                 </select>
                                             </div>
                                             <div class="mb-3">
-                                                <label for="assunto-email" class="form-label">Assunto:</label>
-                                                <input type="text" class="form-control" id="assunto-email" placeholder="Digite o assunto do e-mail...">
+                                                <label for="destinatario" class="form-label">Destinatário:</label>
+                                                <input type="text" class="form-control" id="destinatario" placeholder="Nome ou identificação do destinatário...">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="destinatario" class="form-label">Destinatário:</label>
-                                                <input type="text" class="form-control" id="destinatario" placeholder="Nome do destinatário...">
-                                            </div>
-                                            <div class="mb-3">
                                                 <label for="contexto-email" class="form-label">Contexto:</label>
-                                                <textarea class="form-control" id="contexto-email" rows="3" placeholder="Descreva o contexto da situação..."></textarea>
+                                                <textarea class="form-control" id="contexto-email" rows="5" placeholder="Descreva o contexto da situação, incluindo fatos, histórico, explicações, datas, IDs, justificativas e demais informações relevantes..."></textarea>
                                             </div>
                                         </div>
                                     </div>

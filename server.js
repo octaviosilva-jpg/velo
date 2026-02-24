@@ -3987,6 +3987,309 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
+// Rota para gerar e-mail formal via API OpenAI
+app.post('/api/generate-email', rateLimitMiddleware, async (req, res) => {
+    try {
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        
+        if (!validateApiKey(apiKey)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Chave da API não configurada ou inválida'
+            });
+        }
+        
+        const { tipoEmail, destinatario, contexto } = req.body;
+        
+        // Validações
+        if (!tipoEmail) {
+            return res.status(400).json({
+                success: false,
+                error: 'Tipo de e-mail é obrigatório'
+            });
+        }
+        
+        if (!contexto || !contexto.trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Contexto é obrigatório'
+            });
+        }
+        
+        // Construir prompt baseado no tipo de e-mail
+        let prompt = `Estruturação Inteligente de E-mails Formais
+Papel do sistema
+
+Você é um redator corporativo especializado em comunicação institucional, atendimento ao cliente, moderação no Reclame Aqui e comunicações de natureza jurídica, atuando no padrão Velotax.
+Seu objetivo é transformar o conteúdo informado no campo "Contexto" em um e-mail completo, com assunto, corpo estruturado, linguagem adequada ao destinatário e tom coerente com o tipo de e-mail selecionado.
+
+Você não deve apenas reorganizar informações:
+👉 deve formular, lapidar e redigir o e-mail final, pronto para envio.
+
+Entrada de dados (preenchida pelo agente)
+
+Tipo de E-mail: ${tipoEmail}
+Destinatário: ${destinatario || 'Não especificado'}
+Contexto: ${contexto}
+
+Regras Gerais de Geração (válidas para todos os tipos)
+
+Sempre gerar:
+
+Assunto do e-mail (claro, objetivo e coerente com o conteúdo).
+
+Saudação inicial adequada ao destinatário.
+
+Corpo do e-mail estruturado em parágrafos, com boa fluidez.
+
+Encerramento profissional.
+
+Assinatura padrão:
+Equipe Velotax.
+
+Linguagem:
+
+Português formal.
+
+Gramática revisada.
+
+Texto claro, direto e profissional.
+
+Sem emojis, sem informalidades excessivas.
+
+Nunca:
+
+Copiar o texto do contexto de forma literal.
+
+Listar informações soltas.
+
+Produzir respostas genéricas ou vagas.
+
+Criar leis, artigos ou fundamentos jurídicos inexistentes.
+
+`;
+
+        // Adicionar instruções específicas por tipo
+        if (tipoEmail === 'resposta-cliente') {
+            prompt += `Estrutura e Estilo por Tipo de E-mail
+1. Tipo: Resposta a Cliente
+
+Objetivo
+Responder clientes quando não houve contato bem-sucedido ou quando a resposta precisa ser formalizada por e-mail, mantendo empatia e clareza.
+
+Tom
+
+Friendly profissional.
+
+Cordial, respeitoso e acessível.
+
+Mais formal que chat/WhatsApp, mas sem rigidez excessiva.
+
+Estrutura obrigatória
+
+Saudação personalizada ao cliente.
+
+Contextualização breve do motivo do contato.
+
+Explicação clara e organizada da situação, baseada no contexto informado.
+
+Orientações, próximos passos ou esclarecimentos necessários.
+
+Disponibilidade para contato e suporte.
+
+Encerramento cordial.
+
+Assunto
+
+Deve ser gerado automaticamente com base no tema central do e-mail
+Ex.:
+
+"Retorno sobre sua solicitação"
+
+"Atualização sobre seu atendimento"
+
+"Esclarecimentos sobre sua solicitação no Velotax"
+`;
+        } else if (tipoEmail === 'solicitacao-moderacao') {
+            prompt += `Estrutura e Estilo por Tipo de E-mail
+2. Tipo: Solicitação de Moderação
+
+Objetivo
+Redigir e-mails formais de recorrência de moderação ao Reclame Aqui, quando a moderação já foi negada e está sendo reapresentada por e-mail.
+
+Tom
+
+Técnico, respeitoso e institucional.
+
+Neutro, sem confronto.
+
+Foco em fatos, coerência e clareza.
+
+Total alinhamento com boas práticas de moderação.
+
+Estrutura obrigatória
+
+Saudação institucional ao time do Reclame Aqui.
+
+Identificação objetiva do pedido:
+
+Solicitação de moderação e/ou anulação de nota.
+
+Citação do ID da reclamação, quando informado no contexto.
+
+Contextualização resumida do caso.
+
+Exposição estruturada dos fatos relevantes, podendo organizar em parágrafos explicativos (não listas secas).
+
+Demonstração clara de que:
+
+Não houve falha na prestação do serviço.
+
+Não houve descumprimento de oferta.
+
+O atendimento foi prestado de forma transparente, documentada e tempestiva.
+
+Justificativa objetiva de por que o relato publicado contém:
+
+Informação incorreta, distorcida ou desconectada da realidade dos fatos.
+
+Pedido formal e respeitoso de:
+
+Moderação e/ou anulação da nota.
+
+Disponibilidade para envio de documentos complementares.
+
+Encerramento cordial e institucional.
+
+Assunto
+
+Claro e técnico.
+Ex.:
+
+"Solicitação de moderação – Reclamação ID XXXXX"
+
+"Pedido de reavaliação de moderação – Velotax"
+`;
+        } else if (tipoEmail === 'juridico') {
+            prompt += `Estrutura e Estilo por Tipo de E-mail
+3. Tipo: Jurídico
+
+Objetivo
+Comunicações formais com teor jurídico-institucional.
+
+Tom
+
+Extremamente formal.
+
+Impessoal e técnico.
+
+Linguagem jurídica ("juridiquês" leve).
+
+Sem emotividade, sem proximidade excessiva.
+
+Regras específicas
+
+Não criar nem citar leis, artigos ou dispositivos legais, a menos que estejam explicitamente no contexto.
+
+Priorizar clareza, formalidade e precisão linguística.
+
+Estrutura obrigatória
+
+Saudação formal e impessoal.
+
+Identificação objetiva do assunto.
+
+Exposição clara e organizada dos fatos.
+
+Posicionamento institucional da empresa.
+
+Encerramento formal e protocolar.
+
+Assunto
+
+Direto, técnico e institucional.
+Ex.:
+
+"Comunicação institucional – Velotax"
+
+"Posicionamento formal sobre o caso informado"
+`;
+        }
+        
+        prompt += `
+
+Saída esperada do sistema
+
+O sistema deve retornar APENAS o e-mail completo, formatado da seguinte forma:
+
+ASSUNTO: [assunto gerado]
+
+[corpo completo do e-mail, pronto para envio, formatado em texto corrido, com parágrafos bem definidos e linguagem adequada ao tipo selecionado]
+
+IMPORTANTE: Retorne APENAS o e-mail formatado conforme acima, sem explicações adicionais, sem comentários, sem metadados.`;
+
+        console.log('📧 Gerando e-mail formal via OpenAI...');
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: envVars.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um redator corporativo especializado em comunicação institucional, atendimento ao cliente, moderação no Reclame Aqui e comunicações de natureza jurídica, atuando no padrão Velotax. Você transforma contexto em e-mails formais completos e profissionais, prontos para envio.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 2000
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Erro na API OpenAI:', errorData);
+            return res.status(500).json({
+                success: false,
+                error: 'Erro ao gerar e-mail',
+                details: errorData.error?.message || 'Erro desconhecido na API OpenAI'
+            });
+        }
+
+        const data = await response.json();
+        const emailGerado = data.choices[0]?.message?.content || '';
+
+        if (!emailGerado) {
+            return res.status(500).json({
+                success: false,
+                error: 'Resposta vazia da API OpenAI'
+            });
+        }
+
+        console.log('✅ E-mail gerado com sucesso');
+
+        res.json({
+            success: true,
+            email: emailGerado
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar e-mail:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
 
 // Rota para gerar resposta RA via API OpenAI (endpoint com sistema de aprendizado completo)
 app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {

@@ -2866,59 +2866,88 @@ function formatarTextoRevisado(texto) {
 
 // ===== FUNÇÕES DE E-MAIL =====
 
-function gerarEmail() {
+async function gerarEmail() {
     const tipoEmail = document.getElementById('tipo-email').value;
-    const assunto = document.getElementById('assunto-email').value;
     const destinatario = document.getElementById('destinatario').value;
     const contexto = document.getElementById('contexto-email').value;
     
-    if (!tipoEmail || !assunto.trim()) {
-        showErrorMessage('Por favor, selecione o tipo de e-mail e preencha o assunto.');
+    if (!tipoEmail) {
+        showErrorMessage('Por favor, selecione o tipo de e-mail.');
         return;
     }
     
-    const email = gerarEmailFormal(tipoEmail, assunto, destinatario, contexto);
-    
-    document.getElementById('email-content').innerHTML = email;
-    document.getElementById('email-resultado').style.display = 'block';
-    
-    showSuccessMessage('E-mail gerado com sucesso!');
-}
-
-function gerarEmailFormal(tipo, assunto, destinatario, contexto) {
-    let email = '';
-    
-    // Saudação
-    email += `<p><strong>Assunto:</strong> ${assunto}</p>`;
-    email += `<p>Prezado(a) ${destinatario || 'cliente'},</p>`;
-    
-    // Corpo baseado no tipo
-    switch (tipo) {
-        case 'resposta-cliente':
-            email += '<p>Agradecemos seu contato e lamentamos pelo transtorno causado.</p>';
-            email += '<p>Informamos que sua solicitação está sendo analisada por nossa equipe especializada.</p>';
-            break;
-        case 'esclarecimento':
-            email += '<p>Viemos por meio desta esclarecer sobre a situação mencionada.</p>';
-            break;
-        case 'solicitacao':
-            email += '<p>Gostaríamos de solicitar algumas informações adicionais para melhor atendê-lo(a).</p>';
-            break;
-        case 'confirmacao':
-            email += '<p>Confirmamos o recebimento de sua solicitação.</p>';
-            break;
+    if (!contexto || !contexto.trim()) {
+        showErrorMessage('Por favor, preencha o campo Contexto com as informações relevantes.');
+        return;
     }
     
-    // Contexto específico
-    if (contexto.trim()) {
-        email += `<p>${contexto}</p>`;
+    // Mostrar loading
+    const btnGerar = document.querySelector('#emails-tool button.btn-dark');
+    const btnOriginalText = btnGerar.innerHTML;
+    btnGerar.disabled = true;
+    btnGerar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Gerando E-mail...';
+    
+    try {
+        const response = await fetch('/api/generate-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tipoEmail: tipoEmail,
+                destinatario: destinatario || '',
+                contexto: contexto
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao gerar e-mail');
+        }
+        
+        // Processar o e-mail retornado
+        let emailFormatado = data.email;
+        
+        // Separar assunto do corpo se estiver no formato "ASSUNTO: ..."
+        let assunto = '';
+        let corpo = emailFormatado;
+        
+        if (emailFormatado.includes('ASSUNTO:')) {
+            const partes = emailFormatado.split('ASSUNTO:');
+            if (partes.length > 1) {
+                assunto = partes[1].split('\n')[0].trim();
+                corpo = partes.slice(1).join('ASSUNTO:').split('\n').slice(1).join('\n').trim();
+            }
+        }
+        
+        // Formatar o e-mail para exibição
+        let emailHTML = '';
+        if (assunto) {
+            emailHTML += `<p><strong>Assunto:</strong> ${assunto}</p>`;
+        }
+        
+        // Converter quebras de linha em parágrafos
+        const paragrafos = corpo.split('\n\n').filter(p => p.trim());
+        paragrafos.forEach(paragrafo => {
+            const linhas = paragrafo.split('\n').filter(l => l.trim());
+            if (linhas.length > 0) {
+                emailHTML += `<p>${linhas.join('<br>')}</p>`;
+            }
+        });
+        
+        document.getElementById('email-content').innerHTML = emailHTML;
+        document.getElementById('email-resultado').style.display = 'block';
+        
+        showSuccessMessage('E-mail gerado com sucesso!');
+        
+    } catch (error) {
+        console.error('Erro ao gerar e-mail:', error);
+        showErrorMessage(error.message || 'Erro ao gerar e-mail. Tente novamente.');
+    } finally {
+        btnGerar.disabled = false;
+        btnGerar.innerHTML = btnOriginalText;
     }
-    
-    // Fechamento
-    email += '<p>Em caso de dúvidas, estamos à disposição.</p>';
-    email += `<p>Atenciosamente,<br>Equipe ${NOME_EMPRESA}</p>`;
-    
-    return email;
 }
 
 
