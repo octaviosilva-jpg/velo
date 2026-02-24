@@ -3724,6 +3724,60 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
         // Obter modelos de moderação aprovados - VERSÃO MELHORADA
         const modelosRelevantes = await getModelosModeracaoRelevantes(dadosModeracao.motivoModeracao, dadosModeracao);
         
+        // CONSULTAR APRENDIZADO NEGATIVO (FASE 2) - ANTES DE GERAR O TEXTO
+        let aprendizadoNegativo = null;
+        let aprendizadoNegativoAplicado = false;
+        try {
+            if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
+                const temaAtual = dadosModeracao.motivoModeracao || 'geral';
+                console.log(`🔍 Consultando aprendizado negativo para tema: ${temaAtual}`);
+                
+                // Consultar página "Moderações Negadas"
+                const negativasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+                
+                if (negativasData && negativasData.length > 1) {
+                    // Filtrar negativas do mesmo tema
+                    const negativasRelevantes = [];
+                    for (let i = 1; i < negativasData.length; i++) {
+                        const row = negativasData[i];
+                        if (!row || row.length < 10) continue;
+                        
+                        const temaNegativa = (row[3] || '').toString().toLowerCase().trim();
+                        const temaAtualLower = temaAtual.toString().toLowerCase().trim();
+                        
+                        // Verificar se o tema corresponde
+                        if (temaNegativa === temaAtualLower || 
+                            temaNegativa.includes(temaAtualLower) || 
+                            temaAtualLower.includes(temaNegativa)) {
+                            negativasRelevantes.push({
+                                erro: row[8] || '', // Bloco 2 - Erro Identificado
+                                correcao: row[9] || '' // Bloco 3 - Orientação de Correção
+                            });
+                        }
+                    }
+                    
+                    if (negativasRelevantes.length > 0) {
+                        console.log(`📊 Encontradas ${negativasRelevantes.length} negativas relevantes para aprendizado negativo`);
+                        
+                        // Extrair padrões de erro e correção
+                        const errosRecorrentes = negativasRelevantes.map(n => n.erro).filter(e => e && e.trim());
+                        const correcoesRecorrentes = negativasRelevantes.map(n => n.correcao).filter(c => c && c.trim());
+                        
+                        if (errosRecorrentes.length > 0 || correcoesRecorrentes.length > 0) {
+                            aprendizadoNegativo = {
+                                erros: errosRecorrentes.slice(0, 5), // Limitar a 5 erros mais recentes
+                                correcoes: correcoesRecorrentes.slice(0, 5) // Limitar a 5 correções mais recentes
+                            };
+                            aprendizadoNegativoAplicado = true;
+                            console.log('✅ Aprendizado negativo identificado e será aplicado no prompt');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('⚠️ Erro ao consultar aprendizado negativo (continuando sem ele):', error.message);
+        }
+        
         let conhecimentoFeedback = '';
         
         // PRIORIDADE 1: MODELOS APROVADOS (seguir este padrão) - VERSÃO MELHORADA
@@ -3786,6 +3840,20 @@ INFORMAÇÕES DISPONÍVEIS:
 - Motivo da moderação: ${dadosModeracao.motivoModeracao}
 
 ${conhecimentoFeedback || ''}
+
+${aprendizadoNegativo ? `
+⚠️ APRENDIZADO NEGATIVO - ERROS IDENTIFICADOS EM MODERAÇÕES ANTERIORES DESTE TEMA:
+
+Os seguintes erros foram identificados em moderações negadas anteriormente para este mesmo tema. EVITE COMETER OS MESMOS ERROS:
+
+ERROS RECORRENTES IDENTIFICADOS:
+${aprendizadoNegativo.erros.map((erro, idx) => `${idx + 1}. ${erro}`).join('\n')}
+
+ORIENTAÇÕES DE CORREÇÃO:
+${aprendizadoNegativo.correcoes.map((correcao, idx) => `${idx + 1}. ${correcao}`).join('\n')}
+
+⚠️ IMPORTANTE: Use este aprendizado negativo como FILTRO CORRETIVO. Ele não substitui o aprendizado positivo (modelos coerentes), mas deve ser aplicado para evitar erros já identificados. Mantenha a estrutura base dos modelos coerentes, mas remova ou ajuste estruturas que já geraram negativas.
+` : ''}
 
 ⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
 
@@ -3965,63 +4033,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 console.log('📝 A IA deve seguir o script estruturado definido no prompt');
             }
             
-            // APLICAÇÃO DO APRENDIZADO NEGATIVO (FASE 2)
-            // Consultar base de negativas para aplicar filtros corretivos
-            let aprendizadoNegativoAplicado = false;
-            try {
-                if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
-                    const temaAtual = dadosModeracao.motivoModeracao || 'geral';
-                    console.log(`🔍 Consultando aprendizado negativo para tema: ${temaAtual}`);
-                    
-                    // Consultar página "Moderações Negadas"
-                    const negativasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
-                    
-                    if (negativasData && negativasData.length > 1) {
-                        // Filtrar negativas do mesmo tema
-                        const negativasRelevantes = [];
-                        for (let i = 1; i < negativasData.length; i++) {
-                            const row = negativasData[i];
-                            if (!row || row.length < 4) continue;
-                            
-                            const temaNegativa = (row[3] || '').toString().toLowerCase().trim();
-                            const temaAtualLower = temaAtual.toString().toLowerCase().trim();
-                            
-                            // Verificar se o tema corresponde (pode ser exato ou parcial)
-                            if (temaNegativa === temaAtualLower || 
-                                temaNegativa.includes(temaAtualLower) || 
-                                temaAtualLower.includes(temaNegativa)) {
-                                negativasRelevantes.push({
-                                    erro: row[8] || '', // Bloco 2 - Erro Identificado
-                                    correcao: row[9] || '' // Bloco 3 - Orientação de Correção
-                                });
-                            }
-                        }
-                        
-                        if (negativasRelevantes.length > 0) {
-                            console.log(`📊 Encontradas ${negativasRelevantes.length} negativas relevantes para aprendizado negativo`);
-                            
-                            // Extrair padrões de erro e correção
-                            const errosRecorrentes = negativasRelevantes.map(n => n.erro).filter(e => e && e.trim());
-                            const correcoesRecorrentes = negativasRelevantes.map(n => n.correcao).filter(c => c && c.trim());
-                            
-                            // Aplicar ajustes no texto base (após geração positiva)
-                            // Por enquanto, apenas logar - a aplicação real será feita via prompt na próxima iteração
-                            if (errosRecorrentes.length > 0 || correcoesRecorrentes.length > 0) {
-                                aprendizadoNegativoAplicado = true;
-                                console.log('✅ Aprendizado negativo identificado e será aplicado');
-                                console.log(`📋 Erros recorrentes encontrados: ${errosRecorrentes.length}`);
-                                console.log(`📋 Correções disponíveis: ${correcoesRecorrentes.length}`);
-                                
-                                // Adicionar mensagem de transparência (será exibida no frontend)
-                                // Por enquanto, apenas logar
-                                console.log('💡 Mensagem: Esta moderação foi baseada em modelos coerentes e ajustada para evitar erros identificados em negativas anteriores.');
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('⚠️ Erro ao consultar aprendizado negativo (continuando sem ele):', error.message);
-            }
+            // Aprendizado negativo já foi consultado antes da geração e incluído no prompt
             
             // Incrementar estatística global
             await incrementarEstatisticaGlobal('moderacoes_geradas');
@@ -8420,6 +8432,290 @@ app.get('/api/estatisticas-globais', (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor'
+        });
+    }
+});
+
+// Endpoint para visualização completa de uma moderação (FASE 2 - Auditoria)
+app.get('/api/moderacao-detalhes/:id', async (req, res) => {
+    console.log('🎯 Endpoint /api/moderacao-detalhes chamado');
+    try {
+        const { id } = req.params;
+        
+        if (!id || !id.toString().trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da moderação é obrigatório'
+            });
+        }
+        
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+        
+        const moderacaoIdTrimmed = id.toString().trim();
+        const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
+        
+        let detalhes = null;
+        let tipo = null;
+        
+        // Buscar em "Moderações Aceitas"
+        try {
+            const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+            if (aceitasData && aceitasData.length > 1) {
+                for (let i = 1; i < aceitasData.length; i++) {
+                    const row = aceitasData[i];
+                    if (!row || row.length < 2) continue;
+                    
+                    const rowId = (row[1] || '').toString().trim().replace(/\s+/g, '');
+                    if (rowId === moderacaoIdNormalized) {
+                        detalhes = {
+                            dataRegistro: row[0] || '',
+                            idModeracao: row[1] || '',
+                            idReclamacao: row[2] || '',
+                            tema: row[3] || '',
+                            motivoUtilizado: row[4] || '',
+                            textoModeracaoEnviada: row[5] || '',
+                            resultado: row[6] || 'Aceita',
+                            solicitacaoCliente: row[7] || '',
+                            respostaEmpresa: row[8] || '',
+                            consideracaoFinal: row[9] || '',
+                            linhaRaciocinio: row[10] || '',
+                            dataHoraModeracaoOriginal: row[11] || '',
+                            statusAprovacao: row[12] || '',
+                            observacoesInternas: row[13] || '',
+                            // Campos específicos de negativa (vazios para aceitas)
+                            motivoNegativa: '',
+                            erroIdentificado: '',
+                            orientacaoCorrecao: ''
+                        };
+                        tipo = 'aceita';
+                        break;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('⚠️ Erro ao buscar moderação aceita:', error.message);
+        }
+        
+        // Se não encontrou, buscar em "Moderações Negadas"
+        if (!detalhes) {
+            try {
+                const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+                if (negadasData && negadasData.length > 1) {
+                    for (let i = 1; i < negadasData.length; i++) {
+                        const row = negadasData[i];
+                        if (!row || row.length < 2) continue;
+                        
+                        const rowId = (row[1] || '').toString().trim().replace(/\s+/g, '');
+                        if (rowId === moderacaoIdNormalized) {
+                            detalhes = {
+                                dataRegistro: row[0] || '',
+                                idModeracao: row[1] || '',
+                                idReclamacao: row[2] || '',
+                                tema: row[3] || '',
+                                motivoUtilizado: row[4] || '',
+                                textoModeracaoEnviada: row[5] || '',
+                                resultado: row[6] || 'Negada',
+                                motivoNegativa: row[7] || '', // Bloco 1
+                                erroIdentificado: row[8] || '', // Bloco 2
+                                orientacaoCorrecao: row[9] || '', // Bloco 3
+                                solicitacaoCliente: row[10] || '',
+                                respostaEmpresa: row[11] || '',
+                                consideracaoFinal: row[12] || '',
+                                linhaRaciocinio: row[13] || '',
+                                dataHoraModeracaoOriginal: row[14] || ''
+                            };
+                            tipo = 'negada';
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('⚠️ Erro ao buscar moderação negada:', error.message);
+            }
+        }
+        
+        if (!detalhes) {
+            return res.status(404).json({
+                success: false,
+                error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada`
+            });
+        }
+        
+        res.json({
+            success: true,
+            tipo: tipo,
+            detalhes: detalhes
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar detalhes da moderação:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
+// Endpoint para estatísticas de moderações (FASE 2 - Controle Quantitativo)
+app.get('/api/estatisticas-moderacoes', async (req, res) => {
+    console.log('🎯 Endpoint /api/estatisticas-moderacoes chamado');
+    try {
+        const { tema, dataInicio, dataFim, motivo } = req.query;
+        
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.json({
+                success: true,
+                totalAnalisadas: 0,
+                totalAceitas: 0,
+                totalNegadas: 0,
+                taxaAceite: 0,
+                porTema: {},
+                porPeriodo: {},
+                porMotivo: {}
+            });
+        }
+        
+        // Buscar moderações aceitas
+        let aceitasData = [];
+        try {
+            const data = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+            if (data && data.length > 1) {
+                aceitasData = data.slice(1); // Remover cabeçalho
+            }
+        } catch (error) {
+            console.error('⚠️ Erro ao buscar moderações aceitas:', error.message);
+        }
+        
+        // Buscar moderações negadas
+        let negadasData = [];
+        try {
+            const data = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+            if (data && data.length > 1) {
+                negadasData = data.slice(1); // Remover cabeçalho
+            }
+        } catch (error) {
+            console.error('⚠️ Erro ao buscar moderações negadas:', error.message);
+        }
+        
+        // Processar dados
+        const totalAceitas = aceitasData.length;
+        const totalNegadas = negadasData.length;
+        const totalAnalisadas = totalAceitas + totalNegadas;
+        const taxaAceite = totalAnalisadas > 0 ? ((totalAceitas / totalAnalisadas) * 100).toFixed(2) : 0;
+        
+        // Agrupar por tema
+        const porTema = {};
+        aceitasData.forEach(row => {
+            const temaRow = (row[3] || 'geral').toString().trim();
+            if (!porTema[temaRow]) {
+                porTema[temaRow] = { aceitas: 0, negadas: 0 };
+            }
+            porTema[temaRow].aceitas++;
+        });
+        negadasData.forEach(row => {
+            const temaRow = (row[3] || 'geral').toString().trim();
+            if (!porTema[temaRow]) {
+                porTema[temaRow] = { aceitas: 0, negadas: 0 };
+            }
+            porTema[temaRow].negadas++;
+        });
+        
+        // Agrupar por período (mês/ano)
+        const porPeriodo = {};
+        const processarData = (dataStr) => {
+            if (!dataStr) return null;
+            try {
+                const partes = dataStr.split(' ')[0].split('/');
+                if (partes.length === 3) {
+                    return `${partes[1]}/${partes[2]}`; // MM/YYYY
+                }
+            } catch (e) {}
+            return null;
+        };
+        
+        aceitasData.forEach(row => {
+            const periodo = processarData(row[0]) || 'N/A';
+            if (!porPeriodo[periodo]) {
+                porPeriodo[periodo] = { aceitas: 0, negadas: 0 };
+            }
+            porPeriodo[periodo].aceitas++;
+        });
+        negadasData.forEach(row => {
+            const periodo = processarData(row[0]) || 'N/A';
+            if (!porPeriodo[periodo]) {
+                porPeriodo[periodo] = { aceitas: 0, negadas: 0 };
+            }
+            porPeriodo[periodo].negadas++;
+        });
+        
+        // Agrupar por motivo
+        const porMotivo = {};
+        aceitasData.forEach(row => {
+            const motivoRow = (row[4] || 'N/A').toString().trim();
+            if (!porMotivo[motivoRow]) {
+                porMotivo[motivoRow] = { aceitas: 0, negadas: 0 };
+            }
+            porMotivo[motivoRow].aceitas++;
+        });
+        negadasData.forEach(row => {
+            const motivoRow = (row[4] || 'N/A').toString().trim();
+            if (!porMotivo[motivoRow]) {
+                porMotivo[motivoRow] = { aceitas: 0, negadas: 0 };
+            }
+            porMotivo[motivoRow].negadas++;
+        });
+        
+        // Aplicar filtros se fornecidos
+        let dadosFiltrados = {
+            aceitas: aceitasData,
+            negadas: negadasData
+        };
+        
+        if (tema || dataInicio || dataFim || motivo) {
+            dadosFiltrados.aceitas = aceitasData.filter(row => {
+                if (tema && (row[3] || '').toString().toLowerCase() !== tema.toLowerCase()) return false;
+                if (motivo && (row[4] || '').toString().toLowerCase() !== motivo.toLowerCase()) return false;
+                // Filtro de data pode ser adicionado aqui se necessário
+                return true;
+            });
+            
+            dadosFiltrados.negadas = negadasData.filter(row => {
+                if (tema && (row[3] || '').toString().toLowerCase() !== tema.toLowerCase()) return false;
+                if (motivo && (row[4] || '').toString().toLowerCase() !== motivo.toLowerCase()) return false;
+                // Filtro de data pode ser adicionado aqui se necessário
+                return true;
+            });
+        }
+        
+        res.json({
+            success: true,
+            totalAnalisadas: totalAnalisadas,
+            totalAceitas: totalAceitas,
+            totalNegadas: totalNegadas,
+            taxaAceite: parseFloat(taxaAceite),
+            porTema: porTema,
+            porPeriodo: porPeriodo,
+            porMotivo: porMotivo,
+            filtros: {
+                tema: tema || null,
+                dataInicio: dataInicio || null,
+                dataFim: dataFim || null,
+                motivo: motivo || null
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar estatísticas de moderações:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
         });
     }
 });
