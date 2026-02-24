@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Moderações - Velotax</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-tab:hover {
+            color: #667eea;
+        }
+
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .filters-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .indicator-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .indicator-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .indicator-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .indicator-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .indicator-card .subtitle {
+            font-size: 14px;
+            color: #999;
+        }
+
+        .indicator-card.success .value {
+            color: #28a745;
+        }
+
+        .indicator-card.danger .value {
+            color: #dc3545;
+        }
+
+        .indicator-card.info .value {
+            color: #17a2b8;
+        }
+
+        .indicator-card.warning .value {
+            color: #ffc107;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #ddd;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chart-container h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: 20px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+        }
+
+        .detail-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .detail-section p,
+        .detail-section pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .block-analysis {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+
+        .block-analysis.red {
+            background: #ffe6e6;
+            border-color: #dc3545;
+        }
+
+        .block-analysis.yellow {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .block-analysis.green {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .block-analysis h4 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .link-btn {
+            color: #667eea;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .link-btn:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Dashboard de Moderações</h1>
+            <p>FASE 4 - Visibilidade, Gestão e Aprendizado Humano</p>
+        </header>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('overview')">Visão Geral</button>
+            <button class="nav-tab" onclick="showTab('temas')">Por Tema</button>
+            <button class="nav-tab" onclick="showTab('moderacoes')">Moderações</button>
+            <button class="nav-tab" onclick="showTab('evolucao')">Evolução</button>
+        </div>
+
+        <!-- TAB: VISÃO GERAL -->
+        <div id="overview" class="tab-content active">
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Período</label>
+                        <select id="periodoGlobal" onchange="loadGlobalStats()">
+                            <option value="todos">Todos</option>
+                            <option value="hoje">Hoje</option>
+                            <option value="7dias">Últimos 7 dias</option>
+                            <option value="30dias" selected>Últimos 30 dias</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" id="customDates" style="display: none;">
+                        <label>Data Início</label>
+                        <input type="date" id="dataInicio">
+                    </div>
+                    <div class="filter-group" id="customDates2" style="display: none;">
+                        <label>Data Fim</label>
+                        <input type="date" id="dataFim">
+                    </div>
+                </div>
+            </div>
+
+            <div id="indicadoresGlobais" class="indicators">
+                <div class="loading">Carregando indicadores...</div>
+            </div>
+        </div>
+
+        <!-- TAB: POR TEMA -->
+        <div id="temas" class="tab-content">
+            <div id="temasContent">
+                <div class="loading">Carregando estatísticas por tema...</div>
+            </div>
+        </div>
+
+        <!-- TAB: MODERAÇÕES -->
+        <div id="moderacoes" class="tab-content">
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Tema</label>
+                        <select id="filtroTema">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Resultado</label>
+                        <select id="filtroResultado">
+                            <option value="">Todos</option>
+                            <option value="Aceita">Aceita</option>
+                            <option value="Negada">Negada</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Motivo</label>
+                        <select id="filtroMotivo">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <button class="btn" onclick="loadModeracoes()">Filtrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="moderacoesContent">
+                <div class="loading">Carregando moderações...</div>
+            </div>
+        </div>
+
+        <!-- TAB: EVOLUÇÃO -->
+        <div id="evolucao" class="tab-content">
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>Período</label>
+                        <select id="periodoEvolucao" onchange="loadEvolucao()">
+                            <option value="7dias">Últimos 7 dias</option>
+                            <option value="30dias" selected>Últimos 30 dias</option>
+                            <option value="90dias">Últimos 90 dias</option>
+                            <option value="6meses">Últimos 6 meses</option>
+                            <option value="1ano">Último ano</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="evolucaoContent">
+                <div class="loading">Carregando evolução...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALHES DA MODERAÇÃO -->
+    <div id="modalDetalhes" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Detalhes da Moderação</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody">
+                <div class="loading">Carregando...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Funções de navegação
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Carregar dados da aba
+            if (tabName === 'overview') {
+                loadGlobalStats();
+            } else if (tabName === 'temas') {
+                loadTemasStats();
+            } else if (tabName === 'moderacoes') {
+                loadModeracoes();
+            } else if (tabName === 'evolucao') {
+                loadEvolucao();
+            }
+        }
+
+        // Carregar estatísticas globais
+        async function loadGlobalStats() {
+            const periodo = document.getElementById('periodoGlobal').value;
+            const dataInicio = document.getElementById('dataInicio')?.value;
+            const dataFim = document.getElementById('dataFim')?.value;
+
+            let url = `/api/estatisticas/globais?periodo=${periodo}`;
+            if (periodo === 'custom' && dataInicio && dataFim) {
+                url += `&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderIndicadoresGlobais(data.indicadores);
+                } else {
+                    document.getElementById('indicadoresGlobais').innerHTML = 
+                        `<div class="error">Erro: ${data.error || 'Erro ao carregar dados'}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('indicadoresGlobais').innerHTML = 
+                    `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+            }
+        }
+
+        function renderIndicadoresGlobais(indicadores) {
+            const html = `
+                <div class="indicator-card info">
+                    <h3>Total Geradas</h3>
+                    <div class="value">${indicadores.totalGeradas}</div>
+                    <div class="subtitle">Moderações geradas no período</div>
+                </div>
+                <div class="indicator-card success">
+                    <h3>Total Aceitas</h3>
+                    <div class="value">${indicadores.totalAceitas}</div>
+                    <div class="subtitle">Moderações aceitas</div>
+                </div>
+                <div class="indicator-card danger">
+                    <h3>Total Negadas</h3>
+                    <div class="value">${indicadores.totalNegadas}</div>
+                    <div class="subtitle">Moderações negadas</div>
+                </div>
+                <div class="indicator-card warning">
+                    <h3>Taxa de Aceite</h3>
+                    <div class="value">${indicadores.taxaAceite}%</div>
+                    <div class="subtitle">Taxa de sucesso</div>
+                </div>
+            `;
+            document.getElementById('indicadoresGlobais').innerHTML = html;
+        }
+
+        // Carregar estatísticas por tema
+        async function loadTemasStats() {
+            try {
+                const response = await fetch('/api/estatisticas/temas');
+                const data = await response.json();
+
+                if (data.success) {
+                    renderTemasStats(data.temas);
+                } else {
+                    document.getElementById('temasContent').innerHTML = 
+                        `<div class="error">Erro: ${data.error || 'Erro ao carregar dados'}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('temasContent').innerHTML = 
+                    `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+            }
+        }
+
+        function renderTemasStats(temas) {
+            if (temas.length === 0) {
+                document.getElementById('temasContent').innerHTML = 
+                    '<div class="empty-state"><p>Nenhum tema encontrado</p></div>';
+                return;
+            }
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            html += '<th>Tema</th><th>Total</th><th>Aceitas</th><th>Negadas</th><th>Taxa Aceite</th><th>Ações</th>';
+            html += '</tr></thead><tbody>';
+
+            temas.forEach(tema => {
+                html += `<tr>
+                    <td><strong>${tema.tema}</strong></td>
+                    <td>${tema.total}</td>
+                    <td><span class="badge badge-success">${tema.aceitas}</span></td>
+                    <td><span class="badge badge-danger">${tema.negadas}</span></td>
+                    <td>${tema.taxaAceite}%</td>
+                    <td><a href="#" class="link-btn" onclick="verDetalhesTema('${encodeURIComponent(tema.tema)}')">Ver Detalhes</a></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('temasContent').innerHTML = html;
+        }
+
+        // Carregar moderações
+        async function loadModeracoes() {
+            const tema = document.getElementById('filtroTema').value;
+            const resultado = document.getElementById('filtroResultado').value;
+            const motivo = document.getElementById('filtroMotivo').value;
+
+            let url = '/api/moderacoes?';
+            if (tema) url += `tema=${encodeURIComponent(tema)}&`;
+            if (resultado) url += `resultado=${encodeURIComponent(resultado)}&`;
+            if (motivo) url += `motivo=${encodeURIComponent(motivo)}&`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderModeracoes(data.moderacoes);
+                    loadFiltros();
+                } else {
+                    document.getElementById('moderacoesContent').innerHTML = 
+                        `<div class="error">Erro: ${data.error || 'Erro ao carregar dados'}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('moderacoesContent').innerHTML = 
+                    `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+            }
+        }
+
+        function renderModeracoes(moderacoes) {
+            if (moderacoes.length === 0) {
+                document.getElementById('moderacoesContent').innerHTML = 
+                    '<div class="empty-state"><p>Nenhuma moderação encontrada</p></div>';
+                return;
+            }
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            html += '<th>ID Moderação</th><th>ID Reclamação</th><th>Tema</th><th>Motivo</th><th>Resultado</th><th>Data</th><th>Ações</th>';
+            html += '</tr></thead><tbody>';
+
+            moderacoes.forEach(mod => {
+                const badgeClass = mod.resultado === 'Aceita' ? 'badge-success' : 'badge-danger';
+                html += `<tr>
+                    <td>${mod.idModeracao}</td>
+                    <td>${mod.idReclamacao}</td>
+                    <td>${mod.tema}</td>
+                    <td>${mod.motivo}</td>
+                    <td><span class="badge ${badgeClass}">${mod.resultado}</span></td>
+                    <td>${mod.data}</td>
+                    <td><a href="#" class="link-btn" onclick="verDetalhesModeracao('${mod.idModeracao}')">Ver Detalhes</a></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('moderacoesContent').innerHTML = html;
+        }
+
+        // Carregar evolução
+        async function loadEvolucao() {
+            const periodo = document.getElementById('periodoEvolucao').value;
+            
+            try {
+                const response = await fetch(`/api/estatisticas/evolucao?periodo=${periodo}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderEvolucao(data.evolucao);
+                } else {
+                    document.getElementById('evolucaoContent').innerHTML = 
+                        `<div class="error">Erro: ${data.error || 'Erro ao carregar dados'}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('evolucaoContent').innerHTML = 
+                    `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+            }
+        }
+
+        function renderEvolucao(evolucao) {
+            if (evolucao.length === 0) {
+                document.getElementById('evolucaoContent').innerHTML = 
+                    '<div class="empty-state"><p>Nenhum dado de evolução encontrado</p></div>';
+                return;
+            }
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            html += '<th>Data</th><th>Total</th><th>Aceitas</th><th>Negadas</th><th>Taxa Aceite</th>';
+            html += '</tr></thead><tbody>';
+
+            evolucao.forEach(item => {
+                html += `<tr>
+                    <td><strong>${item.data}</strong></td>
+                    <td>${item.total}</td>
+                    <td><span class="badge badge-success">${item.aceitas}</span></td>
+                    <td><span class="badge badge-danger">${item.negadas}</span></td>
+                    <td>${item.taxaAceite}%</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('evolucaoContent').innerHTML = html;
+        }
+
+        // Carregar filtros
+        async function loadFiltros() {
+            try {
+                const response = await fetch('/api/estatisticas/temas');
+                const data = await response.json();
+
+                if (data.success) {
+                    const temaSelect = document.getElementById('filtroTema');
+                    temaSelect.innerHTML = '<option value="">Todos</option>';
+                    data.temas.forEach(tema => {
+                        temaSelect.innerHTML += `<option value="${tema.tema}">${tema.tema}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar filtros:', error);
+            }
+        }
+
+        // Ver detalhes de uma moderação
+        async function verDetalhesModeracao(idModeracao) {
+            const modal = document.getElementById('modalDetalhes');
+            const modalBody = document.getElementById('modalBody');
+            modal.classList.add('active');
+            modalBody.innerHTML = '<div class="loading">Carregando detalhes...</div>';
+
+            try {
+                const response = await fetch(`/api/moderacao/${encodeURIComponent(idModeracao)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    renderDetalhesModeracao(data);
+                } else {
+                    modalBody.innerHTML = `<div class="error">Erro: ${data.error || 'Erro ao carregar detalhes'}</div>`;
+                }
+            } catch (error) {
+                modalBody.innerHTML = `<div class="error">Erro ao carregar detalhes: ${error.message}</div>`;
+            }
+        }
+
+        function renderDetalhesModeracao(data) {
+            const mod = data.moderacao;
+            const tipo = data.tipo;
+            const aprendizado = data.aprendizadoAplicado;
+
+            let html = `
+                <div class="detail-section">
+                    <h3>Dados Gerais</h3>
+                    <p><strong>ID da Moderação:</strong> ${mod.idModeracao}</p>
+                    <p><strong>ID da Reclamação:</strong> ${mod.idReclamacao}</p>
+                    <p><strong>Tema:</strong> ${mod.tema}</p>
+                    <p><strong>Motivo:</strong> ${mod.motivo}</p>
+                    <p><strong>Resultado:</strong> <span class="badge ${tipo === 'aceita' ? 'badge-success' : 'badge-danger'}">${mod.resultado}</span></p>
+                    <p><strong>Data do Registro:</strong> ${mod.dataRegistro}</p>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Texto da Moderação Enviada</h3>
+                    <pre>${mod.textoModeracao || 'N/A'}</pre>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Contexto</h3>
+                    <p><strong>Solicitação do Cliente:</strong></p>
+                    <pre>${mod.solicitacaoCliente || 'N/A'}</pre>
+                    <p><strong>Resposta da Empresa:</strong></p>
+                    <pre>${mod.respostaEmpresa || 'N/A'}</pre>
+                    <p><strong>Consideração Final:</strong></p>
+                    <pre>${mod.consideracaoFinal || 'N/A'}</pre>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Linha de Raciocínio Interna</h3>
+                    <pre>${mod.linhaRaciocinio || 'N/A'}</pre>
+                </div>
+            `;
+
+            if (tipo === 'negada') {
+                html += `
+                    <div class="detail-section">
+                        <h3>🔴 Análise FASE 2 - Motivo da Negativa (Base Manual)</h3>
+                        <div class="block-analysis red">
+                            <h4>🔴 BLOCO 1 – MOTIVO DA NEGATIVA</h4>
+                            <p>${mod.motivoNegativa || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>🟡 Análise FASE 2 - Onde a Solicitação Errou</h3>
+                        <div class="block-analysis yellow">
+                            <h4>🟡 BLOCO 2 – ONDE A SOLICITAÇÃO ERROU</h4>
+                            <p>${mod.ondeErrou || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>🟢 Análise FASE 2 - Como Corrigir</h3>
+                        <div class="block-analysis green">
+                            <h4>🟢 BLOCO 3 – COMO CORRIGIR EM PRÓXIMAS SOLICITAÇÕES</h4>
+                            <p>${mod.comoCorrigir || 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (tipo === 'aceita' && aprendizado) {
+                html += `
+                    <div class="detail-section">
+                        <h3>✅ Referência FASE 3 - Aprendizado Positivo</h3>
+                        <div class="block-analysis green">
+                            <p><strong>${aprendizado.mensagem}</strong></p>
+                            <p>Peso do modelo: ${aprendizado.pesoModelo.toFixed(2)}</p>
+                            <p>Quantidade de aceites que reforçaram este modelo: ${aprendizado.quantidadeAceites}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (aprendizado) {
+                html += `
+                    <div class="detail-section">
+                        <h3>📚 Histórico de Aprendizado Aplicado</h3>
+                        <p>Esta moderação foi baseada em:</p>
+                        <ul>
+                            <li>${tipo === 'aceita' ? '✅ Moderações aceitas (FASE 3)' : '📖 Moderações coerentes'}</li>
+                            ${tipo === 'negada' ? '<li>🔴 Ajustes por aprendizado negativo (FASE 2)</li>' : ''}
+                        </ul>
+                        ${aprendizado.mensagem ? `<p><em>${aprendizado.mensagem}</em></p>` : ''}
+                    </div>
+                `;
+            }
+
+            document.getElementById('modalBody').innerHTML = html;
+        }
+
+        // Ver detalhes de um tema
+        async function verDetalhesTema(tema) {
+            const modal = document.getElementById('modalDetalhes');
+            const modalBody = document.getElementById('modalBody');
+            modal.classList.add('active');
+            modalBody.innerHTML = '<div class="loading">Carregando detalhes do tema...</div>';
+
+            try {
+                const response = await fetch(`/api/estatisticas/tema/${tema}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    let html = `
+                        <div class="detail-section">
+                            <h3>Estatísticas do Tema: ${data.tema}</h3>
+                            <p><strong>Total:</strong> ${data.total}</p>
+                            <p><strong>Aceitas:</strong> <span class="badge badge-success">${data.aceitas}</span></p>
+                            <p><strong>Negadas:</strong> <span class="badge badge-danger">${data.negadas}</span></p>
+                            <p><strong>Taxa de Aceite:</strong> ${data.taxaAceite}%</p>
+                        </div>
+
+                        <div class="detail-section">
+                            <h3>Estatísticas por Motivo</h3>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Motivo</th>
+                                            <th>Total</th>
+                                            <th>Aceitas</th>
+                                            <th>Negadas</th>
+                                            <th>Taxa Aceite</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+
+                    data.motivos.forEach(motivo => {
+                        html += `<tr>
+                            <td><strong>${motivo.motivo}</strong></td>
+                            <td>${motivo.total}</td>
+                            <td><span class="badge badge-success">${motivo.aceitas}</span></td>
+                            <td><span class="badge badge-danger">${motivo.negadas}</span></td>
+                            <td>${motivo.taxaAceite}%</td>
+                        </tr>`;
+                    });
+
+                    html += '</tbody></table></div></div>';
+                    modalBody.innerHTML = html;
+                } else {
+                    modalBody.innerHTML = `<div class="error">Erro: ${data.error || 'Erro ao carregar detalhes'}</div>`;
+                }
+            } catch (error) {
+                modalBody.innerHTML = `<div class="error">Erro ao carregar detalhes: ${error.message}</div>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modalDetalhes').classList.remove('active');
+        }
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modalDetalhes').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Mostrar/ocultar campos de data customizada
+        document.getElementById('periodoGlobal').addEventListener('change', function() {
+            const customDates = document.getElementById('customDates');
+            const customDates2 = document.getElementById('customDates2');
+            if (this.value === 'custom') {
+                customDates.style.display = 'block';
+                customDates2.style.display = 'block';
+            } else {
+                customDates.style.display = 'none';
+                customDates2.style.display = 'none';
+            }
+        });
+
+        // Carregar dados iniciais
+        loadGlobalStats();
+        loadTemasStats();
+        loadFiltros();
+    </script>
+</body>
+</html>

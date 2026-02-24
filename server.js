@@ -3674,6 +3674,173 @@ app.get('/api/test-openai-configured', rateLimitMiddleware, async (req, res) => 
     }
 });
 
+/**
+ * Extrai padrões positivos da página "Moderações Aceitas" e calcula pesos dinâmicos
+ * FASE 3 - Aprendizado Positivo
+ * @param {string} tema - Tema da moderação atual
+ * @param {string} motivo - Motivo da moderação atual
+ * @returns {Promise<Object>} Objeto com modelos priorizados e pesos
+ */
+async function extrairPadroesPositivos(tema, motivo) {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return { modelos: [], pesoTotal: 0 };
+        }
+        
+        // Consultar página "Moderações Aceitas"
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        
+        if (!aceitasData || aceitasData.length <= 1) {
+            return { modelos: [], pesoTotal: 0 };
+        }
+        
+        // Processar moderações aceitas
+        const modelosPorTema = {};
+        const hoje = new Date();
+        
+        for (let i = 1; i < aceitasData.length; i++) {
+            const row = aceitasData[i];
+            if (!row || row.length < 6) continue;
+            
+            // Estrutura da planilha "Moderações Aceitas":
+            // [0] Data do Registro, [1] ID da Moderação, [2] ID da Reclamação, 
+            // [3] Tema, [4] Motivo Utilizado, [5] Texto da Moderação Enviada,
+            // [6] Resultado, [7] Solicitação do Cliente, [8] Resposta da Empresa,
+            // [9] Consideração Final, [10] Linha de Raciocínio
+            const dataRegistro = (row[0] || '').toString().trim();
+            const temaRow = (row[3] || 'geral').toString().trim().toLowerCase();
+            const motivoRow = (row[4] || '').toString().trim();
+            const textoModeracao = (row[5] || '').toString().trim();
+            const solicitacaoCliente = (row[7] || '').toString().trim();
+            const respostaEmpresa = (row[8] || '').toString().trim();
+            const linhaRaciocinio = (row[10] || '').toString().trim();
+            
+            if (!textoModeracao) continue;
+            
+            // Normalizar tema para comparação
+            const temaNormalized = tema.toString().trim().toLowerCase();
+            
+            // Verificar se o tema corresponde
+            if (temaRow === temaNormalized || 
+                temaRow.includes(temaNormalized) || 
+                temaNormalized.includes(temaRow)) {
+                
+                // Criar chave única para o modelo (baseado em estrutura do texto)
+                const estruturaTexto = extrairEstruturaTexto(textoModeracao);
+                const chaveModelo = `${temaRow}_${estruturaTexto.hash}`;
+                
+                if (!modelosPorTema[chaveModelo]) {
+                    modelosPorTema[chaveModelo] = {
+                        tema: temaRow,
+                        motivo: motivoRow,
+                        textoModeracao: textoModeracao,
+                        linhaRaciocinio: linhaRaciocinio,
+                        solicitacaoCliente: solicitacaoCliente,
+                        respostaEmpresa: respostaEmpresa,
+                        estrutura: estruturaTexto,
+                        aceites: [],
+                        peso: 0
+                    };
+                }
+                
+                // Adicionar aceite com data para cálculo de peso
+                const dataAceite = parsearData(dataRegistro);
+                modelosPorTema[chaveModelo].aceites.push({
+                    data: dataAceite,
+                    dataStr: dataRegistro
+                });
+            }
+        }
+        
+        // Calcular pesos dinâmicos para cada modelo
+        const modelosComPeso = Object.values(modelosPorTema).map(modelo => {
+            const quantidadeAceites = modelo.aceites.length;
+            
+            // Calcular peso baseado em quantidade e recência
+            let pesoQuantidade = quantidadeAceites * 10; // Cada aceite = 10 pontos base
+            
+            // Bônus de recência (aceites mais recentes valem mais)
+            let pesoRecencia = 0;
+            modelo.aceites.forEach(aceite => {
+                if (aceite.data) {
+                    const diasDesdeAceite = (hoje - aceite.data) / (1000 * 60 * 60 * 24);
+                    // Aceites dos últimos 30 dias recebem bônus
+                    if (diasDesdeAceite <= 30) {
+                        pesoRecencia += 5 * (1 - diasDesdeAceite / 30); // Bônus decrescente
+                    }
+                }
+            });
+            
+            // Peso final
+            modelo.peso = pesoQuantidade + pesoRecencia;
+            
+            return modelo;
+        });
+        
+        // Ordenar por peso (maior primeiro)
+        modelosComPeso.sort((a, b) => b.peso - a.peso);
+        
+        // Calcular peso total do tema
+        const pesoTotal = modelosComPeso.reduce((sum, m) => sum + m.peso, 0);
+        
+        console.log(`📊 FASE 3: Encontrados ${modelosComPeso.length} modelos positivos para tema "${tema}" (peso total: ${pesoTotal.toFixed(2)})`);
+        
+        return {
+            modelos: modelosComPeso,
+            pesoTotal: pesoTotal,
+            modeloPrincipal: modelosComPeso[0] || null
+        };
+        
+    } catch (error) {
+        console.error('❌ Erro ao extrair padrões positivos:', error);
+        return { modelos: [], pesoTotal: 0 };
+    }
+}
+
+/**
+ * Extrai estrutura do texto para identificar padrões
+ * @param {string} texto - Texto da moderação
+ * @returns {Object} Estrutura identificada
+ */
+function extrairEstruturaTexto(texto) {
+    if (!texto) return { hash: 'vazio', abertura: '', fechamento: '', paragrafos: 0 };
+    
+    const linhas = texto.split('\n').filter(l => l.trim());
+    const abertura = linhas[0] || '';
+    const fechamento = linhas[linhas.length - 1] || '';
+    const paragrafos = texto.split(/\n\s*\n/).filter(p => p.trim()).length;
+    
+    // Criar hash simples baseado em estrutura
+    const hash = `${abertura.substring(0, 20)}_${paragrafos}_${fechamento.substring(0, 20)}`.replace(/\s+/g, '_');
+    
+    return {
+        hash: hash.substring(0, 50),
+        abertura: abertura.substring(0, 100),
+        fechamento: fechamento.substring(0, 100),
+        paragrafos: paragrafos
+    };
+}
+
+/**
+ * Parsear data brasileira para Date object
+ * @param {string} dataStr - Data no formato DD/MM/YYYY ou DD/MM/YYYY HH:mm:ss
+ * @returns {Date|null} Data parseada ou null
+ */
+function parsearData(dataStr) {
+    if (!dataStr) return null;
+    try {
+        // Formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY HH:mm:ss
+        const partes = dataStr.split(' ')[0].split('/');
+        if (partes.length === 3) {
+            const [dia, mes, ano] = partes;
+            return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+        }
+    } catch (e) {
+        // Ignorar erro
+    }
+    return null;
+}
+
 // Rota para gerar moderação via API OpenAI
 app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
     try {
@@ -3715,14 +3882,38 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
         // Registrar o ID da reclamação para rastreabilidade
         console.log(`📋 ID da Reclamação registrado: ${idReclamacao}`);
         
-        // Obter feedbacks relevantes para melhorar a geração de moderação - VERSÃO MELHORADA
+        // HIERARQUIA DE APRENDIZADO (FASE 3):
+        // 1. APRENDIZADO POSITIVO (Moderações Aceitas - FASE 3) - PRIORIDADE MÁXIMA
+        // 2. Moderações Coerentes (sistema existente) - PRIORIDADE MÉDIA
+        // 3. Aprendizado Negativo (Moderações Negadas - FASE 2) - PRIORIDADE MÍNIMA (filtro corretivo)
+        
+        const temaAtual = dadosModeracao.motivoModeracao || 'geral';
+        let aprendizadoPositivo = null;
+        let aprendizadoPositivoAplicado = false;
+        
+        // FASE 3 - CONSULTAR APRENDIZADO POSITIVO (PRIORIDADE 1)
+        try {
+            aprendizadoPositivo = await extrairPadroesPositivos(temaAtual, dadosModeracao.motivoModeracao);
+            
+            if (aprendizadoPositivo.modelos.length > 0) {
+                aprendizadoPositivoAplicado = true;
+                console.log(`✅ FASE 3: Aprendizado positivo encontrado - ${aprendizadoPositivo.modelos.length} modelos (peso total: ${aprendizadoPositivo.pesoTotal.toFixed(2)})`);
+                console.log(`📊 Modelo principal: peso ${aprendizadoPositivo.modeloPrincipal?.peso.toFixed(2)}`);
+            } else {
+                console.log(`⚠️ FASE 3: Nenhum modelo positivo encontrado para tema "${temaAtual}"`);
+            }
+        } catch (error) {
+            console.error('⚠️ Erro ao consultar aprendizado positivo (continuando sem ele):', error.message);
+        }
+        
+        // PRIORIDADE 2: Moderações Coerentes (sistema existente) - usar como apoio se não houver muitos aceites
+        const modelosRelevantes = await getModelosModeracaoRelevantes(dadosModeracao.motivoModeracao, dadosModeracao);
+        
+        // PRIORIDADE 3: Feedbacks de erros (sistema existente) - usar como referência secundária
         const feedbacksRelevantes = getRelevantFeedbacks('moderacao', {
             motivoNegativa: dadosModeracao.motivoModeracao,
             dadosModeracao: dadosModeracao
         });
-        
-        // Obter modelos de moderação aprovados - VERSÃO MELHORADA
-        const modelosRelevantes = await getModelosModeracaoRelevantes(dadosModeracao.motivoModeracao, dadosModeracao);
         
         // CONSULTAR APRENDIZADO NEGATIVO (FASE 2) - ANTES DE GERAR O TEXTO
         let aprendizadoNegativo = null;
@@ -3779,33 +3970,102 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
         }
         
         let conhecimentoFeedback = '';
+        let mensagemTransparencia = '';
         
-        // PRIORIDADE 1: MODELOS APROVADOS (seguir este padrão) - VERSÃO MELHORADA
-        if (modelosRelevantes.length > 0) {
-            conhecimentoFeedback = '\n\n✅ MODELOS DE MODERAÇÃO APROVADOS (SEGUIR ESTE PADRÃO):\n';
-            conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} moderações aprovadas para "${dadosModeracao.motivoModeracao}":\n\n`;
+        // HIERARQUIA DE APRENDIZADO APLICADA NO PROMPT:
+        // PRIORIDADE 1: APRENDIZADO POSITIVO (FASE 3) - Modelos Aceitos
+        if (aprendizadoPositivoAplicado && aprendizadoPositivo.modeloPrincipal) {
+            const modeloPrincipal = aprendizadoPositivo.modeloPrincipal;
+            conhecimentoFeedback = '\n\n✅ PRIORIDADE MÁXIMA - MODELO BASEADO EM MODERAÇÕES ACEITAS (FASE 3):\n';
+            conhecimentoFeedback += `Este modelo foi selecionado por ter o maior peso (${modeloPrincipal.peso.toFixed(2)}) baseado em ${modeloPrincipal.aceites.length} aceite(s) para o tema "${temaAtual}".\n\n`;
+            conhecimentoFeedback += `📊 PESO DO MODELO: ${modeloPrincipal.peso.toFixed(2)} (${modeloPrincipal.aceites.length} aceite(s))\n`;
+            conhecimentoFeedback += `🎯 Tema: ${modeloPrincipal.tema}\n`;
+            conhecimentoFeedback += `📋 Motivo: ${modeloPrincipal.motivo}\n\n`;
+            conhecimentoFeedback += `✅ TEXTO DA MODERAÇÃO ACEITA (SEGUIR ESTE PADRÃO):\n"${modeloPrincipal.textoModeracao}"\n\n`;
             
-            modelosRelevantes.forEach((modelo, index) => {
+            if (modeloPrincipal.linhaRaciocinio) {
+                conhecimentoFeedback += `📝 Linha de Raciocínio: "${modeloPrincipal.linhaRaciocinio.substring(0, 300)}..."\n\n`;
+            }
+            
+            if (modeloPrincipal.solicitacaoCliente) {
+                conhecimentoFeedback += `📋 Contexto - Solicitação do Cliente: "${modeloPrincipal.solicitacaoCliente.substring(0, 200)}..."\n`;
+            }
+            if (modeloPrincipal.respostaEmpresa) {
+                conhecimentoFeedback += `📋 Contexto - Resposta da Empresa: "${modeloPrincipal.respostaEmpresa.substring(0, 200)}..."\n`;
+            }
+            
+            conhecimentoFeedback += '\n🎯 INSTRUÇÃO CRÍTICA: Este é o modelo principal. Use-o como base estrutural e de linguagem. Mantenha a mesma abordagem, tom e sequência lógica. Este modelo foi validado como aceito pelo Reclame Aqui.\n';
+            
+            // Adicionar outros modelos de alto peso como referência adicional
+            const outrosModelosAltoPeso = aprendizadoPositivo.modelos.slice(1, 3); // Próximos 2 modelos
+            if (outrosModelosAltoPeso.length > 0) {
+                conhecimentoFeedback += '\n📚 OUTROS MODELOS ACEITOS DE ALTO PESO (REFERÊNCIA ADICIONAL):\n';
+                outrosModelosAltoPeso.forEach((modelo, index) => {
+                    conhecimentoFeedback += `${index + 1}. Peso: ${modelo.peso.toFixed(2)} (${modelo.aceites.length} aceite(s))\n`;
+                    conhecimentoFeedback += `   Texto: "${modelo.textoModeracao.substring(0, 250)}..."\n\n`;
+                });
+            }
+            
+            mensagemTransparencia = 'Esta moderação foi baseada em modelos previamente aceitos para este tema, com ajustes para evitar erros identificados em negativas anteriores.';
+        }
+        
+        // PRIORIDADE 2: MODERAÇÕES COERENTES (sistema existente) - usar como apoio
+        if (modelosRelevantes.length > 0) {
+            if (conhecimentoFeedback) {
+                conhecimentoFeedback += '\n\n📖 PRIORIDADE MÉDIA - MODELOS COERENTES (APOIO):\n';
+                conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} moderações marcadas como coerentes para "${dadosModeracao.motivoModeracao}":\n\n`;
+            } else {
+                conhecimentoFeedback = '\n\n📖 MODELOS DE MODERAÇÃO COERENTES (SEGUIR ESTE PADRÃO):\n';
+                conhecimentoFeedback += `Baseado em ${modelosRelevantes.length} moderações aprovadas para "${dadosModeracao.motivoModeracao}":\n\n`;
+            }
+            
+            modelosRelevantes.slice(0, 3).forEach((modelo, index) => { // Limitar a 3 modelos coerentes
                 conhecimentoFeedback += `${index + 1}. 📅 Data: ${modelo.timestamp} (Score: ${modelo.relevanceScore})\n`;
                 conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivoModeracao}\n`;
                 conhecimentoFeedback += `   📝 Linha de raciocínio: "${modelo.linhaRaciocinio.substring(0, 200)}..."\n`;
-                conhecimentoFeedback += `   ✅ Texto aprovado: "${modelo.textoModeracao.substring(0, 300)}..."\n`;
-                
-                // Incluir contexto do modelo se disponível
-                if (modelo.dadosModeracao) {
-                    conhecimentoFeedback += `   📋 Contexto: Solicitação: "${modelo.dadosModeracao.solicitacaoCliente?.substring(0, 100)}..."\n`;
-                    conhecimentoFeedback += `   📋 Resposta: "${modelo.dadosModeracao.respostaEmpresa?.substring(0, 100)}..."\n`;
-                }
-                conhecimentoFeedback += '\n';
+                conhecimentoFeedback += `   ✅ Texto coerente: "${modelo.textoModeracao.substring(0, 300)}..."\n\n`;
             });
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos aprovados como referência para gerar uma moderação de alta qualidade, seguindo a mesma estrutura, tom e abordagem. Analise os padrões de sucesso e aplique-os ao caso atual.\n';
+            if (!aprendizadoPositivoAplicado) {
+                conhecimentoFeedback += '🎯 INSTRUÇÃO: Use estes modelos coerentes como referência para gerar uma moderação de alta qualidade.\n';
+            } else {
+                conhecimentoFeedback += '🎯 INSTRUÇÃO: Use estes modelos coerentes como referência complementar ao modelo principal aceito.\n';
+            }
         }
         
-        // PRIORIDADE 2: FEEDBACKS DE ERROS (evitar estes problemas) - VERSÃO MELHORADA
+        // PRIORIDADE 3: APRENDIZADO NEGATIVO (FASE 2) - Filtro Corretivo
+        if (aprendizadoNegativoAplicado && aprendizadoNegativo) {
+            if (conhecimentoFeedback) {
+                conhecimentoFeedback += '\n\n🔴 PRIORIDADE MÍNIMA - APRENDIZADO NEGATIVO (FILTRO CORRETIVO - FASE 2):\n';
+            } else {
+                conhecimentoFeedback = '\n\n🔴 APRENDIZADO NEGATIVO - ERROS A EVITAR (FASE 2):\n';
+            }
+            
+            conhecimentoFeedback += '⚠️ ATENÇÃO: Após definir o modelo base (positivo ou coerente), aplique estas correções para evitar erros já identificados:\n\n';
+            
+            if (aprendizadoNegativo.erros && aprendizadoNegativo.erros.length > 0) {
+                conhecimentoFeedback += '❌ ERROS RECORRENTES IDENTIFICADOS EM NEGATIVAS ANTERIORES:\n';
+                aprendizadoNegativo.erros.forEach((erro, index) => {
+                    conhecimentoFeedback += `${index + 1}. ${erro}\n`;
+                });
+                conhecimentoFeedback += '\n';
+            }
+            
+            if (aprendizadoNegativo.correcoes && aprendizadoNegativo.correcoes.length > 0) {
+                conhecimentoFeedback += '✅ ORIENTAÇÕES DE CORREÇÃO:\n';
+                aprendizadoNegativo.correcoes.forEach((correcao, index) => {
+                    conhecimentoFeedback += `${index + 1}. ${correcao}\n`;
+                });
+                conhecimentoFeedback += '\n';
+            }
+            
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: O aprendizado negativo NUNCA cria texto do zero. Ele apenas CORRIGE o modelo positivo/coerente removendo estruturas problemáticas, ajustando tom e vocabulário. Mantenha a estrutura base do modelo aceito, apenas removendo os erros identificados.\n';
+        }
+        
+        // PRIORIDADE 4: FEEDBACKS DE ERROS (sistema legado) - referência secundária
         if (feedbacksRelevantes.length > 0) {
             if (conhecimentoFeedback) {
-                conhecimentoFeedback += '\n\n⚠️ ERROS IDENTIFICADOS (EVITAR):\n';
+                conhecimentoFeedback += '\n\n⚠️ FEEDBACKS LEGADOS (REFERÊNCIA SECUNDÁRIA):\n';
             } else {
                 conhecimentoFeedback = '\n\n🧠 CONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
             }
@@ -3840,20 +4100,6 @@ INFORMAÇÕES DISPONÍVEIS:
 - Motivo da moderação: ${dadosModeracao.motivoModeracao}
 
 ${conhecimentoFeedback || ''}
-
-${aprendizadoNegativo ? `
-⚠️ APRENDIZADO NEGATIVO - ERROS IDENTIFICADOS EM MODERAÇÕES ANTERIORES DESTE TEMA:
-
-Os seguintes erros foram identificados em moderações negadas anteriormente para este mesmo tema. EVITE COMETER OS MESMOS ERROS:
-
-ERROS RECORRENTES IDENTIFICADOS:
-${aprendizadoNegativo.erros.map((erro, idx) => `${idx + 1}. ${erro}`).join('\n')}
-
-ORIENTAÇÕES DE CORREÇÃO:
-${aprendizadoNegativo.correcoes.map((correcao, idx) => `${idx + 1}. ${correcao}`).join('\n')}
-
-⚠️ IMPORTANTE: Use este aprendizado negativo como FILTRO CORRETIVO. Ele não substitui o aprendizado positivo (modelos coerentes), mas deve ser aplicado para evitar erros já identificados. Mantenha a estrutura base dos modelos coerentes, mas remova ou ajuste estruturas que já geraram negativas.
-` : ''}
 
 ⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
 
@@ -4038,13 +4284,23 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
             // Incrementar estatística global
             await incrementarEstatisticaGlobal('moderacoes_geradas');
             
+            // Mensagem de transparência (FASE 3)
+            let mensagemTransparenciaFinal = null;
+            if (aprendizadoPositivoAplicado) {
+                mensagemTransparenciaFinal = mensagemTransparencia || 
+                    'Esta moderação foi baseada em modelos previamente aceitos para este tema, com ajustes para evitar erros identificados em negativas anteriores.';
+            } else if (aprendizadoNegativoAplicado) {
+                mensagemTransparenciaFinal = 'Esta moderação foi baseada em modelos coerentes e ajustada para evitar erros identificados em negativas anteriores deste tema.';
+            }
+            
             res.json({
                 success: true,
                 result: resposta,
+                aprendizadoPositivoAplicado: aprendizadoPositivoAplicado,
                 aprendizadoNegativoAplicado: aprendizadoNegativoAplicado,
-                mensagem: aprendizadoNegativoAplicado ? 
-                    'Esta moderação foi baseada em modelos coerentes e ajustada para evitar erros identificados em negativas anteriores deste tema.' : 
-                    null
+                pesoModeloPrincipal: aprendizadoPositivo?.modeloPrincipal?.peso || null,
+                quantidadeAceites: aprendizadoPositivo?.modeloPrincipal?.aceites?.length || null,
+                mensagem: mensagemTransparenciaFinal
             });
         } else {
             const errorData = await response.text();
@@ -11689,6 +11945,645 @@ app.get('/api/test-sheets-register', async (req, res) => {
         });
     }
 });
+
+// ==========================================
+// FASE 4 - ENDPOINTS DE ESTATÍSTICAS E AUDITORIA
+// ==========================================
+
+/**
+ * Endpoint para obter estatísticas globais
+ * GET /api/estatisticas/globais?periodo=hoje|7dias|30dias|custom&dataInicio=DD/MM/YYYY&dataFim=DD/MM/YYYY
+ */
+app.get('/api/estatisticas/globais', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const { periodo, dataInicio, dataFim } = req.query;
+        
+        // Ler dados das planilhas
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+        const moderacoesData = await googleSheetsConfig.readData('Moderações!A1:Z1000');
+
+        // Processar dados
+        const hoje = new Date();
+        const processarData = (dataStr) => {
+            if (!dataStr) return null;
+            try {
+                const partes = dataStr.split(' ')[0].split('/');
+                if (partes.length === 3) {
+                    return new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+                }
+            } catch (e) {}
+            return null;
+        };
+
+        const filtrarPorPeriodo = (dataRegistro) => {
+            if (!dataRegistro) return false;
+            const data = processarData(dataRegistro);
+            if (!data) return false;
+
+            const diasDiff = (hoje - data) / (1000 * 60 * 60 * 24);
+
+            switch (periodo) {
+                case 'hoje':
+                    return diasDiff < 1;
+                case '7dias':
+                    return diasDiff <= 7;
+                case '30dias':
+                    return diasDiff <= 30;
+                case 'custom':
+                    if (dataInicio && dataFim) {
+                        const inicio = processarData(dataInicio);
+                        const fim = processarData(dataFim);
+                        if (inicio && fim) {
+                            return data >= inicio && data <= fim;
+                        }
+                    }
+                    return true;
+                default:
+                    return true; // Todos
+            }
+        };
+
+        // Contar aceitas
+        let totalAceitas = 0;
+        if (aceitasData && aceitasData.length > 1) {
+            for (let i = 1; i < aceitasData.length; i++) {
+                const row = aceitasData[i];
+                if (row && row[0] && filtrarPorPeriodo(row[0])) {
+                    totalAceitas++;
+                }
+            }
+        }
+
+        // Contar negadas
+        let totalNegadas = 0;
+        if (negadasData && negadasData.length > 1) {
+            for (let i = 1; i < negadasData.length; i++) {
+                const row = negadasData[i];
+                if (row && row[0] && filtrarPorPeriodo(row[0])) {
+                    totalNegadas++;
+                }
+            }
+        }
+
+        // Contar total geradas
+        let totalGeradas = 0;
+        if (moderacoesData && moderacoesData.length > 1) {
+            for (let i = 1; i < moderacoesData.length; i++) {
+                const row = moderacoesData[i];
+                if (row && row[0] && filtrarPorPeriodo(row[0])) {
+                    totalGeradas++;
+                }
+            }
+        }
+
+        const totalComResultado = totalAceitas + totalNegadas;
+        const taxaAceite = totalComResultado > 0 ? ((totalAceitas / totalComResultado) * 100).toFixed(2) : 0;
+
+        res.json({
+            success: true,
+            periodo: periodo || 'todos',
+            indicadores: {
+                totalGeradas: totalGeradas,
+                totalAceitas: totalAceitas,
+                totalNegadas: totalNegadas,
+                totalComResultado: totalComResultado,
+                taxaAceite: parseFloat(taxaAceite)
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao obter estatísticas globais:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao obter estatísticas globais',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * Endpoint para obter estatísticas por tema
+ * GET /api/estatisticas/temas
+ */
+app.get('/api/estatisticas/temas', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+
+        const temasMap = {};
+
+        // Processar aceitas
+        if (aceitasData && aceitasData.length > 1) {
+            for (let i = 1; i < aceitasData.length; i++) {
+                const row = aceitasData[i];
+                if (!row || row.length < 4) continue;
+                const tema = (row[3] || 'Sem tema').toString().trim();
+                if (!temasMap[tema]) {
+                    temasMap[tema] = { aceitas: 0, negadas: 0 };
+                }
+                temasMap[tema].aceitas++;
+            }
+        }
+
+        // Processar negadas
+        if (negadasData && negadasData.length > 1) {
+            for (let i = 1; i < negadasData.length; i++) {
+                const row = negadasData[i];
+                if (!row || row.length < 4) continue;
+                const tema = (row[3] || 'Sem tema').toString().trim();
+                if (!temasMap[tema]) {
+                    temasMap[tema] = { aceitas: 0, negadas: 0 };
+                }
+                temasMap[tema].negadas++;
+            }
+        }
+
+        // Calcular estatísticas por tema
+        const temasEstatisticas = Object.keys(temasMap).map(tema => {
+            const stats = temasMap[tema];
+            const total = stats.aceitas + stats.negadas;
+            const taxaAceite = total > 0 ? ((stats.aceitas / total) * 100).toFixed(2) : 0;
+            const taxaNegativa = total > 0 ? ((stats.negadas / total) * 100).toFixed(2) : 0;
+
+            return {
+                tema: tema,
+                total: total,
+                aceitas: stats.aceitas,
+                negadas: stats.negadas,
+                taxaAceite: parseFloat(taxaAceite),
+                taxaNegativa: parseFloat(taxaNegativa)
+            };
+        });
+
+        // Ordenar por total (maior primeiro)
+        temasEstatisticas.sort((a, b) => b.total - a.total);
+
+        res.json({
+            success: true,
+            temas: temasEstatisticas
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao obter estatísticas por tema:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao obter estatísticas por tema',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * Endpoint para obter detalhes de um tema específico
+ * GET /api/estatisticas/tema/:tema
+ */
+app.get('/api/estatisticas/tema/:tema', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const tema = decodeURIComponent(req.params.tema);
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+
+        const motivosMap = {};
+        let totalAceitas = 0;
+        let totalNegadas = 0;
+
+        // Processar aceitas do tema
+        if (aceitasData && aceitasData.length > 1) {
+            for (let i = 1; i < aceitasData.length; i++) {
+                const row = aceitasData[i];
+                if (!row || row.length < 5) continue;
+                const temaRow = (row[3] || '').toString().trim();
+                if (temaRow.toLowerCase() === tema.toLowerCase()) {
+                    totalAceitas++;
+                    const motivo = (row[4] || 'Sem motivo').toString().trim();
+                    if (!motivosMap[motivo]) {
+                        motivosMap[motivo] = { aceitas: 0, negadas: 0 };
+                    }
+                    motivosMap[motivo].aceitas++;
+                }
+            }
+        }
+
+        // Processar negadas do tema
+        if (negadasData && negadasData.length > 1) {
+            for (let i = 1; i < negadasData.length; i++) {
+                const row = negadasData[i];
+                if (!row || row.length < 5) continue;
+                const temaRow = (row[3] || '').toString().trim();
+                if (temaRow.toLowerCase() === tema.toLowerCase()) {
+                    totalNegadas++;
+                    const motivo = (row[4] || 'Sem motivo').toString().trim();
+                    if (!motivosMap[motivo]) {
+                        motivosMap[motivo] = { aceitas: 0, negadas: 0 };
+                    }
+                    motivosMap[motivo].negadas++;
+                }
+            }
+        }
+
+        // Calcular estatísticas por motivo
+        const motivosEstatisticas = Object.keys(motivosMap).map(motivo => {
+            const stats = motivosMap[motivo];
+            const total = stats.aceitas + stats.negadas;
+            const taxaAceite = total > 0 ? ((stats.aceitas / total) * 100).toFixed(2) : 0;
+            const taxaNegativa = total > 0 ? ((stats.negadas / total) * 100).toFixed(2) : 0;
+
+            return {
+                motivo: motivo,
+                total: total,
+                aceitas: stats.aceitas,
+                negadas: stats.negadas,
+                taxaAceite: parseFloat(taxaAceite),
+                taxaNegativa: parseFloat(taxaNegativa)
+            };
+        });
+
+        motivosEstatisticas.sort((a, b) => b.total - a.total);
+
+        const total = totalAceitas + totalNegadas;
+        const taxaAceite = total > 0 ? ((totalAceitas / total) * 100).toFixed(2) : 0;
+
+        res.json({
+            success: true,
+            tema: tema,
+            total: total,
+            aceitas: totalAceitas,
+            negadas: totalNegadas,
+            taxaAceite: parseFloat(taxaAceite),
+            motivos: motivosEstatisticas
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao obter detalhes do tema:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao obter detalhes do tema',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * Endpoint para listar moderações com filtros
+ * GET /api/moderações?tema=...&resultado=...&motivo=...&periodo=...
+ */
+app.get('/api/moderacoes', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const { tema, resultado, motivo, periodo } = req.query;
+
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+
+        const moderacoes = [];
+
+        // Processar aceitas
+        if (aceitasData && aceitasData.length > 1) {
+            for (let i = 1; i < aceitasData.length; i++) {
+                const row = aceitasData[i];
+                if (!row || row.length < 6) continue;
+
+                const modTema = (row[3] || '').toString().trim();
+                const modMotivo = (row[4] || '').toString().trim();
+                const modResultado = 'Aceita';
+                const modData = (row[0] || '').toString().trim();
+
+                // Aplicar filtros
+                if (tema && modTema.toLowerCase() !== tema.toLowerCase()) continue;
+                if (resultado && modResultado !== resultado) continue;
+                if (motivo && modMotivo.toLowerCase() !== motivo.toLowerCase()) continue;
+
+                moderacoes.push({
+                    idModeracao: (row[1] || '').toString().trim(),
+                    idReclamacao: (row[2] || '').toString().trim(),
+                    tema: modTema,
+                    motivo: modMotivo,
+                    resultado: modResultado,
+                    data: modData,
+                    tipo: 'aceita'
+                });
+            }
+        }
+
+        // Processar negadas
+        if (negadasData && negadasData.length > 1) {
+            for (let i = 1; i < negadasData.length; i++) {
+                const row = negadasData[i];
+                if (!row || row.length < 6) continue;
+
+                const modTema = (row[3] || '').toString().trim();
+                const modMotivo = (row[4] || '').toString().trim();
+                const modResultado = 'Negada';
+                const modData = (row[0] || '').toString().trim();
+
+                // Aplicar filtros
+                if (tema && modTema.toLowerCase() !== tema.toLowerCase()) continue;
+                if (resultado && modResultado !== resultado) continue;
+                if (motivo && modMotivo.toLowerCase() !== motivo.toLowerCase()) continue;
+
+                moderacoes.push({
+                    idModeracao: (row[1] || '').toString().trim(),
+                    idReclamacao: (row[2] || '').toString().trim(),
+                    tema: modTema,
+                    motivo: modMotivo,
+                    resultado: modResultado,
+                    data: modData,
+                    tipo: 'negada'
+                });
+            }
+        }
+
+        // Ordenar por data (mais recente primeiro)
+        moderacoes.sort((a, b) => {
+            const dataA = processarData(a.data);
+            const dataB = processarData(b.data);
+            if (!dataA || !dataB) return 0;
+            return dataB - dataA;
+        });
+
+        res.json({
+            success: true,
+            total: moderacoes.length,
+            moderacoes: moderacoes
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao listar moderações:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao listar moderações',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * Endpoint para obter detalhes completos de uma moderação
+ * GET /api/moderacao/:idModeracao
+ */
+app.get('/api/moderacao/:idModeracao', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const idModeracao = req.params.idModeracao.trim().replace(/\s+/g, ' ');
+
+        // Buscar em aceitas
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        let moderacao = null;
+        let tipo = null;
+
+        if (aceitasData && aceitasData.length > 1) {
+            for (let i = 1; i < aceitasData.length; i++) {
+                const row = aceitasData[i];
+                if (!row || row.length < 6) continue;
+                const idRow = (row[1] || '').toString().trim().replace(/\s+/g, ' ');
+                if (idRow === idModeracao) {
+                    moderacao = {
+                        idModeracao: idRow,
+                        idReclamacao: (row[2] || '').toString().trim(),
+                        tema: (row[3] || '').toString().trim(),
+                        motivo: (row[4] || '').toString().trim(),
+                        textoModeracao: (row[5] || '').toString().trim(),
+                        resultado: 'Aceita',
+                        dataRegistro: (row[0] || '').toString().trim(),
+                        solicitacaoCliente: (row[7] || '').toString().trim(),
+                        respostaEmpresa: (row[8] || '').toString().trim(),
+                        consideracaoFinal: (row[9] || '').toString().trim(),
+                        linhaRaciocinio: (row[10] || '').toString().trim(),
+                        dataHoraOriginal: (row[11] || '').toString().trim()
+                    };
+                    tipo = 'aceita';
+                    break;
+                }
+            }
+        }
+
+        // Se não encontrou, buscar em negadas
+        // Estrutura: [0]Data, [1]ID Moderação, [2]ID Reclamação, [3]Tema, [4]Motivo, [5]Texto,
+        // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio
+        if (!moderacao) {
+            const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+            if (negadasData && negadasData.length > 1) {
+                for (let i = 1; i < negadasData.length; i++) {
+                    const row = negadasData[i];
+                    if (!row || row.length < 10) continue;
+                    const idRow = (row[1] || '').toString().trim().replace(/\s+/g, ' ');
+                    if (idRow === idModeracao) {
+                        moderacao = {
+                            idModeracao: idRow,
+                            idReclamacao: (row[2] || '').toString().trim(),
+                            tema: (row[3] || '').toString().trim(),
+                            motivo: (row[4] || '').toString().trim(),
+                            textoModeracao: (row[5] || '').toString().trim(),
+                            resultado: 'Negada',
+                            dataRegistro: (row[0] || '').toString().trim(),
+                            solicitacaoCliente: (row[10] || '').toString().trim(),
+                            respostaEmpresa: (row[11] || '').toString().trim(),
+                            consideracaoFinal: (row[12] || '').toString().trim(),
+                            linhaRaciocinio: (row[13] || '').toString().trim(),
+                            // Análise FASE 2
+                            motivoNegativa: (row[7] || '').toString().trim(), // Bloco 1
+                            ondeErrou: (row[8] || '').toString().trim(), // Bloco 2
+                            comoCorrigir: (row[9] || '').toString().trim() // Bloco 3
+                        };
+                        tipo = 'negada';
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!moderacao) {
+            return res.status(404).json({
+                success: false,
+                error: 'Moderação não encontrada'
+            });
+        }
+
+        // Buscar informações de aprendizado aplicado (FASE 3)
+        let aprendizadoAplicado = null;
+        if (tipo === 'aceita') {
+            // Verificar se esta moderação reforçou um modelo positivo
+            const padroesPositivos = await extrairPadroesPositivos(moderacao.tema, moderacao.motivo);
+            if (padroesPositivos.modeloPrincipal) {
+                aprendizadoAplicado = {
+                    tipo: 'positivo',
+                    mensagem: 'Esta moderação reforçou um modelo positivo existente',
+                    pesoModelo: padroesPositivos.modeloPrincipal.peso,
+                    quantidadeAceites: padroesPositivos.modeloPrincipal.aceites.length
+                };
+            }
+        }
+
+        res.json({
+            success: true,
+            moderacao: moderacao,
+            tipo: tipo,
+            aprendizadoAplicado: aprendizadoAplicado
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao obter detalhes da moderação:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao obter detalhes da moderação',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * Endpoint para obter evolução temporal
+ * GET /api/estatisticas/evolucao?periodo=30dias|90dias|6meses|1ano
+ */
+app.get('/api/estatisticas/evolucao', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const { periodo = '30dias' } = req.query;
+        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+
+        const hoje = new Date();
+        let diasParaVoltar = 30;
+        switch (periodo) {
+            case '7dias': diasParaVoltar = 7; break;
+            case '30dias': diasParaVoltar = 30; break;
+            case '90dias': diasParaVoltar = 90; break;
+            case '6meses': diasParaVoltar = 180; break;
+            case '1ano': diasParaVoltar = 365; break;
+        }
+
+        const dataInicio = new Date(hoje);
+        dataInicio.setDate(dataInicio.getDate() - diasParaVoltar);
+
+        const evolucao = [];
+        const processarData = (dataStr) => {
+            if (!dataStr) return null;
+            try {
+                const partes = dataStr.split(' ')[0].split('/');
+                if (partes.length === 3) {
+                    return new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+                }
+            } catch (e) {}
+            return null;
+        };
+
+        // Agrupar por dia
+        const dadosPorDia = {};
+
+        // Processar aceitas
+        if (aceitasData && aceitasData.length > 1) {
+            for (let i = 1; i < aceitasData.length; i++) {
+                const row = aceitasData[i];
+                if (!row || row.length < 1) continue;
+                const data = processarData(row[0]);
+                if (data && data >= dataInicio) {
+                    const diaKey = `${data.getDate()}/${data.getMonth() + 1}/${data.getFullYear()}`;
+                    if (!dadosPorDia[diaKey]) {
+                        dadosPorDia[diaKey] = { aceitas: 0, negadas: 0 };
+                    }
+                    dadosPorDia[diaKey].aceitas++;
+                }
+            }
+        }
+
+        // Processar negadas
+        if (negadasData && negadasData.length > 1) {
+            for (let i = 1; i < negadasData.length; i++) {
+                const row = negadasData[i];
+                if (!row || row.length < 1) continue;
+                const data = processarData(row[0]);
+                if (data && data >= dataInicio) {
+                    const diaKey = `${data.getDate()}/${data.getMonth() + 1}/${data.getFullYear()}`;
+                    if (!dadosPorDia[diaKey]) {
+                        dadosPorDia[diaKey] = { aceitas: 0, negadas: 0 };
+                    }
+                    dadosPorDia[diaKey].negadas++;
+                }
+            }
+        }
+
+        // Converter para array e calcular taxas
+        Object.keys(dadosPorDia).sort().forEach(dia => {
+            const dados = dadosPorDia[dia];
+            const total = dados.aceitas + dados.negadas;
+            const taxaAceite = total > 0 ? ((dados.aceitas / total) * 100).toFixed(2) : 0;
+
+            evolucao.push({
+                data: dia,
+                aceitas: dados.aceitas,
+                negadas: dados.negadas,
+                total: total,
+                taxaAceite: parseFloat(taxaAceite)
+            });
+        });
+
+        res.json({
+            success: true,
+            periodo: periodo,
+            evolucao: evolucao
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao obter evolução temporal:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao obter evolução temporal',
+            message: error.message
+        });
+    }
+});
+
+// Função auxiliar para processar data (reutilizar)
+function processarData(dataStr) {
+    if (!dataStr) return null;
+    try {
+        const partes = dataStr.split(' ')[0].split('/');
+        if (partes.length === 3) {
+            return new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+        }
+    } catch (e) {}
+    return null;
+}
 
 // Função para gerar recomendações
 function getGoogleSheetsRecommendations(configStatus, integrationStatus) {
