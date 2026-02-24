@@ -222,8 +222,8 @@
                                     Explicações
                                 </a>
                                 <a class="nav-link" href="#" data-tool="revisao">
-                                    <i class="fas fa-edit me-2"></i>
-                                    Revisão de Textos
+                                    <i class="fas fa-percentage me-2"></i>
+                                    Chance de Moderação
                                 </a>
                                 <a class="nav-link" href="#" data-tool="emails">
                                     <i class="fas fa-envelope me-2"></i>
@@ -558,50 +558,49 @@
                             </div>
                         </div>
 
-                        <!-- Revisão de Textos Tool -->
+                        <!-- Chance de Moderação Tool -->
                         <div id="revisao-tool" class="tool-panel">
                             <div class="card">
                                 <div class="card-header bg-secondary text-white">
                                     <h5 class="mb-0">
-                                        <i class="fas fa-edit me-2"></i>
-                                        Revisão e Padronização de Textos
+                                        <i class="fas fa-percentage me-2"></i>
+                                        Análise de Chance de Moderação
                                     </h5>
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
-                                        <label for="texto-revisar" class="form-label">Texto a ser Revisado:</label>
-                                        <textarea class="form-control" id="texto-revisar" rows="6" placeholder="Cole aqui o texto que precisa ser revisado..."></textarea>
+                                        <label for="reclamacao-completa" class="form-label">Reclamação Completa do Consumidor: <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" id="reclamacao-completa" rows="6" placeholder="Cole aqui a reclamação completa do consumidor..." required></textarea>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="tipo-revisao" class="form-label">Tipo de Revisão:</label>
-                                        <select class="form-select" id="tipo-revisao" multiple>
-                                            <option value="padronizacao">Padronização</option>
-                                            <option value="clareza">Melhoria de Clareza</option>
-                                            <option value="compliance">Compliance</option>
-                                            <option value="estrutura">Estrutura</option>
-                                        </select>
-                                        <small class="form-text text-muted">Segure Ctrl para selecionar múltiplas opções</small>
+                                        <label for="resposta-publica" class="form-label">Resposta Pública da Empresa: <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" id="resposta-publica" rows="6" placeholder="Cole aqui a resposta pública da empresa..." required></textarea>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="observacoes-revisao" class="form-label">Observações Adicionais (opcional):</label>
-                                        <textarea class="form-control" id="observacoes-revisao" rows="3" placeholder="Adicione observações específicas para a revisão..."></textarea>
+                                        <label for="consideracao-final" class="form-label">Consideração Final (se houver):</label>
+                                        <textarea class="form-control" id="consideracao-final" rows="4" placeholder="Cole aqui a consideração final do consumidor, se houver..."></textarea>
                                     </div>
-                                    <button class="btn btn-secondary" onclick="revisarTexto()">
-                                        <i class="fas fa-edit me-2"></i>
-                                        Revisar Texto
+                                    <div class="mb-3">
+                                        <label for="historico-moderacao" class="form-label">Histórico de Tentativas de Moderação (se houver):</label>
+                                        <textarea class="form-control" id="historico-moderacao" rows="3" placeholder="Descreva tentativas anteriores de moderação, se houver..."></textarea>
+                                    </div>
+                                    <button class="btn btn-secondary" onclick="analisarChanceModeracao()">
+                                        <i class="fas fa-percentage me-2"></i>
+                                        Analisar Chance de Moderação
                                     </button>
                                     <div id="revisao-resultado" class="mt-4" style="display: none;">
-                                        <h6>Linha de Raciocínio Interna:</h6>
-                                        <div class="response-box mb-3">
-                                            <div id="linha-raciocinio-revisao"></div>
-                                        </div>
-                                        <h6>Texto Revisado:</h6>
                                         <div class="response-box">
-                                            <div id="texto-revisado"></div>
-                                            <button class="btn btn-outline-secondary btn-sm mt-2" onclick="copiarResposta('texto-revisado')">
-                                                <i class="fas fa-copy me-1"></i>
-                                                Copiar Texto
-                                            </button>
+                                            <div id="analise-chance-moderacao"></div>
+                                            <div class="mt-3">
+                                                <button class="btn btn-outline-secondary btn-sm me-2" onclick="copiarResposta('analise-chance-moderacao')">
+                                                    <i class="fas fa-copy me-1"></i>
+                                                    Copiar Análise Completa
+                                                </button>
+                                                <button class="btn btn-outline-primary btn-sm" onclick="copiarRespostaRevisada()">
+                                                    <i class="fas fa-copy me-1"></i>
+                                                    Copiar Apenas Resposta Revisada
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

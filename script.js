@@ -2090,69 +2090,138 @@ function gerarMensagemExplicativa(tema, contexto) {
 
 // ===== FUNÇÕES DE REVISÃO =====
 
-async function revisarTexto() {
-    const textoOriginal = document.getElementById('texto-revisar').value;
-    const tipoRevisaoSelect = document.getElementById('tipo-revisao');
-    const observacoes = document.getElementById('observacoes-revisao').value;
+async function analisarChanceModeracao() {
+    const reclamacaoCompleta = document.getElementById('reclamacao-completa').value;
+    const respostaPublica = document.getElementById('resposta-publica').value;
+    const consideracaoFinal = document.getElementById('consideracao-final').value;
+    const historicoModeracao = document.getElementById('historico-moderacao').value;
     
-    if (!textoOriginal.trim()) {
-        showErrorMessage('Por favor, insira o texto a ser revisado.');
-        return;
-    }
-    
-    // Obter tipos de revisão selecionados
-    const tipoRevisao = Array.from(tipoRevisaoSelect.selectedOptions).map(option => option.value);
-    
-    if (tipoRevisao.length === 0) {
-        showErrorMessage('Por favor, selecione pelo menos um tipo de revisão.');
+    if (!reclamacaoCompleta.trim() || !respostaPublica.trim()) {
+        showErrorMessage('Por favor, preencha a reclamação completa e a resposta pública da empresa.');
         return;
     }
     
     // Mostrar loading
-    showLoadingMessage('Revisando texto com IA...');
+    showLoadingMessage('Analisando chance de moderação com IA...');
     
     try {
         // Chamar endpoint do servidor
-        const response = await fetch('/api/revisar-texto', {
+        const response = await fetch('/api/chance-moderacao', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                textoOriginal: textoOriginal,
-                tipoRevisao: tipoRevisao,
-                observacoes: observacoes
+                reclamacaoCompleta: reclamacaoCompleta,
+                respostaPublica: respostaPublica,
+                consideracaoFinal: consideracaoFinal || '',
+                historicoModeracao: historicoModeracao || ''
             })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            // Processar a resposta que vem com dois blocos
-            const resultado = data.result;
+            // Formatar e exibir a análise completa
+            const analiseFormatada = formatarAnaliseChanceModeracao(data.result);
             
-            // Separar os dois blocos da resposta
-            const blocos = separarBlocosRevisao(resultado);
-            
-            // Formatar e exibir a linha de raciocínio
-            const linhaRaciocinio = formatarLinhaRaciocinioRevisao(blocos.linhaRaciocinio);
-            
-            // Formatar e exibir o texto revisado
-            const textoRevisado = formatarTextoRevisado(blocos.textoRevisado);
-            
-            document.getElementById('linha-raciocinio-revisao').innerHTML = linhaRaciocinio;
-            document.getElementById('texto-revisado').innerHTML = textoRevisado;
+            document.getElementById('analise-chance-moderacao').innerHTML = analiseFormatada;
             document.getElementById('revisao-resultado').style.display = 'block';
             
-            showSuccessMessage('Texto revisado com sucesso!');
+            // Armazenar a resposta revisada para cópia separada
+            window.respostaRevisadaModeracao = extrairRespostaRevisada(data.result);
+            
+            showSuccessMessage('Análise de chance de moderação concluída!');
         } else {
-            showErrorMessage('Erro na revisão: ' + data.error);
+            showErrorMessage('Erro na análise: ' + data.error);
         }
         
     } catch (error) {
-        console.error('Erro ao revisar texto:', error);
-        showErrorMessage('Erro ao revisar texto. Tente novamente.');
+        console.error('Erro ao analisar chance de moderação:', error);
+        showErrorMessage('Erro ao analisar chance de moderação. Tente novamente.');
     }
+}
+
+// Função para extrair apenas a resposta revisada do resultado
+function extrairRespostaRevisada(resultado) {
+    if (!resultado) return '';
+    
+    // Procurar pela seção "✍️ Revisão de Textos (versão estratégica)"
+    const marcadores = [
+        '✍️ Revisão de Textos (versão estratégica)',
+        'Revisão de Textos (versão estratégica)',
+        'REVISÃO DE TEXTOS',
+        'Resposta pública revisada'
+    ];
+    
+    for (const marcador of marcadores) {
+        const index = resultado.indexOf(marcador);
+        if (index !== -1) {
+            // Pegar o conteúdo após o marcador até o próximo marcador ou fim
+            let conteudo = resultado.substring(index + marcador.length).trim();
+            
+            // Remover marcadores seguintes se houver
+            const proximosMarcadores = ['🧠', '📊', '⚠️', '🎯', '🧩'];
+            for (const proxMarcador of proximosMarcadores) {
+                const proxIndex = conteudo.indexOf(proxMarcador);
+                if (proxIndex !== -1) {
+                    conteudo = conteudo.substring(0, proxIndex).trim();
+                }
+            }
+            
+            return conteudo.trim();
+        }
+    }
+    
+    return '';
+}
+
+// Função para copiar apenas a resposta revisada
+function copiarRespostaRevisada() {
+    if (!window.respostaRevisadaModeracao) {
+        showErrorMessage('Nenhuma resposta revisada disponível.');
+        return;
+    }
+    
+    navigator.clipboard.writeText(window.respostaRevisadaModeracao).then(() => {
+        showSuccessMessage('Resposta revisada copiada para a área de transferência!');
+    }).catch(err => {
+        console.error('Erro ao copiar:', err);
+        showErrorMessage('Erro ao copiar resposta revisada.');
+    });
+}
+
+// Função para formatar a análise de chance de moderação
+function formatarAnaliseChanceModeracao(analise) {
+    if (!analise) return '';
+    
+    let html = '<div class="analise-chance-moderacao">';
+    
+    // Formatar o conteúdo preservando a estrutura do prompt
+    let conteudoFormatado = analise
+        .replace(/\n\n\n+/g, '\n\n')  // Múltiplas quebras = dupla quebra
+        .replace(/\n\n/g, '</p><p>')  // Dupla quebra = novo parágrafo
+        .replace(/\n/g, '<br>')       // Quebra simples = <br>
+        .replace(/^/, '<p>')          // Iniciar com <p>
+        .replace(/$/, '</p>');        // Terminar com </p>
+    
+    // Destacar seções principais
+    conteudoFormatado = conteudoFormatado
+        .replace(/📊 Análise da chance de moderação/gi, '<h5 class="text-primary mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📊 Análise da chance de moderação</h5>')
+        .replace(/🧠 Fundamentação técnica/gi, '<h5 class="text-info mt-4 mb-3"><i class="fas fa-brain me-2"></i>🧠 Fundamentação técnica</h5>')
+        .replace(/⚠️ Riscos de negativa/gi, '<h5 class="text-warning mt-4 mb-3"><i class="fas fa-exclamation-triangle me-2"></i>⚠️ Riscos de negativa</h5>')
+        .replace(/🎯 Tese principal de moderação/gi, '<h5 class="text-success mt-4 mb-3"><i class="fas fa-bullseye me-2"></i>🎯 Tese principal de moderação</h5>')
+        .replace(/🧩 Teses complementares/gi, '<h5 class="text-secondary mt-4 mb-3"><i class="fas fa-puzzle-piece me-2"></i>🧩 Teses complementares</h5>')
+        .replace(/✍️ Revisão de Textos/gi, '<h5 class="text-dark mt-4 mb-3"><i class="fas fa-edit me-2"></i>✍️ Revisão de Textos (versão estratégica)</h5>')
+        .replace(/Chance estimada: (\d+%)/gi, '<strong class="text-primary fs-4">Chance estimada: $1</strong>')
+        .replace(/Classificação: (.+?)(<br>|<\/p>)/gi, '<span class="badge bg-info ms-2">$1</span>$2');
+    
+    html += '<div class="alert alert-light border-start border-secondary border-4">';
+    html += conteudoFormatado;
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
 }
 
 // Função para separar os blocos da resposta de revisão
@@ -3492,7 +3561,7 @@ window.velotaxBot = {
     gerarRespostaOpenAI,
     gerarModeracao,
     gerarExplicacao,
-    revisarTexto,
+    analisarChanceModeracao,
     gerarEmail,
     gerarFAQ,
     salvarRascunho,
