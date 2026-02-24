@@ -8852,13 +8852,115 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
     }
 });
 
-// Endpoint para limpar resultado da moderação (descontinuado - agora salvamos como nova linha)
+// Endpoint para limpar resultado da moderação (remove a linha mais recente da página "Resultados da Moderação")
 app.post('/api/limpar-resultado-moderacao', async (req, res) => {
-    console.log('🎯 Endpoint /api/limpar-resultado-moderacao chamado (descontinuado)');
-    res.json({
-        success: false,
-        message: 'Este endpoint foi descontinuado. Os resultados agora são salvos como novas linhas na página "Resultados da Moderação" e não podem ser removidos.'
-    });
+    console.log('🎯 Endpoint /api/limpar-resultado-moderacao chamado');
+    try {
+        const { moderacaoId } = req.body;
+        
+        // Validações
+        if (!moderacaoId || !moderacaoId.toString().trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da moderação é obrigatório'
+            });
+        }
+        
+        // Verificar se Google Sheets está ativo
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets não está configurado ou ativo'
+            });
+        }
+        
+        // Verificar se googleSheetsConfig está inicializado
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets API não foi inicializada'
+            });
+        }
+        
+        // Buscar resultados da página "Resultados da Moderação"
+        const resultadosData = await googleSheetsConfig.readData('Resultados da Moderação!A1:Z1000');
+        
+        if (!resultadosData || resultadosData.length <= 1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Nenhum resultado encontrado na planilha'
+            });
+        }
+        
+        // Encontrar a linha mais recente com o ID correspondente
+        const moderacaoIdTrimmed = moderacaoId.toString().trim();
+        const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
+        let linhaEncontrada = -1;
+        let linhaMaisRecente = -1;
+        let dataMaisRecente = null;
+        
+        // Processar resultados (pular cabeçalho na linha 0)
+        for (let i = 1; i < resultadosData.length; i++) {
+            const row = resultadosData[i];
+            if (!row || row.length < 3) continue;
+            
+            const idModeracao = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
+            const dataRegistro = row[0] ? row[0].toString().trim() : '';
+            
+            if (idModeracao === moderacaoIdNormalized) {
+                // Encontrou um resultado para este ID
+                // Verificar se é o mais recente
+                if (dataMaisRecente === null) {
+                    linhaMaisRecente = i + 1; // +1 porque a planilha começa na linha 1
+                    dataMaisRecente = dataRegistro;
+                } else {
+                    // Comparar datas para manter o mais recente
+                    try {
+                        const dataAtual = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                        const dataExistente = new Date(dataMaisRecente.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                        if (dataAtual > dataExistente) {
+                            linhaMaisRecente = i + 1;
+                            dataMaisRecente = dataRegistro;
+                        }
+                    } catch (e) {
+                        // Se não conseguir comparar, manter o primeiro encontrado
+                    }
+                }
+            }
+        }
+        
+        if (linhaMaisRecente === -1) {
+            return res.status(404).json({
+                success: false,
+                error: `Nenhum resultado encontrado para a moderação com ID "${moderacaoIdTrimmed}"`
+            });
+        }
+        
+        // Deletar a linha mais recente
+        console.log(`🗑️ Deletando linha ${linhaMaisRecente} da página "Resultados da Moderação"`);
+        await googleSheetsConfig.deleteRow('Resultados da Moderação', linhaMaisRecente);
+        console.log(`✅ Resultado removido com sucesso`);
+        
+        // Invalidar cache
+        if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
+            googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
+        }
+        
+        res.json({
+            success: true,
+            message: 'Resultado da moderação removido com sucesso',
+            moderacaoId: moderacaoId,
+            linhaRemovida: linhaMaisRecente
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao limpar resultado da moderação:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
 });
 
 // Função para detectar produtos mencionados e retornar conhecimento completo

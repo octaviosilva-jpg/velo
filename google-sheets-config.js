@@ -236,6 +236,59 @@ class GoogleSheetsConfig {
     }
 
     /**
+     * Deleta uma linha específica de uma planilha
+     * @param {string} sheetName - Nome da planilha (ex: 'Sheet1')
+     * @param {number} rowIndex - Índice da linha a ser deletada (1-based, linha 1 = cabeçalho)
+     */
+    async deleteRow(sheetName, rowIndex) {
+        try {
+            if (!this.isInitialized()) {
+                throw new Error('Google Sheets API não foi inicializada');
+            }
+
+            const sheets = this.getSheets();
+            const spreadsheetId = this.getSpreadsheetId();
+
+            // Primeiro, obter o ID da planilha pelo nome
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: spreadsheetId
+            });
+
+            const sheet = spreadsheet.data.sheets.find(s => s.properties.title === sheetName);
+            if (!sheet) {
+                throw new Error(`Planilha "${sheetName}" não encontrada`);
+            }
+
+            const sheetId = sheet.properties.sheetId;
+
+            // Deletar a linha usando batchUpdate
+            const request = {
+                spreadsheetId: spreadsheetId,
+                resource: {
+                    requests: [{
+                        deleteDimension: {
+                            range: {
+                                sheetId: sheetId,
+                                dimension: 'ROWS',
+                                startIndex: rowIndex - 1, // 0-based
+                                endIndex: rowIndex
+                            }
+                        }
+                    }]
+                }
+            };
+
+            const response = await sheets.spreadsheets.batchUpdate(request);
+            console.log(`✅ Linha ${rowIndex} deletada com sucesso da planilha "${sheetName}"`);
+            return response.data;
+
+        } catch (error) {
+            console.error('❌ Erro ao deletar linha:', error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Lê dados de uma planilha
      * @param {string} range - Range para ler (ex: 'Sheet1!A1:Z100')
      */
