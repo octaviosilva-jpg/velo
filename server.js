@@ -994,9 +994,9 @@ ${gerarContextoEspecifico(dadosFormulario.tipo_solicitacao)}
 3. ESTRUTURA INTELIGENTE DA RESPOSTA:
 
 a) RECONHECIMENTO PERSONALIZADO:
-- Agradeça especificamente pela confiança na Velotax
-- Reconheça a importância da solicitação do cliente
-- Demonstre compreensão da situação específica
+- Agradeça especificamente pela confiança na Velotax (de forma objetiva, sem exageros)
+- Reconheça a importância da solicitação do cliente (de forma direta)
+- Demonstre compreensão da situação específica (sem pedir desculpas)
 
 b) ESCLARECIMENTO TÉCNICO:
 - Explique o que foi feito de forma clara e técnica
@@ -1019,9 +1019,12 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 - Cite sempre a legislação aplicável (CCB, LGPD, etc.)
 - Mencione a regulamentação do Banco Central quando relevante
 - Demonstre expertise em antecipação de restituição
-- Mantenha tom profissional, empático e solucionador
+- Mantenha tom profissional, direto e solucionador
 - Seja específico sobre processos e prazos
 - Evite generalizações - seja sempre específico ao caso
+- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
+- Seja firme e objetivo, sem excesso de tom acolhedor
+- Foque em esclarecer e resolver, não em justificar ou se desculpar
 
 5. ELEMENTOS OBRIGATÓRIOS:
 
@@ -1043,6 +1046,8 @@ Gere APENAS o texto explicativo que vai entre a apresentação do agente e as in
 - Ser específico e detalhado
 - Demonstrar expertise técnica, transparência e compromisso com a satisfação do cliente
 - Estar sempre contextualizado para a Velotax e o tipo de solicitação específica
+- NUNCA incluir pedidos de desculpas ou expressões como "lamentamos", "sentimos muito", "nos desculpamos"
+- Ser firme e objetivo, sem excesso de tom acolhedor ou friendly
 
 NÃO inclua:
 - "Olá, [nome]" ou qualquer saudação
@@ -4139,7 +4144,9 @@ ${conhecimentoFeedback || ''}
 - Estruture a resposta seguindo o padrão dos modelos coerentes
 - Seja específico sobre a solução implementada
 - Integre o histórico de atendimento quando relevante
-- Use tom profissional e empático
+- Use tom profissional, direto e objetivo
+- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito"
+- Seja firme e claro, sem excesso de tom acolhedor
 
 4. VERIFICAÇÃO FINAL:
 - Confirme que a resposta é específica (não genérica)
@@ -5031,7 +5038,9 @@ ${respostaAnterior}
 INSTRUÇÕES PARA REFORMULAÇÃO:
 - Analise a resposta anterior e identifique pontos de melhoria
 - Reformule para ser mais completa e eficaz
-- Mantenha o tom profissional e empático
+- Mantenha o tom profissional, direto e objetivo
+- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito"
+- Seja firme e claro, sem excesso de tom acolhedor
 - Aborde todos os aspectos da reclamação do cliente`;
         }
 
@@ -5092,10 +5101,12 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
 
 DIRETRIZES GERAIS:
 1. TOM E ESTILO:
-- Profissional, respeitoso e empático
+- Profissional, respeitoso e direto
 - Linguagem clara e acessível
-- Tom conciliador e solucionador
+- Tom objetivo e solucionador
 - Evite jargões técnicos desnecessários
+- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
+- Seja firme e claro, sem excesso de tom acolhedor ou friendly
 
 2. ESTRUTURA DA RESPOSTA:
 a) Agradecimento e reconhecimento
@@ -5105,12 +5116,14 @@ d) Compromisso de melhoria
 e) Convite para contato direto
 
 3. DIRETRIZES:
-- Sempre reconheça o problema do cliente
-- Explique as ações tomadas de forma clara
-- Demonstre compromisso com a satisfação
-- Mantenha tom profissional e respeitoso
+- Reconheça o problema do cliente de forma objetiva (sem pedir desculpas)
+- Explique as ações tomadas de forma clara e direta
+- Demonstre compromisso com a satisfação (sem exageros)
+- Mantenha tom profissional, respeitoso e firme
+- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
 - Evite repetições desnecessárias
 - Seja específico e detalhado
+- Seja objetivo, sem excesso de tom acolhedor ou friendly
 
 ⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
 
