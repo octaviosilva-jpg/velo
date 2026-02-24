@@ -9662,8 +9662,16 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             ];
             
             console.log(`💾 Salvando na página "Moderações Aceitas"`);
-            await googleSheetsConfig.appendRow('Moderações Aceitas!A:Z', novaLinhaAceitas);
-            console.log(`✅ Moderação aceita salva com sucesso na página "Moderações Aceitas"`);
+            console.log(`📋 Dados a serem salvos (${novaLinhaAceitas.length} colunas):`, novaLinhaAceitas);
+            try {
+                const resultado = await googleSheetsConfig.appendRow('Moderações Aceitas!A1', novaLinhaAceitas);
+                console.log(`✅ Moderação aceita salva com sucesso na página "Moderações Aceitas"`);
+                console.log(`📊 Resultado do append:`, resultado);
+            } catch (error) {
+                console.error(`❌ ERRO ao salvar moderação aceita:`, error);
+                console.error(`❌ Stack trace:`, error.stack);
+                throw new Error(`Erro ao salvar moderação aceita: ${error.message}`);
+            }
         } else if (resultado === 'Negada') {
             // Salvar apenas na página "Moderações Negadas"
             const novaLinhaNegadas = [
@@ -9685,8 +9693,16 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             ];
             
             console.log(`💾 Salvando na página "Moderações Negadas"`);
-            await googleSheetsConfig.appendRow('Moderações Negadas!A:Z', novaLinhaNegadas);
-            console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
+            console.log(`📋 Dados a serem salvos (${novaLinhaNegadas.length} colunas):`, novaLinhaNegadas);
+            try {
+                const resultado = await googleSheetsConfig.appendRow('Moderações Negadas!A1', novaLinhaNegadas);
+                console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
+                console.log(`📊 Resultado do append:`, resultado);
+            } catch (error) {
+                console.error(`❌ ERRO ao salvar moderação negada:`, error);
+                console.error(`❌ Stack trace:`, error.stack);
+                throw new Error(`Erro ao salvar moderação negada: ${error.message}`);
+            }
         }
         
         // Invalidar cache
