@@ -8711,6 +8711,152 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
     }
 });
 
+/**
+ * Analisa uma moderação negada e gera os 3 blocos de feedback estruturado
+ * @param {Object} dadosModeracao - Dados completos da moderação negada
+ * @returns {Promise<Object>} Objeto com os 3 blocos de feedback
+ */
+async function analisarModeracaoNegada(dadosModeracao) {
+    try {
+        const envVars = loadEnvFile();
+        const openaiApiKey = envVars.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+        
+        if (!openaiApiKey) {
+            throw new Error('OPENAI_API_KEY não configurada');
+        }
+
+        const { textoModeracao, solicitacaoCliente, respostaEmpresa, consideracaoFinal, motivoModeracao, linhaRaciocinio } = dadosModeracao;
+
+        const prompt = `
+📌 ANÁLISE DE MODERAÇÃO NEGADA PELO RECLAME AQUI
+
+Você é um especialista em análise de moderações do Reclame Aqui. Sua tarefa é analisar uma moderação que foi NEGADA e gerar feedback estruturado em 3 blocos obrigatórios.
+
+DADOS DA MODERAÇÃO NEGADA:
+- Texto da moderação enviada: ${textoModeracao}
+- Solicitação do cliente: ${solicitacaoCliente}
+- Resposta da empresa: ${respostaEmpresa}
+- Consideração final do consumidor: ${consideracaoFinal || 'N/A'}
+- Motivo de moderação utilizado: ${motivoModeracao}
+- Linha de raciocínio interna: ${linhaRaciocinio || 'N/A'}
+
+⚙️ ANÁLISE OBRIGATÓRIA (baseada nos manuais do RA):
+
+Consulte os 3 manuais oficiais do Reclame Aqui:
+1. Manual Geral de Moderação
+2. Manual de Moderação RA Reviews
+3. Manual de Moderação – Bancos, Instituições Financeiras e Meios
+
+Verifique especificamente:
+- Presença de debate de mérito
+- Tentativa de justificar política interna
+- Enquadramento incorreto do motivo de moderação
+- Linguagem defensiva ou argumentativa
+- Falta de foco na inconsistência objetiva do relato
+- Uso incorreto de termos ou estruturas
+
+📋 SAÍDA OBRIGATÓRIA - 3 BLOCOS ESTRUTURADOS:
+
+🔴 BLOCO 1 – MOTIVO DA NEGATIVA
+Explique de forma objetiva e neutra, baseada nos manuais do RA, por que a moderação foi negada. 
+Cite o manual específico e a regra violada quando aplicável.
+Formato: Texto objetivo e técnico, sem juízo de valor.
+
+🟡 BLOCO 2 – ONDE A SOLICITAÇÃO ERROU
+Identifique claramente os erros técnicos cometidos no texto de moderação.
+Seja específico: cite trechos problemáticos, estruturas incorretas, termos inadequados.
+Formato: Lista objetiva de erros identificados, reutilizável para aprendizado.
+
+🟢 BLOCO 3 – COMO CORRIGIR
+Forneça orientações práticas e específicas para evitar os mesmos erros em futuras moderações.
+Baseie-se nos manuais do RA e nas melhores práticas.
+Formato: Orientações práticas, acionáveis e alinhadas aos manuais.
+
+⚠️ REGRAS CRÍTICAS:
+- Análise sempre técnica e normativa, nunca subjetiva
+- Baseada exclusivamente nos manuais do RA
+- Objetiva e neutra
+- Focada em erros corrigíveis
+- Reutilizável para aprendizado
+
+FORMATO DE SAÍDA (JSON):
+{
+  "bloco1_motivo_negativa": "[texto do bloco 1]",
+  "bloco2_onde_errou": "[texto do bloco 2]",
+  "bloco3_como_corrigir": "[texto do bloco 3]"
+}
+
+Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${openaiApiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um especialista em análise de moderações do Reclame Aqui, com conhecimento profundo dos manuais oficiais da plataforma.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(`Erro na API OpenAI: ${response.status} - ${errorData}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices[0].message.content.trim();
+
+        // Tentar extrair JSON da resposta
+        let resultado;
+        try {
+            // Remover markdown code blocks se houver
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                resultado = JSON.parse(jsonMatch[0]);
+            } else {
+                resultado = JSON.parse(content);
+            }
+        } catch (parseError) {
+            // Se não conseguir parsear como JSON, criar estrutura manual
+            console.warn('⚠️ Não foi possível parsear resposta como JSON, criando estrutura manual');
+            const linhas = content.split('\n').filter(l => l.trim());
+            resultado = {
+                bloco1_motivo_negativa: linhas.find(l => l.includes('BLOCO 1') || l.includes('MOTIVO')) || 'Análise em andamento',
+                bloco2_onde_errou: linhas.find(l => l.includes('BLOCO 2') || l.includes('ERROU')) || 'Análise em andamento',
+                bloco3_como_corrigir: linhas.find(l => l.includes('BLOCO 3') || l.includes('CORRIGIR')) || 'Análise em andamento'
+            };
+        }
+
+        return {
+            bloco1_motivo_negativa: resultado.bloco1_motivo_negativa || 'Análise não disponível',
+            bloco2_onde_errou: resultado.bloco2_onde_errou || 'Análise não disponível',
+            bloco3_como_corrigir: resultado.bloco3_como_corrigir || 'Análise não disponível'
+        };
+
+    } catch (error) {
+        console.error('❌ Erro ao analisar moderação negada:', error);
+        // Retornar estrutura padrão em caso de erro
+        return {
+            bloco1_motivo_negativa: `Erro ao gerar análise automática: ${error.message}`,
+            bloco2_onde_errou: 'Análise não disponível devido a erro no processamento',
+            bloco3_como_corrigir: 'Consulte os manuais do RA para orientações de correção'
+        };
+    }
+}
+
 // Endpoint para registrar resultado da moderação (Aceita ou Negada)
 app.post('/api/registrar-resultado-moderacao', async (req, res) => {
     console.log('=== REGISTRAR RESULTADO ===', `ID: ${req.body.moderacaoId}, Resultado: ${req.body.resultado}`);
@@ -8807,11 +8953,54 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const statusAprovacao = moderacaoRow[11] || '';
         const observacoesInternas = moderacaoRow[12] || '';
         
+        // Identificar tema da moderação (pode ser extraído do motivo ou inferido)
+        // Por enquanto, usar o motivo como tema, pode ser refinado depois
+        const temaModeracao = motivoModeracao || 'geral';
+        
+        // Identificar ID da reclamação (se houver na solicitação ou observações)
+        // Por enquanto, deixar vazio, pode ser extraído depois se necessário
+        const idReclamacao = '';
+        
+        // Versão dos manuais (pode ser atualizada conforme necessário)
+        const versaoManuais = '2024';
+        
+        let bloco1 = '';
+        let bloco2 = '';
+        let bloco3 = '';
+        
+        // Se resultado for "Negada", gerar análise automática
+        if (resultado === 'Negada') {
+            console.log('🔍 Gerando análise automática para moderação negada...');
+            try {
+                const analise = await analisarModeracaoNegada({
+                    textoModeracao,
+                    solicitacaoCliente,
+                    respostaEmpresa,
+                    consideracaoFinal,
+                    motivoModeracao,
+                    linhaRaciocinio
+                });
+                
+                bloco1 = analise.bloco1_motivo_negativa;
+                bloco2 = analise.bloco2_onde_errou;
+                bloco3 = analise.bloco3_como_corrigir;
+                
+                console.log('✅ Análise gerada com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao gerar análise:', error);
+                bloco1 = 'Erro ao gerar análise automática';
+                bloco2 = 'Análise não disponível';
+                bloco3 = 'Consulte os manuais do RA para orientações';
+            }
+        }
+        
         // Criar linha para salvar na página "Resultados da Moderação"
-        const novaLinha = [
+        const novaLinhaResultados = [
             dataHoraRegistro,                    // Data/Hora do Registro
             moderacaoIdTrimmed,                  // ID da Moderação
-            resultado,                            // Resultado (Aceita/Negada)
+            idReclamacao,                        // ID da Reclamação
+            resultado,                           // Resultado (Aceita/Negada)
+            temaModeracao,                       // Tema da Moderação
             dataHoraModeracao,                   // Data/Hora da Moderação Original
             solicitacaoCliente,                  // Solicitação do Cliente
             respostaEmpresa,                     // Resposta da Empresa
@@ -8820,13 +9009,42 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             linhaRaciocinio,                     // Linha de Raciocínio
             consideracaoFinal,                   // Consideração Final
             statusAprovacao,                     // Status Aprovação
-            observacoesInternas                 // Observações Internas
+            observacoesInternas,                 // Observações Internas
+            bloco1,                              // Motivo da Negativa (Bloco 1)
+            bloco2,                              // Onde a Solicitação Errou (Bloco 2)
+            bloco3,                              // Como Corrigir (Bloco 3)
+            versaoManuais                        // Versão dos Manuais
         ];
         
         // Salvar na página "Resultados da Moderação"
         console.log(`💾 Salvando resultado na página "Resultados da Moderação"`);
-        await googleSheetsConfig.appendRow('Resultados da Moderação!A:Z', novaLinha);
+        await googleSheetsConfig.appendRow('Resultados da Moderação!A:Z', novaLinhaResultados);
         console.log(`✅ Resultado salvo com sucesso na página "Resultados da Moderação"`);
+        
+        // Se resultado for "Negada", salvar também na página "Moderações Negadas"
+        if (resultado === 'Negada') {
+            const novaLinhaNegadas = [
+                dataHoraRegistro,                // Data do Registro
+                moderacaoIdTrimmed,              // ID da Moderação
+                idReclamacao,                    // ID da Reclamação
+                temaModeracao,                   // Tema
+                motivoModeracao,                 // Motivo Utilizado
+                textoModeracao,                  // Texto da Moderação Enviada
+                resultado,                       // Resultado
+                bloco1,                          // Motivo da Negativa (Bloco 1)
+                bloco2,                          // Erro Identificado (Bloco 2)
+                bloco3,                          // Orientação de Correção (Bloco 3)
+                solicitacaoCliente,              // Solicitação do Cliente
+                respostaEmpresa,                 // Resposta da Empresa
+                consideracaoFinal,               // Consideração Final
+                linhaRaciocinio,                 // Linha de Raciocínio
+                dataHoraModeracao                // Data/Hora da Moderação Original
+            ];
+            
+            console.log(`💾 Salvando na página "Moderações Negadas"`);
+            await googleSheetsConfig.appendRow('Moderações Negadas!A:Z', novaLinhaNegadas);
+            console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
+        }
         
         // Invalidar cache
         if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
@@ -8839,7 +9057,12 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             success: true,
             message: `Resultado da moderação registrado: ${resultado}`,
             moderacaoId: moderacaoId,
-            resultado: resultado
+            resultado: resultado,
+            analise: resultado === 'Negada' ? {
+                bloco1,
+                bloco2,
+                bloco3
+            } : null
         });
         
     } catch (error) {

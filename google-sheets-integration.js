@@ -416,7 +416,9 @@ class GoogleSheetsIntegration {
             await this.ensureSheetExists('Resultados da Moderação', [
                 'Data/Hora do Registro',
                 'ID da Moderação',
+                'ID da Reclamação',
                 'Resultado',
+                'Tema da Moderação',
                 'Data/Hora da Moderação Original',
                 'Solicitação do Cliente',
                 'Resposta da Empresa',
@@ -425,7 +427,29 @@ class GoogleSheetsIntegration {
                 'Linha de Raciocínio',
                 'Consideração Final',
                 'Status Aprovação',
-                'Observações Internas'
+                'Observações Internas',
+                'Motivo da Negativa (Bloco 1)',
+                'Onde a Solicitação Errou (Bloco 2)',
+                'Como Corrigir (Bloco 3)',
+                'Versão dos Manuais'
+            ]);
+
+            await this.ensureSheetExists('Moderações Negadas', [
+                'Data do Registro',
+                'ID da Moderação',
+                'ID da Reclamação',
+                'Tema',
+                'Motivo Utilizado',
+                'Texto da Moderação Enviada',
+                'Resultado',
+                'Motivo da Negativa (Bloco 1)',
+                'Erro Identificado (Bloco 2)',
+                'Orientação de Correção (Bloco 3)',
+                'Solicitação do Cliente',
+                'Resposta da Empresa',
+                'Consideração Final',
+                'Linha de Raciocínio',
+                'Data/Hora da Moderação Original'
             ]);
 
             console.log('✅ Planilhas verificadas/criadas com sucesso');
