@@ -8672,11 +8672,8 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
 
 // Endpoint para registrar resultado da moderação (Aceita ou Negada)
 app.post('/api/registrar-resultado-moderacao', async (req, res) => {
-    console.log('🎯 Endpoint /api/registrar-resultado-moderacao chamado');
-    console.log('REGISTRO_START', JSON.stringify(req.body));
     try {
         const { moderacaoId, resultado } = req.body;
-        console.log('REGISTRO_PARAMS', `ID=${moderacaoId}, Resultado=${resultado}`);
         
         // Validações
         if (!moderacaoId || !moderacaoId.toString().trim()) {
@@ -8709,20 +8706,9 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             });
         }
         
-        console.log(`[REGISTRO] INICIO - ID: ${moderacaoId}, Resultado: ${resultado}`);
-        console.log(`\n🎯 ===== INÍCIO: Registrar Resultado da Moderação =====`);
-        console.log(`📋 ID recebido: "${moderacaoId}" (tipo: ${typeof moderacaoId})`);
-        console.log(`📋 Resultado: "${resultado}"`);
-        console.log(`📋 Timestamp: ${new Date().toISOString()}`);
-        
         // Ler dados da planilha para encontrar a linha correta
         const range = 'Moderações!A1:Z1000';
-        console.log(`📖 Lendo dados da planilha no range: ${range}`);
         const data = await googleSheetsConfig.readData(range);
-        console.log(`📊 Total de linhas lidas: ${data ? data.length : 0}`);
-        if (data && data.length > 0) {
-            console.log(`📋 Primeira linha (cabeçalhos):`, data[0]);
-        }
         
         if (!data || data.length <= 1) {
             return res.status(404).json({
@@ -8731,155 +8717,41 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             });
         }
         
-        // Encontrar a linha com o ID correspondente
-        // O ID está na coluna B (índice 1) da página Moderações
+        // Encontrar a linha com o ID correspondente (ID está na coluna B - índice 1)
         let linhaEncontrada = -1;
         const moderacaoIdTrimmed = moderacaoId.toString().trim();
-        // Normalizar o ID para comparação (remover espaços e converter para string)
         const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
-        console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" (normalizado: "${moderacaoIdNormalized}") na coluna B (índice 1)`);
         
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
             if (!row || row.length < 2) continue;
             
             const rowId = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
-            
-            // Comparar como string e também como número (caso um seja string e outro número)
             const idsCoincidem = rowId === moderacaoIdNormalized || 
-                                 rowId === moderacaoIdTrimmed ||
-                                 (rowId && moderacaoIdNormalized && rowId.toString() === moderacaoIdNormalized.toString()) ||
                                  (rowId && !isNaN(rowId) && !isNaN(moderacaoIdNormalized) && Number(rowId) === Number(moderacaoIdNormalized));
             
             if (idsCoincidem) {
-                linhaEncontrada = i + 1; // +1 porque a planilha começa na linha 1, mas o array em 0
-                console.log('REGISTRO_ID_FOUND', `Linha=${linhaEncontrada}, ID=${moderacaoIdTrimmed}`);
-                console.log(`[REGISTRO] ID ENCONTRADO na linha ${linhaEncontrada}`);
-                console.log(`\n✅ ===== ID ENCONTRADO =====`);
-                console.log(`✅ Linha encontrada: ${linhaEncontrada} (índice do array: ${i})`);
-                console.log(`✅ ID na planilha: "${row[1]}"`);
-                console.log(`✅ ID procurado: "${moderacaoIdTrimmed}"`);
-                console.log(`✅ Dados da linha completa:`, row);
+                linhaEncontrada = i + 1;
                 break;
             }
         }
         
         if (linhaEncontrada === -1) {
-            // Log de debug: mostrar alguns IDs encontrados para ajudar no diagnóstico
-            const idsEncontrados = [];
-            for (let i = 1; i < Math.min(data.length, 6); i++) {
-                const row = data[i];
-                const rowId = row[1] ? row[1].toString().trim() : '';
-                if (rowId) {
-                    idsEncontrados.push(`Linha ${i + 1}: "${rowId}"`);
-                }
-            }
-            console.log(`❌ ID não encontrado. IDs encontrados nas primeiras linhas:`, idsEncontrados);
-            
             return res.status(404).json({
                 success: false,
-                error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada na planilha. Verifique se o ID está correto na coluna B.`
+                error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada na planilha.`
             });
         }
         
-        // A coluna N é o índice 13 (A=0, B=1, ..., N=13)
-        // Atualizar a coluna N com o resultado da moderação
-        const colunaN = 'N';
-        const cellRange = `Moderações!${colunaN}${linhaEncontrada}`;
+        // Atualizar a coluna N (índice 13) com o resultado
+        const cellRange = `Moderações!N${linhaEncontrada}`;
         
-        console.log(`\n📝 ===== ATUALIZANDO CÉLULA =====`);
-        console.log(`📝 Range da célula: ${cellRange}`);
-        console.log(`📝 Valor a ser salvo: "${resultado}"`);
-        console.log(`📝 Detalhes completos: ID=${moderacaoId}, Linha=${linhaEncontrada}, Coluna=${colunaN}`);
+        await googleSheetsConfig.updateCell(cellRange, resultado);
         
-        try {
-            console.log('REGISTRO_UPDATE_START', `Range=${cellRange}, Value=${resultado}`);
-            console.log(`[UPDATE] Iniciando atualização: ${cellRange} = ${resultado}`);
-            console.log(`[UPDATE] Linha: ${linhaEncontrada}, Coluna: ${colunaN}`);
-            const updateResult = await googleSheetsConfig.updateCell(cellRange, resultado);
-            console.log('REGISTRO_UPDATE_RESULT', `UpdatedCells=${updateResult?.updatedCells || 0}, Range=${updateResult?.updatedRange || 'N/A'}`);
-            console.log(`[UPDATE] Sucesso! Células atualizadas: ${updateResult?.updatedCells || 0}`);
-            console.log(`[UPDATE] Range atualizado: ${updateResult?.updatedRange || 'N/A'}`);
-            if (!updateResult || updateResult.updatedCells === 0) {
-                console.error('REGISTRO_UPDATE_FAILED', 'API retornou 0 células atualizadas!');
-                console.error(`[UPDATE] ERRO: API retornou 0 células atualizadas!`);
-                throw new Error('A API do Google Sheets não atualizou nenhuma célula');
-            }
-        } catch (updateError) {
-            console.error(`\n❌ ===== ERRO AO ATUALIZAR CÉLULA =====`);
-            console.error('❌ Erro completo:', updateError);
-            console.error('❌ Mensagem:', updateError.message);
-            console.error('❌ Stack trace:', updateError.stack);
-            console.error('❌ Detalhes:', {
-                message: updateError.message,
-                name: updateError.name,
-                cellRange: cellRange,
-                valor: resultado,
-                linha: linhaEncontrada,
-                coluna: colunaN
-            });
-            throw new Error(`Erro ao atualizar célula ${cellRange}: ${updateError.message}`);
-        }
-        
-        // Verificar se a atualização foi bem-sucedida lendo a célula novamente
-        // Aguardar um pouco para garantir que a atualização foi processada
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        try {
-            const verifyRange = `Moderações!${colunaN}${linhaEncontrada}`;
-            console.log(`🔍 Verificando atualização na célula: ${verifyRange}...`);
-            const verifyData = await googleSheetsConfig.readData(verifyRange);
-            const valorAtualizado = verifyData && verifyData[0] && verifyData[0][0];
-            console.log(`🔍 Valor lido da célula ${verifyRange}: "${valorAtualizado}"`);
-            console.log(`🔍 Valor esperado: "${resultado}"`);
-            
-            if (valorAtualizado !== resultado) {
-                console.error(`\n❌ ===== ERRO: VALOR NÃO CORRESPONDE =====`);
-                console.error(`❌ Valor na célula: "${valorAtualizado}"`);
-                console.error(`❌ Valor esperado: "${resultado}"`);
-                console.error(`❌ Range: ${verifyRange}`);
-                console.error(`❌ Linha: ${linhaEncontrada}, Coluna: ${colunaN}`);
-                
-                // Tentar atualizar novamente
-                console.log(`🔄 Tentando atualizar novamente...`);
-                try {
-                    await googleSheetsConfig.updateCell(verifyRange, resultado);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    const verifyData2 = await googleSheetsConfig.readData(verifyRange);
-                    const valorAtualizado2 = verifyData2 && verifyData2[0] && verifyData2[0][0];
-                    console.log(`🔍 Valor após segunda tentativa: "${valorAtualizado2}"`);
-                    
-                    if (valorAtualizado2 !== resultado) {
-                        throw new Error(`Falha ao atualizar célula após segunda tentativa. Valor na célula: "${valorAtualizado2}", Esperado: "${resultado}"`);
-                    }
-                } catch (retryError) {
-                    console.error('❌ Erro na segunda tentativa:', retryError);
-                    throw retryError;
-                }
-            } else {
-                console.log(`✅ Verificação OK: Valor corresponde ao esperado!`);
-            }
-        } catch (verifyError) {
-            console.error('❌ Erro ao verificar atualização:', verifyError);
-            // Não lançar erro aqui, apenas logar, pois a atualização pode ter funcionado
-        }
-        
-        console.log('REGISTRO_SUCCESS', `Linha=${linhaEncontrada}, Coluna=${colunaN}, Valor=${resultado}, ID=${moderacaoId}`);
-        console.log(`[REGISTRO] SUCESSO - Linha: ${linhaEncontrada}, Coluna: ${colunaN}, Valor: ${resultado}`);
-        console.log(`\n✅ ===== SUCESSO: Resultado Registrado =====`);
-        console.log(`✅ Linha: ${linhaEncontrada}`);
-        console.log(`✅ Coluna: ${colunaN}`);
-        console.log(`✅ Valor: "${resultado}"`);
-        console.log(`✅ ID: ${moderacaoId}`);
-        
-        // Invalidar cache de moderações coerentes para forçar atualização
+        // Invalidar cache
         if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
-            console.log(`🗑️ Invalidando cache de moderações coerentes...`);
             googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
-            console.log(`🗑️ Cache invalidado com sucesso`);
         }
-        
-        console.log(`\n🎯 ===== FIM: Registrar Resultado da Moderação =====\n`);
         
         res.json({
             success: true,
