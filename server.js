@@ -834,6 +834,102 @@ async function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
 
 // ===== SISTEMA DE APRENDIZADO SEPARADO =====
 
+// Função para extrair o primeiro nome do usuário logado
+function obterPrimeiroNomeUsuario(userData) {
+    if (!userData || !userData.nome) {
+        return 'Agente';
+    }
+    
+    // Extrair primeiro nome (até o primeiro espaço)
+    const primeiroNome = userData.nome.trim().split(/\s+/)[0];
+    return primeiroNome || 'Agente';
+}
+
+// Função para tentar extrair o nome do cliente da reclamação
+function extrairNomeCliente(textoReclamacao) {
+    if (!textoReclamacao || typeof textoReclamacao !== 'string') {
+        return null;
+    }
+    
+    // Padrões comuns para encontrar nomes
+    const padroes = [
+        /(?:Olá|Oi|Bom dia|Boa tarde|Boa noite|Prezados?|Sr\.|Sra\.|Srª\.|Dr\.|Dra\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+        /(?:meu nome é|sou|chamo-me|chamo me|me chamo)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+        /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s+está|\s+foi|\s+será)/i
+    ];
+    
+    for (const padrao of padroes) {
+        const match = textoReclamacao.match(padrao);
+        if (match && match[1]) {
+            const nome = match[1].trim();
+            // Validar se parece um nome (não muito longo, não contém números)
+            if (nome.length <= 50 && !/\d/.test(nome)) {
+                return nome;
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Função para formatar resposta RA com a estrutura solicitada
+function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
+    if (!respostaTexto || typeof respostaTexto !== 'string') {
+        return respostaTexto;
+    }
+    
+    // Se a resposta já estiver formatada (contém a estrutura completa), não reformatar
+    if (respostaTexto.includes('Permanecemos à disposição por meio de nossos canais oficiais') ||
+        respostaTexto.includes('3003-7293') ||
+        respostaTexto.includes('0800-800-0049')) {
+        // Verificar se já tem o nome do agente na assinatura, se não tiver, atualizar
+        if (nomeAgente && !respostaTexto.includes(`Sou ${nomeAgente}, especialista`)) {
+            // Tentar atualizar o nome do agente se estiver no formato antigo
+            respostaTexto = respostaTexto.replace(/Sou\s+[^,]+,\s+especialista/g, `Sou ${nomeAgente}, especialista`);
+            respostaTexto = respostaTexto.replace(/Atenciosamente,\s*[^\n]+\n\s*Equipe de Atendimento/g, `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
+        }
+        return respostaTexto;
+    }
+    
+    // Remover formatações antigas se existirem (como "Prezado(a) cliente," no início)
+    let textoLimpo = respostaTexto.trim();
+    if (textoLimpo.startsWith('Prezado(a) cliente,') || textoLimpo.startsWith('Prezado cliente,') || 
+        textoLimpo.startsWith('Prezada cliente,')) {
+        // Remover a saudação antiga
+        textoLimpo = textoLimpo.replace(/^Prezad[oa]\(a\)?\s+cliente,?\s*/i, '').trim();
+    }
+    
+    // Remover assinaturas antigas se existirem
+    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*Equipe\s+Velotax\s*$/i, '').trim();
+    
+    // Usar nome do cliente se disponível, senão usar "cliente"
+    const saudacaoCliente = nomeCliente ? nomeCliente : 'cliente';
+    
+    // Construir a resposta formatada
+    const respostaFormatada = `Olá, ${saudacaoCliente}!
+
+Espero que esteja bem.
+
+Sou ${nomeAgente}, especialista de atendimento do Velotax, recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.  
+
+${textoLimpo}
+
+
+
+Permanecemos à disposição por meio de nossos canais oficiais de atendimento:
+
+
+📞 3003-7293 (capitais e regiões metropolitanas)
+📞 0800-800-0049 (demais localidades)
+🌐 www.velotax.com.br
+
+Atenciosamente,
+${nomeAgente} 
+Equipe de Atendimento Velotax`;
+
+    return respostaFormatada;
+}
+
 // Gerar script padrão "cru" para geração de respostas
 function gerarScriptPadraoResposta(dadosFormulario) {
     return `📌 SCRIPT INTELIGENTE PARA GERAÇÃO DE RESPOSTA RA - VELOTAX
@@ -4308,6 +4404,13 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             const data = await response.json();
             let resposta = data.choices[0].message.content;
             
+            // Extrair nome do agente e do cliente
+            const nomeAgente = obterPrimeiroNomeUsuario(userData);
+            const nomeCliente = extrairNomeCliente(dadosFormulario.texto_cliente);
+            
+            // Aplicar formatação da resposta RA com a estrutura solicitada
+            resposta = formatarRespostaRA(resposta, nomeCliente, nomeAgente);
+            
             // Validação pós-processamento mais rigorosa e específica
             const palavrasGenericas = [
                 'situação atual', 'detalhes específicos não foram compartilhados', 
@@ -4364,38 +4467,33 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 const historico = dadosFormulario.historico_atendimento;
                 const observacoes = dadosFormulario.observacoes_internas;
                 
+                // Extrair nome do agente e do cliente
+                const nomeAgente = obterPrimeiroNomeUsuario(userData);
+                const nomeCliente = extrairNomeCliente(dadosFormulario.texto_cliente);
+                
                 // Criar resposta mais específica e completa baseada nos dados fornecidos
-                let respostaEspecifica = `Prezado(a) cliente,
-
-Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
+                const textoResposta = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
 ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação e implementamos a solução adequada.'}
 
 ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
-O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.
-
-Atenciosamente,
-Equipe Velotax`;
+O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
+                
+                let respostaEspecifica = formatarRespostaRA(textoResposta, nomeCliente, nomeAgente);
                 
                 // Adicionar contexto específico baseado no tipo de situação
                 if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('exclusao')) {
-                    respostaEspecifica = `Prezado(a) cliente,
-
-Agradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro${motivo ? ' - ' + motivo : ''}.
+                    const textoRespostaExclusao = `Agradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro${motivo ? ' - ' + motivo : ''}.
 
 ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de exclusão e implementamos a solução adequada.'}
 
 ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
-O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.
-
-Atenciosamente,
-Equipe Velotax`;
+O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
+                    respostaEspecifica = formatarRespostaRA(textoRespostaExclusao, nomeCliente, nomeAgente);
                 } else if (tipoSituacao.toLowerCase().includes('pix') || tipoSituacao.toLowerCase().includes('portabilidade')) {
-                    respostaEspecifica = `Prezado(a) cliente,
-
-Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
+                    const textoRespostaPix = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
 ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de portabilidade e implementamos a solução adequada.'}
 
@@ -4403,14 +4501,10 @@ ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendiment
 
 A operação foi realizada conforme estabelecido na Cláusula 7 de sua Cédula de Crédito Bancário (CCB), que trata do vínculo da chave Pix e quitação automática.
 
-Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.
-
-Atenciosamente,
-Equipe Velotax`;
+Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
+                    respostaEspecifica = formatarRespostaRA(textoRespostaPix, nomeCliente, nomeAgente);
                 } else if (tipoSituacao.toLowerCase().includes('quitação') || tipoSituacao.toLowerCase().includes('liquidação')) {
-                    respostaEspecifica = `Prezado(a) cliente,
-
-Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
+                    const textoRespostaQuitacao = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
 ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de quitação e implementamos a solução adequada.'}
 
@@ -4418,10 +4512,8 @@ ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendiment
 
 A operação foi realizada conforme estabelecido na Cláusula 8 de sua Cédula de Crédito Bancário (CCB), que trata da liquidação antecipada.
 
-Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.
-
-Atenciosamente,
-Equipe Velotax`;
+Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
+                    respostaEspecifica = formatarRespostaRA(textoRespostaQuitacao, nomeCliente, nomeAgente);
                 }
                 
                 resposta = respostaEspecifica;
@@ -4992,7 +5084,14 @@ Gere uma resposta reformulada que seja mais completa, eficaz e atenda aos pontos
         
         if (response.ok) {
             const data = await response.json();
-            const respostaReformulada = data.choices[0].message.content;
+            let respostaReformulada = data.choices[0].message.content;
+            
+            // Extrair nome do agente e do cliente
+            const nomeAgente = obterPrimeiroNomeUsuario(userData);
+            const nomeCliente = extrairNomeCliente(dadosFormulario.texto_cliente);
+            
+            // Aplicar formatação da resposta RA com a estrutura solicitada
+            respostaReformulada = formatarRespostaRA(respostaReformulada, nomeCliente, nomeAgente);
             
             // Aplicar feedback diretamente no script de formulação para aprendizado imediato
             if (feedback) {
