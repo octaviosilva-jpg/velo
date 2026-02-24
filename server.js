@@ -8759,7 +8759,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             moderacaoId: moderacaoId,
             resultado: resultado,
             linha: linhaEncontrada,
-            coluna: colunaN,
+            coluna: 'N',
             cellRange: cellRange
         });
         
