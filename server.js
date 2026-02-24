@@ -6687,7 +6687,86 @@ Isso é exatamente o tipo de erro que derruba taxa de moderação.
 
 ✍️ ETAPA 7 — REESCRITA ESTRATÉGICA (OBRIGATÓRIA)
 
-Sempre que houver QUALQUER possibilidade de ganho:
+⚠️ VALIDAÇÃO OBRIGATÓRIA: REVISÃO REAL vs AJUSTE COSMÉTICO
+
+Antes de classificar um texto como "Resposta Reformulada (versão estratégica)", você DEVE executar validação interna.
+
+📌 DEFINIÇÕES OBRIGATÓRIAS:
+
+✅ REVISÃO REAL (válida):
+
+Considera-se revisão real quando a nova resposta pública apresenta ao menos UM dos critérios abaixo:
+
+- Mudança explícita de enquadramento narrativo
+  (ex: antecipação de fato essencial omitido pelo consumidor)
+
+- Reorganização da ordem dos fatos para reduzir risco interpretativo
+
+- Inclusão clara de elemento que reforce diretamente a tese principal de moderação
+
+- Supressão de trechos defensivos longos em favor de objetividade factual
+
+- Alteração que torne inequívoca a omissão, inconsistência ou incorreção do relato do consumidor
+
+❌ AJUSTE COSMÉTICO (não válido como revisão):
+
+Considera-se ajuste cosmético quando ocorre apenas:
+
+- Troca de conectivos
+
+- Pequenos ajustes de fluidez ou formalidade
+
+- Repetição integral da estrutura original
+
+- Manutenção da mesma ordem de argumentos
+
+- Ausência de reforço explícito da tese de moderação
+
+- Texto "mais bonito", porém semanticamente equivalente ao original
+
+🔍 VALIDAÇÃO MÍNIMA OBRIGATÓRIA:
+
+Antes de classificar como "Resposta Reformulada", compare Resposta Pública Original × Resposta Gerada e verifique:
+
+1. Houve mudança de enquadramento?
+2. Houve reforço explícito da tese principal?
+3. Houve reorganização estratégica dos fatos?
+
+👉 Se todas as respostas forem "não":
+
+❌ AÇÃO OBRIGATÓRIA:
+
+- NÃO classificar como "Resposta Reformulada"
+- Classificar como: "Resposta Mantida – sem alteração estratégica"
+- NÃO aplicar ganho de chance de moderação
+- Manter a chance estimada original
+
+📈 REGRA SOBRE IMPACTO NA CHANCE DE MODERAÇÃO:
+
+O bloco "Impacto da Revisão de Texto":
+
+- Só pode ser exibido se houver revisão real validada
+- É proibido atribuir aumento de chance baseado apenas em ajustes cosméticos
+
+Caso não haja revisão real:
+
+- O bloco deve não ser exibido
+- OU indicar explicitamente: "Não houve alteração estratégica no texto; a chance de moderação permanece inalterada."
+
+📌 TRANSPARÊNCIA PARA O AGENTE HUMANO:
+
+Sempre que identificar ajuste cosmético, deixe claro:
+
+"A resposta pública foi mantida sem alteração estratégica, pois não foram identificadas mudanças de enquadramento relevantes para moderação."
+
+🧠 REGRA-MÃE DESTA EXTENSÃO:
+
+Texto só é considerado reformulado quando reforça a tese de moderação.
+Clareza estética não equivale a impacto estratégico.
+
+---
+
+Sempre que houver QUALQUER possibilidade de ganho REAL (não cosmético):
 
 Você DEVE:
 
@@ -6854,14 +6933,25 @@ exercício regular do direito de reclamar?
 ✍️ Revisão de Textos (versão estratégica)
 [Resposta pública revisada - uma única vez]
 
+OU (se não houver revisão real validada):
+
+✍️ Revisão de Textos
+Resposta Mantida – sem alteração estratégica
+[A resposta pública foi mantida sem alteração estratégica, pois não foram identificadas mudanças de enquadramento relevantes para moderação.]
+
 📈 Impacto da revisão de texto
-[APENAS 1 comparação antes/depois - uma única vez]
+[APENAS 1 comparação antes/depois - uma única vez. Só exibir se houver revisão real validada.]
+
+Se houver revisão real validada:
 Antes da revisão: XX%
 Após a revisão: YY%
 Variação estimada: +Z% (ou -Z% se piorou)
 
 🧠 Justificativa técnica do impacto
 [Uma única explicação objetiva e curta]
+
+Se NÃO houver revisão real:
+Não houve alteração estratégica no texto; a chance de moderação permanece inalterada.
 
 🔍 Auditoria de Consistência da Resposta
 [1 linha conclusiva - sem repetir justificativas]
@@ -6889,11 +6979,20 @@ Variação estimada: +Z% (ou -Z% se piorou)
 
 📈 IMPACTO DA REVISÃO DE TEXTO (ANÁLISE OBRIGATÓRIA)
 
-Após gerar a "Revisão de Textos (versão estratégica)", você DEVE executar esta análise adicional:
+⚠️ VALIDAÇÃO PRÉVIA OBRIGATÓRIA:
 
-1️⃣ Comparar duas versões:
+Antes de calcular o impacto, você DEVE validar se houve revisão REAL (não cosmética):
+
+- Se houver revisão real validada → calcular e exibir o impacto
+- Se houver apenas ajuste cosmético → NÃO exibir o bloco de impacto OU indicar explicitamente: "Não houve alteração estratégica no texto; a chance de moderação permanece inalterada."
+
+⚠️ REGRA CRÍTICA: NÃO use numeração (1, 2, 3, 1️⃣, 2️⃣, etc.) na saída final. Use apenas títulos com emojis.
+
+Após gerar a "Revisão de Textos (versão estratégica)" OU identificar que não houve revisão real, você DEVE executar esta análise adicional:
+
+Comparar duas versões:
 - Resposta pública original (fornecida nos dados do caso)
-- Resposta pública reformulada (versão estratégica que você acabou de gerar)
+- Resposta pública gerada (versão estratégica OU resposta mantida)
 
 Avaliar o impacto da reformulação sob a ótica do analista do Reclame Aqui, considerando EXCLUSIVAMENTE:
 - clareza factual
