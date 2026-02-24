@@ -8707,13 +8707,19 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             });
         }
         
-        console.log(`📋 Registrando resultado da moderação ID ${moderacaoId} (tipo: ${typeof moderacaoId}): ${resultado}`);
+        console.log(`\n🎯 ===== INÍCIO: Registrar Resultado da Moderação =====`);
+        console.log(`📋 ID recebido: "${moderacaoId}" (tipo: ${typeof moderacaoId})`);
+        console.log(`📋 Resultado: "${resultado}"`);
+        console.log(`📋 Timestamp: ${new Date().toISOString()}`);
         
         // Ler dados da planilha para encontrar a linha correta
         const range = 'Moderações!A1:Z1000';
         console.log(`📖 Lendo dados da planilha no range: ${range}`);
         const data = await googleSheetsConfig.readData(range);
         console.log(`📊 Total de linhas lidas: ${data ? data.length : 0}`);
+        if (data && data.length > 0) {
+            console.log(`📋 Primeira linha (cabeçalhos):`, data[0]);
+        }
         
         if (!data || data.length <= 1) {
             return res.status(404).json({
@@ -8744,7 +8750,11 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             
             if (idsCoincidem) {
                 linhaEncontrada = i + 1; // +1 porque a planilha começa na linha 1, mas o array em 0
-                console.log(`✅ ID encontrado na linha ${linhaEncontrada} (índice ${i}). ID na planilha: "${row[1]}", ID procurado: "${moderacaoIdTrimmed}"`);
+                console.log(`\n✅ ===== ID ENCONTRADO =====`);
+                console.log(`✅ Linha encontrada: ${linhaEncontrada} (índice do array: ${i})`);
+                console.log(`✅ ID na planilha: "${row[1]}"`);
+                console.log(`✅ ID procurado: "${moderacaoIdTrimmed}"`);
+                console.log(`✅ Dados da linha completa:`, row);
                 break;
             }
         }
@@ -8772,13 +8782,29 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const colunaN = 'N';
         const cellRange = `Moderações!${colunaN}${linhaEncontrada}`;
         
-        console.log(`📝 Atualizando célula ${cellRange} com valor: ${resultado}`);
+        console.log(`\n📝 ===== ATUALIZANDO CÉLULA =====`);
+        console.log(`📝 Range da célula: ${cellRange}`);
+        console.log(`📝 Valor a ser salvo: "${resultado}"`);
+        console.log(`📝 Detalhes completos: ID=${moderacaoId}, Linha=${linhaEncontrada}, Coluna=${colunaN}`);
         
         try {
+            console.log(`🔄 Chamando googleSheetsConfig.updateCell("${cellRange}", "${resultado}")...`);
             const updateResult = await googleSheetsConfig.updateCell(cellRange, resultado);
-            console.log(`✅ Célula atualizada com sucesso:`, updateResult);
+            console.log(`✅ Célula atualizada com sucesso!`);
+            console.log(`✅ Resposta da API:`, JSON.stringify(updateResult, null, 2));
         } catch (updateError) {
-            console.error('❌ Erro ao atualizar célula:', updateError);
+            console.error(`\n❌ ===== ERRO AO ATUALIZAR CÉLULA =====`);
+            console.error('❌ Erro completo:', updateError);
+            console.error('❌ Mensagem:', updateError.message);
+            console.error('❌ Stack trace:', updateError.stack);
+            console.error('❌ Detalhes:', {
+                message: updateError.message,
+                name: updateError.name,
+                cellRange: cellRange,
+                valor: resultado,
+                linha: linhaEncontrada,
+                coluna: colunaN
+            });
             throw new Error(`Erro ao atualizar célula ${cellRange}: ${updateError.message}`);
         }
         
@@ -8796,23 +8822,146 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             console.warn('⚠️ Não foi possível verificar a atualização:', verifyError.message);
         }
         
-        console.log(`✅ Resultado da moderação registrado com sucesso na linha ${linhaEncontrada}`);
+        console.log(`\n✅ ===== SUCESSO: Resultado Registrado =====`);
+        console.log(`✅ Linha: ${linhaEncontrada}`);
+        console.log(`✅ Coluna: ${colunaN}`);
+        console.log(`✅ Valor: "${resultado}"`);
+        console.log(`✅ ID: ${moderacaoId}`);
         
         // Invalidar cache de moderações coerentes para forçar atualização
         if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
+            console.log(`🗑️ Invalidando cache de moderações coerentes...`);
             googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
+            console.log(`🗑️ Cache invalidado com sucesso`);
         }
+        
+        console.log(`\n🎯 ===== FIM: Registrar Resultado da Moderação =====\n`);
         
         res.json({
             success: true,
             message: `Resultado da moderação registrado: ${resultado}`,
             moderacaoId: moderacaoId,
             resultado: resultado,
-            linha: linhaEncontrada
+            linha: linhaEncontrada,
+            coluna: colunaN,
+            cellRange: cellRange
         });
         
     } catch (error) {
         console.error('❌ Erro ao registrar resultado da moderação:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
+// Endpoint para limpar resultado da moderação (para testes)
+app.post('/api/limpar-resultado-moderacao', async (req, res) => {
+    console.log('🎯 Endpoint /api/limpar-resultado-moderacao chamado');
+    try {
+        const { moderacaoId } = req.body;
+        
+        // Validações
+        if (!moderacaoId || !moderacaoId.toString().trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'ID da moderação é obrigatório'
+            });
+        }
+        
+        // Verificar se Google Sheets está ativo
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets não está configurado ou ativo'
+            });
+        }
+        
+        // Verificar se googleSheetsConfig está inicializado
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Google Sheets API não foi inicializada'
+            });
+        }
+        
+        console.log(`\n🧹 ===== INÍCIO: Limpar Resultado da Moderação =====`);
+        console.log(`📋 ID da moderação: "${moderacaoId}"`);
+        
+        // Ler dados da planilha para encontrar a linha correta
+        const range = 'Moderações!A1:Z1000';
+        const data = await googleSheetsConfig.readData(range);
+        
+        if (!data || data.length <= 1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Nenhuma moderação encontrada na planilha'
+            });
+        }
+        
+        // Encontrar a linha com o ID correspondente
+        const moderacaoIdTrimmed = moderacaoId.toString().trim();
+        const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
+        let linhaEncontrada = -1;
+        
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row || row.length < 2) continue;
+            
+            const rowId = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
+            const idsCoincidem = rowId === moderacaoIdNormalized || 
+                                 rowId === moderacaoIdTrimmed ||
+                                 (rowId && moderacaoIdNormalized && rowId.toString() === moderacaoIdNormalized.toString()) ||
+                                 (rowId && !isNaN(rowId) && !isNaN(moderacaoIdNormalized) && Number(rowId) === Number(moderacaoIdNormalized));
+            
+            if (idsCoincidem) {
+                linhaEncontrada = i + 1;
+                console.log(`✅ ID encontrado na linha ${linhaEncontrada}`);
+                break;
+            }
+        }
+        
+        if (linhaEncontrada === -1) {
+            return res.status(404).json({
+                success: false,
+                error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada na planilha`
+            });
+        }
+        
+        // Limpar a coluna N (Resultado da Moderação)
+        const colunaN = 'N';
+        const cellRange = `Moderações!${colunaN}${linhaEncontrada}`;
+        
+        console.log(`🧹 Limpando célula ${cellRange}...`);
+        
+        try {
+            // Atualizar com string vazia para limpar
+            await googleSheetsConfig.updateCell(cellRange, '');
+            console.log(`✅ Célula limpa com sucesso!`);
+        } catch (updateError) {
+            console.error('❌ Erro ao limpar célula:', updateError);
+            throw new Error(`Erro ao limpar célula ${cellRange}: ${updateError.message}`);
+        }
+        
+        // Invalidar cache
+        if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
+            googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
+        }
+        
+        console.log(`\n🧹 ===== FIM: Resultado Limpo =====\n`);
+        
+        res.json({
+            success: true,
+            message: `Resultado da moderação limpo com sucesso`,
+            moderacaoId: moderacaoId,
+            linha: linhaEncontrada,
+            coluna: colunaN
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao limpar resultado da moderação:', error);
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor',

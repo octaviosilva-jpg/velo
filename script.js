@@ -3993,6 +3993,12 @@ async function buscarSolicitacoes() {
                                         <i class="fas fa-times-circle me-2"></i>
                                         Moderação Negada
                                     </button>
+                                    ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
+                                    <button class="btn btn-warning btn-sm" onclick="limparResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', '${solicitacaoId}')" title="Limpar resultado para testar novamente">
+                                        <i class="fas fa-undo me-2"></i>
+                                        Limpar Resultado
+                                    </button>
+                                    ` : ''}
                                 </div>
                             </div>
                         `;
@@ -4112,6 +4118,66 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
         showErrorMessage(error.message || 'Erro ao registrar resultado da moderação. Tente novamente.');
         event.target.disabled = false;
         event.target.innerHTML = btnOriginalText;
+    }
+}
+
+// Função para limpar resultado da moderação (para testes)
+async function limparResultadoModeracao(moderacaoId, solicitacaoId) {
+    if (!moderacaoId) {
+        showErrorMessage('ID da moderação não encontrado.');
+        return;
+    }
+    
+    // Confirmar ação
+    const confirmacao = confirm('Deseja limpar o resultado desta moderação? Isso permitirá testar novamente.');
+    if (!confirmacao) {
+        return;
+    }
+    
+    // Mostrar loading
+    const btnLimpar = event.target;
+    const btnOriginalText = btnLimpar.innerHTML;
+    btnLimpar.disabled = true;
+    btnLimpar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Limpando...';
+    
+    try {
+        console.log('🧹 Limpando resultado da moderação:', moderacaoId);
+        
+        const response = await fetch('/api/limpar-resultado-moderacao', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                moderacaoId: moderacaoId
+            })
+        });
+        
+        const data = await response.json();
+        console.log('📥 Resposta do servidor:', data);
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao limpar resultado da moderação');
+        }
+        
+        // Recarregar as solicitações
+        await buscarSolicitacoes();
+        
+        // Re-expandir a linha
+        setTimeout(() => {
+            const detalhesRow = document.getElementById(solicitacaoId);
+            if (detalhesRow && !detalhesRow.classList.contains('show')) {
+                toggleDetalhesSolicitacao(solicitacaoId);
+            }
+        }, 500);
+        
+        showSuccessMessage('Resultado da moderação limpo com sucesso! Agora você pode testar novamente.');
+        
+    } catch (error) {
+        console.error('Erro ao limpar resultado da moderação:', error);
+        showErrorMessage(error.message || 'Erro ao limpar resultado da moderação. Tente novamente.');
+        btnLimpar.disabled = false;
+        btnLimpar.innerHTML = btnOriginalText;
     }
 }
 
