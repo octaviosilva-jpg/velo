@@ -6414,6 +6414,10 @@ inconformismo?
 
 exercício regular do direito de reclamar?
 
+⚠️ IMPORTANTE: Especialmente se o analista não identificar claramente a omissão do pedido de retirada da chave Pix (ou outro fato essencial omitido) no texto do consumidor.
+
+Isso mostra que você entende exatamente onde o RA costuma errar.
+
 Esse feedback é tão importante quanto a porcentagem.
 
 ⚠️ REGRA FINAL PARA A INTERFACE
@@ -6460,6 +6464,16 @@ neutralizar a tese de ilegalidade regulatória (quando aplicável)
 
 ser escrita para o analista do RA, não para o consumidor
 
+👉 MICRO MELHORIA ESTRATÉGICA (PARA MAXIMIZAR MODERAÇÃO):
+
+Nomear explicitamente o ponto omitido, sem acusar o cliente.
+
+Exemplo (1 frase que vale ouro):
+
+"Importante esclarecer que não houve retenção coercitiva da chave Pix, uma vez que a desvinculação foi realizada a partir de solicitação do próprio cliente, conforme registrado no atendimento."
+
+Isso "ensina" o analista do RA a enxergar a omissão.
+
 ⚠️ REGRA CRÍTICA
 
 A versão revisada DEVE SER AUTOMATICAMENTE INSERIDA na aba
@@ -6471,10 +6485,32 @@ Chance estimada: XX%
 Classificação: …
 
 🧠 Fundamentação técnica (Manuais RA)
-…
+
+Ao fundamentar, deixe ainda mais explícito o erro factual. Exemplo de reforço:
+
+"A reclamação apresenta afirmação objetiva de retenção ilegal da chave Pix, quando, conforme registros e resposta pública, a chave foi desvinculada a pedido do próprio consumidor, inexistindo bloqueio coercitivo ou impedimento de portabilidade."
+
+Isso ajuda o analista do RA a bater o martelo.
 
 ⚠️ Riscos de negativa
-…
+
+Ao explicar os riscos, seja mais realista e específico:
+
+Explique claramente:
+
+por que o RA pode negar
+
+qual leitura mais provável do analista:
+
+dúvida legítima?
+
+inconformismo?
+
+exercício regular do direito de reclamar?
+
+⚠️ IMPORTANTE: Especialmente se o analista não identificar claramente a omissão do pedido de retirada da chave Pix (ou outro fato essencial omitido) no texto do consumidor.
+
+Isso mostra que você entende exatamente onde o RA costuma errar e aumenta a credibilidade da análise.
 
 🎯 Tese principal de moderação
 …
