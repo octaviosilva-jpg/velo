@@ -8708,7 +8708,10 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         
         // Ler dados da planilha para encontrar a linha correta
         const range = 'Moderações!A1:Z1000';
+        console.log(`📖 Lendo da página: ${range}`);
         const data = await googleSheetsConfig.readData(range);
+        
+        console.log(`📊 Total de linhas lidas da página "Moderações": ${data ? data.length : 0}`);
         
         if (!data || data.length <= 1) {
             return res.status(404).json({
@@ -8722,6 +8725,8 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const moderacaoIdTrimmed = moderacaoId.toString().trim();
         const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
         
+        console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" (normalizado: "${moderacaoIdNormalized}") na página "Moderações", coluna B`);
+        
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
             if (!row || row.length < 2) continue;
@@ -8732,11 +8737,23 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             
             if (idsCoincidem) {
                 linhaEncontrada = i + 1;
+                console.log(`✅ ID encontrado na linha ${linhaEncontrada} da página "Moderações"`);
+                console.log(`📋 ID na planilha: "${row[1]}", ID procurado: "${moderacaoIdTrimmed}"`);
+                console.log(`📋 Dados da linha (primeiras 5 colunas): ${row.slice(0, 5).join(' | ')}`);
                 break;
             }
         }
         
         if (linhaEncontrada === -1) {
+            console.log(`❌ ID "${moderacaoIdTrimmed}" NÃO encontrado na página "Moderações"`);
+            // Mostrar alguns IDs que foram encontrados para debug
+            const idsEncontrados = [];
+            for (let i = 1; i < Math.min(10, data.length); i++) {
+                if (data[i] && data[i][1]) {
+                    idsEncontrados.push(data[i][1]);
+                }
+            }
+            console.log(`📋 Primeiros IDs encontrados na página "Moderações": ${idsEncontrados.join(', ')}`);
             return res.status(404).json({
                 success: false,
                 error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada na planilha.`
@@ -8745,8 +8762,11 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         
         // Atualizar a coluna N (índice 13) com o resultado
         const cellRange = `Moderações!N${linhaEncontrada}`;
+        console.log(`💾 Atualizando célula: ${cellRange} com valor: "${resultado}"`);
         
         await googleSheetsConfig.updateCell(cellRange, resultado);
+        
+        console.log(`✅ Célula atualizada com sucesso: ${cellRange} = "${resultado}"`);
         
         // Invalidar cache
         if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
