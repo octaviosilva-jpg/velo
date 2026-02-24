@@ -8707,6 +8707,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             });
         }
         
+        console.log(`[REGISTRO] INICIO - ID: ${moderacaoId}, Resultado: ${resultado}`);
         console.log(`\n🎯 ===== INÍCIO: Registrar Resultado da Moderação =====`);
         console.log(`📋 ID recebido: "${moderacaoId}" (tipo: ${typeof moderacaoId})`);
         console.log(`📋 Resultado: "${resultado}"`);
@@ -8750,6 +8751,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             
             if (idsCoincidem) {
                 linhaEncontrada = i + 1; // +1 porque a planilha começa na linha 1, mas o array em 0
+                console.log(`[REGISTRO] ID ENCONTRADO na linha ${linhaEncontrada}`);
                 console.log(`\n✅ ===== ID ENCONTRADO =====`);
                 console.log(`✅ Linha encontrada: ${linhaEncontrada} (índice do array: ${i})`);
                 console.log(`✅ ID na planilha: "${row[1]}"`);
@@ -8788,10 +8790,15 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         console.log(`📝 Detalhes completos: ID=${moderacaoId}, Linha=${linhaEncontrada}, Coluna=${colunaN}`);
         
         try {
-            console.log(`🔄 Chamando googleSheetsConfig.updateCell("${cellRange}", "${resultado}")...`);
+            console.log(`[UPDATE] Iniciando atualização: ${cellRange} = ${resultado}`);
+            console.log(`[UPDATE] Linha: ${linhaEncontrada}, Coluna: ${colunaN}`);
             const updateResult = await googleSheetsConfig.updateCell(cellRange, resultado);
-            console.log(`✅ Célula atualizada com sucesso!`);
-            console.log(`✅ Resposta da API:`, JSON.stringify(updateResult, null, 2));
+            console.log(`[UPDATE] Sucesso! Células atualizadas: ${updateResult?.updatedCells || 0}`);
+            console.log(`[UPDATE] Range atualizado: ${updateResult?.updatedRange || 'N/A'}`);
+            if (!updateResult || updateResult.updatedCells === 0) {
+                console.error(`[UPDATE] ERRO: API retornou 0 células atualizadas!`);
+                throw new Error('A API do Google Sheets não atualizou nenhuma célula');
+            }
         } catch (updateError) {
             console.error(`\n❌ ===== ERRO AO ATUALIZAR CÉLULA =====`);
             console.error('❌ Erro completo:', updateError);
@@ -8851,6 +8858,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             // Não lançar erro aqui, apenas logar, pois a atualização pode ter funcionado
         }
         
+        console.log(`[REGISTRO] SUCESSO - Linha: ${linhaEncontrada}, Coluna: ${colunaN}, Valor: ${resultado}`);
         console.log(`\n✅ ===== SUCESSO: Resultado Registrado =====`);
         console.log(`✅ Linha: ${linhaEncontrada}`);
         console.log(`✅ Coluna: ${colunaN}`);
