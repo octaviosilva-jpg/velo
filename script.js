@@ -2128,8 +2128,9 @@ async function analisarChanceModeracao() {
             document.getElementById('analise-chance-moderacao').innerHTML = analiseFormatada;
             document.getElementById('revisao-resultado').style.display = 'block';
             
-            // Armazenar a resposta revisada para cópia separada
+            // Armazenar a resposta revisada para cópia separada e ajustes
             window.respostaRevisadaModeracao = extrairRespostaRevisada(data.result);
+            window.analiseCompletaModeracao = data.result; // Armazenar análise completa para auditoria
             
             showSuccessMessage('Análise de chance de moderação concluída!');
         } else {
@@ -2217,6 +2218,7 @@ function formatarAnaliseChanceModeracao(analise) {
         .replace(/🧩 Teses complementares/gi, '<h5 class="text-secondary mt-4 mb-3"><i class="fas fa-puzzle-piece me-2"></i>🧩 Teses complementares</h5>')
         .replace(/✍️ Revisão de Textos/gi, '<h5 class="text-dark mt-4 mb-3"><i class="fas fa-edit me-2"></i>✍️ Revisão de Textos (versão estratégica)</h5>')
         .replace(/📈 Impacto da revisão de texto/gi, '<h5 class="text-success mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📈 Impacto da revisão de texto</h5>')
+        .replace(/🔍 Auditoria de Consistência da Resposta/gi, '<h5 class="text-warning mt-4 mb-3"><i class="fas fa-search me-2"></i>🔍 Auditoria de Consistência da Resposta</h5>')
         .replace(/Chance estimada: (\d+%)/gi, '<strong class="text-primary fs-4">Chance estimada: $1</strong>')
         .replace(/Classificação: (.+?)(<br>|<\/p>)/gi, '<span class="badge bg-info ms-2">$1</span>$2')
         .replace(/Antes da revisão: (\d+%)/gi, '<strong class="text-secondary">Antes da revisão: $1</strong>')
@@ -2244,6 +2246,12 @@ function formatarAnaliseChanceModeracao(analise) {
         }
         html += '</div>';
         html += '</div>';
+    }
+    
+    // Extrair e exibir auditoria de consistência
+    const auditoriaInfo = extrairAuditoriaConsistencia(analise);
+    if (auditoriaInfo.temAuditoria) {
+        html += formatarAuditoriaConsistencia(auditoriaInfo);
     }
     
     html += '</div>';
@@ -2351,6 +2359,274 @@ function extrairImpactoRevisao(analise) {
     }
     
     return resultado;
+}
+
+// Função para extrair informações da auditoria de consistência
+function extrairAuditoriaConsistencia(analise) {
+    if (!analise) return { temAuditoria: false };
+    
+    const resultado = {
+        temAuditoria: false,
+        semProblemas: false,
+        problemas: []
+    };
+    
+    // Procurar pelo bloco de auditoria
+    const marcadoresAuditoria = [
+        '🔍 Auditoria de Consistência da Resposta',
+        'Auditoria de Consistência da Resposta',
+        'AUDITORIA DE CONSISTÊNCIA'
+    ];
+    
+    let marcadorAuditoria = -1;
+    for (const marcador of marcadoresAuditoria) {
+        const index = analise.indexOf(marcador);
+        if (index !== -1) {
+            marcadorAuditoria = index;
+            break;
+        }
+    }
+    
+    if (marcadorAuditoria === -1) return resultado;
+    
+    resultado.temAuditoria = true;
+    
+    // Extrair o texto do bloco de auditoria
+    let textoAuditoria = analise.substring(marcadorAuditoria);
+    
+    // Verificar se não há problemas
+    if (textoAuditoria.includes('Nenhum ajuste pontual recomendado') || 
+        textoAuditoria.includes('✅ Nenhum ajuste pontual recomendado')) {
+        resultado.semProblemas = true;
+        return resultado;
+    }
+    
+    // Extrair problemas
+    const regexProblema = /🔎\s*Problema\s*\d+:|🔎\s*Trecho identificado/gi;
+    const problemas = textoAuditoria.split(regexProblema).filter(p => p.trim().length > 0);
+    
+    for (let i = 0; i < problemas.length; i++) {
+        const problemaTexto = problemas[i];
+        
+        // Extrair trecho identificado
+        const matchTrecho = problemaTexto.match(/Trecho identificado[:\s]*["']?([^"']+)["']?/i) ||
+                            problemaTexto.match(/["']([^"']{20,200})["']/);
+        const trecho = matchTrecho ? matchTrecho[1] : null;
+        
+        // Extrair justificativa
+        const matchJustificativa = problemaTexto.match(/🧠\s*Justificativa[:\s]*([^✍🔎🧠]+)/is);
+        let justificativa = matchJustificativa ? matchJustificativa[1].trim() : null;
+        
+        // Extrair sugestão de ajuste
+        const matchSugestao = problemaTexto.match(/✍️\s*Sugestão de ajuste[:\s]*([^🔎🧠]+)/is);
+        let sugestao = matchSugestao ? matchSugestao[1].trim() : null;
+        
+        if (trecho || justificativa || sugestao) {
+            resultado.problemas.push({
+                trecho: trecho || '',
+                justificativa: justificativa || '',
+                sugestao: sugestao || ''
+            });
+        }
+    }
+    
+    return resultado;
+}
+
+// Função para formatar a auditoria de consistência na interface
+function formatarAuditoriaConsistencia(auditoriaInfo) {
+    let html = '<div class="card border-warning mt-4">';
+    html += '<div class="card-header bg-warning text-dark">';
+    html += '<h6 class="mb-0"><i class="fas fa-search me-2"></i>🔍 Auditoria de Consistência da Resposta</h6>';
+    html += '</div>';
+    html += '<div class="card-body">';
+    
+    if (auditoriaInfo.semProblemas) {
+        html += '<div class="alert alert-success mb-0">';
+        html += '<i class="fas fa-check-circle me-2"></i>';
+        html += '<strong>✅ Nenhum ajuste pontual recomendado.</strong> A resposta reformulada está consistente com a tese principal de moderação.';
+        html += '</div>';
+    } else if (auditoriaInfo.problemas && auditoriaInfo.problemas.length > 0) {
+        auditoriaInfo.problemas.forEach((problema, index) => {
+            const problemaId = `problema-${index}`;
+            html += `<div class="problema-auditoria mb-4 p-3 border rounded" id="${problemaId}">`;
+            html += `<h6 class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>🔎 Problema ${index + 1}</h6>`;
+            
+            if (problema.trecho) {
+                html += '<div class="mb-2">';
+                html += '<strong>Trecho identificado:</strong>';
+                html += `<div class="alert alert-light border mt-2 p-2"><code>${problema.trecho}</code></div>`;
+                html += '</div>';
+            }
+            
+            if (problema.justificativa) {
+                html += '<div class="mb-2">';
+                html += '<strong class="text-info">🧠 Justificativa:</strong>';
+                html += `<p class="text-muted mt-1">${problema.justificativa}</p>`;
+                html += '</div>';
+            }
+            
+            if (problema.sugestao) {
+                html += '<div class="mb-3">';
+                html += '<strong class="text-success">✍️ Sugestão de ajuste:</strong>';
+                html += `<div class="alert alert-success border mt-2 p-2"><code>${problema.sugestao}</code></div>`;
+                html += '</div>';
+            }
+            
+            // Botões de ação
+            html += '<div class="btn-group" role="group">';
+            html += `<button class="btn btn-sm btn-success" onclick="aplicarAjuste(${index}, '${problemaId.replace(/'/g, "\\'")}')">`;
+            html += '<i class="fas fa-check me-1"></i> Aprovar e Aplicar';
+            html += '</button>';
+            html += `<button class="btn btn-sm btn-outline-secondary" onclick="rejeitarAjuste('${problemaId.replace(/'/g, "\\'")}')">`;
+            html += '<i class="fas fa-times me-1"></i> Rejeitar';
+            html += '</button>';
+            html += `<button class="btn btn-sm btn-outline-primary" onclick="editarAjuste(${index}, '${problemaId.replace(/'/g, "\\'")}')">`;
+            html += '<i class="fas fa-edit me-1"></i> Editar Sugestão';
+            html += '</button>';
+            html += '</div>';
+            
+            html += '</div>';
+        });
+    }
+    
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Função para aplicar ajuste aprovado
+async function aplicarAjuste(problemaIndex, problemaId) {
+    const problemaElement = document.getElementById(problemaId);
+    if (!problemaElement) return;
+    
+    // Extrair informações do problema
+    const trechoElement = problemaElement.querySelector('code');
+    const sugestaoElement = problemaElement.querySelectorAll('code')[1];
+    
+    if (!trechoElement || !sugestaoElement) {
+        showErrorMessage('Não foi possível extrair as informações do ajuste.');
+        return;
+    }
+    
+    const trechoOriginal = trechoElement.textContent.trim();
+    const sugestaoAjuste = sugestaoElement.textContent.trim();
+    
+    // Obter a resposta revisada atual
+    const respostaRevisada = window.respostaRevisadaModeracao || '';
+    
+    if (!respostaRevisada) {
+        showErrorMessage('Resposta revisada não encontrada.');
+        return;
+    }
+    
+    showLoadingMessage('Aplicando ajuste...');
+    
+    try {
+        const response = await fetch('/api/aplicar-ajuste', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                respostaOriginal: respostaRevisada,
+                trechoOriginal: trechoOriginal,
+                sugestaoAjuste: sugestaoAjuste
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Atualizar a resposta revisada
+            window.respostaRevisadaModeracao = data.respostaAjustada;
+            
+            // Atualizar a resposta revisada na interface se estiver visível
+            const respostaRevisadaElement = document.querySelector('#analise-chance-moderacao');
+            if (respostaRevisadaElement) {
+                // Atualizar o texto da revisão na interface
+                const revisaoSection = respostaRevisadaElement.querySelector('h5:contains("Revisão de Textos")');
+                if (revisaoSection) {
+                    // Encontrar e atualizar o conteúdo da revisão
+                    let conteudoAtual = respostaRevisadaElement.innerHTML;
+                    const regexRevisao = /(✍️ Revisão de Textos[^<]*<\/h5>)([\s\S]*?)(?=<h5|🔍|$)/i;
+                    const match = conteudoAtual.match(regexRevisao);
+                    if (match) {
+                        // Substituir apenas o conteúdo da revisão
+                        const novoConteudo = match[1] + '<div class="mt-2 p-3 bg-light border rounded">' + 
+                                           data.respostaAjustada.replace(/\n/g, '<br>') + '</div>';
+                        conteudoAtual = conteudoAtual.replace(regexRevisao, novoConteudo);
+                        respostaRevisadaElement.innerHTML = conteudoAtual;
+                    }
+                }
+            }
+            
+            // Marcar problema como aplicado
+            problemaElement.classList.add('border-success', 'bg-light');
+            problemaElement.querySelector('.btn-group').innerHTML = 
+                '<span class="badge bg-success"><i class="fas fa-check me-1"></i> Ajuste aplicado</span>';
+            
+            // Recalcular chance
+            if (data.impactoAjuste) {
+                mostrarImpactoAjuste(data.impactoAjuste);
+            }
+            
+            showSuccessMessage('Ajuste aplicado com sucesso!');
+        } else {
+            showErrorMessage('Erro ao aplicar ajuste: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Erro ao aplicar ajuste:', error);
+        showErrorMessage('Erro ao aplicar ajuste. Tente novamente.');
+    }
+}
+
+// Função para rejeitar ajuste
+function rejeitarAjuste(problemaId) {
+    const problemaElement = document.getElementById(problemaId);
+    if (!problemaElement) return;
+    
+    problemaElement.classList.add('border-secondary', 'bg-light', 'opacity-50');
+    problemaElement.querySelector('.btn-group').innerHTML = 
+        '<span class="badge bg-secondary"><i class="fas fa-times me-1"></i> Ajuste rejeitado</span>';
+    
+    showSuccessMessage('Ajuste rejeitado.');
+}
+
+// Função para editar sugestão de ajuste
+function editarAjuste(problemaIndex, problemaId) {
+    const problemaElement = document.getElementById(problemaId);
+    if (!problemaElement) return;
+    
+    const sugestaoElement = problemaElement.querySelectorAll('code')[1];
+    if (!sugestaoElement) return;
+    
+    const sugestaoAtual = sugestaoElement.textContent.trim();
+    const novaSugestao = prompt('Edite a sugestão de ajuste:', sugestaoAtual);
+    
+    if (novaSugestao && novaSugestao !== sugestaoAtual) {
+        sugestaoElement.textContent = novaSugestao;
+        showSuccessMessage('Sugestão editada. Você pode aprovar o ajuste agora.');
+    }
+}
+
+// Função para mostrar impacto do ajuste
+function mostrarImpactoAjuste(impacto) {
+    const html = `
+        <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-chart-line me-2"></i>📊 Impacto do ajuste pontual na moderação</h6>
+            <p class="mb-1"><strong>Chance antes do ajuste:</strong> <span class="badge bg-secondary">${impacto.antes}%</span></p>
+            <p class="mb-1"><strong>Chance após o ajuste:</strong> <span class="badge bg-success">${impacto.depois}%</span></p>
+            <p class="mb-0"><strong>Variação estimada:</strong> <span class="badge bg-primary">${impacto.variacao}</span></p>
+        </div>
+    `;
+    
+    // Adicionar após a última auditoria
+    const auditoriaCard = document.querySelector('.card.border-warning');
+    if (auditoriaCard) {
+        auditoriaCard.insertAdjacentHTML('afterend', html);
+    }
 }
 
 // Função para separar os blocos da resposta de revisão

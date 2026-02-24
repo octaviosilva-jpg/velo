@@ -6576,6 +6576,77 @@ Variação estimada: +Z% (ou -Z% se piorou)
 🧠 Justificativa técnica
 [explicação objetiva do impacto da revisão, respondendo: o que ficou mais claro? qual ponto passou a ficar explícito? qual risco foi reduzido?]
 
+🔍 AUDITORIA DE CONSISTÊNCIA DA RESPOSTA (ETAPA OBRIGATÓRIA)
+
+Após gerar a "Revisão de Textos (versão estratégica)" e calcular o impacto, você DEVE executar esta auditoria:
+
+🧠 ETAPA 1 — IDENTIFICAÇÃO DE PROBLEMAS POTENCIAIS
+
+Reler a resposta reformulada com foco exclusivo em:
+
+- coerência com a tese principal de moderação
+- risco de interpretação equivocada pelo analista do RA
+- termos que possam:
+  - sugerir ilegalidade inexistente
+  - reforçar narrativa do consumidor
+  - gerar ambiguidade desnecessária
+
+⚠️ NÃO avaliar empatia ou tom, apenas impacto na moderação.
+
+🧠 CRITÉRIOS OBRIGATÓRIOS DE DETECÇÃO
+
+Verificar se a resposta contém:
+
+- menção imprecisa (ex: "dívidas" quando o correto é "contrato ativo")
+- termos genéricos que enfraquecem a tese
+- ausência de reforço de fato essencial
+- palavras que podem ser usadas contra a empresa
+- inconsistência entre parágrafos
+
+Se nenhum problema for identificado, declarar explicitamente:
+"Nenhum ajuste pontual recomendado".
+
+🧠 ETAPA 2 — SUGESTÃO DE AJUSTES PONTUAIS
+
+Quando identificar um problema, gerar para CADA problema encontrado:
+
+🔎 Trecho identificado
+[Citar exatamente o trecho problemático, sem reescrever o texto inteiro]
+
+🧠 Justificativa técnica
+[Explicar por que esse trecho pode reduzir a chance de moderação, sempre com foco no analista do RA]
+
+✍️ Sugestão de ajuste
+[Indicar como o trecho pode ser reescrito, mantendo mesma estrutura, mesmo parágrafo, mesma posição, sem acrescentar fatos novos]
+
+📌 FORMATO DE SAÍDA DA AUDITORIA:
+
+Se houver problemas identificados:
+
+🔍 Auditoria de Consistência da Resposta
+
+🔎 Problema 1:
+Trecho identificado: "[trecho exato]"
+🧠 Justificativa: [explicação técnica focada no analista do RA]
+✍️ Sugestão de ajuste: [como reescrever apenas esse trecho]
+
+🔎 Problema 2:
+[repetir formato acima se houver mais problemas]
+
+Se NÃO houver problemas:
+
+🔍 Auditoria de Consistência da Resposta
+✅ Nenhum ajuste pontual recomendado. A resposta reformulada está consistente com a tese principal de moderação.
+
+🧠 PRINCÍPIO DE RACIOCÍNIO (CLONE DO SEU JEITO)
+
+Sempre operar com a lógica:
+
+"Esse ajuste ajuda o analista do Reclame Aqui a identificar mais rápido a inconsistência ou omissão do relato do consumidor?"
+
+Se sim → sugerir
+Se não → não sugerir
+
 🧠 PRINCÍPIO FINAL (CLONE DE RACIOCÍNIO)
 
 Você deve sempre pensar assim:
@@ -6677,6 +6748,122 @@ Agora, execute TODAS as etapas da metodologia e entregue a análise completa no 
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor na análise de chance de moderação'
+        });
+    }
+});
+
+// Endpoint para aplicar ajuste pontual na resposta
+app.post('/api/aplicar-ajuste', async (req, res) => {
+    console.log('🎯 Endpoint /api/aplicar-ajuste chamado');
+    try {
+        const { respostaOriginal, trechoOriginal, sugestaoAjuste } = req.body;
+        
+        if (!respostaOriginal || !trechoOriginal || !sugestaoAjuste) {
+            return res.status(400).json({
+                success: false,
+                error: 'Resposta original, trecho original e sugestão de ajuste são obrigatórios'
+            });
+        }
+        
+        // Aplicar o ajuste: substituir apenas o trecho específico
+        let respostaAjustada = respostaOriginal;
+        
+        // Verificar se o trecho existe na resposta
+        if (!respostaAjustada.includes(trechoOriginal)) {
+            // Tentar encontrar variações (case insensitive, espaços)
+            const trechoRegex = new RegExp(trechoOriginal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            if (trechoRegex.test(respostaAjustada)) {
+                respostaAjustada = respostaAjustada.replace(trechoRegex, sugestaoAjuste);
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Trecho original não encontrado na resposta'
+                });
+            }
+        } else {
+            // Substituição exata
+            respostaAjustada = respostaAjustada.replace(trechoOriginal, sugestaoAjuste);
+        }
+        
+        // Calcular impacto do ajuste (análise simples)
+        const promptImpacto = `Analise o impacto deste ajuste pontual na chance de moderação do Reclame Aqui.
+
+Trecho original: "${trechoOriginal}"
+Trecho ajustado: "${sugestaoAjuste}"
+
+Calcule apenas:
+- Chance antes do ajuste (assumindo que a resposta original tinha chance de 70%)
+- Chance após o ajuste
+- Variação estimada
+
+Responda APENAS no formato:
+Chance antes: XX%
+Chance após: YY%
+Variação: +Z% ou -Z%`;
+
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        
+        if (!validateApiKey(apiKey)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Chave da API OpenAI não configurada'
+            });
+        }
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: envVars.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um analista especializado em moderação do Reclame Aqui. Analise ajustes pontuais em respostas e calcule o impacto na chance de moderação.'
+                    },
+                    {
+                        role: 'user',
+                        content: promptImpacto
+                    }
+                ],
+                temperature: 0.2,
+                max_tokens: 200
+            })
+        });
+
+        let impactoAjuste = null;
+        if (response.ok) {
+            const data = await response.json();
+            const resultado = data.choices[0].message.content;
+            
+            // Extrair valores
+            const matchAntes = resultado.match(/Chance antes:\s*(\d+)%/i);
+            const matchDepois = resultado.match(/Chance após:\s*(\d+)%/i);
+            const matchVariacao = resultado.match(/Variação:\s*([+-]\d+%)/i);
+            
+            impactoAjuste = {
+                antes: matchAntes ? matchAntes[1] : '70',
+                depois: matchDepois ? matchDepois[1] : '72',
+                variacao: matchVariacao ? matchVariacao[1] : '+2%'
+            };
+        }
+        
+        console.log('✅ Ajuste aplicado com sucesso');
+        
+        res.json({
+            success: true,
+            respostaAjustada: respostaAjustada,
+            impactoAjuste: impactoAjuste
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao aplicar ajuste:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor ao aplicar ajuste'
         });
     }
 });
