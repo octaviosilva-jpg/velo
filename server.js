@@ -8672,6 +8672,7 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
 
 // Endpoint para registrar resultado da moderação (Aceita ou Negada)
 app.post('/api/registrar-resultado-moderacao', async (req, res) => {
+    console.log('=== REGISTRAR RESULTADO ===', `ID: ${req.body.moderacaoId}, Resultado: ${req.body.resultado}`);
     try {
         const { moderacaoId, resultado } = req.body;
         
@@ -8764,14 +8765,27 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const cellRange = `Moderações!N${linhaEncontrada}`;
         console.log(`💾 Atualizando célula: ${cellRange} com valor: "${resultado}"`);
         
-        await googleSheetsConfig.updateCell(cellRange, resultado);
-        
-        console.log(`✅ Célula atualizada com sucesso: ${cellRange} = "${resultado}"`);
+        try {
+            const updateResult = await googleSheetsConfig.updateCell(cellRange, resultado);
+            console.log(`✅ Célula atualizada com sucesso: ${cellRange} = "${resultado}"`);
+            console.log(`✅ Resultado da atualização:`, JSON.stringify(updateResult || {}, null, 2));
+            
+            // Verificar se realmente atualizou
+            if (!updateResult || updateResult.updatedCells === 0) {
+                console.error(`❌ ERRO: A API retornou que 0 células foram atualizadas!`);
+                throw new Error('A API do Google Sheets não atualizou nenhuma célula');
+            }
+        } catch (updateError) {
+            console.error(`❌ ERRO ao atualizar célula ${cellRange}:`, updateError.message);
+            throw updateError;
+        }
         
         // Invalidar cache
         if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
             googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
         }
+        
+        console.log('=== SUCESSO ===', `ID: ${moderacaoId}, Linha: ${linhaEncontrada}, Range: ${cellRange}, Valor: ${resultado}`);
         
         res.json({
             success: true,

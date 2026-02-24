@@ -170,6 +170,7 @@ class GoogleSheetsConfig {
      * @param {string} value - Valor para inserir
      */
     async updateCell(range, value) {
+        console.log('=== UPDATE CELL ===', `Range: ${range}, Value: ${value}`);
         try {
             if (!this.isInitialized()) {
                 throw new Error('Google Sheets API não foi inicializada');
@@ -186,6 +187,8 @@ class GoogleSheetsConfig {
                     values: [[value]]
                 }
             });
+            
+            console.log('=== UPDATE RESULT ===', `UpdatedCells: ${response.data.updatedCells}, Range: ${response.data.updatedRange || 'N/A'}`);
             
             if (response.data.updatedCells === 0) {
                 throw new Error('A API do Google Sheets não atualizou nenhuma célula');
