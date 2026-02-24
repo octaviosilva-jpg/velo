@@ -170,6 +170,7 @@ class GoogleSheetsConfig {
      * @param {string} value - Valor para inserir
      */
     async updateCell(range, value) {
+        console.log('UPDATE_START', `Range=${range}, Value=${value}`);
         try {
             if (!this.isInitialized()) {
                 throw new Error('Google Sheets API não foi inicializada');
@@ -180,6 +181,7 @@ class GoogleSheetsConfig {
 
             console.log(`📝 [updateCell] Atualizando célula: ${range} com valor: "${value}"`);
             console.log(`📝 [updateCell] Spreadsheet ID: ${spreadsheetId}`);
+            console.log('UPDATE_BEFORE_API', `Range=${range}, Value=${value}, SpreadsheetID=${spreadsheetId}`);
 
             const request = {
                 spreadsheetId: spreadsheetId,
@@ -199,6 +201,7 @@ class GoogleSheetsConfig {
 
             const response = await sheets.spreadsheets.values.update(request);
             
+            console.log('UPDATE_AFTER_API', `UpdatedCells=${response.data.updatedCells}, UpdatedRange=${response.data.updatedRange || 'N/A'}`);
             console.log(`✅ [updateCell] Resposta da API:`, JSON.stringify({
                 updatedCells: response.data.updatedCells,
                 updatedColumns: response.data.updatedColumns,
@@ -208,20 +211,25 @@ class GoogleSheetsConfig {
             
             // Verificar se realmente atualizou
             if (response.data.updatedCells === 0) {
+                console.error('UPDATE_ERROR', 'API retornou 0 células atualizadas!');
                 console.warn('⚠️ [updateCell] ATENÇÃO: A API retornou que 0 células foram atualizadas!');
             }
             
             if (!response.data.updatedRange) {
+                console.error('UPDATE_ERROR', 'API não retornou range atualizado!');
                 console.warn('⚠️ [updateCell] ATENÇÃO: A API não retornou o range atualizado!');
             }
             
+            console.log('UPDATE_SUCCESS', `Range=${range}, Value=${value}`);
             console.log('✅ [updateCell] Célula atualizada com sucesso');
             return response.data;
 
         } catch (error) {
+            console.error('UPDATE_ERROR', `Range=${range}, Value=${value}, Error=${error.message}`);
             console.error('❌ [updateCell] Erro ao atualizar célula:', error.message);
             console.error('❌ [updateCell] Stack:', error.stack);
             if (error.response) {
+                console.error('UPDATE_ERROR_RESPONSE', JSON.stringify(error.response.data));
                 console.error('❌ [updateCell] Resposta do erro:', error.response.data);
             }
             throw error;
