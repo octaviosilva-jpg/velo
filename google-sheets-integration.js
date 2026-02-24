@@ -624,7 +624,8 @@ class GoogleSheetsIntegration {
                 feedbackData.textoReformulado || '', // Coluna J: Texto Moderação Reformulado
                 feedbackData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
                 'Pendente', // Coluna L: Status Aprovação
-                feedbackData.observacoesInternas || '' // Coluna M: Observações Internas
+                feedbackData.observacoesInternas || '', // Coluna M: Observações Internas
+                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
@@ -709,7 +710,8 @@ class GoogleSheetsIntegration {
                 moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // Coluna J: Texto Moderação Reformulado
                 moderacaoData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
                 'Aprovada', // Coluna L: Status Aprovação
-                moderacaoData.observacoesInternas || '' // Coluna M: Observações Internas
+                moderacaoData.observacoesInternas || '', // Coluna M: Observações Internas
+                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);

@@ -5778,7 +5778,16 @@ app.get('/api/solicitacoes', async (req, res) => {
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
-                            resultadoModeracao: moderacao['Resultado da Moderação'] || moderacao[11] || null // Coluna L (índice 11)
+                            resultadoModeracao: (() => {
+                                // Buscar "Resultado da Moderação" na coluna O (índice 14)
+                                const resultado = moderacao['Resultado da Moderação'] || moderacao[14];
+                                // Validar se é um valor válido (Aceita ou Negada)
+                                // Ignorar valores como "Aprovada", "Pendente" que são do "Status Aprovação"
+                                if (resultado === 'Aceita' || resultado === 'Negada') {
+                                    return resultado;
+                                }
+                                return null; // Retornar null se não for um valor válido
+                            })()
                         });
                     });
                     
@@ -8730,10 +8739,10 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             });
         }
         
-        // A coluna L é o índice 11 (A=0, B=1, ..., L=11)
-        // Atualizar a coluna L com o resultado
-        const colunaL = 'L';
-        const cellRange = `Moderações!${colunaL}${linhaEncontrada}`;
+        // A coluna O é o índice 14 (A=0, B=1, ..., O=14)
+        // Atualizar a coluna O com o resultado da moderação
+        const colunaO = 'O';
+        const cellRange = `Moderações!${colunaO}${linhaEncontrada}`;
         
         console.log(`📝 Atualizando célula ${cellRange} com valor: ${resultado}`);
         

@@ -3974,7 +3974,7 @@ async function buscarSolicitacoes() {
                                 <div class="campo-label" style="font-size: 1.1rem; color: #0d6efd; margin-bottom: 15px;">
                                     <i class="fas fa-clipboard-check me-2"></i>Resultado da Moderação:
                                 </div>
-                                ${solicitacao.resultadoModeracao ? `
+                                ${solicitacao.resultadoModeracao && (solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
                                     <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
                                         <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
                                     </div>
@@ -3985,11 +3985,11 @@ async function buscarSolicitacoes() {
                                     </div>
                                 `}
                                 <div class="d-flex gap-2 flex-wrap">
-                                    <button class="btn btn-success" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Aceita', '${solicitacaoId}')" ${solicitacao.resultadoModeracao ? 'disabled' : ''}>
+                                    <button class="btn btn-success" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Aceita', '${solicitacaoId}')" ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? 'disabled' : ''}>
                                         <i class="fas fa-check-circle me-2"></i>
                                         Moderação Aceita
                                     </button>
-                                    <button class="btn btn-danger" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Negada', '${solicitacaoId}')" ${solicitacao.resultadoModeracao ? 'disabled' : ''}>
+                                    <button class="btn btn-danger" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Negada', '${solicitacaoId}')" ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? 'disabled' : ''}>
                                         <i class="fas fa-times-circle me-2"></i>
                                         Moderação Negada
                                     </button>
