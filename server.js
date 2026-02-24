@@ -8809,17 +8809,46 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         }
         
         // Verificar se a atualização foi bem-sucedida lendo a célula novamente
+        // Aguardar um pouco para garantir que a atualização foi processada
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         try {
             const verifyRange = `Moderações!${colunaN}${linhaEncontrada}`;
+            console.log(`🔍 Verificando atualização na célula: ${verifyRange}...`);
             const verifyData = await googleSheetsConfig.readData(verifyRange);
             const valorAtualizado = verifyData && verifyData[0] && verifyData[0][0];
-            console.log(`🔍 Verificação: Valor na célula ${verifyRange} após atualização: "${valorAtualizado}"`);
+            console.log(`🔍 Valor lido da célula ${verifyRange}: "${valorAtualizado}"`);
+            console.log(`🔍 Valor esperado: "${resultado}"`);
             
             if (valorAtualizado !== resultado) {
-                console.warn(`⚠️ Atenção: O valor na célula (${valorAtualizado}) não corresponde ao valor esperado (${resultado})`);
+                console.error(`\n❌ ===== ERRO: VALOR NÃO CORRESPONDE =====`);
+                console.error(`❌ Valor na célula: "${valorAtualizado}"`);
+                console.error(`❌ Valor esperado: "${resultado}"`);
+                console.error(`❌ Range: ${verifyRange}`);
+                console.error(`❌ Linha: ${linhaEncontrada}, Coluna: ${colunaN}`);
+                
+                // Tentar atualizar novamente
+                console.log(`🔄 Tentando atualizar novamente...`);
+                try {
+                    await googleSheetsConfig.updateCell(verifyRange, resultado);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const verifyData2 = await googleSheetsConfig.readData(verifyRange);
+                    const valorAtualizado2 = verifyData2 && verifyData2[0] && verifyData2[0][0];
+                    console.log(`🔍 Valor após segunda tentativa: "${valorAtualizado2}"`);
+                    
+                    if (valorAtualizado2 !== resultado) {
+                        throw new Error(`Falha ao atualizar célula após segunda tentativa. Valor na célula: "${valorAtualizado2}", Esperado: "${resultado}"`);
+                    }
+                } catch (retryError) {
+                    console.error('❌ Erro na segunda tentativa:', retryError);
+                    throw retryError;
+                }
+            } else {
+                console.log(`✅ Verificação OK: Valor corresponde ao esperado!`);
             }
         } catch (verifyError) {
-            console.warn('⚠️ Não foi possível verificar a atualização:', verifyError.message);
+            console.error('❌ Erro ao verificar atualização:', verifyError);
+            // Não lançar erro aqui, apenas logar, pois a atualização pode ter funcionado
         }
         
         console.log(`\n✅ ===== SUCESSO: Resultado Registrado =====`);
@@ -8934,20 +8963,54 @@ app.post('/api/limpar-resultado-moderacao', async (req, res) => {
         const colunaN = 'N';
         const cellRange = `Moderações!${colunaN}${linhaEncontrada}`;
         
-        console.log(`🧹 Limpando célula ${cellRange}...`);
+        console.log(`\n🧹 ===== LIMPANDO CÉLULA =====`);
+        console.log(`🧹 Range da célula: ${cellRange}`);
+        console.log(`🧹 Linha: ${linhaEncontrada}, Coluna: ${colunaN}`);
+        console.log(`🧹 ID da moderação: ${moderacaoId}`);
         
         try {
+            // Ler valor atual antes de limpar
+            const rangeAntes = `Moderações!${colunaN}${linhaEncontrada}`;
+            const dataAntes = await googleSheetsConfig.readData(rangeAntes);
+            const valorAntes = dataAntes && dataAntes[0] && dataAntes[0][0];
+            console.log(`🧹 Valor atual na célula: "${valorAntes}"`);
+            
             // Atualizar com string vazia para limpar
+            console.log(`🧹 Atualizando célula com valor vazio...`);
             await googleSheetsConfig.updateCell(cellRange, '');
+            console.log(`✅ Célula atualizada com sucesso!`);
+            
+            // Verificar se foi limpo corretamente
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const dataDepois = await googleSheetsConfig.readData(rangeAntes);
+            const valorDepois = dataDepois && dataDepois[0] && dataDepois[0][0];
+            console.log(`🔍 Valor após limpeza: "${valorDepois}"`);
+            
+            if (valorDepois && valorDepois.trim() !== '') {
+                console.warn(`⚠️ Atenção: A célula ainda contém valor "${valorDepois}". Tentando limpar novamente...`);
+                await googleSheetsConfig.updateCell(cellRange, '');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const dataDepois2 = await googleSheetsConfig.readData(rangeAntes);
+                const valorDepois2 = dataDepois2 && dataDepois2[0] && dataDepois2[0][0];
+                console.log(`🔍 Valor após segunda tentativa: "${valorDepois2}"`);
+                
+                if (valorDepois2 && valorDepois2.trim() !== '') {
+                    throw new Error(`Não foi possível limpar a célula. Valor ainda presente: "${valorDepois2}"`);
+                }
+            }
+            
             console.log(`✅ Célula limpa com sucesso!`);
         } catch (updateError) {
             console.error('❌ Erro ao limpar célula:', updateError);
+            console.error('❌ Stack:', updateError.stack);
             throw new Error(`Erro ao limpar célula ${cellRange}: ${updateError.message}`);
         }
         
         // Invalidar cache
         if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
+            console.log(`🗑️ Invalidando cache de moderações coerentes...`);
             googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
+            console.log(`🗑️ Cache invalidado com sucesso`);
         }
         
         console.log(`\n🧹 ===== FIM: Resultado Limpo =====\n`);
