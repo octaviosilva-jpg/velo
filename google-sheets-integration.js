@@ -380,10 +380,10 @@ class GoogleSheetsIntegration {
                 'Texto Cliente',
                 'Resposta Aprovada',
                 'Tipo Solicitação',
-                'Motivo Solicitação',
+                'ID da Reclamação',
                 'Solução Implementada',
                 'Histórico Atendimento',
-                'Observações Internas',
+                'Tipo de Situação',
                 'Status Aprovação'
             ]);
 
@@ -552,7 +552,7 @@ class GoogleSheetsIntegration {
                 respostaData.dadosFormulario?.id_reclamacao || respostaData.idReclamacao || '', // Coluna G: ID da Reclamação
                 respostaData.dadosFormulario?.solucao_implementada || '', // Coluna H: Solução Implementada
                 respostaData.dadosFormulario?.historico_atendimento || '', // Coluna I: Histórico Atendimento
-                respostaData.dadosFormulario?.observacoes_internas || '', // Coluna J: Observações Internas
+                respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '', // Coluna J: Tipo de Situação
                 'Aprovada' // Coluna K: Status Aprovação
             ];
 
