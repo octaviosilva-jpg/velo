@@ -5737,6 +5737,50 @@ app.get('/api/solicitacoes', async (req, res) => {
         // Buscar moderações coerentes (apenas aprovadas)
         if (!tipo || tipo === 'moderacoes' || tipo === 'todas') {
             try {
+                // Primeiro, buscar todos os resultados da página "Resultados da Moderação"
+                let resultadosMap = new Map(); // Map<ID, Resultado mais recente>
+                try {
+                    const resultadosData = await googleSheetsConfig.readData('Resultados da Moderação!A1:Z1000');
+                    if (resultadosData && resultadosData.length > 1) {
+                        // Processar resultados (pular cabeçalho na linha 0)
+                        for (let i = 1; i < resultadosData.length; i++) {
+                            const row = resultadosData[i];
+                            if (!row || row.length < 3) continue;
+                            
+                            const idModeracao = row[1] ? row[1].toString().trim() : ''; // Coluna B: ID da Moderação
+                            const resultado = row[2] ? row[2].toString().trim() : ''; // Coluna C: Resultado
+                            const dataRegistro = row[0] ? row[0].toString().trim() : ''; // Coluna A: Data/Hora do Registro
+                            
+                            if (idModeracao && (resultado === 'Aceita' || resultado === 'Negada')) {
+                                // Normalizar ID para comparação
+                                const idNormalized = idModeracao.replace(/\s+/g, '');
+                                
+                                // Se já existe um resultado para este ID, manter o mais recente
+                                if (!resultadosMap.has(idNormalized)) {
+                                    resultadosMap.set(idNormalized, { resultado, dataRegistro });
+                                } else {
+                                    const existente = resultadosMap.get(idNormalized);
+                                    // Comparar datas para manter o mais recente
+                                    if (dataRegistro && existente.dataRegistro) {
+                                        try {
+                                            const dataNova = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                            const dataExistente = new Date(existente.dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+                                            if (dataNova > dataExistente) {
+                                                resultadosMap.set(idNormalized, { resultado, dataRegistro });
+                                            }
+                                        } catch (e) {
+                                            // Se não conseguir comparar, manter o existente
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        console.log(`📊 ${resultadosMap.size} resultados encontrados na página "Resultados da Moderação"`);
+                    }
+                } catch (error) {
+                    console.log('⚠️ Erro ao buscar resultados da moderação (continuando sem resultados):', error.message);
+                }
+                
                 const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
                 if (moderacoes && moderacoes.length > 0) {
                     // obterModeracoesCoerentes já filtra por Status Aprovação === 'Aprovada' e sem Feedback
@@ -5767,6 +5811,12 @@ app.get('/api/solicitacoes', async (req, res) => {
                             colunaE: moderacao[4]
                         });
                         
+                        // Buscar resultado da moderação na página "Resultados da Moderação"
+                        const moderacaoId = moderacao.ID || moderacao.id || '';
+                        const moderacaoIdNormalized = moderacaoId.toString().trim().replace(/\s+/g, '');
+                        const resultadoEncontrado = resultadosMap.get(moderacaoIdNormalized);
+                        const resultadoModeracao = resultadoEncontrado ? resultadoEncontrado.resultado : null;
+                        
                         todasSolicitacoes.push({
                             tipo: 'moderacao',
                             data: moderacao['Data/Hora'] || moderacao.data || '',
@@ -5778,7 +5828,7 @@ app.get('/api/solicitacoes', async (req, res) => {
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
-                            resultadoModeracao: null // Resultado agora é salvo na página "Resultados da Moderação"
+                            resultadoModeracao: resultadoModeracao // Resultado da página "Resultados da Moderação"
                         });
                     });
                     
