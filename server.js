@@ -12387,6 +12387,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         console.log(`📊 [API] Total de linhas em Moderações Aceitas: ${aceitasData ? aceitasData.length - 1 : 0}`);
         let moderacao = null;
         let tipo = null;
+        let negadasData = null; // Declarar aqui para estar disponível no erro 404
 
         if (aceitasData && aceitasData.length > 1) {
             for (let i = 1; i < aceitasData.length; i++) {
