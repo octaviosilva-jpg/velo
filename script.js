@@ -3976,13 +3976,17 @@ async function buscarSolicitacoes() {
                                 </div>
                                 ${solicitacao.resultadoModeracao && (solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
                                     <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
-                                        <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
-                                        ${solicitacao.resultadoModeracao === 'Negada' ? `
-                                            <button class="btn btn-sm btn-outline-light ms-2" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa FASE 2">
-                                                <i class="fas fa-search me-1"></i>
-                                                Ver Análise Completa (FASE 2)
-                                            </button>
-                                        ` : ''}
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
+                                            </div>
+                                            ${solicitacao.resultadoModeracao === 'Negada' ? `
+                                                <button class="btn btn-sm btn-light" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa FASE 2">
+                                                    <i class="fas fa-search me-1"></i>
+                                                    Ver Análise Completa (FASE 2)
+                                                </button>
+                                            ` : ''}
+                                        </div>
                                     </div>
                                 ` : `
                                     <div class="alert alert-warning" style="margin-bottom: 15px;">
@@ -4129,14 +4133,30 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
 
 // Função para ver análise completa de moderação negada (FASE 4)
 async function verAnaliseCompletaNegada(moderacaoId) {
+    console.log('🔍 verAnaliseCompletaNegada chamada com ID:', moderacaoId);
+    
     if (!moderacaoId) {
         showErrorMessage('ID da moderação não encontrado.');
         return;
     }
     
+    // Verificar se o modal existe
+    const modalElement = document.getElementById('modalAnaliseNegada');
+    if (!modalElement) {
+        console.error('❌ Modal modalAnaliseNegada não encontrado!');
+        showErrorMessage('Modal de análise não encontrado. Recarregue a página.');
+        return;
+    }
+    
     // Abrir modal
-    const modal = new bootstrap.Modal(document.getElementById('modalAnaliseNegada'));
+    const modal = new bootstrap.Modal(modalElement);
     const modalBody = document.getElementById('modalAnaliseNegadaBody');
+    
+    if (!modalBody) {
+        console.error('❌ Modal body não encontrado!');
+        showErrorMessage('Erro ao abrir modal. Recarregue a página.');
+        return;
+    }
     
     // Mostrar loading
     modalBody.innerHTML = `
