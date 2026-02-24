@@ -6868,6 +6868,99 @@ Variação: +Z% ou -Z%`;
     }
 });
 
+// Endpoint para ajuste manual pontual da resposta
+app.post('/api/ajuste-manual', async (req, res) => {
+    console.log('🎯 Endpoint /api/ajuste-manual chamado');
+    try {
+        const { respostaAtual, instrucaoAjuste } = req.body;
+        
+        if (!respostaAtual || !instrucaoAjuste) {
+            return res.status(400).json({
+                success: false,
+                error: 'Resposta atual e instrução de ajuste são obrigatórias'
+            });
+        }
+        
+        // Prompt para ajuste cirúrgico (sem análise adicional)
+        const prompt = `Você é um editor de texto. Execute APENAS o ajuste solicitado, sem análise adicional.
+
+RESPOSTA ATUAL:
+${respostaAtual}
+
+INSTRUÇÃO DE AJUSTE:
+${instrucaoAjuste}
+
+REGRAS OBRIGATÓRIAS:
+1. Alterar SOMENTE o trecho indicado na instrução
+2. NÃO reescrever o texto inteiro
+3. NÃO mudar estrutura, tom ou ordem dos parágrafos
+4. NÃO acrescentar novos argumentos
+5. NÃO remover informações que não foram citadas
+6. NÃO recalcular chance de moderação
+7. NÃO sugerir melhorias adicionais
+
+Você deve agir como um editor cirúrgico, não como redator.
+
+Retorne APENAS a resposta ajustada, sem comentários ou explicações adicionais.`;
+
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        
+        if (!validateApiKey(apiKey)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Chave da API OpenAI não configurada'
+            });
+        }
+        
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: envVars.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você é um editor de texto que executa ajustes pontuais conforme instruções específicas. Você NÃO analisa, NÃO sugere melhorias, NÃO reescreve o texto inteiro. Você apenas aplica o ajuste solicitado de forma cirúrgica.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.1, // Baixa temperatura para precisão
+                max_tokens: 2000
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            const errorResponse = tratarErroOpenAI(response, errorData);
+            return res.status(errorResponse.statusCode).json(errorResponse);
+        }
+
+        const data = await response.json();
+        const respostaAjustada = data.choices[0].message.content.trim();
+        
+        console.log('✅ Ajuste manual aplicado com sucesso');
+        
+        res.json({
+            success: true,
+            respostaAjustada: respostaAjustada
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao aplicar ajuste manual:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor ao aplicar ajuste manual'
+        });
+    }
+});
+
 // Endpoint para buscar estatísticas globais
 // ===== ENDPOINTS DE AUTENTICAÇÃO =====
 

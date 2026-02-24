@@ -2132,6 +2132,11 @@ async function analisarChanceModeracao() {
             window.respostaRevisadaModeracao = extrairRespostaRevisada(data.result);
             window.analiseCompletaModeracao = data.result; // Armazenar análise completa para auditoria
             
+            // Mostrar botão de ajuste manual se houver resposta revisada
+            if (window.respostaRevisadaModeracao && window.respostaRevisadaModeracao.trim().length > 0) {
+                document.getElementById('btn-ajuste-manual').style.display = 'inline-block';
+            }
+            
             showSuccessMessage('Análise de chance de moderação concluída!');
         } else {
             showErrorMessage('Erro na análise: ' + data.error);
@@ -2626,6 +2631,106 @@ function mostrarImpactoAjuste(impacto) {
     const auditoriaCard = document.querySelector('.card.border-warning');
     if (auditoriaCard) {
         auditoriaCard.insertAdjacentHTML('afterend', html);
+    }
+}
+
+// Função para abrir modal de ajuste manual
+function abrirModalAjusteManual() {
+    if (!window.respostaRevisadaModeracao || !window.respostaRevisadaModeracao.trim()) {
+        showErrorMessage('Nenhuma resposta revisada disponível para ajuste.');
+        return;
+    }
+    
+    // Preencher a resposta atual no modal
+    document.getElementById('resposta-atual-ajuste').textContent = window.respostaRevisadaModeracao;
+    
+    // Limpar campo de instrução
+    document.getElementById('instrucao-ajuste-manual').value = '';
+    
+    // Abrir modal usando Bootstrap
+    const modal = new bootstrap.Modal(document.getElementById('modalAjusteManual'));
+    modal.show();
+}
+
+// Função para executar ajuste manual
+async function executarAjusteManual() {
+    const instrucao = document.getElementById('instrucao-ajuste-manual').value.trim();
+    
+    if (!instrucao) {
+        showErrorMessage('Por favor, descreva o ajuste desejado.');
+        return;
+    }
+    
+    if (!window.respostaRevisadaModeracao || !window.respostaRevisadaModeracao.trim()) {
+        showErrorMessage('Nenhuma resposta revisada disponível.');
+        return;
+    }
+    
+    showLoadingMessage('Aplicando ajuste manual...');
+    
+    try {
+        const response = await fetch('/api/ajuste-manual', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                respostaAtual: window.respostaRevisadaModeracao,
+                instrucaoAjuste: instrucao
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Atualizar a resposta revisada
+            window.respostaRevisadaModeracao = data.respostaAjustada;
+            
+            // Atualizar na interface
+            atualizarRespostaRevisadaNaInterface(data.respostaAjustada);
+            
+            // Fechar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAjusteManual'));
+            modal.hide();
+            
+            showSuccessMessage('Ajuste aplicado com sucesso!');
+        } else {
+            showErrorMessage('Erro ao aplicar ajuste: ' + data.error);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao executar ajuste manual:', error);
+        showErrorMessage('Erro ao executar ajuste manual. Tente novamente.');
+    }
+}
+
+// Função para atualizar a resposta revisada na interface
+function atualizarRespostaRevisadaNaInterface(novaResposta) {
+    const analiseElement = document.getElementById('analise-chance-moderacao');
+    if (!analiseElement) return;
+    
+    // Procurar pela seção de revisão de textos
+    let conteudoAtual = analiseElement.innerHTML;
+    
+    // Encontrar e substituir o conteúdo da revisão
+    const regexRevisao = /(✍️\s*Revisão de Textos[^<]*<\/h5>)([\s\S]*?)(?=<h5|🔍|📈|$)/i;
+    const match = conteudoAtual.match(regexRevisao);
+    
+    if (match) {
+        // Substituir apenas o conteúdo da revisão
+        const novoConteudo = match[1] + 
+            '<div class="mt-2 p-3 bg-light border rounded" style="white-space: pre-wrap;">' + 
+            novaResposta.replace(/\n/g, '<br>') + 
+            '</div>';
+        conteudoAtual = conteudoAtual.replace(regexRevisao, novoConteudo);
+        analiseElement.innerHTML = conteudoAtual;
+    } else {
+        // Se não encontrar, adicionar ao final
+        analiseElement.innerHTML += 
+            '<h5 class="text-dark mt-4 mb-3"><i class="fas fa-edit me-2"></i>✍️ Revisão de Textos (versão estratégica)</h5>' +
+            '<div class="mt-2 p-3 bg-light border rounded" style="white-space: pre-wrap;">' + 
+            novaResposta.replace(/\n/g, '<br>') + 
+            '</div>';
     }
 }
 

@@ -596,9 +596,13 @@
                                                     <i class="fas fa-copy me-1"></i>
                                                     Copiar Análise Completa
                                                 </button>
-                                                <button class="btn btn-outline-primary btn-sm" onclick="copiarRespostaRevisada()">
+                                                <button class="btn btn-outline-primary btn-sm me-2" onclick="copiarRespostaRevisada()">
                                                     <i class="fas fa-copy me-1"></i>
                                                     Copiar Apenas Resposta Revisada
+                                                </button>
+                                                <button class="btn btn-outline-warning btn-sm" onclick="abrirModalAjusteManual()" id="btn-ajuste-manual" style="display: none;">
+                                                    <i class="fas fa-edit me-1"></i>
+                                                    Ajustar trecho específico da resposta
                                                 </button>
                                             </div>
                                         </div>
@@ -883,6 +887,45 @@
                     <button type="button" class="btn btn-primary" onclick="exportarSolicitacoes()">
                         <i class="fas fa-download me-2"></i>
                         Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ajuste Manual -->
+    <div class="modal fade" id="modalAjusteManual" tabindex="-1" aria-labelledby="modalAjusteManualLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="modalAjusteManualLabel">
+                        <i class="fas fa-edit me-2"></i>
+                        Ajustar Trecho Específico da Resposta
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Instrução:</strong> Descreva qual trecho deseja ajustar e como deve ser alterado.
+                        <br><small>Exemplo: "Alterar o trecho que menciona 'empréstimo negado por dívidas' para 'crédito não aprovado por contrato ativo'."</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="instrucao-ajuste-manual" class="form-label">Instrução de Ajuste:</label>
+                        <textarea class="form-control" id="instrucao-ajuste-manual" rows="4" placeholder="Descreva o trecho a ser ajustado e como deve ser alterado..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Resposta Atual (para referência):</label>
+                        <div class="alert alert-light border" id="resposta-atual-ajuste" style="max-height: 200px; overflow-y: auto; font-size: 0.9rem;">
+                            <!-- Será preenchido via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" onclick="executarAjusteManual()">
+                        <i class="fas fa-check me-2"></i>
+                        Aplicar Ajuste
                     </button>
                 </div>
             </div>
