@@ -3976,12 +3976,12 @@ async function buscarSolicitacoes() {
                                 </div>
                                 ${solicitacao.resultadoModeracao && (solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
                                     <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
-                                        <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                             <div>
                                                 <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
                                             </div>
                                             ${solicitacao.resultadoModeracao === 'Negada' ? `
-                                                <button class="btn btn-sm btn-light" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa FASE 2">
+                                                <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa FASE 2 - Clique para ver os 3 blocos de análise">
                                                     <i class="fas fa-search me-1"></i>
                                                     Ver Análise Completa (FASE 2)
                                                 </button>
@@ -4010,6 +4010,14 @@ async function buscarSolicitacoes() {
                                     </button>
                                     ` : ''}
                                 </div>
+                                ${solicitacao.resultadoModeracao === 'Negada' ? `
+                                <div class="mt-3">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Análise Completa Disponível:</strong> Clique no botão "Ver Análise Completa (FASE 2)" acima para ver a análise detalhada com os 3 blocos (motivo da negativa, onde errou e como corrigir).
+                                    </div>
+                                </div>
+                                ` : ''}
                             </div>
                         `;
                     }
