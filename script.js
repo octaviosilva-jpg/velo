@@ -3977,6 +3977,12 @@ async function buscarSolicitacoes() {
                                 ${solicitacao.resultadoModeracao && (solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
                                     <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
                                         <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
+                                        ${solicitacao.resultadoModeracao === 'Negada' ? `
+                                            <button class="btn btn-sm btn-outline-light ms-2" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa FASE 2">
+                                                <i class="fas fa-search me-1"></i>
+                                                Ver Análise Completa (FASE 2)
+                                            </button>
+                                        ` : ''}
                                     </div>
                                 ` : `
                                     <div class="alert alert-warning" style="margin-bottom: 15px;">
@@ -4118,6 +4124,182 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
         showErrorMessage(error.message || 'Erro ao registrar resultado da moderação. Tente novamente.');
         event.target.disabled = false;
         event.target.innerHTML = btnOriginalText;
+    }
+}
+
+// Função para ver análise completa de moderação negada (FASE 4)
+async function verAnaliseCompletaNegada(moderacaoId) {
+    if (!moderacaoId) {
+        showErrorMessage('ID da moderação não encontrado.');
+        return;
+    }
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('modalAnaliseNegada'));
+    const modalBody = document.getElementById('modalAnaliseNegadaBody');
+    
+    // Mostrar loading
+    modalBody.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-danger" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-3">Carregando análise completa...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    try {
+        console.log('📊 Buscando análise completa da moderação:', moderacaoId);
+        
+        const response = await fetch(`/api/moderacao/${encodeURIComponent(moderacaoId)}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao carregar análise completa');
+        }
+        
+        const mod = data.moderacao;
+        const tipo = data.tipo;
+        const aprendizado = data.aprendizadoAplicado;
+        
+        let html = `
+            <div class="mb-4">
+                <h5 class="text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Moderação Negada - Análise Completa (FASE 2)
+                </h5>
+            </div>
+            
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Dados Gerais</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>ID da Moderação:</strong> ${mod.idModeracao || 'N/A'}</p>
+                            <p><strong>ID da Reclamação:</strong> ${mod.idReclamacao || 'N/A'}</p>
+                            <p><strong>Tema:</strong> ${mod.tema || 'N/A'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Motivo:</strong> ${mod.motivo || 'N/A'}</p>
+                            <p><strong>Resultado:</strong> <span class="badge bg-danger">${mod.resultado || 'Negada'}</span></p>
+                            <p><strong>Data do Registro:</strong> ${mod.dataRegistro || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Texto da Moderação Enviada</h6>
+                </div>
+                <div class="card-body">
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px;">${mod.textoModeracao || 'N/A'}</pre>
+                </div>
+            </div>
+            
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-comments me-2"></i>Contexto</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Solicitação do Cliente:</strong></p>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">${mod.solicitacaoCliente || 'N/A'}</pre>
+                    <p><strong>Resposta da Empresa:</strong></p>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">${mod.respostaEmpresa || 'N/A'}</pre>
+                    <p><strong>Consideração Final:</strong></p>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px;">${mod.consideracaoFinal || 'N/A'}</pre>
+                </div>
+            </div>
+            
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-brain me-2"></i>Linha de Raciocínio Interna</h6>
+                </div>
+                <div class="card-body">
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px;">${mod.linhaRaciocinio || 'N/A'}</pre>
+                </div>
+            </div>
+        `;
+        
+        // Análise FASE 2 (se negada)
+        if (tipo === 'negada') {
+            html += `
+                <div class="card mb-3 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-times-circle me-2"></i>
+                            🔴 BLOCO 1 – MOTIVO DA NEGATIVA (BASE MANUAL)
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p style="white-space: pre-wrap; word-wrap: break-word;">${mod.motivoNegativa || 'N/A'}</p>
+                    </div>
+                </div>
+                
+                <div class="card mb-3 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            🟡 BLOCO 2 – ONDE A SOLICITAÇÃO ERROU
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p style="white-space: pre-wrap; word-wrap: break-word;">${mod.ondeErrou || 'N/A'}</p>
+                    </div>
+                </div>
+                
+                <div class="card mb-3 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            🟢 BLOCO 3 – COMO CORRIGIR EM PRÓXIMAS SOLICITAÇÕES
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p style="white-space: pre-wrap; word-wrap: break-word;">${mod.comoCorrigir || 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Histórico de aprendizado aplicado
+        if (aprendizado) {
+            html += `
+                <div class="card mb-3 border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-book me-2"></i>
+                            📚 Histórico de Aprendizado Aplicado
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p>Esta moderação foi baseada em:</p>
+                        <ul>
+                            <li>${tipo === 'aceita' ? '✅ Moderações aceitas (FASE 3)' : '📖 Moderações coerentes'}</li>
+                            ${tipo === 'negada' ? '<li>🔴 Ajustes por aprendizado negativo (FASE 2)</li>' : ''}
+                        </ul>
+                        ${aprendizado.mensagem ? `<p class="mt-2"><em>${aprendizado.mensagem}</em></p>` : ''}
+                        ${aprendizado.pesoModelo ? `<p class="mt-2"><strong>Peso do modelo:</strong> ${aprendizado.pesoModelo.toFixed(2)}</p>` : ''}
+                        ${aprendizado.quantidadeAceites ? `<p><strong>Quantidade de aceites que reforçaram este modelo:</strong> ${aprendizado.quantidadeAceites}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        modalBody.innerHTML = html;
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar análise completa:', error);
+        modalBody.innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar análise</h6>
+                <p>${error.message || 'Erro ao carregar a análise completa da moderação negada.'}</p>
+            </div>
+        `;
     }
 }
 
