@@ -8707,11 +8707,13 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             });
         }
         
-        console.log(`📋 Registrando resultado da moderação ID ${moderacaoId}: ${resultado}`);
+        console.log(`📋 Registrando resultado da moderação ID ${moderacaoId} (tipo: ${typeof moderacaoId}): ${resultado}`);
         
         // Ler dados da planilha para encontrar a linha correta
         const range = 'Moderações!A1:Z1000';
+        console.log(`📖 Lendo dados da planilha no range: ${range}`);
         const data = await googleSheetsConfig.readData(range);
+        console.log(`📊 Total de linhas lidas: ${data ? data.length : 0}`);
         
         if (!data || data.length <= 1) {
             return res.status(404).json({
@@ -8724,14 +8726,25 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         // O ID está na coluna B (índice 1) da página Moderações
         let linhaEncontrada = -1;
         const moderacaoIdTrimmed = moderacaoId.toString().trim();
-        console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" na coluna B (índice 1)`);
+        // Normalizar o ID para comparação (remover espaços e converter para string)
+        const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
+        console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" (normalizado: "${moderacaoIdNormalized}") na coluna B (índice 1)`);
         
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
-            const rowId = row[1] ? row[1].toString().trim() : '';
-            if (rowId === moderacaoIdTrimmed) {
+            if (!row || row.length < 2) continue;
+            
+            const rowId = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
+            
+            // Comparar como string e também como número (caso um seja string e outro número)
+            const idsCoincidem = rowId === moderacaoIdNormalized || 
+                                 rowId === moderacaoIdTrimmed ||
+                                 (rowId && moderacaoIdNormalized && rowId.toString() === moderacaoIdNormalized.toString()) ||
+                                 (rowId && !isNaN(rowId) && !isNaN(moderacaoIdNormalized) && Number(rowId) === Number(moderacaoIdNormalized));
+            
+            if (idsCoincidem) {
                 linhaEncontrada = i + 1; // +1 porque a planilha começa na linha 1, mas o array em 0
-                console.log(`✅ ID encontrado na linha ${linhaEncontrada} (índice ${i})`);
+                console.log(`✅ ID encontrado na linha ${linhaEncontrada} (índice ${i}). ID na planilha: "${row[1]}", ID procurado: "${moderacaoIdTrimmed}"`);
                 break;
             }
         }
@@ -8761,7 +8774,27 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         
         console.log(`📝 Atualizando célula ${cellRange} com valor: ${resultado}`);
         
-        await googleSheetsConfig.updateCell(cellRange, resultado);
+        try {
+            const updateResult = await googleSheetsConfig.updateCell(cellRange, resultado);
+            console.log(`✅ Célula atualizada com sucesso:`, updateResult);
+        } catch (updateError) {
+            console.error('❌ Erro ao atualizar célula:', updateError);
+            throw new Error(`Erro ao atualizar célula ${cellRange}: ${updateError.message}`);
+        }
+        
+        // Verificar se a atualização foi bem-sucedida lendo a célula novamente
+        try {
+            const verifyRange = `Moderações!${colunaN}${linhaEncontrada}`;
+            const verifyData = await googleSheetsConfig.readData(verifyRange);
+            const valorAtualizado = verifyData && verifyData[0] && verifyData[0][0];
+            console.log(`🔍 Verificação: Valor na célula ${verifyRange} após atualização: "${valorAtualizado}"`);
+            
+            if (valorAtualizado !== resultado) {
+                console.warn(`⚠️ Atenção: O valor na célula (${valorAtualizado}) não corresponde ao valor esperado (${resultado})`);
+            }
+        } catch (verifyError) {
+            console.warn('⚠️ Não foi possível verificar a atualização:', verifyError.message);
+        }
         
         console.log(`✅ Resultado da moderação registrado com sucesso na linha ${linhaEncontrada}`);
         

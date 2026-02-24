@@ -4064,6 +4064,12 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
     event.target.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
     
     try {
+        console.log('📤 Enviando requisição para registrar resultado:', {
+            moderacaoId: moderacaoId,
+            resultado: resultado,
+            tipoId: typeof moderacaoId
+        });
+        
         const response = await fetch('/api/registrar-resultado-moderacao', {
             method: 'POST',
             headers: {
@@ -4076,6 +4082,8 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
         });
         
         const data = await response.json();
+        
+        console.log('📥 Resposta do servidor:', data);
         
         if (!data.success) {
             throw new Error(data.error || 'Erro ao registrar resultado da moderação');
