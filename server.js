@@ -12428,7 +12428,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio
         if (!moderacao) {
             console.log('🔍 [API] Não encontrado em Moderações Aceitas, buscando em Moderações Negadas...');
-            const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+            negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
             console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
             if (negadasData && negadasData.length > 1) {
                 for (let i = 1; i < negadasData.length; i++) {
