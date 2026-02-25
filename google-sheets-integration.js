@@ -1327,18 +1327,26 @@ class GoogleSheetsIntegration {
             console.log('📋 Cabeçalhos da planilha Moderações:', headers);
             console.log(`📊 Total de linhas na planilha: ${data.length}`);
             
-            // Encontrar índices das colunas importantes
-            const statusIndex = headers.findIndex(h => 
-                h && (h.toString().trim() === 'Status Aprovação' || 
-                     h.toString().trim() === 'Status Aprovacao' ||
-                     h.toString().trim().toLowerCase().includes('status'))
-            );
-            const feedbackIndex = headers.findIndex(h => 
-                h && (h.toString().trim() === 'Feedback' || 
-                     h.toString().trim().toLowerCase().includes('feedback'))
-            );
+            // Encontrar índices das colunas importantes baseado nos cabeçalhos reais
+            const statusIndex = headers.findIndex(h => {
+                if (!h) return false;
+                const headerStr = h.toString().trim();
+                return headerStr === 'Status Aprovação' || 
+                       headerStr === 'Status Aprovacao' ||
+                       headerStr.toLowerCase() === 'status aprovação' ||
+                       headerStr.toLowerCase() === 'status aprovacao' ||
+                       (headerStr.toLowerCase().includes('status') && headerStr.toLowerCase().includes('aprova'));
+            });
+            const feedbackIndex = headers.findIndex(h => {
+                if (!h) return false;
+                const headerStr = h.toString().trim();
+                return headerStr === 'Feedback' || 
+                       headerStr.toLowerCase() === 'feedback';
+            });
             
-            console.log(`🔍 Índices encontrados - Status: ${statusIndex}, Feedback: ${feedbackIndex}`);
+            console.log(`🔍 Índices encontrados nos cabeçalhos - Status: ${statusIndex} (esperado: 12), Feedback: ${feedbackIndex} (esperado: 9)`);
+            console.log(`📋 Cabeçalho Status na posição ${statusIndex}:`, statusIndex >= 0 ? headers[statusIndex] : 'NÃO ENCONTRADO');
+            console.log(`📋 Cabeçalho Feedback na posição ${feedbackIndex}:`, feedbackIndex >= 0 ? headers[feedbackIndex] : 'NÃO ENCONTRADO');
             
             for (let i = 1; i < data.length; i++) {
                 const row = data[i];
