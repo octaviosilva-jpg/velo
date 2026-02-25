@@ -3232,6 +3232,55 @@ async function salvarFAQ() {
     }
 }
 
+// Migrar FAQs hardcoded para a planilha
+async function migrarFAQs() {
+    if (!confirm('Deseja importar as FAQs do sistema anterior para a planilha? Isso adicionará todas as FAQs que estavam hardcoded no código.')) {
+        return;
+    }
+
+    try {
+        const btnMigrar = event?.target || document.querySelector('button[onclick="migrarFAQs()"]');
+        const btnOriginalText = btnMigrar?.innerHTML;
+        
+        if (btnMigrar) {
+            btnMigrar.disabled = true;
+            btnMigrar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Importando...';
+        }
+
+        console.log('🔄 Iniciando migração de FAQs...');
+        const response = await fetch('/api/faqs/migrate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccessMessage(`Migração concluída! ${data.created} FAQ(s) criado(s), ${data.skipped} já existiam.`);
+            
+            // Recarregar FAQs
+            await carregarFAQs();
+        } else {
+            throw new Error(data.error || 'Erro ao migrar FAQs');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao migrar FAQs:', error);
+        showErrorMessage('Erro ao migrar FAQs: ' + error.message);
+    } finally {
+        const btnMigrar = document.querySelector('button[onclick="migrarFAQs()"]');
+        if (btnMigrar) {
+            btnMigrar.disabled = false;
+            btnMigrar.innerHTML = '<i class="fas fa-download me-1"></i> Importar FAQs Antigas';
+        }
+    }
+}
+
 // Excluir FAQ
 async function excluirFAQ(faqId, titulo) {
     if (!confirm(`Tem certeza que deseja excluir o FAQ "${titulo}"?`)) {
