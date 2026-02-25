@@ -9677,7 +9677,6 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             }
         } else if (resultado === 'Negada') {
             // Salvar apenas na página "Moderações Negadas"
-            console.log(`💾 [SAVE] Salvando moderação negada com ID: "${moderacaoIdTrimmed}" (tipo: ${typeof moderacaoIdTrimmed})`);
             const novaLinhaNegadas = [
                 dataHoraRegistro,                // Data do Registro
                 moderacaoIdTrimmed.toString(),   // ID da Moderação (garantir que é string)
@@ -9696,16 +9695,9 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 dataHoraModeracao                // Data/Hora da Moderação Original
             ];
             
-            console.log(`💾 Salvando na página "Moderações Negadas"`);
-            console.log(`💾 [SAVE] Dados a serem salvos: ID="${moderacaoIdTrimmed.toString()}", Tema="${temaModeracao}", Resultado="${resultado}"`);
-            console.log(`📋 Dados a serem salvos (${novaLinhaNegadas.length} colunas):`, novaLinhaNegadas);
             try {
-                const resultado = await googleSheetsConfig.appendRow('Moderações Negadas!A1', novaLinhaNegadas);
+                await googleSheetsConfig.appendRow('Moderações Negadas!A1', novaLinhaNegadas);
                 console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
-                console.log(`✅ [SAVE] ID salvo: "${moderacaoIdTrimmed.toString()}" (tipo: ${typeof moderacaoIdTrimmed.toString()})`);
-                console.log(`✅ [SAVE] ID salvo na coluna B (índice 1): "${novaLinhaNegadas[1]}"`);
-                console.log(`✅ [SAVE] Para buscar este ID, use: GET /api/moderacao/${moderacaoIdTrimmed.toString()}`);
-                console.log(`📊 Resultado do append:`, resultado);
             } catch (error) {
                 console.error(`❌ ERRO ao salvar moderação negada:`, error);
                 console.error(`❌ Stack trace:`, error.stack);
@@ -12465,113 +12457,45 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio
         // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1)
         if (!moderacao) {
-            console.log('🔍 [API] Não encontrado em Moderações Aceitas, buscando em Moderações Negadas...');
-            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
-            console.log('📍 [API] ===== CAMINHO COMPLETO DA BUSCA =====');
-            console.log(`📍 [API] Planilha ID: ${spreadsheetId}`);
-            console.log(`📍 [API] Planilha: "Dados de Solicitação"`);
-            console.log(`📍 [API] Página/Aba: "Moderações Negadas"`);
-            console.log(`📍 [API] Range: "Moderações Negadas!A1:Z10000"`);
-            console.log(`📍 [API] Coluna do ID: Coluna B (índice 1) - "ID da Moderação"`);
-            console.log(`📍 [API] ID buscado: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
-            console.log('📍 [API] ===========================================');
+            console.log('🔍 [API] Buscando em Moderações Negadas...');
             try {
-                // Aumentar o range para garantir que todas as moderações sejam encontradas
                 negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
                 console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
-                if (negadasData && negadasData.length > 1) {
-                    console.log(`🔍 [API] Primeira linha (cabeçalho):`, negadasData[0]);
-                    if (negadasData.length > 1) {
-                        console.log(`🔍 [API] Segunda linha (primeira moderação):`, negadasData[1]);
-                        console.log(`🔍 [API] ID na coluna B (índice 1):`, negadasData[1][1]);
-                    }
-                }
             } catch (error) {
                 console.error('❌ [API] Erro ao ler Moderações Negadas:', error.message);
-                console.error('❌ [API] Stack trace:', error.stack);
                 throw error;
             }
             if (negadasData && negadasData.length > 1) {
-                console.log(`🔍 [API] Comparando ID buscado "${idModeracao}" (normalizado: "${idModeracaoNormalized}") com IDs em Moderações Negadas...`);
-                console.log(`🔍 [API] Estrutura esperada: Coluna A=Data, Coluna B=ID da Moderação (índice 1)`);
-                console.log(`🔍 [API] Tipo do ID buscado: ${typeof idModeracao}, Valor: "${idModeracao}"`);
-                
-                // Log de todos os IDs encontrados para debug
-                const todosIds = [];
-                for (let j = 1; j < negadasData.length; j++) {
-                    const tempRow = negadasData[j];
-                    if (tempRow && tempRow.length > 1) {
-                        const tempId = (tempRow[1] || '').toString().trim();
-                        todosIds.push(tempId);
-                        // Se encontrar o ID, logar imediatamente
-                        if (tempId === idModeracao || tempId === idModeracaoNormalized || 
-                            tempId.replace(/\s+/g, '') === idModeracaoNormalized) {
-                            console.log(`🎯 [API] ID ENCONTRADO na linha ${j + 1}: "${tempId}" (corresponde ao buscado: "${idModeracao}")`);
-                        }
-                    }
-                }
-                console.log(`📋 [API] Total de ${todosIds.length} IDs encontrados em Moderações Negadas`);
-                console.log(`📋 [API] Primeiros 10 IDs:`, todosIds.slice(0, 10));
-                console.log(`📋 [API] Últimos 10 IDs:`, todosIds.slice(-10));
-                // Verificar se o ID buscado está na lista
-                const idEncontradoNaLista = todosIds.some(id => {
-                    const idNorm = id.replace(/\s+/g, '');
-                    return id === idModeracao || id === idModeracaoNormalized || 
-                           idNorm === idModeracaoNormalized ||
-                           (!isNaN(idNorm) && !isNaN(idModeracaoNormalized) && 
-                            (idNorm.length > 15 ? BigInt(idNorm) === BigInt(idModeracaoNormalized) : 
-                             Number(idNorm) === Number(idModeracaoNormalized)));
-                });
-                if (!idEncontradoNaLista) {
-                    console.log(`⚠️ [API] ID "${idModeracao}" NÃO encontrado na lista de IDs da planilha`);
-                }
-                
                 for (let i = 1; i < negadasData.length; i++) {
                     const row = negadasData[i];
-                    if (!row || row.length < 2) {
-                        console.log(`⚠️ [API] Linha ${i + 1} ignorada: muito curta (${row ? row.length : 0} colunas)`);
-                        continue;
-                    }
+                    if (!row || row.length < 2) continue;
                     
                     // ID está na coluna B (índice 1) - "ID da Moderação"
                     const idRow = (row[1] || '').toString().trim();
                     const idRowNormalized = idRow.replace(/\s+/g, '');
                     
-                    // Log para debug (primeiras 5 linhas e quando encontrar correspondência parcial)
-                    if (i <= 5 || idRowNormalized.includes(idModeracaoNormalized) || idModeracaoNormalized.includes(idRowNormalized)) {
-                        console.log(`🔍 [API] Linha ${i + 1}: Coluna A="${row[0] || ''}", Coluna B (ID)="${idRow}" (normalizado="${idRowNormalized}", tipo: ${typeof row[1]})`);
-                    }
-                    
-                    // Comparar tanto com espaços quanto sem espaços, e também como número se ambos forem numéricos
-                    // Para números grandes, usar comparação de string normalizada primeiro
+                    // Comparar IDs de múltiplas formas
                     let idsCoincidem = false;
                     
                     // Comparação 1: Strings normalizadas (sem espaços)
                     if (idRowNormalized === idModeracaoNormalized) {
                         idsCoincidem = true;
-                        console.log(`✅ [API] Match por string normalizada: "${idRowNormalized}" === "${idModeracaoNormalized}"`);
                     }
                     // Comparação 2: Strings originais
                     else if (idRow === idModeracao) {
                         idsCoincidem = true;
-                        console.log(`✅ [API] Match por string original: "${idRow}" === "${idModeracao}"`);
                     }
                     // Comparação 3: Como números (se ambos forem numéricos)
                     else if (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized)) {
-                        // Para números grandes, usar BigInt se necessário
                         try {
                             const numRow = idRowNormalized.length > 15 ? BigInt(idRowNormalized) : Number(idRowNormalized);
                             const numBuscado = idModeracaoNormalized.length > 15 ? BigInt(idModeracaoNormalized) : Number(idModeracaoNormalized);
-                            
                             if (numRow === numBuscado) {
                                 idsCoincidem = true;
-                                console.log(`✅ [API] Match por número: ${numRow} === ${numBuscado}`);
                             }
                         } catch (e) {
-                            // Se BigInt falhar, tentar Number normal
                             if (Number(idRowNormalized) === Number(idModeracaoNormalized)) {
                                 idsCoincidem = true;
-                                console.log(`✅ [API] Match por Number: ${Number(idRowNormalized)} === ${Number(idModeracaoNormalized)}`);
                             }
                         }
                     }
