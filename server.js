@@ -12458,6 +12458,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1)
         if (!moderacao) {
             console.log('🔍 [API] Buscando em Moderações Negadas...');
+            console.log(`🔍 [API] ID buscado: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
             try {
                 negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
                 console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
@@ -12466,6 +12467,16 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 throw error;
             }
             if (negadasData && negadasData.length > 1) {
+                // Log dos primeiros 5 IDs encontrados para debug
+                console.log('📋 [API] Primeiros 5 IDs encontrados:');
+                for (let j = 1; j < Math.min(6, negadasData.length); j++) {
+                    const tempRow = negadasData[j];
+                    if (tempRow && tempRow.length > 1) {
+                        const tempId = (tempRow[1] || '').toString().trim();
+                        console.log(`   Linha ${j + 1}: ID="${tempId}" (tipo: ${typeof tempRow[1]})`);
+                    }
+                }
+                
                 for (let i = 1; i < negadasData.length; i++) {
                     const row = negadasData[i];
                     if (!row || row.length < 2) continue;
@@ -12476,14 +12487,17 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     
                     // Comparar IDs de múltiplas formas
                     let idsCoincidem = false;
+                    let tipoMatch = '';
                     
                     // Comparação 1: Strings normalizadas (sem espaços)
                     if (idRowNormalized === idModeracaoNormalized) {
                         idsCoincidem = true;
+                        tipoMatch = 'string normalizada';
                     }
                     // Comparação 2: Strings originais
                     else if (idRow === idModeracao) {
                         idsCoincidem = true;
+                        tipoMatch = 'string original';
                     }
                     // Comparação 3: Como números (se ambos forem numéricos)
                     else if (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized)) {
@@ -12492,12 +12506,18 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                             const numBuscado = idModeracaoNormalized.length > 15 ? BigInt(idModeracaoNormalized) : Number(idModeracaoNormalized);
                             if (numRow === numBuscado) {
                                 idsCoincidem = true;
+                                tipoMatch = 'número';
                             }
                         } catch (e) {
                             if (Number(idRowNormalized) === Number(idModeracaoNormalized)) {
                                 idsCoincidem = true;
+                                tipoMatch = 'Number';
                             }
                         }
+                    }
+                    
+                    if (idsCoincidem) {
+                        console.log(`✅ [API] Match encontrado na linha ${i + 1} por ${tipoMatch}: "${idRow}" === "${idModeracao}"`);
                     }
                     
                     if (idsCoincidem) {
