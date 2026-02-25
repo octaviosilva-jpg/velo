@@ -3350,15 +3350,13 @@ function gerarFAQ() {
         // Limpar conteúdo anterior
         faqContent.innerHTML = '';
         
-        // Verificar se a resposta contém HTML
-        if (respostaFAQ && respostaFAQ.includes('<')) {
-            // Renderizar HTML diretamente (não usar textContent que escaparia o HTML)
+        if (respostaFAQ) {
+            // Sempre usar innerHTML para renderizar - permite HTML e texto simples
+            // Se contiver HTML, será renderizado; se for texto simples, será exibido normalmente
             faqContent.innerHTML = respostaFAQ;
-            console.log('✅ HTML renderizado com innerHTML');
+            console.log('✅ Conteúdo renderizado com innerHTML');
         } else {
-            // Se não contém HTML, tratar como texto simples
-            faqContent.textContent = respostaFAQ || 'Resposta não disponível.';
-            console.log('⚠️ Conteúdo tratado como texto simples (sem tags HTML)');
+            faqContent.innerHTML = '<p>Resposta não disponível.</p>';
         }
     }
     
