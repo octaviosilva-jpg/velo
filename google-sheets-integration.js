@@ -900,28 +900,45 @@ class GoogleSheetsIntegration {
             // Invalidar cache relacionado para forçar atualização
             this.invalidateCache(['moderacoes_coerentes']);
             
+            // Ler cabeçalhos atuais da planilha para garantir que salvamos nas colunas corretas
+            let headersAtuais = null;
+            try {
+                const headerData = await googleSheetsConfig.readData('Moderações!A1:Z1');
+                if (headerData && headerData.length > 0 && headerData[0]) {
+                    headersAtuais = headerData[0];
+                    console.log('📋 Cabeçalhos atuais da planilha Moderações:', headersAtuais);
+                }
+            } catch (error) {
+                console.warn('⚠️ Não foi possível ler cabeçalhos, usando estrutura padrão:', error.message);
+            }
+            
             // Criar perfil do usuário para a coluna ID
             const userProfile = moderacaoData.userProfile || 
                 (moderacaoData.userEmail ? `${moderacaoData.userName || 'Usuário'} (${moderacaoData.userEmail})` : 'N/A');
 
+            // Criar array com valores na ordem correta baseado nos cabeçalhos esperados
+            // Estrutura padrão: Data/Hora, ID, ID da Reclamação, Tipo, Solicitação Cliente, Resposta Empresa, 
+            // Consideração Final, Motivo Moderação, Texto Moderação Anterior, Feedback, 
+            // Texto Moderação Reformulado, Linha Raciocínio, Status Aprovação, Observações Internas, Resultado da Moderação
             const row = [
-                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
-                moderacaoData.id || '', // Coluna B: ID
-                moderacaoData.idReclamacao || '', // Coluna C: ID da Reclamação
-                moderacaoData.tipo || 'moderacao', // Coluna D: Tipo
-                moderacaoData.dadosModeracao?.solicitacaoCliente || '', // Coluna E: Solicitação Cliente
-                moderacaoData.dadosModeracao?.respostaEmpresa || '', // Coluna F: Resposta Empresa
-                moderacaoData.dadosModeracao?.consideracaoFinal || '', // Coluna G: Consideração Final
-                moderacaoData.dadosModeracao?.motivoModeracao || '', // Coluna H: Motivo Moderação
-                '', // Coluna I: Texto Moderação Anterior (vazio para moderações aprovadas)
-                '', // Coluna J: Feedback (vazio para moderações aprovadas)
-                moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // Coluna K: Texto Moderação Reformulado
-                moderacaoData.linhaRaciocinio || '', // Coluna L: Linha Raciocínio
-                moderacaoData.statusAprovacao || 'Pendente', // Coluna M: Status Aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
-                moderacaoData.observacoesInternas || '', // Coluna N: Observações Internas
-                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // [0] Data/Hora
+                moderacaoData.id || '', // [1] ID
+                moderacaoData.idReclamacao || '', // [2] ID da Reclamação
+                moderacaoData.tipo || 'moderacao', // [3] Tipo
+                moderacaoData.dadosModeracao?.solicitacaoCliente || '', // [4] Solicitação Cliente
+                moderacaoData.dadosModeracao?.respostaEmpresa || '', // [5] Resposta Empresa
+                moderacaoData.dadosModeracao?.consideracaoFinal || '', // [6] Consideração Final
+                moderacaoData.dadosModeracao?.motivoModeracao || '', // [7] Motivo Moderação
+                '', // [8] Texto Moderação Anterior (vazio para moderações aprovadas)
+                '', // [9] Feedback (vazio para moderações aprovadas)
+                moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // [10] Texto Moderação Reformulado
+                moderacaoData.linhaRaciocinio || '', // [11] Linha Raciocínio
+                moderacaoData.statusAprovacao || 'Pendente', // [12] Status Aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
+                moderacaoData.observacoesInternas || '', // [13] Observações Internas
+                '' // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
             ];
 
+            console.log('💾 Salvando moderação com Status Aprovação:', row[12], 'na coluna M (índice 12)');
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
             console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
             console.log('📋 Dados salvos:', {
