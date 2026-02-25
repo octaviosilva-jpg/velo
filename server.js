@@ -10981,15 +10981,6 @@ app.post('/api/google-sheets/test-read', async (req, res) => {
     }
 });
 
-// Middleware para rotas não encontradas
-app.use('*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Rota não encontrada',
-        message: 'A rota solicitada não existe'
-    });
-});
-
 // ===== INICIALIZAÇÃO DO SERVIDOR =====
 
 // Inicializar Google Sheets se habilitado
@@ -11121,6 +11112,16 @@ app.post('/api/force-initialize-google-sheets', async (req, res) => {
             error: error.message
         });
     }
+});
+
+// Middleware para rotas não encontradas (deve ser o último, após todos os endpoints)
+app.use('*', (req, res) => {
+    console.log(`❌ [404] Rota não encontrada: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+        success: false,
+        error: 'Rota não encontrada',
+        message: 'A rota solicitada não existe'
+    });
 });
 
 app.listen(PORT, async () => {
