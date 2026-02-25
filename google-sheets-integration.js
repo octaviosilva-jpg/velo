@@ -1375,24 +1375,25 @@ class GoogleSheetsIntegration {
                 }
                 
                 // Filtrar apenas moderações aprovadas (sem feedback)
+                // Normalizar status para comparação (remover espaços e converter para minúsculas)
                 const statusTrimmed = statusAprovacao ? statusAprovacao.toString().trim() : '';
-                const isAprovada = statusTrimmed === 'Aprovada' || statusTrimmed.toLowerCase() === 'aprovada';
-                const semFeedback = !feedback || feedback.toString().trim() === '';
+                const statusNormalized = statusTrimmed.toLowerCase();
+                const isAprovada = statusNormalized === 'aprovada';
                 
+                // Verificar se tem feedback (moderações coerentes não devem ter feedback)
+                const feedbackTrimmed = feedback ? feedback.toString().trim() : '';
+                const semFeedback = feedbackTrimmed === '';
+                
+                // Incluir se for aprovada e sem feedback
                 if (isAprovada && semFeedback) {
                     moderacoes.push(moderacao);
-                    console.log(`✅ Moderação ${i} incluída - ID: ${row[1]}, Status: "${statusAprovacao}"`);
-                } else {
-                    if (statusAprovacao) { // Só logar se tiver status (evitar spam)
-                        console.log(`⏭️ Moderação ${i} filtrada - Status: "${statusAprovacao}", Feedback: "${feedback}"`);
-                    }
                 }
             }
             
             console.log(`✅ ${moderacoes.length} moderações coerentes obtidas do Google Sheets (de ${data.length - 1} linhas totais)`);
             
-            // Salvar no cache
-            this.setCache(cacheKey, moderacoes);
+            // Não salvar no cache por enquanto para garantir dados sempre atualizados
+            // this.setCache(cacheKey, moderacoes);
             
             return moderacoes;
             
