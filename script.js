@@ -180,10 +180,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carregar FAQs do backend
     carregarFAQs();
     
-    // Listener para quando a aba de gerenciamento de FAQs for aberta
+    // Listener para quando as abas de FAQ forem abertas
+    const gerarFAQTab = document.getElementById('gerar-faq-tab');
     const gerenciarFAQTab = document.getElementById('gerenciar-faq-tab');
+    
+    if (gerarFAQTab) {
+        gerarFAQTab.addEventListener('shown.bs.tab', function() {
+            console.log('📋 Aba "Gerar FAQ" aberta, recarregando FAQs...');
+            carregarFAQs();
+        });
+    }
+    
     if (gerenciarFAQTab) {
         gerenciarFAQTab.addEventListener('shown.bs.tab', function() {
+            console.log('📋 Aba "Gerenciar FAQs" aberta, recarregando FAQs...');
             carregarFAQs();
         });
     }
@@ -3046,24 +3056,32 @@ async function carregarFAQs() {
 // Atualizar select de temas com FAQs do backend
 function atualizarSelectFAQs() {
     const select = document.getElementById('tema-faq');
-    if (!select) return;
+    if (!select) {
+        console.warn('⚠️ Elemento tema-faq não encontrado');
+        return;
+    }
     
-    // Limpar opções existentes (exceto a primeira)
+    // Limpar opções existentes
     select.innerHTML = '<option value="">Selecione o tema...</option>';
     
     // Adicionar FAQs do backend
+    let faqsAdicionadas = 0;
     faqsCache.forEach(faq => {
-        if (faq.tema && faq.titulo) {
+        if (faq && faq.tema && faq.titulo) {
             const option = document.createElement('option');
             option.value = faq.tema;
             option.textContent = faq.titulo;
             select.appendChild(option);
+            faqsAdicionadas++;
         }
     });
     
     // Se não houver FAQs, mostrar mensagem
-    if (faqsCache.length === 0) {
-        select.innerHTML = '<option value="">Nenhum FAQ cadastrado</option>';
+    if (faqsAdicionadas === 0) {
+        select.innerHTML = '<option value="">Nenhum FAQ cadastrado - Clique em "Importar FAQs Antigas" para começar</option>';
+        console.log('⚠️ Nenhum FAQ encontrado para popular o select');
+    } else {
+        console.log(`✅ ${faqsAdicionadas} FAQ(s) adicionado(s) ao select`);
     }
 }
 

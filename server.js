@@ -13502,14 +13502,24 @@ app.get('/api/faqs', async (req, res) => {
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
             // Pular linhas completamente vazias ou sem ID
-            if (!row || row.length === 0 || !row[0] || String(row[0]).trim() === '') {
+            if (!row || row.length === 0) {
+                continue;
+            }
+            
+            // Verificar se tem pelo menos ID e Tema (colunas A e C)
+            const id = String(row[0] || '').trim();
+            const tema = String(row[2] || '').trim();
+            
+            // Pular se não tiver ID ou tema
+            if (!id || !tema) {
+                console.log(`⏭️ Pulando linha ${i + 1}: sem ID ou tema (ID: "${id}", Tema: "${tema}")`);
                 continue;
             }
             
             faqs.push({
-                id: String(row[0] || '').trim(),
+                id: id,
                 titulo: String(row[1] || '').trim(),
-                tema: String(row[2] || '').trim(),
+                tema: tema,
                 explicacao: String(row[3] || '').trim(),
                 dataCriacao: String(row[4] || '').trim(),
                 dataAtualizacao: String(row[5] || '').trim()
