@@ -9511,6 +9511,8 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
             
             // SALVAMENTO COM AWAIT PARA GARANTIR REGISTRO
             // A função registrarModeracaoCoerente já tem auto-inicialização
+            // Quando marca como coerente, o status deve ser 'Aprovada'
+            moderacaoData.statusAprovacao = 'Aprovada';
             try {
                 const resultado = await googleSheetsIntegration.registrarModeracaoCoerente(moderacaoData);
                 if (resultado) {

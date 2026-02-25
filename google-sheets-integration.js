@@ -860,6 +860,8 @@ class GoogleSheetsIntegration {
 
     /**
      * Registra uma moderação coerente no Google Sheets
+     * @param {Object} moderacaoData - Dados da moderação
+     * @param {string} moderacaoData.statusAprovacao - Status da aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
      */
     async registrarModeracaoCoerente(moderacaoData) {
         console.log('🔍 [DEBUG] Tentando registrar moderação coerente...');
@@ -915,9 +917,9 @@ class GoogleSheetsIntegration {
                 '', // Coluna J: Feedback (vazio para moderações aprovadas)
                 moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // Coluna K: Texto Moderação Reformulado
                 moderacaoData.linhaRaciocinio || '', // Coluna L: Linha Raciocínio
-                'Pendente', // Coluna M: Status Aprovação (Pendente até ser marcada como Aceita/Negada)
+                moderacaoData.statusAprovacao || 'Pendente', // Coluna M: Status Aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
                 moderacaoData.observacoesInternas || '', // Coluna N: Observações Internas
-                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
+                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
