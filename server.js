@@ -3920,6 +3920,53 @@ function parsearData(dataStr) {
     return null;
 }
 
+// Função para separar linha de raciocínio e texto de moderação
+function separarBlocosModeracao(resposta) {
+    if (!resposta) return { linhaRaciocinio: '', textoModeracao: '' };
+    
+    // Procurar por marcadores que indicam os blocos
+    const marcadores = [
+        '(1) LINHA DE RACIOCÍNIO INTERNA',
+        '(2) TEXTO FINAL DE MODERAÇÃO',
+        'LINHA DE RACIOCÍNIO INTERNA',
+        'TEXTO FINAL DE MODERAÇÃO',
+        '1. LINHA DE RACIOCÍNIO INTERNA',
+        '2. TEXTO FINAL DE MODERAÇÃO'
+    ];
+    
+    let linhaRaciocinio = '';
+    let textoModeracao = '';
+    
+    // Tentar separar por marcadores
+    for (let i = 0; i < marcadores.length; i += 2) {
+        const marcador1 = marcadores[i];
+        const marcador2 = marcadores[i + 1];
+        
+        const index1 = resposta.indexOf(marcador1);
+        const index2 = resposta.indexOf(marcador2);
+        
+        if (index1 !== -1 && index2 !== -1) {
+            linhaRaciocinio = resposta.substring(index1 + marcador1.length, index2).trim();
+            textoModeracao = resposta.substring(index2 + marcador2.length).trim();
+            break;
+        }
+    }
+    
+    // Se não encontrou marcadores, tentar separar por quebras de linha duplas
+    if (!linhaRaciocinio && !textoModeracao) {
+        const partes = resposta.split('\n\n');
+        if (partes.length >= 2) {
+            linhaRaciocinio = partes[0].trim();
+            textoModeracao = partes.slice(1).join('\n\n').trim();
+        } else {
+            // Se não conseguiu separar, usar toda a resposta como texto final
+            textoModeracao = resposta;
+        }
+    }
+    
+    return { linhaRaciocinio, textoModeracao };
+}
+
 // Rota para gerar moderação via API OpenAI
 app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
     try {
@@ -4378,6 +4425,44 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 console.log('📝 A IA deve seguir o script estruturado definido no prompt');
             }
             
+            // Separar linha de raciocínio e texto de moderação
+            const partes = separarBlocosModeracao(resposta);
+            const linhaRaciocinio = partes.linhaRaciocinio || '';
+            const textoModeracao = partes.textoModeracao || resposta;
+            
+            // Gerar ID único para a moderação
+            const moderacaoId = Date.now();
+            
+            // Salvar moderação inicial na planilha "Moderações" com ID da reclamação
+            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+                try {
+                    console.log('💾 Salvando moderação inicial na planilha "Moderações"...');
+                    const moderacaoData = {
+                        id: moderacaoId,
+                        idReclamacao: idReclamacao.trim(), // ID da Reclamação
+                        tipo: 'moderacao',
+                        dadosModeracao: dadosModeracao,
+                        linhaRaciocinio: linhaRaciocinio,
+                        textoModeracao: textoModeracao,
+                        textoFinal: textoModeracao,
+                        userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
+                        userName: req.userData?.nome || 'N/A',
+                        userEmail: req.userData?.email || 'N/A'
+                    };
+                    
+                    // Usar função existente para salvar moderação coerente (mesma estrutura)
+                    const resultado = await googleSheetsIntegration.registrarModeracaoCoerente(moderacaoData);
+                    if (resultado) {
+                        console.log(`✅ Moderação inicial salva na planilha "Moderações" com ID: ${moderacaoId} e ID da Reclamação: ${idReclamacao}`);
+                    } else {
+                        console.log('⚠️ Falha ao salvar moderação inicial no Google Sheets');
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao salvar moderação inicial:', error.message);
+                    // Não bloquear a resposta se houver erro ao salvar
+                }
+            }
+            
             // Aprendizado negativo já foi consultado antes da geração e incluído no prompt
             
             // Incrementar estatística global
@@ -4395,6 +4480,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
             res.json({
                 success: true,
                 result: resposta,
+                moderacaoId: moderacaoId, // Retornar ID da moderação para uso no frontend
                 aprendizadoPositivoAplicado: aprendizadoPositivoAplicado,
                 aprendizadoNegativoAplicado: aprendizadoNegativoAplicado,
                 pesoModeloPrincipal: aprendizadoPositivo?.modeloPrincipal?.peso || null,
@@ -9688,30 +9774,30 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         }
         
         // Extrair dados da moderação
-        // Colunas da página "Moderações":
-        // A: Data/Hora (0), B: ID (1), C: Tipo (2), D: Solicitação Cliente (3), E: Resposta Empresa (4),
-        // F: Consideração Final (5), G: Motivo Moderação (6), H: Texto Moderação Anterior (7),
-        // I: Feedback (8), J: Texto Moderação Reformulado (9), K: Linha Raciocínio (10),
-        // L: Status Aprovação (11), M: Observações Internas (12)
+        // Colunas da página "Moderações" (atualizada):
+        // A: Data/Hora (0), B: ID (1), C: ID da Reclamação (2), D: Tipo (3), E: Solicitação Cliente (4),
+        // F: Resposta Empresa (5), G: Consideração Final (6), H: Motivo Moderação (7),
+        // I: Texto Moderação Anterior (8), J: Feedback (9), K: Texto Moderação Reformulado (10),
+        // L: Linha Raciocínio (11), M: Status Aprovação (12), N: Observações Internas (13),
+        // O: Resultado da Moderação (14)
         
         const dataHoraRegistro = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
         const dataHoraModeracao = moderacaoRow[0] || ''; // Data/Hora da moderação original
-        const solicitacaoCliente = moderacaoRow[3] || '';
-        const respostaEmpresa = moderacaoRow[4] || '';
-        const motivoModeracao = moderacaoRow[6] || '';
-        const textoModeracao = moderacaoRow[9] || '';
-        const linhaRaciocinio = moderacaoRow[10] || '';
-        const consideracaoFinal = moderacaoRow[5] || '';
-        const statusAprovacao = moderacaoRow[11] || '';
-        const observacoesInternas = moderacaoRow[12] || '';
+        const idReclamacao = (moderacaoRow[2] || '').toString().trim(); // ID da Reclamação (coluna C)
+        const solicitacaoCliente = moderacaoRow[4] || '';
+        const respostaEmpresa = moderacaoRow[5] || '';
+        const motivoModeracao = moderacaoRow[7] || '';
+        const textoModeracao = moderacaoRow[10] || '';
+        const linhaRaciocinio = moderacaoRow[11] || '';
+        const consideracaoFinal = moderacaoRow[6] || '';
+        const statusAprovacao = moderacaoRow[12] || '';
+        const observacoesInternas = moderacaoRow[13] || '';
         
         // Identificar tema da moderação (pode ser extraído do motivo ou inferido)
         // Por enquanto, usar o motivo como tema, pode ser refinado depois
         const temaModeracao = motivoModeracao || 'geral';
         
-        // Identificar ID da reclamação (se houver na solicitação ou observações)
-        // Por enquanto, deixar vazio, pode ser extraído depois se necessário
-        const idReclamacao = '';
+        console.log(`📋 ID da Reclamação extraído da planilha: "${idReclamacao}"`);
         
         let bloco1 = '';
         let bloco2 = '';

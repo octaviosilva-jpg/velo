@@ -400,6 +400,7 @@ class GoogleSheetsIntegration {
             await this.ensureSheetExists('Moderações', [
                 'Data/Hora',
                 'ID',
+                'ID da Reclamação',
                 'Tipo',
                 'Solicitação Cliente',
                 'Resposta Empresa',
@@ -410,7 +411,8 @@ class GoogleSheetsIntegration {
                 'Texto Moderação Reformulado',
                 'Linha Raciocínio',
                 'Status Aprovação',
-                'Observações Internas'
+                'Observações Internas',
+                'Resultado da Moderação'
             ]);
 
             // Planilha "Resultados da Moderação" não é mais usada
@@ -654,18 +656,19 @@ class GoogleSheetsIntegration {
             const row = [
                 new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
                 feedbackData.id || '', // Coluna B: ID
-                feedbackData.tipo || 'moderacao', // Coluna C: Tipo
-                feedbackData.dadosModeracao?.solicitacaoCliente || '', // Coluna D: Solicitação Cliente
-                feedbackData.dadosModeracao?.respostaEmpresa || '', // Coluna E: Resposta Empresa
-                feedbackData.dadosModeracao?.consideracaoFinal || '', // Coluna F: Consideração Final
-                feedbackData.dadosModeracao?.motivoModeracao || '', // Coluna G: Motivo Moderação
-                feedbackData.textoNegado || '', // Coluna H: Texto Moderação Anterior
-                feedbackData.motivoNegativa || '', // Coluna I: Feedback
-                feedbackData.textoReformulado || '', // Coluna J: Texto Moderação Reformulado
-                feedbackData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
-                'Pendente', // Coluna L: Status Aprovação
-                feedbackData.observacoesInternas || '', // Coluna M: Observações Internas
-                '' // Coluna N: Resultado da Moderação (vazio até ser preenchido pelo agente)
+                feedbackData.idReclamacao || '', // Coluna C: ID da Reclamação
+                feedbackData.tipo || 'moderacao', // Coluna D: Tipo
+                feedbackData.dadosModeracao?.solicitacaoCliente || '', // Coluna E: Solicitação Cliente
+                feedbackData.dadosModeracao?.respostaEmpresa || '', // Coluna F: Resposta Empresa
+                feedbackData.dadosModeracao?.consideracaoFinal || '', // Coluna G: Consideração Final
+                feedbackData.dadosModeracao?.motivoModeracao || '', // Coluna H: Motivo Moderação
+                feedbackData.textoNegado || '', // Coluna I: Texto Moderação Anterior
+                feedbackData.motivoNegativa || '', // Coluna J: Feedback
+                feedbackData.textoReformulado || '', // Coluna K: Texto Moderação Reformulado
+                feedbackData.linhaRaciocinio || '', // Coluna L: Linha Raciocínio
+                'Pendente', // Coluna M: Status Aprovação
+                feedbackData.observacoesInternas || '', // Coluna N: Observações Internas
+                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
@@ -740,18 +743,19 @@ class GoogleSheetsIntegration {
             const row = [
                 new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
                 moderacaoData.id || '', // Coluna B: ID
-                moderacaoData.tipo || 'moderacao', // Coluna C: Tipo
-                moderacaoData.dadosModeracao?.solicitacaoCliente || '', // Coluna D: Solicitação Cliente
-                moderacaoData.dadosModeracao?.respostaEmpresa || '', // Coluna E: Resposta Empresa
-                moderacaoData.dadosModeracao?.consideracaoFinal || '', // Coluna F: Consideração Final
-                moderacaoData.dadosModeracao?.motivoModeracao || '', // Coluna G: Motivo Moderação
-                '', // Coluna H: Texto Moderação Anterior (vazio para moderações aprovadas)
-                '', // Coluna I: Feedback (vazio para moderações aprovadas)
-                moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // Coluna J: Texto Moderação Reformulado
-                moderacaoData.linhaRaciocinio || '', // Coluna K: Linha Raciocínio
-                'Aprovada', // Coluna L: Status Aprovação
-                moderacaoData.observacoesInternas || '', // Coluna M: Observações Internas
-                '' // Coluna N: Resultado da Moderação (vazio até ser preenchido pelo agente)
+                moderacaoData.idReclamacao || '', // Coluna C: ID da Reclamação
+                moderacaoData.tipo || 'moderacao', // Coluna D: Tipo
+                moderacaoData.dadosModeracao?.solicitacaoCliente || '', // Coluna E: Solicitação Cliente
+                moderacaoData.dadosModeracao?.respostaEmpresa || '', // Coluna F: Resposta Empresa
+                moderacaoData.dadosModeracao?.consideracaoFinal || '', // Coluna G: Consideração Final
+                moderacaoData.dadosModeracao?.motivoModeracao || '', // Coluna H: Motivo Moderação
+                '', // Coluna I: Texto Moderação Anterior (vazio para moderações aprovadas)
+                '', // Coluna J: Feedback (vazio para moderações aprovadas)
+                moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // Coluna K: Texto Moderação Reformulado
+                moderacaoData.linhaRaciocinio || '', // Coluna L: Linha Raciocínio
+                'Pendente', // Coluna M: Status Aprovação (Pendente até ser marcada como Aceita/Negada)
+                moderacaoData.observacoesInternas || '', // Coluna N: Observações Internas
+                '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
