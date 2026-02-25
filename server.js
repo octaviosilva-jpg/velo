@@ -11114,16 +11114,6 @@ app.post('/api/force-initialize-google-sheets', async (req, res) => {
     }
 });
 
-// Middleware para rotas não encontradas (deve ser o último, após todos os endpoints)
-app.use('*', (req, res) => {
-    console.log(`❌ [404] Rota não encontrada: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({
-        success: false,
-        error: 'Rota não encontrada',
-        message: 'A rota solicitada não existe'
-    });
-});
-
 app.listen(PORT, async () => {
     console.log('🚀 Servidor Velotax Bot iniciado!');
     console.log(`📡 Porta: ${PORT}`);
@@ -12970,6 +12960,16 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
     console.log('\n🛑 Encerrando servidor...');
     process.exit(0);
+});
+
+// Middleware para rotas não encontradas (DEVE SER O ÚLTIMO, após TODOS os endpoints)
+app.use('*', (req, res) => {
+    console.log(`❌ [404] Rota não encontrada: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+        success: false,
+        error: 'Rota não encontrada',
+        message: 'A rota solicitada não existe'
+    });
 });
 
 module.exports = app;
