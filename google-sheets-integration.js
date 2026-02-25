@@ -475,30 +475,100 @@ class GoogleSheetsIntegration {
      * Garante que uma planilha específica existe
      */
     async ensureSheetExists(sheetName, headers) {
-        if (!this.isActive()) return;
+        if (!this.isActive()) {
+            console.warn(`⚠️ Google Sheets não está ativo, não é possível garantir existência da planilha ${sheetName}`);
+            return;
+        }
 
         try {
-            // Tentar ler a primeira linha para verificar se a planilha existe
-            const range = `${sheetName}!A1:Z1`;
-            const data = await googleSheetsConfig.readData(range);
+            console.log(`🔍 Verificando se a planilha "${sheetName}" existe...`);
             
-            if (!data || data.length === 0) {
-                // Planilha vazia, criar cabeçalhos
-                await googleSheetsConfig.appendRow(range, headers);
-                console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
+            // Primeiro, verificar se a aba existe na planilha
+            const sheets = googleSheetsConfig.getSheets();
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            
+            let sheetExists = false;
+            let sheetId = null;
+            
+            try {
+                const spreadsheet = await sheets.spreadsheets.get({
+                    spreadsheetId: spreadsheetId,
+                    fields: 'sheets.properties'
+                });
                 
-                // Aplicar formatação básica para corrigir problemas de visualização
-                try {
-                    await googleSheetsConfig.aplicarFormatacaoBasica(sheetName);
-                } catch (error) {
-                    console.error(`⚠️ Erro ao aplicar formatação na planilha ${sheetName}:`, error.message);
+                for (const sheet of spreadsheet.data.sheets) {
+                    if (sheet.properties.title === sheetName) {
+                        sheetExists = true;
+                        sheetId = sheet.properties.sheetId;
+                        console.log(`✅ Aba "${sheetName}" já existe (ID: ${sheetId})`);
+                        break;
+                    }
                 }
-            } else {
-                console.log(`✅ Planilha ${sheetName} já existe`);
+            } catch (error) {
+                console.warn(`⚠️ Erro ao listar abas:`, error.message);
+            }
+            
+            // Se a aba não existir, criar
+            if (!sheetExists) {
+                console.log(`📝 Criando nova aba "${sheetName}"...`);
+                try {
+                    const request = {
+                        spreadsheetId: spreadsheetId,
+                        resource: {
+                            requests: [{
+                                addSheet: {
+                                    properties: {
+                                        title: sheetName
+                                    }
+                                }
+                            }]
+                        }
+                    };
+                    
+                    const response = await sheets.spreadsheets.batchUpdate(request);
+                    sheetId = response.data.replies[0].addSheet.properties.sheetId;
+                    console.log(`✅ Aba "${sheetName}" criada com sucesso (ID: ${sheetId})`);
+                } catch (createError) {
+                    console.error(`❌ Erro ao criar aba "${sheetName}":`, createError.message);
+                    throw createError;
+                }
+            }
+            
+            // Agora verificar se tem cabeçalhos
+            try {
+                const range = `${sheetName}!A1:F1`;
+                const data = await googleSheetsConfig.readData(range);
+                
+                if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
+                    // Planilha vazia ou sem cabeçalhos, criar cabeçalhos
+                    console.log(`📝 Criando cabeçalhos na planilha "${sheetName}"...`);
+                    await googleSheetsConfig.appendRow(`${sheetName}!A1`, headers);
+                    console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
+                    
+                    // Aplicar formatação básica
+                    try {
+                        await googleSheetsConfig.aplicarFormatacaoBasica(sheetName);
+                    } catch (error) {
+                        console.error(`⚠️ Erro ao aplicar formatação na planilha ${sheetName}:`, error.message);
+                    }
+                } else {
+                    console.log(`✅ Planilha "${sheetName}" já possui cabeçalhos`);
+                }
+            } catch (readError) {
+                // Se não conseguir ler, tentar criar cabeçalhos mesmo assim
+                console.warn(`⚠️ Erro ao ler cabeçalhos, tentando criar:`, readError.message);
+                try {
+                    await googleSheetsConfig.appendRow(`${sheetName}!A1`, headers);
+                    console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
+                } catch (appendError) {
+                    console.error(`❌ Erro ao criar cabeçalhos:`, appendError.message);
+                }
             }
 
         } catch (error) {
-            console.error(`❌ Erro ao verificar planilha ${sheetName}:`, error.message);
+            console.error(`❌ Erro ao verificar/criar planilha ${sheetName}:`, error.message);
+            console.error('Stack:', error.stack);
+            throw error; // Re-throw para que o chamador saiba que houve erro
         }
     }
 
