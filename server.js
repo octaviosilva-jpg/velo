@@ -12458,11 +12458,32 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
 
         // Se não encontrou, buscar em negadas
         // Estrutura: [0]Data, [1]ID Moderação (coluna B), [2]ID Reclamação, [3]Tema, [4]Motivo, [5]Texto,
-        // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio
-        // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1)
+        // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio, [14]Data/Hora Original
+        // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1), Data/Hora na coluna O (índice 14)
         if (!moderacao) {
             console.log('🔍 [API] Buscando em Moderações Negadas...');
             console.log(`🔍 [API] ID buscado: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
+            
+            // Primeiro, buscar a data/hora original na planilha "Moderações" usando o ID
+            let dataHoraOriginal = null;
+            try {
+                const moderacoesData = await googleSheetsConfig.readData('Moderações!A1:Z1000');
+                if (moderacoesData && moderacoesData.length > 1) {
+                    for (let i = 1; i < moderacoesData.length; i++) {
+                        const row = moderacoesData[i];
+                        if (!row || row.length < 2) continue;
+                        const rowId = (row[1] || '').toString().trim().replace(/\s+/g, '');
+                        if (rowId === idModeracaoNormalized) {
+                            dataHoraOriginal = (row[0] || '').toString().trim();
+                            console.log(`📅 [API] Data/Hora original encontrada na planilha "Moderações": "${dataHoraOriginal}"`);
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(`⚠️ [API] Erro ao buscar data/hora original: ${error.message}`);
+            }
+            
             try {
                 negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
                 console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
@@ -12478,7 +12499,8 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     if (tempRow && tempRow.length > 1) {
                         const tempIdRaw = (tempRow[1] || '').toString();
                         const tempId = tempIdRaw.trim().replace(/\s+/g, ''); // Remove todos os espaços
-                        console.log(`   Linha ${j + 1}: ID raw="${JSON.stringify(tempIdRaw)}" → normalizado="${tempId}" (tipo: ${typeof tempRow[1]})`);
+                        const tempDataHora = tempRow.length > 14 ? (tempRow[14] || '').toString().trim() : '';
+                        console.log(`   Linha ${j + 1}: ID="${tempId}", Data/Hora Original="${tempDataHora}"`);
                     }
                 }
                 
@@ -12486,52 +12508,35 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     const row = negadasData[i];
                     if (!row || row.length < 2) continue;
                     
-                    // ID está na coluna B (índice 1) - "ID da Moderação"
-                    // Remover TODOS os espaços (início, fim e meio) para comparação
-                    const idRowRaw = (row[1] || '').toString();
-                    const idRow = idRowRaw.trim().replace(/\s+/g, ''); // Remove espaços do início, fim e meio
-                    const idRowNormalized = idRow; // Já está sem espaços
-                    
-                    // Comparar IDs de múltiplas formas
-                    let idsCoincidem = false;
+                    let encontrado = false;
                     let tipoMatch = '';
                     
-                    // Comparação 1: Strings normalizadas (sem espaços)
-                    if (idRowNormalized === idModeracaoNormalized) {
-                        idsCoincidem = true;
-                        tipoMatch = 'string normalizada';
+                    // MÉTODO 1: Buscar pelo ID (coluna B - índice 1)
+                    const idRowRaw = (row[1] || '').toString();
+                    const idRow = idRowRaw.trim().replace(/\s+/g, '');
+                    
+                    if (idRow === idModeracaoNormalized || 
+                        (!isNaN(idRow) && !isNaN(idModeracaoNormalized) && 
+                         (idRow.length > 15 ? BigInt(idRow) === BigInt(idModeracaoNormalized) : 
+                          Number(idRow) === Number(idModeracaoNormalized)))) {
+                        encontrado = true;
+                        tipoMatch = 'ID';
                     }
-                    // Comparação 2: Strings originais
-                    else if (idRow === idModeracao) {
-                        idsCoincidem = true;
-                        tipoMatch = 'string original';
-                    }
-                    // Comparação 3: Como números (se ambos forem numéricos)
-                    else if (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized)) {
-                        try {
-                            const numRow = idRowNormalized.length > 15 ? BigInt(idRowNormalized) : Number(idRowNormalized);
-                            const numBuscado = idModeracaoNormalized.length > 15 ? BigInt(idModeracaoNormalized) : Number(idModeracaoNormalized);
-                            if (numRow === numBuscado) {
-                                idsCoincidem = true;
-                                tipoMatch = 'número';
-                            }
-                        } catch (e) {
-                            if (Number(idRowNormalized) === Number(idModeracaoNormalized)) {
-                                idsCoincidem = true;
-                                tipoMatch = 'Number';
-                            }
+                    
+                    // MÉTODO 2: Se não encontrou pelo ID e temos a data/hora original, buscar por ela (coluna O - índice 14)
+                    if (!encontrado && dataHoraOriginal && row.length > 14) {
+                        const dataHoraRow = (row[14] || '').toString().trim();
+                        if (dataHoraRow && dataHoraRow === dataHoraOriginal) {
+                            encontrado = true;
+                            tipoMatch = 'Data/Hora Original';
+                            console.log(`📅 [API] Match por Data/Hora Original na linha ${i + 1}: "${dataHoraRow}"`);
                         }
                     }
                     
-                    if (idsCoincidem) {
-                        console.log(`✅ [API] Match encontrado na linha ${i + 1} por ${tipoMatch}: "${idRow}" === "${idModeracao}"`);
-                    }
-                    
-                    if (idsCoincidem) {
-                        console.log(`✅ [API] Moderação encontrada em Moderações Negadas (linha ${i + 1})`);
-                        console.log(`✅ [API] ID encontrado: "${idRow}" corresponde ao ID buscado: "${idModeracao}"`);
+                    if (encontrado) {
+                        console.log(`✅ [API] Moderação encontrada em Moderações Negadas (linha ${i + 1}) por ${tipoMatch}`);
                         moderacao = {
-                            idModeracao: idRow,
+                            idModeracao: idRow || (row[1] || '').toString().trim(),
                             idReclamacao: (row[2] || '').toString().trim(),
                             tema: (row[3] || '').toString().trim(),
                             motivo: (row[4] || '').toString().trim(),
@@ -12542,6 +12547,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                             respostaEmpresa: (row[11] || '').toString().trim(),
                             consideracaoFinal: (row[12] || '').toString().trim(),
                             linhaRaciocinio: (row[13] || '').toString().trim(),
+                            dataHoraOriginal: row.length > 14 ? (row[14] || '').toString().trim() : '',
                             // Análise FASE 2
                             motivoNegativa: (row[7] || '').toString().trim(), // Bloco 1
                             ondeErrou: (row[8] || '').toString().trim(), // Bloco 2
@@ -12554,6 +12560,9 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 
                 if (!moderacao) {
                     console.log(`⚠️ [API] Nenhuma correspondência encontrada após verificar ${negadasData.length - 1} linhas`);
+                    if (dataHoraOriginal) {
+                        console.log(`⚠️ [API] Tentou buscar também por Data/Hora Original: "${dataHoraOriginal}"`);
+                    }
                 }
             }
         }
