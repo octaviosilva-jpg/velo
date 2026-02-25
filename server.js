@@ -13184,6 +13184,9 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
             'Resultado da Moderação' // [14]
         ];
 
+        // Preparar todas as linhas corrigidas primeiro
+        const linhasParaAtualizar = [];
+        
         // Processar cada linha (pular cabeçalho)
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
@@ -13207,11 +13210,11 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
                                (hStr.toLowerCase().includes('feedback') && hEsperado.toLowerCase().includes('feedback'));
                     });
 
-                    if (indexAtual >= 0 && row[indexAtual] !== undefined) {
+                    if (indexAtual >= 0 && row[indexAtual] !== undefined && row[indexAtual] !== null) {
                         novaRow[indexEsperado] = row[indexAtual];
                     } else {
                         // Se não encontrar pelo cabeçalho, tentar pelo índice esperado
-                        if (row[indexEsperado] !== undefined) {
+                        if (row[indexEsperado] !== undefined && row[indexEsperado] !== null) {
                             novaRow[indexEsperado] = row[indexEsperado];
                         }
                     }
@@ -13222,28 +13225,71 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
                 if (!novaRow[1] && row[0] && !isNaN(row[0])) novaRow[1] = row[0];
 
                 // Garantir que Data/Hora está na coluna A (índice 0)
-                if (!novaRow[0] && row[0] && isNaN(row[0])) novaRow[0] = row[0];
+                if (!novaRow[0] && row[0]) {
+                    // Se row[0] não parece ser data, tentar encontrar data em outra coluna
+                    const dataStr = row[0].toString();
+                    if (!dataStr.match(/^\d{2}\/\d{2}\/\d{4}/) && !dataStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        // Não é data, procurar em outras colunas
+                        for (let j = 0; j < row.length; j++) {
+                            if (row[j] && row[j].toString().match(/^\d{2}\/\d{2}\/\d{4}/)) {
+                                novaRow[0] = row[j];
+                                break;
+                            }
+                        }
+                    } else {
+                        novaRow[0] = row[0];
+                    }
+                }
 
                 // Se Status Aprovação estiver vazio mas deveria ser 'Aprovada' (moderações coerentes)
                 // Verificar se há dados nas colunas de moderação coerente
-                if (!novaRow[12] && novaRow[10] && novaRow[10].trim() !== '') {
-                    // Se tem Texto Moderação Reformulado, provavelmente é uma moderação coerente
-                    novaRow[12] = 'Aprovada';
+                if (!novaRow[12] || novaRow[12].toString().trim() === '') {
+                    if (novaRow[10] && novaRow[10].toString().trim() !== '') {
+                        // Se tem Texto Moderação Reformulado, provavelmente é uma moderação coerente
+                        novaRow[12] = 'Aprovada';
+                    }
                 }
 
-                // Atualizar a linha na planilha
-                const linhaNumero = i + 1;
-                const range = `Moderações!A${linhaNumero}:O${linhaNumero}`;
-                await googleSheetsConfig.updateRow(range, novaRow);
+                // Adicionar à lista de linhas para atualizar
+                linhasParaAtualizar.push({
+                    linhaNumero: i + 1,
+                    dados: novaRow
+                });
                 
-                linhasCorrigidas.push(linhaNumero);
-                
-                if (i % 10 === 0) {
-                    console.log(`📝 Corrigidas ${linhasCorrigidas.length} linhas...`);
-                }
             } catch (error) {
                 erros.push({ linha: i + 1, erro: error.message });
-                console.error(`❌ Erro ao corrigir linha ${i + 1}:`, error.message);
+                console.error(`❌ Erro ao processar linha ${i + 1}:`, error.message);
+            }
+        }
+
+        console.log(`📝 Processadas ${linhasParaAtualizar.length} linhas para correção`);
+
+        // Atualizar linhas em lotes para evitar rate limiting
+        const tamanhoLote = 10; // Atualizar 10 linhas por vez
+        for (let i = 0; i < linhasParaAtualizar.length; i += tamanhoLote) {
+            const lote = linhasParaAtualizar.slice(i, i + tamanhoLote);
+            
+            try {
+                // Atualizar cada linha do lote
+                for (const item of lote) {
+                    try {
+                        const range = `Moderações!A${item.linhaNumero}:O${item.linhaNumero}`;
+                        await googleSheetsConfig.updateRow(range, item.dados);
+                        linhasCorrigidas.push(item.linhaNumero);
+                    } catch (error) {
+                        erros.push({ linha: item.linhaNumero, erro: error.message });
+                        console.error(`❌ Erro ao atualizar linha ${item.linhaNumero}:`, error.message);
+                    }
+                }
+                
+                // Aguardar um pouco entre lotes para evitar rate limiting
+                if (i + tamanhoLote < linhasParaAtualizar.length) {
+                    await new Promise(resolve => setTimeout(resolve, 500)); // 500ms entre lotes
+                }
+                
+                console.log(`📝 Corrigidas ${linhasCorrigidas.length} de ${linhasParaAtualizar.length} linhas...`);
+            } catch (error) {
+                console.error(`❌ Erro ao processar lote:`, error.message);
             }
         }
 
