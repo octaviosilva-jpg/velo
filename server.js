@@ -9703,6 +9703,8 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 const resultado = await googleSheetsConfig.appendRow('Moderações Negadas!A1', novaLinhaNegadas);
                 console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
                 console.log(`✅ [SAVE] ID salvo: "${moderacaoIdTrimmed.toString()}" (tipo: ${typeof moderacaoIdTrimmed.toString()})`);
+                console.log(`✅ [SAVE] ID salvo na coluna B (índice 1): "${novaLinhaNegadas[1]}"`);
+                console.log(`✅ [SAVE] Para buscar este ID, use: GET /api/moderacao/${moderacaoIdTrimmed.toString()}`);
                 console.log(`📊 Resultado do append:`, resultado);
             } catch (error) {
                 console.error(`❌ ERRO ao salvar moderação negada:`, error);
@@ -12488,14 +12490,33 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 
                 // Log de todos os IDs encontrados para debug
                 const todosIds = [];
-                for (let j = 1; j < Math.min(negadasData.length, 20); j++) {
+                for (let j = 1; j < negadasData.length; j++) {
                     const tempRow = negadasData[j];
                     if (tempRow && tempRow.length > 1) {
                         const tempId = (tempRow[1] || '').toString().trim();
                         todosIds.push(tempId);
+                        // Se encontrar o ID, logar imediatamente
+                        if (tempId === idModeracao || tempId === idModeracaoNormalized || 
+                            tempId.replace(/\s+/g, '') === idModeracaoNormalized) {
+                            console.log(`🎯 [API] ID ENCONTRADO na linha ${j + 1}: "${tempId}" (corresponde ao buscado: "${idModeracao}")`);
+                        }
                     }
                 }
-                console.log(`📋 [API] Primeiros 20 IDs encontrados em Moderações Negadas:`, todosIds);
+                console.log(`📋 [API] Total de ${todosIds.length} IDs encontrados em Moderações Negadas`);
+                console.log(`📋 [API] Primeiros 10 IDs:`, todosIds.slice(0, 10));
+                console.log(`📋 [API] Últimos 10 IDs:`, todosIds.slice(-10));
+                // Verificar se o ID buscado está na lista
+                const idEncontradoNaLista = todosIds.some(id => {
+                    const idNorm = id.replace(/\s+/g, '');
+                    return id === idModeracao || id === idModeracaoNormalized || 
+                           idNorm === idModeracaoNormalized ||
+                           (!isNaN(idNorm) && !isNaN(idModeracaoNormalized) && 
+                            (idNorm.length > 15 ? BigInt(idNorm) === BigInt(idModeracaoNormalized) : 
+                             Number(idNorm) === Number(idModeracaoNormalized)));
+                });
+                if (!idEncontradoNaLista) {
+                    console.log(`⚠️ [API] ID "${idModeracao}" NÃO encontrado na lista de IDs da planilha`);
+                }
                 
                 for (let i = 1; i < negadasData.length; i++) {
                     const row = negadasData[i];
