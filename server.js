@@ -73,6 +73,61 @@ function normalizarId(id) {
     return normalized;
 }
 
+// ===== FUNÇÃO PARA ENCONTRAR NOME CORRETO DA ABA =====
+/**
+ * Tenta encontrar o nome correto da aba, testando variações
+ * @param {Array} sheetNames - Lista de nomes de abas disponíveis
+ * @param {string} nomeBuscado - Nome que estamos procurando
+ * @returns {string|null} - Nome exato da aba encontrada ou null
+ */
+function encontrarNomeAba(sheetNames, nomeBuscado) {
+    if (!sheetNames || !Array.isArray(sheetNames)) return null;
+    
+    // Normalizar nome buscado
+    const nomeBuscadoLower = nomeBuscado.toLowerCase().trim();
+    const nomeBuscadoSemAcento = nomeBuscadoLower
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .replace(/\s+/g, ' '); // Normaliza espaços
+    
+    // Tentar encontrar correspondência exata primeiro
+    for (const sheetName of sheetNames) {
+        if (sheetName === nomeBuscado) {
+            return sheetName; // Nome exato encontrado
+        }
+    }
+    
+    // Tentar correspondência case-insensitive
+    for (const sheetName of sheetNames) {
+        if (sheetName.toLowerCase().trim() === nomeBuscadoLower) {
+            return sheetName; // Nome encontrado (case diferente)
+        }
+    }
+    
+    // Tentar correspondência sem acentos
+    for (const sheetName of sheetNames) {
+        const sheetNameSemAcento = sheetName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/\s+/g, ' ');
+        
+        if (sheetNameSemAcento === nomeBuscadoSemAcento) {
+            return sheetName; // Nome encontrado (acento diferente)
+        }
+    }
+    
+    // Tentar correspondência parcial
+    for (const sheetName of sheetNames) {
+        const sheetNameLower = sheetName.toLowerCase().trim();
+        if (sheetNameLower.includes(nomeBuscadoLower) || nomeBuscadoLower.includes(sheetNameLower)) {
+            return sheetName; // Nome parcial encontrado
+        }
+    }
+    
+    return null; // Nenhuma correspondência encontrada
+}
+
 // ===== SISTEMA DE VERIFICAÇÃO AUTOMÁTICA DE FEEDBACKS =====
 
 // Verificar feedbacks duplicados ou similares
@@ -12410,8 +12465,28 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
 
         // Buscar em aceitas
         // Planilha: "Dados de Solicitação", Página: "Moderações Aceitas", ID na coluna B (índice 1)
-        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z10000');
-        console.log(`📊 [API] Total de linhas em Moderações Aceitas: ${aceitasData ? aceitasData.length - 1 : 0}`);
+        let nomeAbaAceitas = 'Moderações Aceitas';
+        try {
+            const sheets = googleSheetsConfig.getSheets();
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: spreadsheetId,
+                fields: 'sheets.properties.title'
+            });
+            const sheetNames = spreadsheet.data.sheets.map(s => s.properties.title);
+            const nomeEncontrado = encontrarNomeAba(sheetNames, 'Moderações Aceitas');
+            if (nomeEncontrado) {
+                nomeAbaAceitas = nomeEncontrado;
+                if (nomeEncontrado !== 'Moderações Aceitas') {
+                    console.log(`⚠️ [API] Nome da aba Aceitas é "${nomeEncontrado}" e não "Moderações Aceitas"`);
+                }
+            }
+        } catch (listError) {
+            console.log('⚠️ [API] Não foi possível verificar nome da aba Aceitas:', listError.message);
+        }
+        
+        const aceitasData = await googleSheetsConfig.readData(`${nomeAbaAceitas}!A1:Z10000`);
+        console.log(`📊 [API] Total de linhas em ${nomeAbaAceitas}: ${aceitasData ? aceitasData.length - 1 : 0}`);
         let moderacao = null;
         let tipo = null;
         let negadasData = null; // Declarar aqui para estar disponível no erro 404
@@ -12505,10 +12580,48 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             }
             
             try {
-                negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
+                // Primeiro, tentar listar todas as abas para verificar o nome exato
+                let nomeAbaCorreto = 'Moderações Negadas';
+                try {
+                    const sheets = googleSheetsConfig.getSheets();
+                    const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+                    const spreadsheet = await sheets.spreadsheets.get({
+                        spreadsheetId: spreadsheetId,
+                        fields: 'sheets.properties.title'
+                    });
+                    const sheetNames = spreadsheet.data.sheets.map(s => s.properties.title);
+                    console.log('📋 [API] Abas disponíveis na planilha:', sheetNames);
+                    console.log('🔍 [API] Procurando aba "Moderações Negadas" na lista...');
+                    
+                    // Tentar encontrar o nome correto da aba
+                    const nomeEncontrado = encontrarNomeAba(sheetNames, 'Moderações Negadas');
+                    if (nomeEncontrado) {
+                        nomeAbaCorreto = nomeEncontrado;
+                        console.log(`✅ [API] Aba encontrada: "${nomeAbaCorreto}"`);
+                        if (nomeEncontrado !== 'Moderações Negadas') {
+                            console.log(`⚠️ [API] ATENÇÃO: Nome da aba é "${nomeEncontrado}" e não "Moderações Negadas"`);
+                        }
+                    } else {
+                        console.error('❌ [API] ABA "Moderações Negadas" NÃO ENCONTRADA!');
+                        console.error('❌ [API] Abas disponíveis:', sheetNames);
+                        console.error('❌ [API] Verifique se o nome da aba está correto na planilha');
+                    }
+                } catch (listError) {
+                    console.log('⚠️ [API] Não foi possível listar abas:', listError.message);
+                }
+                
+                // Usar o nome correto da aba encontrado
+                console.log(`📖 [API] Lendo dados da aba: "${nomeAbaCorreto}"`);
+                negadasData = await googleSheetsConfig.readData(`${nomeAbaCorreto}!A1:Z10000`);
                 console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
             } catch (error) {
                 console.error('❌ [API] Erro ao ler Moderações Negadas:', error.message);
+                console.error('❌ [API] Stack trace:', error.stack);
+                // Se o erro for sobre a aba não encontrada, tentar variações do nome
+                if (error.message.includes('Unable to parse range') || error.message.includes('not found')) {
+                    console.error('❌ [API] Possível problema: Nome da aba pode estar diferente!');
+                    console.error('❌ [API] Verifique se a aba se chama exatamente "Moderações Negadas" (com acento)');
+                }
                 throw error;
             }
             if (negadasData && negadasData.length > 1) {
