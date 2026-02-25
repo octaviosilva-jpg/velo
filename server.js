@@ -9677,9 +9677,10 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             }
         } else if (resultado === 'Negada') {
             // Salvar apenas na página "Moderações Negadas"
+            console.log(`💾 [SAVE] Salvando moderação negada com ID: "${moderacaoIdTrimmed}" (tipo: ${typeof moderacaoIdTrimmed})`);
             const novaLinhaNegadas = [
                 dataHoraRegistro,                // Data do Registro
-                moderacaoIdTrimmed,              // ID da Moderação
+                moderacaoIdTrimmed.toString(),   // ID da Moderação (garantir que é string)
                 idReclamacao,                    // ID da Reclamação
                 temaModeracao,                   // Tema
                 motivoModeracao,                 // Motivo Utilizado
@@ -9696,10 +9697,12 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             ];
             
             console.log(`💾 Salvando na página "Moderações Negadas"`);
+            console.log(`💾 [SAVE] Dados a serem salvos: ID="${moderacaoIdTrimmed.toString()}", Tema="${temaModeracao}", Resultado="${resultado}"`);
             console.log(`📋 Dados a serem salvos (${novaLinhaNegadas.length} colunas):`, novaLinhaNegadas);
             try {
                 const resultado = await googleSheetsConfig.appendRow('Moderações Negadas!A1', novaLinhaNegadas);
                 console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
+                console.log(`✅ [SAVE] ID salvo: "${moderacaoIdTrimmed.toString()}" (tipo: ${typeof moderacaoIdTrimmed.toString()})`);
                 console.log(`📊 Resultado do append:`, resultado);
             } catch (error) {
                 console.error(`❌ ERRO ao salvar moderação negada:`, error);
@@ -12482,6 +12485,17 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 console.log(`🔍 [API] Comparando ID buscado "${idModeracao}" (normalizado: "${idModeracaoNormalized}") com IDs em Moderações Negadas...`);
                 console.log(`🔍 [API] Estrutura esperada: Coluna A=Data, Coluna B=ID da Moderação (índice 1)`);
                 console.log(`🔍 [API] Tipo do ID buscado: ${typeof idModeracao}, Valor: "${idModeracao}"`);
+                
+                // Log de todos os IDs encontrados para debug
+                const todosIds = [];
+                for (let j = 1; j < Math.min(negadasData.length, 20); j++) {
+                    const tempRow = negadasData[j];
+                    if (tempRow && tempRow.length > 1) {
+                        const tempId = (tempRow[1] || '').toString().trim();
+                        todosIds.push(tempId);
+                    }
+                }
+                console.log(`📋 [API] Primeiros 20 IDs encontrados em Moderações Negadas:`, todosIds);
                 
                 for (let i = 1; i < negadasData.length; i++) {
                     const row = negadasData[i];
