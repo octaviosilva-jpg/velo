@@ -2969,21 +2969,76 @@ let faqsCache = [];
 
 // Carregar FAQs do backend
 async function carregarFAQs() {
+    const select = document.getElementById('tema-faq');
+    const lista = document.getElementById('faqs-list');
+    
+    // Mostrar indicador de carregamento
+    if (select) {
+        select.innerHTML = '<option value="">Carregando temas...</option>';
+        select.disabled = true;
+    }
+    
+    if (lista) {
+        lista.innerHTML = `
+            <div class="text-center p-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+                <p class="mt-2 text-muted">Carregando FAQs...</p>
+            </div>
+        `;
+    }
+    
     try {
+        console.log('📡 Carregando FAQs do backend...');
         const response = await fetch('/api/faqs');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('📦 Dados recebidos:', data);
         
         if (data.success) {
             faqsCache = data.faqs || [];
+            console.log(`✅ ${faqsCache.length} FAQ(s) carregado(s)`);
+            
             atualizarSelectFAQs();
             atualizarListaFAQs();
+            
+            if (select) {
+                select.disabled = false;
+            }
+            
             return faqsCache;
         } else {
             throw new Error(data.error || 'Erro ao carregar FAQs');
         }
     } catch (error) {
         console.error('❌ Erro ao carregar FAQs:', error);
-        showErrorMessage('Erro ao carregar FAQs: ' + error.message);
+        
+        // Atualizar UI com erro
+        if (select) {
+            select.innerHTML = '<option value="">Erro ao carregar temas</option>';
+            select.disabled = false;
+        }
+        
+        if (lista) {
+            lista.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erro ao carregar FAQs: ${error.message}
+                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="carregarFAQs()">
+                        <i class="fas fa-redo me-1"></i> Tentar novamente
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Não mostrar mensagem de erro global para não incomodar o usuário
+        // showErrorMessage('Erro ao carregar FAQs: ' + error.message);
+        
         return [];
     }
 }
@@ -3015,7 +3070,10 @@ function atualizarSelectFAQs() {
 // Atualizar lista de FAQs na interface de gerenciamento
 function atualizarListaFAQs() {
     const lista = document.getElementById('faqs-list');
-    if (!lista) return;
+    if (!lista) {
+        console.warn('⚠️ Elemento faqs-list não encontrado');
+        return;
+    }
     
     if (faqsCache.length === 0) {
         lista.innerHTML = `
@@ -3027,30 +3085,49 @@ function atualizarListaFAQs() {
         return;
     }
     
-    lista.innerHTML = faqsCache.map(faq => `
-        <div class="list-group-item">
-            <div class="d-flex justify-content-between align-items-start">
-                <div class="flex-grow-1">
-                    <h6 class="mb-1">${escapeHtml(faq.titulo || 'Sem título')}</h6>
-                    <p class="mb-1 text-muted">
-                        <small><strong>Tema:</strong> <code>${escapeHtml(faq.tema || '')}</code></small>
-                    </p>
-                    <small class="text-muted">
-                        Criado: ${faq.dataCriacao || 'N/A'} | 
-                        Atualizado: ${faq.dataAtualizacao || 'N/A'}
-                    </small>
+    try {
+        lista.innerHTML = faqsCache.map(faq => {
+            // Escapar apenas o título para exibição, mas manter o ID seguro
+            const tituloEscapado = escapeHtml(faq.titulo || 'Sem título');
+            const temaEscapado = escapeHtml(faq.tema || '');
+            const idEscapado = String(faq.id || '').replace(/'/g, "\\'");
+            
+            return `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${tituloEscapado}</h6>
+                            <p class="mb-1 text-muted">
+                                <small><strong>Tema:</strong> <code>${temaEscapado}</code></small>
+                            </p>
+                            <small class="text-muted">
+                                Criado: ${faq.dataCriacao || 'N/A'} | 
+                                Atualizado: ${faq.dataAtualizacao || 'N/A'}
+                            </small>
+                        </div>
+                        <div class="btn-group btn-group-sm ms-2">
+                            <button class="btn btn-outline-primary" onclick="editarFAQ('${idEscapado}')" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="excluirFAQ('${idEscapado}', '${tituloEscapado.replace(/'/g, "\\'")}')" title="Excluir">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="btn-group btn-group-sm ms-2">
-                    <button class="btn btn-outline-primary" onclick="editarFAQ('${faq.id}')" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-outline-danger" onclick="excluirFAQ('${faq.id}', '${escapeHtml(faq.titulo)}')" title="Excluir">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
+            `;
+        }).join('');
+        
+        console.log(`✅ Lista de FAQs atualizada: ${faqsCache.length} item(s)`);
+    } catch (error) {
+        console.error('❌ Erro ao atualizar lista de FAQs:', error);
+        lista.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Erro ao exibir lista de FAQs: ${error.message}
             </div>
-        </div>
-    `).join('');
+        `;
+    }
 }
 
 // Função auxiliar para escapar HTML
@@ -3102,9 +3179,15 @@ async function salvarFAQ() {
     const explicacao = document.getElementById('faq-explicacao').value.trim();
     
     // Validações
-    if (!titulo || !tema || !explicacao) {
-        showErrorMessage('Por favor, preencha todos os campos.');
+    if (!titulo || !tema) {
+        showErrorMessage('Por favor, preencha pelo menos o título e o tema.');
         return;
+    }
+    
+    if (!explicacao) {
+        if (!confirm('A explicação está vazia. Deseja continuar mesmo assim?')) {
+            return;
+        }
     }
     
     // Validar formato do tema (apenas letras minúsculas, números e hífens)
@@ -3156,9 +3239,15 @@ async function excluirFAQ(faqId, titulo) {
     }
     
     try {
+        console.log(`🗑️ Excluindo FAQ: ${faqId}`);
+        
         const response = await fetch(`/api/faqs/${faqId}`, {
             method: 'DELETE'
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const data = await response.json();
         
@@ -3194,10 +3283,15 @@ function gerarFAQ() {
 
 function gerarRespostaFAQ(tema) {
     // Primeiro, tentar buscar do cache (backend)
-    const faq = faqsCache.find(f => f.tema === tema);
-    if (faq && faq.explicacao) {
-        return faq.explicacao;
+    if (faqsCache && faqsCache.length > 0) {
+        const faq = faqsCache.find(f => f.tema === tema);
+        if (faq && faq.explicacao) {
+            console.log(`✅ FAQ encontrado no cache para tema: ${tema}`);
+            return faq.explicacao;
+        }
     }
+    
+    console.log(`⚠️ FAQ não encontrado no cache para tema: ${tema}, usando fallback`);
     
     // Fallback para respostas hardcoded (compatibilidade)
     const respostas = {

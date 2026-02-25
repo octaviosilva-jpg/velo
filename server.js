@@ -13073,36 +13073,48 @@ process.on('SIGTERM', () => {
 // GET /api/faqs - Listar todos os FAQs
 app.get('/api/faqs', async (req, res) => {
     try {
+        console.log('📋 Endpoint /api/faqs chamado');
+        
         if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            console.warn('⚠️ Google Sheets não está inicializado');
             return res.status(503).json({
                 success: false,
                 error: 'Google Sheets não está inicializado'
             });
         }
 
+        console.log('📖 Lendo dados da planilha FAQs...');
         const data = await googleSheetsConfig.readData('FAQs!A1:F1000');
         
         if (!data || data.length <= 1) {
+            console.log('📭 Nenhum FAQ encontrado na planilha');
             return res.json({
                 success: true,
                 faqs: []
             });
         }
 
+        console.log(`📊 ${data.length - 1} linha(s) encontrada(s) na planilha`);
+        
         const faqs = [];
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
-            if (!row || row.length < 4 || !row[0]) continue; // Pular linhas vazias
+            // Pular linhas completamente vazias ou sem ID
+            if (!row || row.length === 0 || !row[0] || String(row[0]).trim() === '') {
+                continue;
+            }
             
             faqs.push({
-                id: row[0] || '',
-                titulo: row[1] || '',
-                tema: row[2] || '',
-                explicacao: row[3] || '',
-                dataCriacao: row[4] || '',
-                dataAtualizacao: row[5] || ''
+                id: String(row[0] || '').trim(),
+                titulo: String(row[1] || '').trim(),
+                tema: String(row[2] || '').trim(),
+                explicacao: String(row[3] || '').trim(),
+                dataCriacao: String(row[4] || '').trim(),
+                dataAtualizacao: String(row[5] || '').trim()
             });
         }
+
+        console.log(`✅ ${faqs.length} FAQ(s) processado(s)`);
 
         res.json({
             success: true,
@@ -13110,6 +13122,7 @@ app.get('/api/faqs', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Erro ao listar FAQs:', error);
+        console.error('Stack:', error.stack);
         res.status(500).json({
             success: false,
             error: 'Erro ao listar FAQs',
