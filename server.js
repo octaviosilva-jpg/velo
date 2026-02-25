@@ -9560,8 +9560,9 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         }
         
         // Encontrar a linha com o ID correspondente (ID está na coluna B - índice 1)
-        const moderacaoIdTrimmed = moderacaoId.toString().trim();
-        const moderacaoIdNormalized = moderacaoIdTrimmed.replace(/\s+/g, '');
+        // Remover TODOS os espaços (início, fim e meio) para garantir consistência
+        const moderacaoIdTrimmed = moderacaoId.toString().trim().replace(/\s+/g, '');
+        const moderacaoIdNormalized = moderacaoIdTrimmed; // Já está sem espaços
         let moderacaoRow = null;
         
         console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" na página "Moderações"`);
@@ -12377,11 +12378,12 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             });
         }
 
-        const idModeracao = req.params.idModeracao.toString().trim();
-        const idModeracaoNormalized = idModeracao.replace(/\s+/g, '');
-        console.log('🔍 [API] Buscando moderação com ID original:', req.params.idModeracao);
-        console.log('🔍 [API] ID após trim:', idModeracao);
-        console.log('🔍 [API] ID normalizado (sem espaços):', idModeracaoNormalized);
+        // Extrair e normalizar ID - remover TODOS os espaços (início, fim e meio)
+        const idModeracaoRaw = req.params.idModeracao.toString();
+        const idModeracao = idModeracaoRaw.trim().replace(/\s+/g, ''); // Remove espaços do início, fim e meio
+        const idModeracaoNormalized = idModeracao; // Já está sem espaços
+        console.log('🔍 [API] ID original (raw):', JSON.stringify(idModeracaoRaw));
+        console.log('🔍 [API] ID após normalização (sem espaços):', JSON.stringify(idModeracao));
         console.log('🔍 [API] Buscando na planilha "Dados de Solicitação", página "Moderações Negadas", coluna B (ID da Moderação)');
 
         // Buscar em aceitas
@@ -12398,8 +12400,10 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 if (!row || row.length < 6) continue;
                 
                 // ID está na coluna B (índice 1) - "ID da Moderação"
-                const idRow = (row[1] || '').toString().trim();
-                const idRowNormalized = idRow.replace(/\s+/g, '');
+                // Remover TODOS os espaços (início, fim e meio) para comparação
+                const idRowRaw = (row[1] || '').toString();
+                const idRow = idRowRaw.trim().replace(/\s+/g, ''); // Remove espaços do início, fim e meio
+                const idRowNormalized = idRow; // Já está sem espaços
                 
                 // Comparar tanto com espaços quanto sem espaços, e também como número se ambos forem numéricos
                 let idsCoincidem = false;
@@ -12472,8 +12476,9 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 for (let j = 1; j < Math.min(6, negadasData.length); j++) {
                     const tempRow = negadasData[j];
                     if (tempRow && tempRow.length > 1) {
-                        const tempId = (tempRow[1] || '').toString().trim();
-                        console.log(`   Linha ${j + 1}: ID="${tempId}" (tipo: ${typeof tempRow[1]})`);
+                        const tempIdRaw = (tempRow[1] || '').toString();
+                        const tempId = tempIdRaw.trim().replace(/\s+/g, ''); // Remove todos os espaços
+                        console.log(`   Linha ${j + 1}: ID raw="${JSON.stringify(tempIdRaw)}" → normalizado="${tempId}" (tipo: ${typeof tempRow[1]})`);
                     }
                 }
                 
@@ -12482,8 +12487,10 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     if (!row || row.length < 2) continue;
                     
                     // ID está na coluna B (índice 1) - "ID da Moderação"
-                    const idRow = (row[1] || '').toString().trim();
-                    const idRowNormalized = idRow.replace(/\s+/g, '');
+                    // Remover TODOS os espaços (início, fim e meio) para comparação
+                    const idRowRaw = (row[1] || '').toString();
+                    const idRow = idRowRaw.trim().replace(/\s+/g, ''); // Remove espaços do início, fim e meio
+                    const idRowNormalized = idRow; // Já está sem espaços
                     
                     // Comparar IDs de múltiplas formas
                     let idsCoincidem = false;
