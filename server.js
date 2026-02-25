@@ -12466,7 +12466,15 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1)
         if (!moderacao) {
             console.log('🔍 [API] Não encontrado em Moderações Aceitas, buscando em Moderações Negadas...');
-            console.log('🔍 [API] Buscando na planilha "Dados de Solicitação", página "Moderações Negadas", coluna B (ID da Moderação)');
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            console.log('📍 [API] ===== CAMINHO COMPLETO DA BUSCA =====');
+            console.log(`📍 [API] Planilha ID: ${spreadsheetId}`);
+            console.log(`📍 [API] Planilha: "Dados de Solicitação"`);
+            console.log(`📍 [API] Página/Aba: "Moderações Negadas"`);
+            console.log(`📍 [API] Range: "Moderações Negadas!A1:Z10000"`);
+            console.log(`📍 [API] Coluna do ID: Coluna B (índice 1) - "ID da Moderação"`);
+            console.log(`📍 [API] ID buscado: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
+            console.log('📍 [API] ===========================================');
             try {
                 // Aumentar o range para garantir que todas as moderações sejam encontradas
                 negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
