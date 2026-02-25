@@ -13215,50 +13215,186 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
                         // Criar nova linha com dados nas colunas corretas
                         const novaRow = new Array(15).fill('');
                         
-                        // Mapear dados existentes para as colunas corretas
-                        estruturaEsperada.forEach((headerEsperado, indexEsperado) => {
-                            // Procurar o cabeçalho na planilha
-                            const indexAtual = headers.findIndex(h => {
-                                if (!h) return false;
-                                const hStr = h.toString().trim();
-                                const hEsperado = headerEsperado.toString().trim();
-                                return hStr === hEsperado || 
-                                       hStr.toLowerCase() === hEsperado.toLowerCase() ||
-                                       (hStr.toLowerCase().includes('status') && hEsperado.toLowerCase().includes('status')) ||
-                                       (hStr.toLowerCase().includes('feedback') && hEsperado.toLowerCase().includes('feedback'));
-                            });
-
-                            if (indexAtual >= 0 && row[indexAtual] !== undefined && row[indexAtual] !== null) {
-                                novaRow[indexEsperado] = row[indexAtual];
-                            } else if (row[indexEsperado] !== undefined && row[indexEsperado] !== null) {
-                                novaRow[indexEsperado] = row[indexEsperado];
+                        // Função auxiliar para identificar tipo de dado
+                        const identificarTipoDado = (valor) => {
+                            if (!valor || valor.toString().trim() === '') return null;
+                            const str = valor.toString().trim();
+                            
+                            // Data/Hora
+                            if (str.match(/^\d{2}\/\d{2}\/\d{4}/) || str.match(/^\d{4}-\d{2}-\d{2}/) || str.match(/\d{2}\/\d{2}\/\d{4}.*\d{2}:\d{2}/)) {
+                                return 'data';
                             }
-                        });
+                            // ID numérico grande (timestamp)
+                            if (!isNaN(str) && str.length >= 10) {
+                                return 'id';
+                            }
+                            // Status Aprovação
+                            if (str.toLowerCase() === 'aprovada' || str.toLowerCase() === 'pendente' || str.toLowerCase() === 'negada') {
+                                return 'status';
+                            }
+                            // Tipo
+                            if (str.toLowerCase() === 'moderacao' || str.toLowerCase() === 'resposta') {
+                                return 'tipo';
+                            }
+                            return null;
+                        };
 
-                        // Garantir que ID está na coluna B (índice 1)
+                        // Mapear dados existentes para as colunas corretas
+                        // Estratégia: primeiro tentar pelos cabeçalhos, depois pelo conteúdo
+                        
+                        // [0] Data/Hora - procurar por padrão de data
+                        for (let j = 0; j < row.length; j++) {
+                            if (identificarTipoDado(row[j]) === 'data' && !novaRow[0]) {
+                                novaRow[0] = row[j];
+                                break;
+                            }
+                        }
+                        
+                        // [1] ID - procurar número grande (timestamp)
+                        for (let j = 0; j < row.length; j++) {
+                            if (identificarTipoDado(row[j]) === 'id' && !novaRow[1]) {
+                                novaRow[1] = row[j];
+                                break;
+                            }
+                        }
+                        
+                        // [2] ID da Reclamação - procurar número menor ou texto
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[2]) {
+                                const str = val.toString().trim();
+                                // Se não é data, não é ID grande, e não está vazio
+                                if (identificarTipoDado(val) !== 'data' && 
+                                    identificarTipoDado(val) !== 'id' && 
+                                    str !== '' && 
+                                    (str.length < 10 || isNaN(str))) {
+                                    novaRow[2] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [3] Tipo - procurar 'moderacao' ou 'resposta'
+                        for (let j = 0; j < row.length; j++) {
+                            if (identificarTipoDado(row[j]) === 'tipo' && !novaRow[3]) {
+                                novaRow[3] = row[j];
+                                break;
+                            }
+                        }
+                        
+                        // [4] Solicitação Cliente - texto longo
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[4] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 20 && !str.match(/^\d+$/)) {
+                                    novaRow[4] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [5] Resposta Empresa - texto longo
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[5] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 20 && !str.match(/^\d+$/) && val !== novaRow[4]) {
+                                    novaRow[5] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [6] Consideração Final - texto
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[6] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 10 && val !== novaRow[4] && val !== novaRow[5]) {
+                                    novaRow[6] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [7] Motivo Moderação - texto médio
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[7] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 5 && str.length < 100 && 
+                                    val !== novaRow[4] && val !== novaRow[5] && val !== novaRow[6]) {
+                                    novaRow[7] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [8] Texto Moderação Anterior - geralmente vazio
+                        // [9] Feedback - geralmente vazio
+                        
+                        // [10] Texto Moderação Reformulado - texto muito longo (moderação completa)
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[10] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 100 && 
+                                    val !== novaRow[4] && val !== novaRow[5] && val !== novaRow[6]) {
+                                    novaRow[10] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [11] Linha Raciocínio - texto médio/longo
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[11] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 20 && 
+                                    val !== novaRow[4] && val !== novaRow[5] && val !== novaRow[6] && 
+                                    val !== novaRow[7] && val !== novaRow[10]) {
+                                    novaRow[11] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [12] Status Aprovação - procurar 'Aprovada', 'Pendente', etc.
+                        for (let j = 0; j < row.length; j++) {
+                            if (identificarTipoDado(row[j]) === 'status' && !novaRow[12]) {
+                                novaRow[12] = row[j];
+                                break;
+                            }
+                        }
+                        // Se não encontrou Status mas tem Texto Moderação Reformulado, é Aprovada
+                        if (!novaRow[12] && novaRow[10] && novaRow[10].toString().trim() !== '') {
+                            novaRow[12] = 'Aprovada';
+                        }
+                        
+                        // [13] Observações Internas - texto
+                        for (let j = 0; j < row.length; j++) {
+                            const val = row[j];
+                            if (val && !novaRow[13] && identificarTipoDado(val) === null) {
+                                const str = val.toString().trim();
+                                if (str.length > 0 && 
+                                    val !== novaRow[4] && val !== novaRow[5] && val !== novaRow[6] && 
+                                    val !== novaRow[7] && val !== novaRow[10] && val !== novaRow[11]) {
+                                    novaRow[13] = val;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // [14] Resultado da Moderação - geralmente vazio
+
+                        // Garantir que pelo menos ID e Data estão preenchidos
                         if (!novaRow[1] && row[1]) novaRow[1] = row[1];
-                        if (!novaRow[1] && row[0] && !isNaN(row[0])) novaRow[1] = row[0];
-
-                        // Garantir que Data/Hora está na coluna A (índice 0)
                         if (!novaRow[0] && row[0]) {
                             const dataStr = row[0].toString();
                             if (dataStr.match(/^\d{2}\/\d{2}\/\d{4}/) || dataStr.match(/^\d{4}-\d{2}-\d{2}/)) {
                                 novaRow[0] = row[0];
-                            } else {
-                                // Procurar data em outras colunas
-                                for (let j = 0; j < row.length; j++) {
-                                    if (row[j] && row[j].toString().match(/^\d{2}\/\d{2}\/\d{4}/)) {
-                                        novaRow[0] = row[j];
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Se Status Aprovação estiver vazio mas deveria ser 'Aprovada' (moderações coerentes)
-                        if (!novaRow[12] || novaRow[12].toString().trim() === '') {
-                            if (novaRow[10] && novaRow[10].toString().trim() !== '') {
-                                novaRow[12] = 'Aprovada';
                             }
                         }
 
@@ -13268,6 +13404,7 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
                         });
                     } catch (error) {
                         erros.push({ linha: linhaInicio + i, erro: error.message });
+                        console.error(`❌ Erro ao processar linha ${linhaInicio + i}:`, error.message);
                     }
                 }
 
