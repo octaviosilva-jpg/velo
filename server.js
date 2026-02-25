@@ -6334,10 +6334,18 @@ app.get('/api/solicitacoes', async (req, res) => {
                     console.log('⚠️ Erro ao buscar resultados da moderação (continuando sem resultados):', error.message);
                 }
                 
+                console.log('🔍 [API/SOLICITACOES] Buscando moderações coerentes...');
                 const moderacoes = await googleSheetsIntegration.obterModeracoesCoerentes();
+                console.log(`🔍 [API/SOLICITACOES] Total de moderações retornadas: ${moderacoes ? moderacoes.length : 0}`);
+                
                 if (moderacoes && moderacoes.length > 0) {
+                    console.log(`✅ [API/SOLICITACOES] Processando ${moderacoes.length} moderações coerentes`);
                     // obterModeracoesCoerentes já filtra por Status Aprovação === 'Aprovada' e sem Feedback
-                    moderacoes.forEach(moderacao => {
+                    moderacoes.forEach((moderacao, index) => {
+                        console.log(`📋 [API/SOLICITACOES] Processando moderação ${index + 1}/${moderacoes.length}:`, {
+                            id: moderacao[1] || moderacao.ID || moderacao.id,
+                            status: moderacao['Status Aprovação'] || moderacao[12]
+                        });
                         // Buscar Texto Moderação Reformulado na coluna J (índice 9)
                         // A coluna J é o índice 9 (A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9)
                         const textoModeracaoFinal = moderacao[9] !== undefined && moderacao[9] !== null && moderacao[9] !== ''
@@ -13127,6 +13135,141 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
     console.log('\n🛑 Encerrando servidor...');
     process.exit(0);
+});
+
+// ===== ENDPOINT PARA CORRIGIR DADOS DA PLANILHA MODERAÇÕES =====
+
+// POST /api/corrigir-moderacoes - Corrigir dados desalinhados na aba Moderações
+app.post('/api/corrigir-moderacoes', async (req, res) => {
+    console.log('🔧 Iniciando correção de dados da aba Moderações...');
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        // Ler todos os dados da aba Moderações
+        const data = await googleSheetsConfig.readData('Moderações!A1:Z10000');
+        
+        if (!data || data.length <= 1) {
+            return res.json({
+                success: true,
+                message: 'Nenhum dado para corrigir',
+                linhasCorrigidas: 0
+            });
+        }
+
+        const headers = data[0];
+        const linhasCorrigidas = [];
+        const erros = [];
+
+        // Estrutura esperada das colunas
+        const estruturaEsperada = [
+            'Data/Hora',           // [0]
+            'ID',                  // [1]
+            'ID da Reclamação',    // [2]
+            'Tipo',                // [3]
+            'Solicitação Cliente', // [4]
+            'Resposta Empresa',    // [5]
+            'Consideração Final',  // [6]
+            'Motivo Moderação',    // [7]
+            'Texto Moderação Anterior', // [8]
+            'Feedback',            // [9]
+            'Texto Moderação Reformulado', // [10]
+            'Linha Raciocínio',    // [11]
+            'Status Aprovação',    // [12]
+            'Observações Internas', // [13]
+            'Resultado da Moderação' // [14]
+        ];
+
+        // Processar cada linha (pular cabeçalho)
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row || row.length === 0) continue;
+
+            try {
+                // Criar nova linha com dados nas colunas corretas
+                const novaRow = new Array(15).fill('');
+                
+                // Mapear dados existentes para as colunas corretas
+                // Tentar encontrar dados pelos cabeçalhos atuais
+                estruturaEsperada.forEach((headerEsperado, indexEsperado) => {
+                    // Procurar o cabeçalho na planilha
+                    const indexAtual = headers.findIndex(h => {
+                        if (!h) return false;
+                        const hStr = h.toString().trim();
+                        const hEsperado = headerEsperado.toString().trim();
+                        return hStr === hEsperado || 
+                               hStr.toLowerCase() === hEsperado.toLowerCase() ||
+                               (hStr.toLowerCase().includes('status') && hEsperado.toLowerCase().includes('status')) ||
+                               (hStr.toLowerCase().includes('feedback') && hEsperado.toLowerCase().includes('feedback'));
+                    });
+
+                    if (indexAtual >= 0 && row[indexAtual] !== undefined) {
+                        novaRow[indexEsperado] = row[indexAtual];
+                    } else {
+                        // Se não encontrar pelo cabeçalho, tentar pelo índice esperado
+                        if (row[indexEsperado] !== undefined) {
+                            novaRow[indexEsperado] = row[indexEsperado];
+                        }
+                    }
+                });
+
+                // Garantir que ID está na coluna B (índice 1)
+                if (!novaRow[1] && row[1]) novaRow[1] = row[1];
+                if (!novaRow[1] && row[0] && !isNaN(row[0])) novaRow[1] = row[0];
+
+                // Garantir que Data/Hora está na coluna A (índice 0)
+                if (!novaRow[0] && row[0] && isNaN(row[0])) novaRow[0] = row[0];
+
+                // Se Status Aprovação estiver vazio mas deveria ser 'Aprovada' (moderações coerentes)
+                // Verificar se há dados nas colunas de moderação coerente
+                if (!novaRow[12] && novaRow[10] && novaRow[10].trim() !== '') {
+                    // Se tem Texto Moderação Reformulado, provavelmente é uma moderação coerente
+                    novaRow[12] = 'Aprovada';
+                }
+
+                // Atualizar a linha na planilha
+                const linhaNumero = i + 1;
+                const range = `Moderações!A${linhaNumero}:O${linhaNumero}`;
+                await googleSheetsConfig.updateRow(range, novaRow);
+                
+                linhasCorrigidas.push(linhaNumero);
+                
+                if (i % 10 === 0) {
+                    console.log(`📝 Corrigidas ${linhasCorrigidas.length} linhas...`);
+                }
+            } catch (error) {
+                erros.push({ linha: i + 1, erro: error.message });
+                console.error(`❌ Erro ao corrigir linha ${i + 1}:`, error.message);
+            }
+        }
+
+        // Invalidar cache
+        if (googleSheetsIntegration && googleSheetsIntegration.invalidateCache) {
+            googleSheetsIntegration.invalidateCache(['moderacoes_coerentes']);
+        }
+
+        console.log(`✅ Correção concluída: ${linhasCorrigidas.length} linhas corrigidas, ${erros.length} erros`);
+
+        res.json({
+            success: true,
+            message: `Correção concluída: ${linhasCorrigidas.length} linhas corrigidas`,
+            linhasCorrigidas: linhasCorrigidas.length,
+            erros: erros.length,
+            detalhesErros: erros
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao corrigir moderações:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao corrigir moderações',
+            message: error.message
+        });
+    }
 });
 
 // ===== ENDPOINTS PARA GERENCIAMENTO DE FAQs =====

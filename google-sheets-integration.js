@@ -938,14 +938,36 @@ class GoogleSheetsIntegration {
                 '' // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
             ];
 
-            console.log('💾 Salvando moderação com Status Aprovação:', row[12], 'na coluna M (índice 12)');
-            await googleSheetsConfig.appendRow('Moderações!A:Z', row);
-            console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
-            console.log('📋 Dados salvos:', {
-                id: row[1],
-                statusAprovacao: row[12],
-                coluna: 'M (índice 12)'
+            // Validar que todos os dados estão nas posições corretas
+            console.log('💾 Validando estrutura dos dados antes de salvar...');
+            console.log('📋 Dados a serem salvos:', {
+                '[0] Data/Hora': row[0],
+                '[1] ID': row[1],
+                '[2] ID da Reclamação': row[2],
+                '[3] Tipo': row[3],
+                '[4] Solicitação Cliente': row[4] ? 'Preenchido' : 'Vazio',
+                '[5] Resposta Empresa': row[5] ? 'Preenchido' : 'Vazio',
+                '[6] Consideração Final': row[6] ? 'Preenchido' : 'Vazio',
+                '[7] Motivo Moderação': row[7],
+                '[8] Texto Moderação Anterior': row[8] || 'Vazio (esperado)',
+                '[9] Feedback': row[9] || 'Vazio (esperado)',
+                '[10] Texto Moderação Reformulado': row[10] ? 'Preenchido' : 'Vazio',
+                '[11] Linha Raciocínio': row[11] ? 'Preenchido' : 'Vazio',
+                '[12] Status Aprovação': row[12] || 'ERRO: VAZIO!',
+                '[13] Observações Internas': row[13] || 'Vazio',
+                '[14] Resultado da Moderação': row[14] || 'Vazio (esperado)'
             });
+
+            // Garantir que Status Aprovação não esteja vazio
+            if (!row[12] || row[12].toString().trim() === '') {
+                console.warn('⚠️ Status Aprovação está vazio! Definindo como Pendente...');
+                row[12] = moderacaoData.statusAprovacao || 'Pendente';
+            }
+
+            console.log('💾 Salvando moderação com Status Aprovação:', row[12], 'na coluna M (índice 12)');
+            await googleSheetsConfig.appendRow('Moderações!A:O', row); // Usar A:O para garantir que salva nas 15 colunas corretas
+            console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
+            console.log('✅ Status Aprovação confirmado salvo:', row[12]);
             
             // Invalidar cache para forçar atualização na próxima busca
             this.invalidateCache(['moderacoes_coerentes']);
