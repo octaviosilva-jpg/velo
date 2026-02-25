@@ -12378,10 +12378,12 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             });
         }
 
-        const idModeracao = req.params.idModeracao.trim().replace(/\s+/g, '');
+        const idModeracao = req.params.idModeracao.toString().trim();
         const idModeracaoNormalized = idModeracao.replace(/\s+/g, '');
-        console.log('🔍 [API] Buscando moderação com ID:', idModeracao);
+        console.log('🔍 [API] Buscando moderação com ID original:', req.params.idModeracao);
+        console.log('🔍 [API] ID após trim:', idModeracao);
         console.log('🔍 [API] ID normalizado (sem espaços):', idModeracaoNormalized);
+        console.log('🔍 [API] Buscando na planilha "Dados de Solicitação", página "Moderações Negadas", coluna B (ID da Moderação)');
 
         // Buscar em aceitas
         const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
@@ -12425,23 +12427,44 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         }
 
         // Se não encontrou, buscar em negadas
-        // Estrutura: [0]Data, [1]ID Moderação, [2]ID Reclamação, [3]Tema, [4]Motivo, [5]Texto,
+        // Estrutura: [0]Data, [1]ID Moderação (coluna B), [2]ID Reclamação, [3]Tema, [4]Motivo, [5]Texto,
         // [6]Resultado, [7]Bloco1, [8]Bloco2, [9]Bloco3, [10]Solicitação, [11]Resposta, [12]Consideração, [13]Linha Raciocínio
+        // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1)
         if (!moderacao) {
             console.log('🔍 [API] Não encontrado em Moderações Aceitas, buscando em Moderações Negadas...');
-            negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
-            console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
+            console.log('🔍 [API] Buscando na planilha "Dados de Solicitação", página "Moderações Negadas", coluna B (ID da Moderação)');
+            try {
+                negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+                console.log(`📊 [API] Total de linhas em Moderações Negadas: ${negadasData ? negadasData.length - 1 : 0}`);
+                if (negadasData && negadasData.length > 1) {
+                    console.log(`🔍 [API] Primeira linha (cabeçalho):`, negadasData[0]);
+                    if (negadasData.length > 1) {
+                        console.log(`🔍 [API] Segunda linha (primeira moderação):`, negadasData[1]);
+                        console.log(`🔍 [API] ID na coluna B (índice 1):`, negadasData[1][1]);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ [API] Erro ao ler Moderações Negadas:', error.message);
+                console.error('❌ [API] Stack trace:', error.stack);
+                throw error;
+            }
             if (negadasData && negadasData.length > 1) {
-                console.log(`🔍 [API] Comparando ID buscado "${idModeracaoNormalized}" com IDs em Moderações Negadas...`);
+                console.log(`🔍 [API] Comparando ID buscado "${idModeracao}" (normalizado: "${idModeracaoNormalized}") com IDs em Moderações Negadas...`);
+                console.log(`🔍 [API] Estrutura esperada: Coluna A=Data, Coluna B=ID da Moderação (índice 1)`);
                 for (let i = 1; i < negadasData.length; i++) {
                     const row = negadasData[i];
-                    if (!row || row.length < 10) continue;
+                    if (!row || row.length < 2) {
+                        console.log(`⚠️ [API] Linha ${i + 1} ignorada: muito curta (${row ? row.length : 0} colunas)`);
+                        continue;
+                    }
+                    
+                    // ID está na coluna B (índice 1) - "ID da Moderação"
                     const idRow = (row[1] || '').toString().trim();
                     const idRowNormalized = idRow.replace(/\s+/g, '');
                     
-                    // Log para debug (apenas primeiras 3 linhas)
-                    if (i <= 3) {
-                        console.log(`🔍 [API] Linha ${i + 1}: ID="${idRow}" (normalizado="${idRowNormalized}")`);
+                    // Log para debug (primeiras 5 linhas)
+                    if (i <= 5) {
+                        console.log(`🔍 [API] Linha ${i + 1}: Coluna A="${row[0] || ''}", Coluna B (ID)="${idRow}" (normalizado="${idRowNormalized}")`);
                     }
                     
                     // Comparar tanto com espaços quanto sem espaços, e também como número se ambos forem numéricos
@@ -12451,6 +12474,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     
                     if (idsCoincidem) {
                         console.log(`✅ [API] Moderação encontrada em Moderações Negadas (linha ${i + 1})`);
+                        console.log(`✅ [API] ID encontrado: "${idRow}" corresponde ao ID buscado: "${idModeracao}"`);
                         moderacao = {
                             idModeracao: idRow,
                             idReclamacao: (row[2] || '').toString().trim(),
