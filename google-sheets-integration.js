@@ -924,6 +924,16 @@ class GoogleSheetsIntegration {
 
             await googleSheetsConfig.appendRow('Moderações!A:Z', row);
             console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
+            console.log('📋 Dados salvos:', {
+                id: row[1],
+                statusAprovacao: row[12],
+                coluna: 'M (índice 12)'
+            });
+            
+            // Invalidar cache para forçar atualização na próxima busca
+            this.invalidateCache(['moderacoes_coerentes']);
+            console.log('🔄 Cache invalidado para forçar atualização');
+            
             return true;
 
         } catch (error) {
@@ -1259,12 +1269,15 @@ class GoogleSheetsIntegration {
         try {
             console.log('📚 Obtendo moderações coerentes do Google Sheets...');
             
-            // Verificar cache primeiro
+            // Verificar cache primeiro (mas invalidar se necessário)
             const cacheKey = 'moderacoes_coerentes';
-            const cachedData = this.getFromCache(cacheKey);
-            if (cachedData) {
-                return cachedData;
-            }
+            // Não usar cache por enquanto para garantir dados atualizados
+            // const cachedData = this.getFromCache(cacheKey);
+            // if (cachedData) {
+            //     console.log('📦 Retornando dados do cache');
+            //     return cachedData;
+            // }
+            console.log('🔄 Buscando dados diretamente da planilha (cache desabilitado temporariamente)');
             
             // Verificar se googleSheetsConfig está inicializado
             console.log('🔍 DEBUG - Verificando googleSheetsConfig:', {
@@ -1330,30 +1343,49 @@ class GoogleSheetsIntegration {
                 });
                 
                 // Buscar Status Aprovação - tentar múltiplas formas
+                // Coluna M = índice 12 (A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11, M=12)
                 const statusAprovacao = statusIndex >= 0 && row[statusIndex] !== undefined
                     ? row[statusIndex]
-                    : (moderacao['Status Aprovação'] || 
-                       moderacao['Status Aprovacao'] || 
-                       moderacao['Status'] || 
-                       '');
+                    : (row[12] !== undefined ? row[12] : // Tentar índice direto 12 (coluna M)
+                       (moderacao['Status Aprovação'] || 
+                        moderacao['Status Aprovacao'] || 
+                        moderacao['Status'] || 
+                        ''));
                 
                 // Buscar Feedback - tentar múltiplas formas
+                // Coluna J = índice 9
                 const feedback = feedbackIndex >= 0 && row[feedbackIndex] !== undefined
                     ? row[feedbackIndex]
-                    : (moderacao['Feedback'] || 
-                       moderacao['feedback'] || 
-                       '');
+                    : (row[9] !== undefined ? row[9] : // Tentar índice direto 9 (coluna J)
+                       (moderacao['Feedback'] || 
+                        moderacao['feedback'] || 
+                        ''));
+                
+                // Log detalhado para debug
+                if (i <= 5 || statusAprovacao) { // Log das primeiras 5 ou se tiver status
+                    console.log(`🔍 Moderação ${i}:`, {
+                        id: row[1] || 'N/A',
+                        statusIndex: statusIndex,
+                        statusDireto: row[12],
+                        statusAprovacao: statusAprovacao,
+                        feedbackIndex: feedbackIndex,
+                        feedbackDireto: row[9],
+                        feedback: feedback
+                    });
+                }
                 
                 // Filtrar apenas moderações aprovadas (sem feedback)
-                const isAprovada = statusAprovacao && 
-                                  (statusAprovacao.toString().trim() === 'Aprovada' || 
-                                   statusAprovacao.toString().trim().toLowerCase() === 'aprovada');
+                const statusTrimmed = statusAprovacao ? statusAprovacao.toString().trim() : '';
+                const isAprovada = statusTrimmed === 'Aprovada' || statusTrimmed.toLowerCase() === 'aprovada';
                 const semFeedback = !feedback || feedback.toString().trim() === '';
                 
                 if (isAprovada && semFeedback) {
                     moderacoes.push(moderacao);
+                    console.log(`✅ Moderação ${i} incluída - ID: ${row[1]}, Status: "${statusAprovacao}"`);
                 } else {
-                    console.log(`⏭️ Moderação ${i} filtrada - Status: "${statusAprovacao}", Feedback: "${feedback}"`);
+                    if (statusAprovacao) { // Só logar se tiver status (evitar spam)
+                        console.log(`⏭️ Moderação ${i} filtrada - Status: "${statusAprovacao}", Feedback: "${feedback}"`);
+                    }
                 }
             }
             
