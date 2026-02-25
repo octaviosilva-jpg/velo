@@ -547,9 +547,10 @@ class GoogleSheetsIntegration {
                 }
             }
             
-            // Agora verificar se tem cabeçalhos e se estão corretos
+            // Agora verificar se tem cabeçalhos
+            // IMPORTANTE: Para a aba "Moderações", não atualizar cabeçalhos existentes para preservar dados
             try {
-                const range = `${sheetName}!A1:Z1`; // Ler mais colunas para verificar todos os cabeçalhos
+                const range = `${sheetName}!A1:Z1`; // Ler mais colunas para verificar
                 const data = await googleSheetsConfig.readData(range);
                 
                 // Verificar se a planilha está vazia ou não tem cabeçalhos
@@ -569,12 +570,18 @@ class GoogleSheetsIntegration {
                         console.error(`⚠️ Erro ao aplicar formatação na planilha ${sheetName}:`, error.message);
                     }
                 } else {
-                    // Verificar se os cabeçalhos estão corretos
-                    const existingHeaders = data[0];
-                    let headersMatch = true;
+                    // Verificar se há dados na planilha (mais de uma linha)
+                    const hasData = data.length > 1;
                     
-                    // Verificar se a primeira linha parece ser cabeçalho
-                    // Verificar se o primeiro cabeçalho esperado está presente
+                    // Para a aba "Moderações", NUNCA atualizar cabeçalhos se houver dados
+                    // Isso preserva as moderações coerentes já salvas
+                    if (sheetName === 'Moderações' && hasData) {
+                        console.log(`✅ Planilha "${sheetName}" já possui cabeçalhos e dados. Preservando estrutura existente.`);
+                        return; // Não fazer nada - preservar dados existentes
+                    }
+                    
+                    // Para outras abas, verificar se os cabeçalhos estão corretos
+                    const existingHeaders = data[0];
                     const firstExpectedHeader = (headers[0] || '').toString().trim().toLowerCase();
                     const firstExistingCell = (existingHeaders[0] || '').toString().trim().toLowerCase();
                     
@@ -591,27 +598,16 @@ class GoogleSheetsIntegration {
                                             firstExistingCell.includes('registro') ||
                                             firstExistingCell.includes('hora'));
                     
-                    // Se parece ser data, provavelmente não é cabeçalho - mas NÃO sobrescrever se houver dados
-                    // Verificar se há mais de uma linha (dados além do cabeçalho)
-                    const hasDataRows = data.length > 1;
-                    
-                    if (!looksLikeHeader && !hasDataRows) {
+                    if (!looksLikeHeader && !hasData) {
                         // Só criar cabeçalhos se não houver dados e não parecer ser cabeçalho
                         console.log(`📝 Primeira linha da planilha "${sheetName}" não parece ser cabeçalho e não há dados.`);
-                        console.log(`   Primeira célula encontrada: "${existingHeaders[0]}"`);
-                        console.log(`   Primeiro cabeçalho esperado: "${headers[0]}"`);
                         console.log(`   Criando cabeçalhos na primeira linha...`);
                         const lastColumn = this.numberToColumnLetter(headers.length);
                         await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
                         console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
-                    } else if (!looksLikeHeader && hasDataRows) {
-                        // Se não parece cabeçalho mas há dados, não sobrescrever - pode ser que os dados estejam na primeira linha
-                        console.log(`⚠️ Primeira linha da planilha "${sheetName}" não parece ser cabeçalho, mas há dados.`);
-                        console.log(`   Não será sobrescrito para evitar perda de dados.`);
-                        console.log(`   Primeira célula: "${existingHeaders[0]}"`);
-                        // Não fazer nada - preservar dados existentes
-                    } else {
-                        // Comparar cabeçalhos existentes com os esperados
+                    } else if (looksLikeHeader) {
+                        // Se parece ser cabeçalho, verificar se está correto (apenas para abas que não são "Moderações")
+                        let headersMatch = true;
                         if (existingHeaders.length !== headers.length) {
                             headersMatch = false;
                             console.log(`⚠️ Número de colunas diferente. Esperado: ${headers.length}, Encontrado: ${existingHeaders.length}`);
@@ -627,14 +623,17 @@ class GoogleSheetsIntegration {
                             }
                         }
                         
-                        if (!headersMatch) {
+                        if (!headersMatch && !hasData) {
+                            // Só atualizar se não houver dados
                             console.log(`📝 Atualizando cabeçalhos na planilha "${sheetName}"...`);
                             const lastColumn = this.numberToColumnLetter(headers.length);
                             await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
                             console.log(`✅ Cabeçalhos atualizados na planilha: ${sheetName}`);
                         } else {
-                            console.log(`✅ Planilha "${sheetName}" já possui cabeçalhos corretos`);
+                            console.log(`✅ Planilha "${sheetName}" já possui cabeçalhos`);
                         }
+                    } else {
+                        console.log(`✅ Planilha "${sheetName}" já possui dados. Preservando estrutura existente.`);
                     }
                 }
             } catch (readError) {
