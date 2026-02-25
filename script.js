@@ -177,6 +177,17 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     inicializarHistorico();
     
+    // Carregar FAQs do backend
+    carregarFAQs();
+    
+    // Listener para quando a aba de gerenciamento de FAQs for aberta
+    const gerenciarFAQTab = document.getElementById('gerenciar-faq-tab');
+    if (gerenciarFAQTab) {
+        gerenciarFAQTab.addEventListener('shown.bs.tab', function() {
+            carregarFAQs();
+        });
+    }
+    
     // Verificar dados do localStorage ao carregar a página
     setTimeout(() => {
         sincronizarDadosLocais();
@@ -2953,6 +2964,218 @@ async function gerarEmail() {
 
 // ===== FUNÇÕES DE FAQ & COMPLIANCE =====
 
+// Variável global para armazenar FAQs
+let faqsCache = [];
+
+// Carregar FAQs do backend
+async function carregarFAQs() {
+    try {
+        const response = await fetch('/api/faqs');
+        const data = await response.json();
+        
+        if (data.success) {
+            faqsCache = data.faqs || [];
+            atualizarSelectFAQs();
+            atualizarListaFAQs();
+            return faqsCache;
+        } else {
+            throw new Error(data.error || 'Erro ao carregar FAQs');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar FAQs:', error);
+        showErrorMessage('Erro ao carregar FAQs: ' + error.message);
+        return [];
+    }
+}
+
+// Atualizar select de temas com FAQs do backend
+function atualizarSelectFAQs() {
+    const select = document.getElementById('tema-faq');
+    if (!select) return;
+    
+    // Limpar opções existentes (exceto a primeira)
+    select.innerHTML = '<option value="">Selecione o tema...</option>';
+    
+    // Adicionar FAQs do backend
+    faqsCache.forEach(faq => {
+        if (faq.tema && faq.titulo) {
+            const option = document.createElement('option');
+            option.value = faq.tema;
+            option.textContent = faq.titulo;
+            select.appendChild(option);
+        }
+    });
+    
+    // Se não houver FAQs, mostrar mensagem
+    if (faqsCache.length === 0) {
+        select.innerHTML = '<option value="">Nenhum FAQ cadastrado</option>';
+    }
+}
+
+// Atualizar lista de FAQs na interface de gerenciamento
+function atualizarListaFAQs() {
+    const lista = document.getElementById('faqs-list');
+    if (!lista) return;
+    
+    if (faqsCache.length === 0) {
+        lista.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Nenhum FAQ cadastrado. Clique em "Novo FAQ" para criar o primeiro.
+            </div>
+        `;
+        return;
+    }
+    
+    lista.innerHTML = faqsCache.map(faq => `
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">${escapeHtml(faq.titulo || 'Sem título')}</h6>
+                    <p class="mb-1 text-muted">
+                        <small><strong>Tema:</strong> <code>${escapeHtml(faq.tema || '')}</code></small>
+                    </p>
+                    <small class="text-muted">
+                        Criado: ${faq.dataCriacao || 'N/A'} | 
+                        Atualizado: ${faq.dataAtualizacao || 'N/A'}
+                    </small>
+                </div>
+                <div class="btn-group btn-group-sm ms-2">
+                    <button class="btn btn-outline-primary" onclick="editarFAQ('${faq.id}')" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="excluirFAQ('${faq.id}', '${escapeHtml(faq.titulo)}')" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Função auxiliar para escapar HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Abrir modal para criar novo FAQ
+function abrirModalFAQ(faqId = null) {
+    const modal = new bootstrap.Modal(document.getElementById('modalFAQ'));
+    const form = document.getElementById('formFAQ');
+    const modalTitle = document.getElementById('modalFAQLabel');
+    
+    // Limpar formulário
+    form.reset();
+    document.getElementById('faq-id').value = '';
+    
+    if (faqId) {
+        // Modo edição
+        const faq = faqsCache.find(f => f.id === faqId);
+        if (faq) {
+            modalTitle.textContent = 'Editar FAQ';
+            document.getElementById('faq-id').value = faq.id;
+            document.getElementById('faq-titulo').value = faq.titulo || '';
+            document.getElementById('faq-tema').value = faq.tema || '';
+            document.getElementById('faq-explicacao').value = faq.explicacao || '';
+        }
+    } else {
+        // Modo criação
+        modalTitle.textContent = 'Novo FAQ';
+    }
+    
+    modal.show();
+}
+
+// Editar FAQ
+function editarFAQ(faqId) {
+    abrirModalFAQ(faqId);
+}
+
+// Salvar FAQ (criar ou atualizar)
+async function salvarFAQ() {
+    const form = document.getElementById('formFAQ');
+    const faqId = document.getElementById('faq-id').value;
+    const titulo = document.getElementById('faq-titulo').value.trim();
+    const tema = document.getElementById('faq-tema').value.trim();
+    const explicacao = document.getElementById('faq-explicacao').value.trim();
+    
+    // Validações
+    if (!titulo || !tema || !explicacao) {
+        showErrorMessage('Por favor, preencha todos os campos.');
+        return;
+    }
+    
+    // Validar formato do tema (apenas letras minúsculas, números e hífens)
+    if (!/^[a-z0-9-]+$/.test(tema)) {
+        showErrorMessage('O tema deve conter apenas letras minúsculas, números e hífens (sem espaços).');
+        return;
+    }
+    
+    try {
+        const url = faqId ? `/api/faqs/${faqId}` : '/api/faqs';
+        const method = faqId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                titulo: titulo,
+                tema: tema,
+                explicacao: explicacao
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSuccessMessage(faqId ? 'FAQ atualizado com sucesso!' : 'FAQ criado com sucesso!');
+            
+            // Fechar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalFAQ'));
+            modal.hide();
+            
+            // Recarregar FAQs
+            await carregarFAQs();
+        } else {
+            throw new Error(data.error || 'Erro ao salvar FAQ');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar FAQ:', error);
+        showErrorMessage('Erro ao salvar FAQ: ' + error.message);
+    }
+}
+
+// Excluir FAQ
+async function excluirFAQ(faqId, titulo) {
+    if (!confirm(`Tem certeza que deseja excluir o FAQ "${titulo}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/faqs/${faqId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSuccessMessage('FAQ excluído com sucesso!');
+            
+            // Recarregar FAQs
+            await carregarFAQs();
+        } else {
+            throw new Error(data.error || 'Erro ao excluir FAQ');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir FAQ:', error);
+        showErrorMessage('Erro ao excluir FAQ: ' + error.message);
+    }
+}
+
 function gerarFAQ() {
     const tema = document.getElementById('tema-faq').value;
     
@@ -2970,6 +3193,13 @@ function gerarFAQ() {
 }
 
 function gerarRespostaFAQ(tema) {
+    // Primeiro, tentar buscar do cache (backend)
+    const faq = faqsCache.find(f => f.tema === tema);
+    if (faq && faq.explicacao) {
+        return faq.explicacao;
+    }
+    
+    // Fallback para respostas hardcoded (compatibilidade)
     const respostas = {
         'servicos-velotax': `
             <p><strong>Pergunta:</strong> 'Quais são os serviços oferecidos pelo Velotax?'}</p>

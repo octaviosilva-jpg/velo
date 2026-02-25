@@ -13068,6 +13068,251 @@ process.on('SIGTERM', () => {
     process.exit(0);
 });
 
+// ===== ENDPOINTS PARA GERENCIAMENTO DE FAQs =====
+
+// GET /api/faqs - Listar todos os FAQs
+app.get('/api/faqs', async (req, res) => {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const data = await googleSheetsConfig.readData('FAQs!A1:F1000');
+        
+        if (!data || data.length <= 1) {
+            return res.json({
+                success: true,
+                faqs: []
+            });
+        }
+
+        const faqs = [];
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row || row.length < 4 || !row[0]) continue; // Pular linhas vazias
+            
+            faqs.push({
+                id: row[0] || '',
+                titulo: row[1] || '',
+                tema: row[2] || '',
+                explicacao: row[3] || '',
+                dataCriacao: row[4] || '',
+                dataAtualizacao: row[5] || ''
+            });
+        }
+
+        res.json({
+            success: true,
+            faqs: faqs
+        });
+    } catch (error) {
+        console.error('❌ Erro ao listar FAQs:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao listar FAQs',
+            message: error.message
+        });
+    }
+});
+
+// POST /api/faqs - Criar novo FAQ
+app.post('/api/faqs', rateLimitMiddleware, async (req, res) => {
+    try {
+        const { titulo, tema, explicacao } = req.body;
+
+        if (!titulo || !tema || !explicacao) {
+            return res.status(400).json({
+                success: false,
+                error: 'Título, tema e explicação são obrigatórios'
+            });
+        }
+
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        const faqId = Date.now().toString();
+        const dataCriacao = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        const row = [
+            faqId,
+            titulo.trim(),
+            tema.trim(),
+            explicacao.trim(),
+            dataCriacao,
+            dataCriacao
+        ];
+
+        await googleSheetsConfig.appendRow('FAQs!A1', row);
+
+        res.json({
+            success: true,
+            message: 'FAQ criado com sucesso',
+            faq: {
+                id: faqId,
+                titulo: titulo.trim(),
+                tema: tema.trim(),
+                explicacao: explicacao.trim(),
+                dataCriacao: dataCriacao,
+                dataAtualizacao: dataCriacao
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erro ao criar FAQ:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao criar FAQ',
+            message: error.message
+        });
+    }
+});
+
+// PUT /api/faqs/:id - Atualizar FAQ existente
+app.put('/api/faqs/:id', rateLimitMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { titulo, tema, explicacao } = req.body;
+
+        if (!titulo || !tema || !explicacao) {
+            return res.status(400).json({
+                success: false,
+                error: 'Título, tema e explicação são obrigatórios'
+            });
+        }
+
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        // Ler dados atuais
+        const data = await googleSheetsConfig.readData('FAQs!A1:F1000');
+        
+        if (!data || data.length <= 1) {
+            return res.status(404).json({
+                success: false,
+                error: 'FAQ não encontrado'
+            });
+        }
+
+        // Encontrar a linha com o ID
+        let rowIndex = -1;
+        for (let i = 1; i < data.length; i++) {
+            if (data[i] && data[i][0] && data[i][0].toString().trim() === id.toString().trim()) {
+                rowIndex = i + 1; // +1 porque a linha 1 é o cabeçalho
+                break;
+            }
+        }
+
+        if (rowIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                error: 'FAQ não encontrado'
+            });
+        }
+
+        // Obter data de criação original
+        const dataCriacao = data[rowIndex - 1][4] || new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const dataAtualizacao = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        // Atualizar a linha
+        const range = `FAQs!A${rowIndex}:F${rowIndex}`;
+        const values = [
+            id,
+            titulo.trim(),
+            tema.trim(),
+            explicacao.trim(),
+            dataCriacao,
+            dataAtualizacao
+        ];
+
+        await googleSheetsConfig.updateRow(range, values);
+
+        res.json({
+            success: true,
+            message: 'FAQ atualizado com sucesso',
+            faq: {
+                id: id,
+                titulo: titulo.trim(),
+                tema: tema.trim(),
+                explicacao: explicacao.trim(),
+                dataCriacao: dataCriacao,
+                dataAtualizacao: dataAtualizacao
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erro ao atualizar FAQ:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao atualizar FAQ',
+            message: error.message
+        });
+    }
+});
+
+// DELETE /api/faqs/:id - Excluir FAQ
+app.delete('/api/faqs/:id', rateLimitMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({
+                success: false,
+                error: 'Google Sheets não está inicializado'
+            });
+        }
+
+        // Ler dados atuais
+        const data = await googleSheetsConfig.readData('FAQs!A1:F1000');
+        
+        if (!data || data.length <= 1) {
+            return res.status(404).json({
+                success: false,
+                error: 'FAQ não encontrado'
+            });
+        }
+
+        // Encontrar a linha com o ID
+        let rowIndex = -1;
+        for (let i = 1; i < data.length; i++) {
+            if (data[i] && data[i][0] && data[i][0].toString().trim() === id.toString().trim()) {
+                rowIndex = i + 1; // +1 porque a linha 1 é o cabeçalho
+                break;
+            }
+        }
+
+        if (rowIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                error: 'FAQ não encontrado'
+            });
+        }
+
+        // Deletar a linha usando deleteRow
+        await googleSheetsConfig.deleteRow('FAQs', rowIndex);
+
+        res.json({
+            success: true,
+            message: 'FAQ excluído com sucesso'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao excluir FAQ:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao excluir FAQ',
+            message: error.message
+        });
+    }
+});
+
 // Middleware para rotas não encontradas (DEVE SER O ÚLTIMO, após TODOS os endpoints)
 app.use('*', (req, res) => {
     console.log(`❌ [404] Rota não encontrada: ${req.method} ${req.originalUrl}`);

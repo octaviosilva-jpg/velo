@@ -455,6 +455,15 @@ class GoogleSheetsIntegration {
                 'Data/Hora da Moderação Original'
             ]);
 
+            await this.ensureSheetExists('FAQs', [
+                'ID',
+                'Título',
+                'Tema',
+                'Explicação',
+                'Data de Criação',
+                'Data de Atualização'
+            ]);
+
             console.log('✅ Planilhas verificadas/criadas com sucesso');
 
         } catch (error) {

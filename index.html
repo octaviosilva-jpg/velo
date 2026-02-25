@@ -678,37 +678,98 @@
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="tema-faq" class="form-label">Tema:</label>
-                                        <select class="form-select" id="tema-faq">
-                                            <option value="">Selecione o tema...</option>
-                                            <option value="servicos-velotax">Quais são os serviços oferecidos pelo Velotax?</option>
-                                            <option value="antecipacao-restituicao">Qual é o serviço de Antecipação da Restituição oferecido pelo Velotax?</option>
-                                            <option value="credito-trabalhador">Crédito do Trabalhador Velotax: O que é?</option>
-                                            <option value="credito-pessoal">Crédito Pessoal Velotax: O que é?</option>
-                                            <option value="veloprime">Veloprime: Calculadora e DARF do Velotax: O que é?</option>
-                                            <option value="login-cadastro">Como faço login ou criar uma conta no aplicativo Velotax?</option>
-                                            <option value="malha-fina">O que é a malha fina e como saber se minha declaração está retida?</option>
-                                            <option value="envio-gratuito">O envio da declaração pelo app Velotax é gratuito?</option>
-                                            <option value="restituicao-pendente">Porque ainda não recebi minha restituição?</option>
-                                            <option value="restituicao-resgate">Restituição do Imposto de Renda disponível para resgate</option>
-                                            <option value="open-finance">O que é Open Finance?</option>
-                                            <option value="suporte">Como obter suporte no Velotax? Como falar com um atendente?</option>
-                                        </select>
-                                    </div>
-                                    <button class="btn btn-warning" onclick="gerarFAQ()">
-                                        <i class="fas fa-question me-2"></i>
-                                        Gerar Resposta FAQ
-                                    </button>
-                                    <div id="faq-resultado" class="mt-4" style="display: none;">
-                                        <h6>Resposta FAQ:</h6>
-                                        <div class="response-box">
-                                            <div id="faq-content"></div>
-                                            <button class="btn btn-outline-warning btn-sm mt-2" onclick="copiarResposta('faq-content')">
-                                                <i class="fas fa-copy me-1"></i>
-                                                Copiar Resposta
+                                    <!-- Abas para FAQ e Gerenciamento -->
+                                    <ul class="nav nav-tabs mb-3" id="faqTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="gerar-faq-tab" data-bs-toggle="tab" data-bs-target="#gerar-faq" type="button" role="tab">
+                                                <i class="fas fa-magic me-1"></i> Gerar FAQ
                                             </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="gerenciar-faq-tab" data-bs-toggle="tab" data-bs-target="#gerenciar-faq" type="button" role="tab">
+                                                <i class="fas fa-cog me-1"></i> Gerenciar FAQs
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="faqTabContent">
+                                        <!-- Tab: Gerar FAQ -->
+                                        <div class="tab-pane fade show active" id="gerar-faq" role="tabpanel">
+                                            <div class="mb-3">
+                                                <label for="tema-faq" class="form-label">Tema:</label>
+                                                <select class="form-select" id="tema-faq">
+                                                    <option value="">Carregando temas...</option>
+                                                </select>
+                                            </div>
+                                            <button class="btn btn-warning" onclick="gerarFAQ()">
+                                                <i class="fas fa-question me-2"></i>
+                                                Gerar Resposta FAQ
+                                            </button>
+                                            <div id="faq-resultado" class="mt-4" style="display: none;">
+                                                <h6>Resposta FAQ:</h6>
+                                                <div class="response-box">
+                                                    <div id="faq-content"></div>
+                                                    <button class="btn btn-outline-warning btn-sm mt-2" onclick="copiarResposta('faq-content')">
+                                                        <i class="fas fa-copy me-1"></i>
+                                                        Copiar Resposta
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
+                                        
+                                        <!-- Tab: Gerenciar FAQs -->
+                                        <div class="tab-pane fade" id="gerenciar-faq" role="tabpanel">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Gerenciar FAQs</h6>
+                                                <button class="btn btn-success btn-sm" onclick="abrirModalFAQ()">
+                                                    <i class="fas fa-plus me-1"></i> Novo FAQ
+                                                </button>
+                                            </div>
+                                            <div id="faqs-list" class="list-group">
+                                                <div class="text-center p-3">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Carregando...</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal para Criar/Editar FAQ -->
+                        <div class="modal fade" id="modalFAQ" tabindex="-1" aria-labelledby="modalFAQLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalFAQLabel">Novo FAQ</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form id="formFAQ">
+                                            <input type="hidden" id="faq-id" value="">
+                                            <div class="mb-3">
+                                                <label for="faq-titulo" class="form-label">Título (Pergunta):</label>
+                                                <input type="text" class="form-control" id="faq-titulo" required placeholder="Ex: Quais são os serviços oferecidos pelo Velotax?">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="faq-tema" class="form-label">Tema (Código/Slug):</label>
+                                                <input type="text" class="form-control" id="faq-tema" required placeholder="Ex: servicos-velotax" pattern="[a-z0-9-]+" title="Apenas letras minúsculas, números e hífens">
+                                                <small class="form-text text-muted">Use apenas letras minúsculas, números e hífens (sem espaços)</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="faq-explicacao" class="form-label">Explicação (Resposta HTML):</label>
+                                                <textarea class="form-control" id="faq-explicacao" rows="15" required placeholder="Digite a resposta em HTML..."></textarea>
+                                                <small class="form-text text-muted">Você pode usar tags HTML como &lt;p&gt;, &lt;strong&gt;, &lt;ul&gt;, etc.</small>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="button" class="btn btn-primary" onclick="salvarFAQ()">
+                                            <i class="fas fa-save me-1"></i> Salvar FAQ
+                                        </button>
                                     </div>
                                 </div>
                             </div>
