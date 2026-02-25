@@ -911,8 +911,12 @@
                                 <option value="moderacoes">Moderações</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button class="btn btn-primary w-100" onclick="buscarSolicitacoes()">
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-warning btn-sm" onclick="corrigirModeracoes()" title="Corrigir dados desalinhados na planilha">
+                                <i class="fas fa-tools me-1"></i>
+                                Corrigir
+                            </button>
+                            <button class="btn btn-primary flex-grow-1" onclick="buscarSolicitacoes()">
                                 <i class="fas fa-search me-2"></i>
                                 Buscar
                             </button>

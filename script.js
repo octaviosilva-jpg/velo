@@ -4474,6 +4474,46 @@ async function buscarSolicitacoes() {
     }
 }
 
+// Função para corrigir dados desalinhados na planilha Moderações
+async function corrigirModeracoes() {
+    if (!confirm('Deseja corrigir os dados desalinhados na planilha Moderações?\n\nIsso irá reorganizar todos os dados nas colunas corretas.')) {
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Corrigindo...';
+
+    try {
+        const response = await fetch('/api/corrigir-moderacoes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showSuccessMessage(`✅ Correção concluída! ${data.linhasCorrigidas} linhas corrigidas.${data.erros > 0 ? ` ${data.erros} erros encontrados.` : ''}`);
+            
+            // Recarregar as solicitações após correção
+            setTimeout(() => {
+                buscarSolicitacoes();
+            }, 1000);
+        } else {
+            showErrorMessage(`Erro ao corrigir: ${data.error || data.message}`);
+        }
+    } catch (error) {
+        console.error('Erro ao corrigir moderações:', error);
+        showErrorMessage('Erro ao corrigir moderações: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 // Função para registrar resultado da moderação
 async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId) {
     if (!moderacaoId) {
