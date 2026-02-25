@@ -13516,11 +13516,16 @@ app.get('/api/faqs', async (req, res) => {
                 continue;
             }
             
+            // Preservar HTML da explicação sem escapar
+            const explicacao = row[3] ? String(row[3]) : '';
+            // Não fazer trim() aqui para preservar espaços no HTML, mas remover espaços no início/fim
+            const explicacaoLimpa = explicacao.trim();
+            
             faqs.push({
                 id: id,
                 titulo: String(row[1] || '').trim(),
                 tema: tema,
-                explicacao: String(row[3] || '').trim(),
+                explicacao: explicacaoLimpa, // Preservar HTML
                 dataCriacao: String(row[4] || '').trim(),
                 dataAtualizacao: String(row[5] || '').trim()
             });

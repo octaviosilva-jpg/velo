@@ -3342,7 +3342,26 @@ function gerarFAQ() {
     
     const respostaFAQ = gerarRespostaFAQ(tema);
     
-    document.getElementById('faq-content').innerHTML = respostaFAQ;
+    console.log('🔍 Resposta FAQ gerada (primeiros 200 chars):', respostaFAQ ? respostaFAQ.substring(0, 200) : 'vazia');
+    
+    // Garantir que o HTML seja renderizado corretamente
+    const faqContent = document.getElementById('faq-content');
+    if (faqContent) {
+        // Limpar conteúdo anterior
+        faqContent.innerHTML = '';
+        
+        // Verificar se a resposta contém HTML
+        if (respostaFAQ && respostaFAQ.includes('<')) {
+            // Renderizar HTML diretamente (não usar textContent que escaparia o HTML)
+            faqContent.innerHTML = respostaFAQ;
+            console.log('✅ HTML renderizado com innerHTML');
+        } else {
+            // Se não contém HTML, tratar como texto simples
+            faqContent.textContent = respostaFAQ || 'Resposta não disponível.';
+            console.log('⚠️ Conteúdo tratado como texto simples (sem tags HTML)');
+        }
+    }
+    
     document.getElementById('faq-resultado').style.display = 'block';
     
     showSuccessMessage('Resposta FAQ gerada com sucesso!');
@@ -3354,7 +3373,11 @@ function gerarRespostaFAQ(tema) {
         const faq = faqsCache.find(f => f.tema === tema);
         if (faq && faq.explicacao) {
             console.log(`✅ FAQ encontrado no cache para tema: ${tema}`);
-            return faq.explicacao;
+            // Retornar a explicação diretamente - já vem como HTML da planilha
+            // Não escapar, pois será renderizado com innerHTML
+            const explicacao = faq.explicacao;
+            console.log('🔍 Explicação encontrada (primeiros 100 chars):', explicacao.substring(0, 100));
+            return explicacao;
         }
     }
     

@@ -147,7 +147,7 @@ class GoogleSheetsConfig {
             const request = {
                 spreadsheetId: spreadsheetId,
                 range: range,
-                valueInputOption: 'USER_ENTERED',
+                valueInputOption: 'RAW', // Usar RAW para preservar HTML sem interpretação
                 insertDataOption: 'INSERT_ROWS',
                 resource: {
                     values: [values]
@@ -219,7 +219,7 @@ class GoogleSheetsConfig {
             const request = {
                 spreadsheetId: spreadsheetId,
                 range: range,
-                valueInputOption: 'USER_ENTERED',
+                valueInputOption: 'RAW', // Usar RAW para preservar HTML sem interpretação
                 resource: {
                     values: [values]
                 }
