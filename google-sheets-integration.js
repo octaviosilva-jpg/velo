@@ -577,22 +577,39 @@ class GoogleSheetsIntegration {
                     // Verificar se o primeiro cabeçalho esperado está presente
                     const firstExpectedHeader = (headers[0] || '').toString().trim().toLowerCase();
                     const firstExistingCell = (existingHeaders[0] || '').toString().trim().toLowerCase();
-                    const looksLikeHeader = firstExpectedHeader && firstExistingCell && 
+                    
+                    // Verificar se parece ser uma data (formato brasileiro ou ISO)
+                    const looksLikeDate = firstExistingCell.match(/^\d{2}\/\d{2}\/\d{4}/) || 
+                                         firstExistingCell.match(/^\d{4}-\d{2}-\d{2}/);
+                    
+                    // Verificar se parece ser cabeçalho
+                    const looksLikeHeader = firstExpectedHeader && firstExistingCell && !looksLikeDate &&
                                            (firstExistingCell === firstExpectedHeader || 
                                             firstExistingCell.includes(firstExpectedHeader.split(' ')[0]) ||
                                             firstExistingCell.includes('data') || 
                                             firstExistingCell.includes('id') || 
-                                            firstExistingCell.includes('registro'));
+                                            firstExistingCell.includes('registro') ||
+                                            firstExistingCell.includes('hora'));
                     
-                    // Se não parece ser cabeçalho, criar cabeçalhos
-                    if (!looksLikeHeader) {
-                        console.log(`📝 Primeira linha da planilha "${sheetName}" não parece ser cabeçalho.`);
+                    // Se parece ser data, provavelmente não é cabeçalho - mas NÃO sobrescrever se houver dados
+                    // Verificar se há mais de uma linha (dados além do cabeçalho)
+                    const hasDataRows = data.length > 1;
+                    
+                    if (!looksLikeHeader && !hasDataRows) {
+                        // Só criar cabeçalhos se não houver dados e não parecer ser cabeçalho
+                        console.log(`📝 Primeira linha da planilha "${sheetName}" não parece ser cabeçalho e não há dados.`);
                         console.log(`   Primeira célula encontrada: "${existingHeaders[0]}"`);
                         console.log(`   Primeiro cabeçalho esperado: "${headers[0]}"`);
                         console.log(`   Criando cabeçalhos na primeira linha...`);
                         const lastColumn = this.numberToColumnLetter(headers.length);
                         await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
                         console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
+                    } else if (!looksLikeHeader && hasDataRows) {
+                        // Se não parece cabeçalho mas há dados, não sobrescrever - pode ser que os dados estejam na primeira linha
+                        console.log(`⚠️ Primeira linha da planilha "${sheetName}" não parece ser cabeçalho, mas há dados.`);
+                        console.log(`   Não será sobrescrito para evitar perda de dados.`);
+                        console.log(`   Primeira célula: "${existingHeaders[0]}"`);
+                        // Não fazer nada - preservar dados existentes
                     } else {
                         // Comparar cabeçalhos existentes com os esperados
                         if (existingHeaders.length !== headers.length) {
@@ -1277,29 +1294,69 @@ class GoogleSheetsIntegration {
             
             // Debug: mostrar cabeçalhos para verificar nomes das colunas
             console.log('📋 Cabeçalhos da planilha Moderações:', headers);
+            console.log(`📊 Total de linhas na planilha: ${data.length}`);
+            
+            // Encontrar índices das colunas importantes
+            const statusIndex = headers.findIndex(h => 
+                h && (h.toString().trim() === 'Status Aprovação' || 
+                     h.toString().trim() === 'Status Aprovacao' ||
+                     h.toString().trim().toLowerCase().includes('status'))
+            );
+            const feedbackIndex = headers.findIndex(h => 
+                h && (h.toString().trim() === 'Feedback' || 
+                     h.toString().trim().toLowerCase().includes('feedback'))
+            );
+            
+            console.log(`🔍 Índices encontrados - Status: ${statusIndex}, Feedback: ${feedbackIndex}`);
             
             for (let i = 1; i < data.length; i++) {
                 const row = data[i];
-                if (row[0]) { // Se tem ID
-                    const moderacao = {};
-                    headers.forEach((header, index) => {
-                        if (row[index] !== undefined) {
-                            moderacao[header] = row[index];
-                        }
-                    });
-                    // Também armazenar por índice para acesso direto
-                    row.forEach((value, index) => {
-                        moderacao[index] = value;
-                    });
-                    
-                    // Filtrar apenas moderações aprovadas (sem feedback)
-                    if (moderacao['Status Aprovação'] === 'Aprovada' && !moderacao['Feedback']) {
-                        moderacoes.push(moderacao);
+                if (!row || row.length === 0) continue;
+                
+                // Verificar se tem pelo menos ID (coluna B, índice 1)
+                const hasId = row[1] || row[0];
+                if (!hasId) continue;
+                
+                const moderacao = {};
+                headers.forEach((header, index) => {
+                    if (header && row[index] !== undefined) {
+                        moderacao[header] = row[index];
                     }
+                });
+                // Também armazenar por índice para acesso direto
+                row.forEach((value, index) => {
+                    moderacao[index] = value;
+                });
+                
+                // Buscar Status Aprovação - tentar múltiplas formas
+                const statusAprovacao = statusIndex >= 0 && row[statusIndex] !== undefined
+                    ? row[statusIndex]
+                    : (moderacao['Status Aprovação'] || 
+                       moderacao['Status Aprovacao'] || 
+                       moderacao['Status'] || 
+                       '');
+                
+                // Buscar Feedback - tentar múltiplas formas
+                const feedback = feedbackIndex >= 0 && row[feedbackIndex] !== undefined
+                    ? row[feedbackIndex]
+                    : (moderacao['Feedback'] || 
+                       moderacao['feedback'] || 
+                       '');
+                
+                // Filtrar apenas moderações aprovadas (sem feedback)
+                const isAprovada = statusAprovacao && 
+                                  (statusAprovacao.toString().trim() === 'Aprovada' || 
+                                   statusAprovacao.toString().trim().toLowerCase() === 'aprovada');
+                const semFeedback = !feedback || feedback.toString().trim() === '';
+                
+                if (isAprovada && semFeedback) {
+                    moderacoes.push(moderacao);
+                } else {
+                    console.log(`⏭️ Moderação ${i} filtrada - Status: "${statusAprovacao}", Feedback: "${feedback}"`);
                 }
             }
             
-            console.log(`✅ ${moderacoes.length} moderações coerentes obtidas do Google Sheets`);
+            console.log(`✅ ${moderacoes.length} moderações coerentes obtidas do Google Sheets (de ${data.length - 1} linhas totais)`);
             
             // Salvar no cache
             this.setCache(cacheKey, moderacoes);
