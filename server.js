@@ -6071,8 +6071,9 @@ app.get('/api/solicitacoes', async (req, res) => {
                 let resultadosMap = new Map(); // Map<ID, Resultado mais recente>
                 try {
                     // Buscar moderações aceitas
+                    // Planilha: "Dados de Solicitação", Página: "Moderações Aceitas", ID na coluna B (índice 1)
                     try {
-                        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
+                        const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z10000');
                         if (aceitasData && aceitasData.length > 1) {
                             for (let i = 1; i < aceitasData.length; i++) {
                                 const row = aceitasData[i];
@@ -6107,8 +6108,9 @@ app.get('/api/solicitacoes', async (req, res) => {
                     }
                     
                     // Buscar moderações negadas
+                    // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1)
                     try {
-                        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+                        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
                         if (negadasData && negadasData.length > 1) {
                             for (let i = 1; i < negadasData.length; i++) {
                                 const row = negadasData[i];
@@ -12568,17 +12570,41 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             
             // Log dos primeiros IDs encontrados para debug
             if (aceitasData && aceitasData.length > 1) {
-                console.log('📋 [API] Primeiros IDs em Moderações Aceitas:', aceitasData.slice(1, 4).map(r => (r[1] || '').toString().trim()));
+                const primeirosIds = aceitasData.slice(1, Math.min(6, aceitasData.length)).map(r => {
+                    const id = (r[1] || '').toString().trim();
+                    const idNorm = id.replace(/\s+/g, '');
+                    return { original: id, normalizado: idNorm, tipo: typeof r[1] };
+                });
+                console.log('📋 [API] Primeiros IDs em Moderações Aceitas:', JSON.stringify(primeirosIds, null, 2));
             }
             if (negadasData && negadasData.length > 1) {
-                console.log('📋 [API] Primeiros IDs em Moderações Negadas:', negadasData.slice(1, 4).map(r => (r[1] || '').toString().trim()));
+                const primeirosIds = negadasData.slice(1, Math.min(6, negadasData.length)).map(r => {
+                    const id = (r[1] || '').toString().trim();
+                    const idNorm = id.replace(/\s+/g, '');
+                    return { original: id, normalizado: idNorm, tipo: typeof r[1] };
+                });
+                console.log('📋 [API] Primeiros IDs em Moderações Negadas:', JSON.stringify(primeirosIds, null, 2));
+                
+                // Verificar se o ID buscado está parcialmente presente em algum ID
+                console.log(`🔍 [API] Verificando correspondências parciais...`);
+                for (let i = 1; i < Math.min(negadasData.length, 20); i++) {
+                    const row = negadasData[i];
+                    if (!row || row.length < 2) continue;
+                    const idRow = (row[1] || '').toString().trim();
+                    const idRowNorm = idRow.replace(/\s+/g, '');
+                    if (idRowNorm.includes(idModeracaoNormalized) || idModeracaoNormalized.includes(idRowNorm)) {
+                        console.log(`⚠️ [API] Possível correspondência parcial encontrada na linha ${i + 1}: "${idRow}" (normalizado: "${idRowNorm}")`);
+                    }
+                }
             }
             
             return res.status(404).json({
                 success: false,
                 error: `Moderação não encontrada com ID: ${idModeracao}`,
                 idBuscado: idModeracao,
-                idNormalizado: idModeracaoNormalized
+                idNormalizado: idModeracaoNormalized,
+                totalAceitas: aceitasData ? aceitasData.length - 1 : 0,
+                totalNegadas: negadasData ? negadasData.length - 1 : 0
             });
         }
 
