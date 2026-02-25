@@ -472,6 +472,19 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * Converte número de coluna para letra (1 = A, 2 = B, ..., 27 = AA, etc.)
+     */
+    numberToColumnLetter(num) {
+        let result = '';
+        while (num > 0) {
+            num--;
+            result = String.fromCharCode(65 + (num % 26)) + result;
+            num = Math.floor(num / 26);
+        }
+        return result;
+    }
+
+    /**
      * Garante que uma planilha específica existe
      */
     async ensureSheetExists(sheetName, headers) {
@@ -534,15 +547,19 @@ class GoogleSheetsIntegration {
                 }
             }
             
-            // Agora verificar se tem cabeçalhos
+            // Agora verificar se tem cabeçalhos e se estão corretos
             try {
-                const range = `${sheetName}!A1:F1`;
+                const range = `${sheetName}!A1:Z1`; // Ler mais colunas para verificar todos os cabeçalhos
                 const data = await googleSheetsConfig.readData(range);
                 
-                if (!data || data.length === 0 || !data[0] || data[0].length === 0) {
+                // Verificar se a planilha está vazia ou não tem cabeçalhos
+                const hasHeaders = data && data.length > 0 && data[0] && data[0].length > 0;
+                
+                if (!hasHeaders) {
                     // Planilha vazia ou sem cabeçalhos, criar cabeçalhos
-                    console.log(`📝 Criando cabeçalhos na planilha "${sheetName}"...`);
-                    await googleSheetsConfig.appendRow(`${sheetName}!A1`, headers);
+                    console.log(`📝 Planilha "${sheetName}" não tem cabeçalhos. Criando cabeçalhos...`);
+                    const lastColumn = this.numberToColumnLetter(headers.length);
+                    await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
                     console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
                     
                     // Aplicar formatação básica
@@ -552,16 +569,66 @@ class GoogleSheetsIntegration {
                         console.error(`⚠️ Erro ao aplicar formatação na planilha ${sheetName}:`, error.message);
                     }
                 } else {
-                    console.log(`✅ Planilha "${sheetName}" já possui cabeçalhos`);
+                    // Verificar se os cabeçalhos estão corretos
+                    const existingHeaders = data[0];
+                    let headersMatch = true;
+                    
+                    // Verificar se a primeira linha parece ser cabeçalho
+                    // Verificar se o primeiro cabeçalho esperado está presente
+                    const firstExpectedHeader = (headers[0] || '').toString().trim().toLowerCase();
+                    const firstExistingCell = (existingHeaders[0] || '').toString().trim().toLowerCase();
+                    const looksLikeHeader = firstExpectedHeader && firstExistingCell && 
+                                           (firstExistingCell === firstExpectedHeader || 
+                                            firstExistingCell.includes(firstExpectedHeader.split(' ')[0]) ||
+                                            firstExistingCell.includes('data') || 
+                                            firstExistingCell.includes('id') || 
+                                            firstExistingCell.includes('registro'));
+                    
+                    // Se não parece ser cabeçalho, criar cabeçalhos
+                    if (!looksLikeHeader) {
+                        console.log(`📝 Primeira linha da planilha "${sheetName}" não parece ser cabeçalho.`);
+                        console.log(`   Primeira célula encontrada: "${existingHeaders[0]}"`);
+                        console.log(`   Primeiro cabeçalho esperado: "${headers[0]}"`);
+                        console.log(`   Criando cabeçalhos na primeira linha...`);
+                        const lastColumn = this.numberToColumnLetter(headers.length);
+                        await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
+                        console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
+                    } else {
+                        // Comparar cabeçalhos existentes com os esperados
+                        if (existingHeaders.length !== headers.length) {
+                            headersMatch = false;
+                            console.log(`⚠️ Número de colunas diferente. Esperado: ${headers.length}, Encontrado: ${existingHeaders.length}`);
+                        } else {
+                            for (let i = 0; i < headers.length; i++) {
+                                const expected = (headers[i] || '').toString().trim();
+                                const actual = (existingHeaders[i] || '').toString().trim();
+                                if (expected !== actual) {
+                                    headersMatch = false;
+                                    console.log(`⚠️ Cabeçalho na coluna ${i + 1} diferente. Esperado: "${expected}", Encontrado: "${actual}"`);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!headersMatch) {
+                            console.log(`📝 Atualizando cabeçalhos na planilha "${sheetName}"...`);
+                            const lastColumn = this.numberToColumnLetter(headers.length);
+                            await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
+                            console.log(`✅ Cabeçalhos atualizados na planilha: ${sheetName}`);
+                        } else {
+                            console.log(`✅ Planilha "${sheetName}" já possui cabeçalhos corretos`);
+                        }
+                    }
                 }
             } catch (readError) {
                 // Se não conseguir ler, tentar criar cabeçalhos mesmo assim
                 console.warn(`⚠️ Erro ao ler cabeçalhos, tentando criar:`, readError.message);
                 try {
-                    await googleSheetsConfig.appendRow(`${sheetName}!A1`, headers);
+                    const lastColumn = this.numberToColumnLetter(headers.length);
+                    await googleSheetsConfig.updateRow(`${sheetName}!A1:${lastColumn}1`, headers);
                     console.log(`✅ Cabeçalhos criados na planilha: ${sheetName}`);
-                } catch (appendError) {
-                    console.error(`❌ Erro ao criar cabeçalhos:`, appendError.message);
+                } catch (updateError) {
+                    console.error(`❌ Erro ao criar cabeçalhos:`, updateError.message);
                 }
             }
 

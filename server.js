@@ -9832,29 +9832,88 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         // Salvar na página específica conforme o resultado
         if (resultado === 'Aceita') {
             // Salvar apenas na página "Moderações Aceitas"
+            // Ordem dos dados conforme cabeçalhos esperados:
+            // 1. Data do Registro
+            // 2. ID da Moderação
+            // 3. ID da Reclamação
+            // 4. Tema
+            // 5. Motivo Utilizado
+            // 6. Texto da Moderação Enviada
+            // 7. Resultado
+            // 8. Solicitação do Cliente
+            // 9. Resposta da Empresa
+            // 10. Consideração Final
+            // 11. Linha de Raciocínio
+            // 12. Data/Hora da Moderação Original
+            // 13. Status Aprovação
+            // 14. Observações Internas
             const novaLinhaAceitas = [
-                dataHoraRegistro,                // Data do Registro
-                moderacaoIdNormalized,           // ID da Moderação (já normalizado)
-                idReclamacao,                    // ID da Reclamação
-                temaModeracao,                   // Tema
-                motivoModeracao,                 // Motivo Utilizado
-                textoModeracao,                  // Texto da Moderação Enviada
-                resultado,                       // Resultado
-                solicitacaoCliente,              // Solicitação do Cliente
-                respostaEmpresa,                 // Resposta da Empresa
-                consideracaoFinal,               // Consideração Final
-                linhaRaciocinio,                 // Linha de Raciocínio
-                dataHoraModeracao,               // Data/Hora da Moderação Original
-                statusAprovacao,                  // Status Aprovação
-                observacoesInternas              // Observações Internas
+                dataHoraRegistro || '',                // [0] Data do Registro
+                moderacaoIdNormalized || '',           // [1] ID da Moderação (já normalizado)
+                idReclamacao || '',                    // [2] ID da Reclamação
+                temaModeracao || 'geral',              // [3] Tema
+                motivoModeracao || '',                 // [4] Motivo Utilizado
+                textoModeracao || '',                  // [5] Texto da Moderação Enviada
+                resultado || 'Aceita',                // [6] Resultado
+                solicitacaoCliente || '',              // [7] Solicitação do Cliente
+                respostaEmpresa || '',                 // [8] Resposta da Empresa
+                consideracaoFinal || '',               // [9] Consideração Final
+                linhaRaciocinio || '',                 // [10] Linha de Raciocínio
+                dataHoraModeracao || '',               // [11] Data/Hora da Moderação Original
+                statusAprovacao || '',                 // [12] Status Aprovação
+                observacoesInternas || ''              // [13] Observações Internas
             ];
             
-            console.log(`💾 Salvando na página "Moderações Aceitas"`);
-            console.log(`📋 Dados a serem salvos (${novaLinhaAceitas.length} colunas):`, novaLinhaAceitas);
+            // Validar que temos pelo menos os campos essenciais
+            if (!moderacaoIdNormalized) {
+                throw new Error('ID da Moderação é obrigatório');
+            }
+            
+            // Garantir que a aba "Moderações Aceitas" existe e tem os cabeçalhos corretos
+            console.log(`🔍 Verificando se a aba "Moderações Aceitas" tem cabeçalhos...`);
             try {
-                const resultado = await googleSheetsConfig.appendRow('Moderações Aceitas!A1', novaLinhaAceitas);
+                await googleSheetsIntegration.ensureSheetExists('Moderações Aceitas', [
+                    'Data do Registro',
+                    'ID da Moderação',
+                    'ID da Reclamação',
+                    'Tema',
+                    'Motivo Utilizado',
+                    'Texto da Moderação Enviada',
+                    'Resultado',
+                    'Solicitação do Cliente',
+                    'Resposta da Empresa',
+                    'Consideração Final',
+                    'Linha de Raciocínio',
+                    'Data/Hora da Moderação Original',
+                    'Status Aprovação',
+                    'Observações Internas'
+                ]);
+                console.log(`✅ Cabeçalhos da aba "Moderações Aceitas" verificados/criados`);
+            } catch (ensureError) {
+                console.error(`⚠️ Erro ao garantir cabeçalhos da aba "Moderações Aceitas":`, ensureError.message);
+                // Continuar mesmo assim, pode ser que os cabeçalhos já existam
+            }
+            
+            console.log(`💾 Salvando na página "Moderações Aceitas"`);
+            console.log(`📋 Dados a serem salvos (${novaLinhaAceitas.length} colunas):`);
+            console.log(`   [0] Data do Registro: ${novaLinhaAceitas[0]}`);
+            console.log(`   [1] ID da Moderação: ${novaLinhaAceitas[1]}`);
+            console.log(`   [2] ID da Reclamação: ${novaLinhaAceitas[2]}`);
+            console.log(`   [3] Tema: ${novaLinhaAceitas[3]}`);
+            console.log(`   [4] Motivo Utilizado: ${novaLinhaAceitas[4]}`);
+            console.log(`   [5] Texto da Moderação Enviada: ${(novaLinhaAceitas[5] || '').substring(0, 50)}...`);
+            console.log(`   [6] Resultado: ${novaLinhaAceitas[6]}`);
+            
+            try {
+                // Usar range que indica claramente onde adicionar (após última linha)
+                const resultado = await googleSheetsConfig.appendRow('Moderações Aceitas!A:Z', novaLinhaAceitas);
                 console.log(`✅ Moderação aceita salva com sucesso na página "Moderações Aceitas"`);
                 console.log(`📊 Resultado do append:`, resultado);
+                
+                // Verificar se os dados foram salvos corretamente
+                if (resultado && resultado.updates && resultado.updates.updatedRows > 0) {
+                    console.log(`✅ ${resultado.updates.updatedRows} linha(s) adicionada(s) com sucesso`);
+                }
             } catch (error) {
                 console.error(`❌ ERRO ao salvar moderação aceita:`, error);
                 console.error(`❌ Stack trace:`, error.stack);
