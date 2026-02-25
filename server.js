@@ -13075,16 +13075,54 @@ app.get('/api/faqs', async (req, res) => {
     try {
         console.log('📋 Endpoint /api/faqs chamado');
         
+        // Tentar inicializar Google Sheets se não estiver inicializado
         if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
-            console.warn('⚠️ Google Sheets não está inicializado');
-            return res.status(503).json({
-                success: false,
-                error: 'Google Sheets não está inicializado'
-            });
+            console.log('🔄 Tentando inicializar Google Sheets...');
+            try {
+                const envVars = loadEnvFile();
+                await initializeGoogleSheets(envVars);
+            } catch (initError) {
+                console.error('❌ Erro ao inicializar Google Sheets:', initError.message);
+                return res.status(503).json({
+                    success: false,
+                    error: 'Google Sheets não está inicializado',
+                    message: initError.message
+                });
+            }
+        }
+
+        // Garantir que a planilha FAQs existe
+        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            try {
+                await googleSheetsIntegration.ensureSheetExists('FAQs', [
+                    'ID',
+                    'Título',
+                    'Tema',
+                    'Explicação',
+                    'Data de Criação',
+                    'Data de Atualização'
+                ]);
+            } catch (ensureError) {
+                console.warn('⚠️ Erro ao garantir existência da planilha FAQs:', ensureError.message);
+                // Continuar mesmo se houver erro ao criar a planilha
+            }
         }
 
         console.log('📖 Lendo dados da planilha FAQs...');
-        const data = await googleSheetsConfig.readData('FAQs!A1:F1000');
+        let data;
+        try {
+            data = await googleSheetsConfig.readData('FAQs!A1:F1000');
+        } catch (readError) {
+            // Se a planilha não existir, retornar lista vazia
+            if (readError.message && (readError.message.includes('Unable to parse range') || readError.message.includes('not found'))) {
+                console.log('📭 Planilha FAQs não encontrada, retornando lista vazia');
+                return res.json({
+                    success: true,
+                    faqs: []
+                });
+            }
+            throw readError;
+        }
         
         if (!data || data.length <= 1) {
             console.log('📭 Nenhum FAQ encontrado na planilha');
@@ -13126,7 +13164,8 @@ app.get('/api/faqs', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Erro ao listar FAQs',
-            message: error.message
+            message: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });
@@ -13276,11 +13315,20 @@ app.delete('/api/faqs/:id', rateLimitMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
+        // Tentar inicializar Google Sheets se não estiver inicializado
         if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
-            return res.status(503).json({
-                success: false,
-                error: 'Google Sheets não está inicializado'
-            });
+            console.log('🔄 Tentando inicializar Google Sheets...');
+            try {
+                const envVars = loadEnvFile();
+                await initializeGoogleSheets(envVars);
+            } catch (initError) {
+                console.error('❌ Erro ao inicializar Google Sheets:', initError.message);
+                return res.status(503).json({
+                    success: false,
+                    error: 'Google Sheets não está inicializado',
+                    message: initError.message
+                });
+            }
         }
 
         // Ler dados atuais
