@@ -49,6 +49,30 @@ function obterTimestampBrasil() {
     return formatarDataBrasil();
 }
 
+// ===== FUNÇÃO DE NORMALIZAÇÃO ROBUSTA DE ID =====
+/**
+ * Normaliza um ID removendo todos os caracteres problemáticos:
+ * - Espaços (início, fim, meio)
+ * - Quebras de linha (\n, \r, \t)
+ * - Caracteres invisíveis (zero-width spaces, etc)
+ * - Normaliza para string e remove acentos opcionalmente
+ */
+function normalizarId(id) {
+    if (!id) return '';
+    
+    // Converter para string
+    let normalized = id.toString();
+    
+    // Remover caracteres invisíveis e quebras de linha
+    normalized = normalized
+        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Zero-width spaces
+        .replace(/[\n\r\t]/g, '') // Quebras de linha e tabs
+        .replace(/\s+/g, '') // TODOS os espaços (início, fim, meio)
+        .trim();
+    
+    return normalized;
+}
+
 // ===== SISTEMA DE VERIFICAÇÃO AUTOMÁTICA DE FEEDBACKS =====
 
 // Verificar feedbacks duplicados ou similares
@@ -9560,20 +9584,19 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         }
         
         // Encontrar a linha com o ID correspondente (ID está na coluna B - índice 1)
-        // Remover TODOS os espaços (início, fim e meio) para garantir consistência
-        const moderacaoIdTrimmed = moderacaoId.toString().trim().replace(/\s+/g, '');
-        const moderacaoIdNormalized = moderacaoIdTrimmed; // Já está sem espaços
+        // Usar função de normalização robusta
+        const moderacaoIdNormalized = normalizarId(moderacaoId);
         let moderacaoRow = null;
         
-        console.log(`🔍 Procurando ID: "${moderacaoIdTrimmed}" na página "Moderações"`);
+        console.log(`🔍 Procurando ID: "${moderacaoId}" (normalizado: "${moderacaoIdNormalized}") na página "Moderações"`);
         
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
             if (!row || row.length < 2) continue;
             
-            const rowId = row[1] ? row[1].toString().trim().replace(/\s+/g, '') : '';
-            const idsCoincidem = rowId === moderacaoIdNormalized || 
-                                 (rowId && !isNaN(rowId) && !isNaN(moderacaoIdNormalized) && Number(rowId) === Number(moderacaoIdNormalized));
+            const rowIdNormalized = normalizarId(row[1]);
+            const idsCoincidem = rowIdNormalized === moderacaoIdNormalized || 
+                                 (rowIdNormalized && !isNaN(rowIdNormalized) && !isNaN(moderacaoIdNormalized) && Number(rowIdNormalized) === Number(moderacaoIdNormalized));
             
             if (idsCoincidem) {
                 moderacaoRow = row;
@@ -9585,7 +9608,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         if (!moderacaoRow) {
             return res.status(404).json({
                 success: false,
-                error: `Moderação com ID "${moderacaoIdTrimmed}" não encontrada na planilha.`
+                error: `Moderação com ID "${moderacaoId}" (normalizado: "${moderacaoIdNormalized}") não encontrada na planilha.`
             });
         }
         
@@ -9650,7 +9673,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             // Salvar apenas na página "Moderações Aceitas"
             const novaLinhaAceitas = [
                 dataHoraRegistro,                // Data do Registro
-                moderacaoIdTrimmed,              // ID da Moderação
+                moderacaoIdNormalized,           // ID da Moderação (já normalizado)
                 idReclamacao,                    // ID da Reclamação
                 temaModeracao,                   // Tema
                 motivoModeracao,                 // Motivo Utilizado
@@ -9680,7 +9703,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             // Salvar apenas na página "Moderações Negadas"
             const novaLinhaNegadas = [
                 dataHoraRegistro,                // Data do Registro
-                moderacaoIdTrimmed.toString(),   // ID da Moderação (garantir que é string)
+                moderacaoIdNormalized,           // ID da Moderação (já normalizado)
                 idReclamacao,                    // ID da Reclamação
                 temaModeracao,                   // Tema
                 motivoModeracao,                 // Motivo Utilizado
@@ -12378,12 +12401,11 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             });
         }
 
-        // Extrair e normalizar ID - remover TODOS os espaços (início, fim e meio)
+        // Extrair e normalizar ID usando função robusta
         const idModeracaoRaw = req.params.idModeracao.toString();
-        const idModeracao = idModeracaoRaw.trim().replace(/\s+/g, ''); // Remove espaços do início, fim e meio
-        const idModeracaoNormalized = idModeracao; // Já está sem espaços
+        const idModeracaoNormalized = normalizarId(idModeracaoRaw);
         console.log('🔍 [API] ID original (raw):', JSON.stringify(idModeracaoRaw));
-        console.log('🔍 [API] ID após normalização (sem espaços):', JSON.stringify(idModeracao));
+        console.log('🔍 [API] ID após normalização robusta:', JSON.stringify(idModeracaoNormalized));
         console.log('🔍 [API] Buscando na planilha "Dados de Solicitação", página "Moderações Negadas", coluna B (ID da Moderação)');
 
         // Buscar em aceitas
@@ -12400,24 +12422,18 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 if (!row || row.length < 6) continue;
                 
                 // ID está na coluna B (índice 1) - "ID da Moderação"
-                // Remover TODOS os espaços (início, fim e meio) para comparação
-                const idRowRaw = (row[1] || '').toString();
-                const idRow = idRowRaw.trim().replace(/\s+/g, ''); // Remove espaços do início, fim e meio
-                const idRowNormalized = idRow; // Já está sem espaços
+                // Usar função de normalização robusta
+                const idRowNormalized = normalizarId(row[1]);
                 
-                // Comparar tanto com espaços quanto sem espaços, e também como número se ambos forem numéricos
+                // Comparar IDs normalizados
                 let idsCoincidem = false;
                 
-                // Comparação 1: Strings normalizadas (sem espaços)
+                // Comparação 1: Strings normalizadas (exata)
                 if (idRowNormalized === idModeracaoNormalized) {
                     idsCoincidem = true;
                 }
-                // Comparação 2: Strings originais
-                else if (idRow === idModeracao) {
-                    idsCoincidem = true;
-                }
-                // Comparação 3: Como números (se ambos forem numéricos)
-                else if (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized)) {
+                // Comparação 2: Como números (se ambos forem numéricos)
+                else if (!isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized) && idRowNormalized && idModeracaoNormalized) {
                     // Para números grandes, usar BigInt se necessário
                     try {
                         const numRow = idRowNormalized.length > 15 ? BigInt(idRowNormalized) : Number(idRowNormalized);
@@ -12437,7 +12453,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 if (idsCoincidem) {
                     console.log(`✅ [API] Moderação encontrada em Moderações Aceitas (linha ${i + 1})`);
                     moderacao = {
-                        idModeracao: idRow,
+                        idModeracao: idRowNormalized,
                         idReclamacao: (row[2] || '').toString().trim(),
                         tema: (row[3] || '').toString().trim(),
                         motivo: (row[4] || '').toString().trim(),
@@ -12462,7 +12478,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         // Planilha: "Dados de Solicitação", Página: "Moderações Negadas", ID na coluna B (índice 1), Data/Hora na coluna O (índice 14)
         if (!moderacao) {
             console.log('🔍 [API] Buscando em Moderações Negadas...');
-            console.log(`🔍 [API] ID buscado: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
+            console.log(`🔍 [API] ID buscado: "${idModeracaoRaw}" (normalizado: "${idModeracaoNormalized}")`);
             
             // Primeiro, buscar a data/hora original na planilha "Moderações" usando o ID
             let dataHoraOriginal = null;
@@ -12473,8 +12489,8 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     for (let i = 1; i < moderacoesData.length; i++) {
                         const row = moderacoesData[i];
                         if (!row || row.length < 2) continue;
-                        const rowId = (row[1] || '').toString().trim().replace(/\s+/g, '');
-                        if (rowId === idModeracaoNormalized) {
+                        const rowIdNormalized = normalizarId(row[1]);
+                        if (rowIdNormalized === idModeracaoNormalized) {
                             dataHoraOriginal = (row[0] || '').toString().trim();
                             console.log(`📅 [API] Data/Hora original encontrada na planilha "Moderações" (linha ${i + 1}): "${dataHoraOriginal}"`);
                             break;
@@ -12501,10 +12517,9 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 for (let j = 1; j < Math.min(6, negadasData.length); j++) {
                     const tempRow = negadasData[j];
                     if (tempRow && tempRow.length > 1) {
-                        const tempIdRaw = (tempRow[1] || '').toString();
-                        const tempId = tempIdRaw.trim().replace(/\s+/g, ''); // Remove todos os espaços
+                        const tempIdNormalized = normalizarId(tempRow[1]);
                         const tempDataHora = tempRow.length > 14 ? (tempRow[14] || '').toString().trim() : '';
-                        console.log(`   Linha ${j + 1}: ID="${tempId}", Data/Hora Original="${tempDataHora}"`);
+                        console.log(`   Linha ${j + 1}: ID original="${tempRow[1]}", ID normalizado="${tempIdNormalized}", Data/Hora Original="${tempDataHora}"`);
                     }
                 }
                 
@@ -12515,14 +12530,13 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     let encontrado = false;
                     let tipoMatch = '';
                     
-                    // MÉTODO 1: Buscar pelo ID (coluna B - índice 1)
-                    const idRowRaw = (row[1] || '').toString();
-                    const idRow = idRowRaw.trim().replace(/\s+/g, '');
+                    // MÉTODO 1: Buscar pelo ID (coluna B - índice 1) usando normalização robusta
+                    const idRowNormalized = normalizarId(row[1]);
                     
-                    if (idRow === idModeracaoNormalized || 
-                        (!isNaN(idRow) && !isNaN(idModeracaoNormalized) && 
-                         (idRow.length > 15 ? BigInt(idRow) === BigInt(idModeracaoNormalized) : 
-                          Number(idRow) === Number(idModeracaoNormalized)))) {
+                    if (idRowNormalized === idModeracaoNormalized || 
+                        (idRowNormalized && !isNaN(idRowNormalized) && !isNaN(idModeracaoNormalized) && 
+                         (idRowNormalized.length > 15 ? BigInt(idRowNormalized) === BigInt(idModeracaoNormalized) : 
+                          Number(idRowNormalized) === Number(idModeracaoNormalized)))) {
                         encontrado = true;
                         tipoMatch = 'ID';
                     }
@@ -12554,7 +12568,7 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     if (encontrado) {
                         console.log(`✅ [API] Moderação encontrada em Moderações Negadas (linha ${i + 1}) por ${tipoMatch}`);
                         moderacao = {
-                            idModeracao: idRow || (row[1] || '').toString().trim(),
+                            idModeracao: idRowNormalized || normalizarId(row[1]),
                             idReclamacao: (row[2] || '').toString().trim(),
                             tema: (row[3] || '').toString().trim(),
                             motivo: (row[4] || '').toString().trim(),
@@ -12597,23 +12611,23 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
         }
 
         if (!moderacao) {
-            console.error(`❌ [API] Moderação não encontrada com ID: "${idModeracao}" (normalizado: "${idModeracaoNormalized}")`);
+            console.error(`❌ [API] Moderação não encontrada com ID: "${idModeracaoRaw}" (normalizado: "${idModeracaoNormalized}")`);
             console.error(`❌ [API] Verificadas ${aceitasData ? aceitasData.length - 1 : 0} moderações aceitas e ${negadasData ? negadasData.length - 1 : 0} moderações negadas`);
             
             // Log dos primeiros IDs encontrados para debug
             if (aceitasData && aceitasData.length > 1) {
                 const primeirosIds = aceitasData.slice(1, Math.min(6, aceitasData.length)).map(r => {
-                    const id = (r[1] || '').toString().trim();
-                    const idNorm = id.replace(/\s+/g, '');
-                    return { original: id, normalizado: idNorm, tipo: typeof r[1] };
+                    const idOriginal = (r[1] || '').toString();
+                    const idNormalized = normalizarId(r[1]);
+                    return { original: idOriginal, normalizado: idNormalized, tipo: typeof r[1] };
                 });
                 console.log('📋 [API] Primeiros IDs em Moderações Aceitas:', JSON.stringify(primeirosIds, null, 2));
             }
             if (negadasData && negadasData.length > 1) {
                 const primeirosIds = negadasData.slice(1, Math.min(6, negadasData.length)).map(r => {
-                    const id = (r[1] || '').toString().trim();
-                    const idNorm = id.replace(/\s+/g, '');
-                    return { original: id, normalizado: idNorm, tipo: typeof r[1] };
+                    const idOriginal = (r[1] || '').toString();
+                    const idNormalized = normalizarId(r[1]);
+                    return { original: idOriginal, normalizado: idNormalized, tipo: typeof r[1] };
                 });
                 console.log('📋 [API] Primeiros IDs em Moderações Negadas:', JSON.stringify(primeirosIds, null, 2));
                 
@@ -12622,18 +12636,18 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                 for (let i = 1; i < Math.min(negadasData.length, 20); i++) {
                     const row = negadasData[i];
                     if (!row || row.length < 2) continue;
-                    const idRow = (row[1] || '').toString().trim();
-                    const idRowNorm = idRow.replace(/\s+/g, '');
-                    if (idRowNorm.includes(idModeracaoNormalized) || idModeracaoNormalized.includes(idRowNorm)) {
-                        console.log(`⚠️ [API] Possível correspondência parcial encontrada na linha ${i + 1}: "${idRow}" (normalizado: "${idRowNorm}")`);
+                    const idRowNormalized = normalizarId(row[1]);
+                    if (idRowNormalized && idModeracaoNormalized && 
+                        (idRowNormalized.includes(idModeracaoNormalized) || idModeracaoNormalized.includes(idRowNormalized))) {
+                        console.log(`⚠️ [API] Possível correspondência parcial encontrada na linha ${i + 1}: ID original="${row[1]}", normalizado="${idRowNormalized}"`);
                     }
                 }
             }
             
             return res.status(404).json({
                 success: false,
-                error: `Moderação não encontrada com ID: ${idModeracao}`,
-                idBuscado: idModeracao,
+                error: `Moderação não encontrada com ID: ${idModeracaoRaw}`,
+                idBuscado: idModeracaoRaw,
                 idNormalizado: idModeracaoNormalized,
                 totalAceitas: aceitasData ? aceitasData.length - 1 : 0,
                 totalNegadas: negadasData ? negadasData.length - 1 : 0
