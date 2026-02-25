@@ -12467,7 +12467,8 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             // Primeiro, buscar a data/hora original na planilha "Moderações" usando o ID
             let dataHoraOriginal = null;
             try {
-                const moderacoesData = await googleSheetsConfig.readData('Moderações!A1:Z1000');
+                const moderacoesData = await googleSheetsConfig.readData('Moderações!A1:Z10000');
+                console.log(`📊 [API] Total de linhas na planilha "Moderações": ${moderacoesData ? moderacoesData.length - 1 : 0}`);
                 if (moderacoesData && moderacoesData.length > 1) {
                     for (let i = 1; i < moderacoesData.length; i++) {
                         const row = moderacoesData[i];
@@ -12475,9 +12476,12 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                         const rowId = (row[1] || '').toString().trim().replace(/\s+/g, '');
                         if (rowId === idModeracaoNormalized) {
                             dataHoraOriginal = (row[0] || '').toString().trim();
-                            console.log(`📅 [API] Data/Hora original encontrada na planilha "Moderações": "${dataHoraOriginal}"`);
+                            console.log(`📅 [API] Data/Hora original encontrada na planilha "Moderações" (linha ${i + 1}): "${dataHoraOriginal}"`);
                             break;
                         }
+                    }
+                    if (!dataHoraOriginal) {
+                        console.log(`⚠️ [API] ID "${idModeracaoNormalized}" não encontrado na planilha "Moderações" para obter Data/Hora Original`);
                     }
                 }
             } catch (error) {
@@ -12525,11 +12529,25 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     
                     // MÉTODO 2: Se não encontrou pelo ID e temos a data/hora original, buscar por ela (coluna O - índice 14)
                     if (!encontrado && dataHoraOriginal && row.length > 14) {
-                        const dataHoraRow = (row[14] || '').toString().trim();
-                        if (dataHoraRow && dataHoraRow === dataHoraOriginal) {
+                        const dataHoraRowRaw = (row[14] || '').toString();
+                        const dataHoraRow = dataHoraRowRaw.trim();
+                        // Normalizar ambas as datas para comparação (remover espaços extras, normalizar formato)
+                        const dataHoraOriginalNorm = dataHoraOriginal.trim().replace(/\s+/g, ' ');
+                        const dataHoraRowNorm = dataHoraRow.replace(/\s+/g, ' ');
+                        
+                        // Comparação exata
+                        if (dataHoraRowNorm === dataHoraOriginalNorm) {
                             encontrado = true;
                             tipoMatch = 'Data/Hora Original';
                             console.log(`📅 [API] Match por Data/Hora Original na linha ${i + 1}: "${dataHoraRow}"`);
+                        }
+                        // Comparação parcial (caso haja diferenças de formato)
+                        else if (dataHoraRowNorm && dataHoraOriginalNorm && 
+                                 (dataHoraRowNorm.includes(dataHoraOriginalNorm) || 
+                                  dataHoraOriginalNorm.includes(dataHoraRowNorm))) {
+                            encontrado = true;
+                            tipoMatch = 'Data/Hora Original (parcial)';
+                            console.log(`📅 [API] Match parcial por Data/Hora Original na linha ${i + 1}: "${dataHoraRow}" (buscado: "${dataHoraOriginal}")`);
                         }
                     }
                     
@@ -12562,6 +12580,17 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                     console.log(`⚠️ [API] Nenhuma correspondência encontrada após verificar ${negadasData.length - 1} linhas`);
                     if (dataHoraOriginal) {
                         console.log(`⚠️ [API] Tentou buscar também por Data/Hora Original: "${dataHoraOriginal}"`);
+                        // Listar algumas datas/horas encontradas na coluna O para debug
+                        console.log('📋 [API] Primeiras 5 Data/Hora encontradas na coluna O de Moderações Negadas:');
+                        for (let j = 1; j < Math.min(6, negadasData.length); j++) {
+                            const tempRow = negadasData[j];
+                            if (tempRow && tempRow.length > 14) {
+                                const tempDataHora = (tempRow[14] || '').toString().trim();
+                                console.log(`   Linha ${j + 1}: "${tempDataHora}"`);
+                            }
+                        }
+                    } else {
+                        console.log(`⚠️ [API] Data/Hora Original não foi encontrada na planilha "Moderações" para o ID "${idModeracaoNormalized}"`);
                     }
                 }
             }
