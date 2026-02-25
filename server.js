@@ -4003,7 +4003,7 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                 console.log(`🔍 Consultando aprendizado negativo para tema: ${temaAtual}`);
                 
                 // Consultar página "Moderações Negadas"
-                const negativasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
+                const negativasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
                 
                 if (negativasData && negativasData.length > 1) {
                     // Filtrar negativas do mesmo tema
@@ -4020,8 +4020,9 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                             temaNegativa.includes(temaAtualLower) || 
                             temaAtualLower.includes(temaNegativa)) {
                             negativasRelevantes.push({
-                                erro: row[8] || '', // Bloco 2 - Erro Identificado
-                                correcao: row[9] || '' // Bloco 3 - Orientação de Correção
+                                erro: row[8] || '', // Bloco 2 - Onde a Solicitação Errou
+                                correcao: row[9] || '', // Bloco 3 - Como Corrigir em Próximas Solicitações
+                                dataRegistro: row[0] || '' // Data para ordenação
                             });
                         }
                     }
@@ -4029,17 +4030,32 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                     if (negativasRelevantes.length > 0) {
                         console.log(`📊 Encontradas ${negativasRelevantes.length} negativas relevantes para aprendizado negativo`);
                         
-                        // Extrair padrões de erro e correção
-                        const errosRecorrentes = negativasRelevantes.map(n => n.erro).filter(e => e && e.trim());
-                        const correcoesRecorrentes = negativasRelevantes.map(n => n.correcao).filter(c => c && c.trim());
+                        // Ordenar por data (mais recentes primeiro) e extrair padrões
+                        negativasRelevantes.sort((a, b) => {
+                            const dataA = new Date(a.dataRegistro);
+                            const dataB = new Date(b.dataRegistro);
+                            return dataB - dataA; // Mais recente primeiro
+                        });
+                        
+                        // Extrair padrões de erro (Bloco 2) e correção (Bloco 3)
+                        const errosRecorrentes = negativasRelevantes
+                            .map(n => n.erro)
+                            .filter(e => e && e.trim())
+                            .slice(0, 10); // Aumentado de 5 para 10 erros mais recentes
+                        
+                        const correcoesRecorrentes = negativasRelevantes
+                            .map(n => n.correcao)
+                            .filter(c => c && c.trim())
+                            .slice(0, 10); // Aumentado de 5 para 10 correções mais recentes
                         
                         if (errosRecorrentes.length > 0 || correcoesRecorrentes.length > 0) {
                             aprendizadoNegativo = {
-                                erros: errosRecorrentes.slice(0, 5), // Limitar a 5 erros mais recentes
-                                correcoes: correcoesRecorrentes.slice(0, 5) // Limitar a 5 correções mais recentes
+                                erros: errosRecorrentes, // Bloco 2 - Onde Errou
+                                correcoes: correcoesRecorrentes, // Bloco 3 - Como Corrigir
+                                totalNegativas: negativasRelevantes.length
                             };
                             aprendizadoNegativoAplicado = true;
-                            console.log('✅ Aprendizado negativo identificado e será aplicado no prompt');
+                            console.log(`✅ Aprendizado negativo identificado: ${errosRecorrentes.length} erros e ${correcoesRecorrentes.length} correções serão aplicados no prompt`);
                         }
                     }
                 }
@@ -4120,25 +4136,29 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                 conhecimentoFeedback = '\n\n🔴 APRENDIZADO NEGATIVO - ERROS A EVITAR (FASE 2):\n';
             }
             
-            conhecimentoFeedback += '⚠️ ATENÇÃO: Após definir o modelo base (positivo ou coerente), aplique estas correções para evitar erros já identificados:\n\n';
+            conhecimentoFeedback += `⚠️ ATENÇÃO: Baseado em ${aprendizadoNegativo.totalNegativas || 0} moderação(ões) negada(s) anterior(es) do mesmo tema, aplique estas correções para evitar erros já identificados:\n\n`;
             
+            // BLOCO 2 - ONDE A SOLICITAÇÃO ERROU (O que NÃO fazer)
             if (aprendizadoNegativo.erros && aprendizadoNegativo.erros.length > 0) {
-                conhecimentoFeedback += '❌ ERROS RECORRENTES IDENTIFICADOS EM NEGATIVAS ANTERIORES:\n';
+                conhecimentoFeedback += '🟡 BLOCO 2 - ONDE AS SOLICITAÇÕES ANTERIORES ERRARAM (NÃO FAÇA ISSO):\n';
+                conhecimentoFeedback += 'Estes são os erros técnicos identificados em moderações negadas do mesmo tema. EVITE estes padrões:\n\n';
                 aprendizadoNegativo.erros.forEach((erro, index) => {
                     conhecimentoFeedback += `${index + 1}. ${erro}\n`;
                 });
                 conhecimentoFeedback += '\n';
             }
             
+            // BLOCO 3 - COMO CORRIGIR (O que FAZER)
             if (aprendizadoNegativo.correcoes && aprendizadoNegativo.correcoes.length > 0) {
-                conhecimentoFeedback += '✅ ORIENTAÇÕES DE CORREÇÃO:\n';
+                conhecimentoFeedback += '🟢 BLOCO 3 - COMO CORRIGIR EM PRÓXIMAS SOLICITAÇÕES (FAÇA ISSO):\n';
+                conhecimentoFeedback += 'Estas são as orientações práticas baseadas nas análises de moderações negadas. SIGA estas diretrizes:\n\n';
                 aprendizadoNegativo.correcoes.forEach((correcao, index) => {
                     conhecimentoFeedback += `${index + 1}. ${correcao}\n`;
                 });
                 conhecimentoFeedback += '\n';
             }
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: O aprendizado negativo NUNCA cria texto do zero. Ele apenas CORRIGE o modelo positivo/coerente removendo estruturas problemáticas, ajustando tom e vocabulário. Mantenha a estrutura base do modelo aceito, apenas removendo os erros identificados.\n';
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: O aprendizado negativo NUNCA cria texto do zero. Ele apenas CORRIGE o modelo positivo/coerente removendo estruturas problemáticas identificadas no Bloco 2 e aplicando as orientações do Bloco 3. Mantenha a estrutura base do modelo aceito, apenas removendo os erros identificados e seguindo as correções sugeridas.\n';
         }
         
         // PRIORIDADE 4: FEEDBACKS DE ERROS (sistema legado) - referência secundária
