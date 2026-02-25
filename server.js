@@ -4053,13 +4053,47 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                 const negativasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z10000');
                 
                 if (negativasData && negativasData.length > 1) {
+                    // Obter cabeçalhos para busca dinâmica
+                    const headers = negativasData[0];
+                    
+                    // Encontrar índices das colunas importantes
+                    const temaIndex = headers.findIndex(h => {
+                        if (!h) return false;
+                        const hStr = h.toString().trim().toLowerCase();
+                        return hStr === 'tema' || hStr.includes('tema');
+                    });
+                    const erroIndex = headers.findIndex(h => {
+                        if (!h) return false;
+                        const hStr = h.toString().trim().toLowerCase();
+                        return hStr.includes('erro') && hStr.includes('identificado') || 
+                               hStr.includes('bloco 2') || 
+                               (hStr.includes('erro') && !hStr.includes('correção'));
+                    });
+                    const correcaoIndex = headers.findIndex(h => {
+                        if (!h) return false;
+                        const hStr = h.toString().trim().toLowerCase();
+                        return hStr.includes('correção') || hStr.includes('correcao') || 
+                               hStr.includes('orientação') || hStr.includes('orientacao') ||
+                               hStr.includes('bloco 3');
+                    });
+                    const dataIndex = headers.findIndex(h => {
+                        if (!h) return false;
+                        const hStr = h.toString().trim().toLowerCase();
+                        return hStr.includes('data') && hStr.includes('registro');
+                    });
+                    
+                    console.log(`🔍 Índices encontrados em Moderações Negadas - Tema: ${temaIndex} (esperado: 3), Erro: ${erroIndex} (esperado: 8), Correção: ${correcaoIndex} (esperado: 9), Data: ${dataIndex} (esperado: 0)`);
+                    
                     // Filtrar negativas do mesmo tema
                     const negativasRelevantes = [];
                     for (let i = 1; i < negativasData.length; i++) {
                         const row = negativasData[i];
                         if (!row || row.length < 10) continue;
                         
-                        const temaNegativa = (row[3] || '').toString().toLowerCase().trim();
+                        // Buscar tema usando índice dinâmico ou fallback para índice fixo
+                        const temaNegativa = (temaIndex >= 0 && row[temaIndex] !== undefined 
+                            ? row[temaIndex] 
+                            : (row[3] || '')).toString().toLowerCase().trim();
                         const temaAtualLower = temaAtual.toString().toLowerCase().trim();
                         
                         // Verificar se o tema corresponde
@@ -4067,9 +4101,15 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                             temaNegativa.includes(temaAtualLower) || 
                             temaAtualLower.includes(temaNegativa)) {
                             negativasRelevantes.push({
-                                erro: row[8] || '', // Bloco 2 - Onde a Solicitação Errou
-                                correcao: row[9] || '', // Bloco 3 - Como Corrigir em Próximas Solicitações
-                                dataRegistro: row[0] || '' // Data para ordenação
+                                erro: (erroIndex >= 0 && row[erroIndex] !== undefined 
+                                    ? row[erroIndex] 
+                                    : (row[8] || '')).toString().trim(), // Bloco 2 - Onde a Solicitação Errou
+                                correcao: (correcaoIndex >= 0 && row[correcaoIndex] !== undefined 
+                                    ? row[correcaoIndex] 
+                                    : (row[9] || '')).toString().trim(), // Bloco 3 - Como Corrigir em Próximas Solicitações
+                                dataRegistro: (dataIndex >= 0 && row[dataIndex] !== undefined 
+                                    ? row[dataIndex] 
+                                    : (row[0] || '')).toString().trim() // Data para ordenação
                             });
                         }
                     }
