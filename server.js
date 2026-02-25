@@ -13150,18 +13150,19 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
             });
         }
 
-        // Ler todos os dados da aba Moderações
-        const data = await googleSheetsConfig.readData('Moderações!A1:Z10000');
-        
-        if (!data || data.length <= 1) {
-            return res.json({
-                success: true,
-                message: 'Nenhum dado para corrigir',
-                linhasCorrigidas: 0
+        const sheets = googleSheetsConfig.getSheets();
+        const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+
+        // Ler apenas cabeçalhos primeiro
+        const headerData = await googleSheetsConfig.readData('Moderações!A1:O1');
+        if (!headerData || headerData.length === 0) {
+            return res.status(500).json({
+                success: false,
+                error: 'Não foi possível ler cabeçalhos da planilha'
             });
         }
 
-        const headers = data[0];
+        const headers = headerData[0];
         const linhasCorrigidas = [];
         const erros = [];
 
@@ -13184,112 +13185,155 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
             'Resultado da Moderação' // [14]
         ];
 
-        // Preparar todas as linhas corrigidas primeiro
-        const linhasParaAtualizar = [];
-        
-        // Processar cada linha (pular cabeçalho)
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            if (!row || row.length === 0) continue;
+        // Ler dados em lotes menores para evitar quota
+        const tamanhoLoteLeitura = 50; // Ler 50 linhas por vez
+        let linhaInicio = 2; // Começar na linha 2 (após cabeçalho)
+        let temMaisDados = true;
+        const todasLinhasCorrigidas = [];
 
+        // Processar dados em lotes
+        while (temMaisDados) {
             try {
-                // Criar nova linha com dados nas colunas corretas
-                const novaRow = new Array(15).fill('');
+                const linhaFim = linhaInicio + tamanhoLoteLeitura - 1;
+                const range = `Moderações!A${linhaInicio}:O${linhaFim}`;
                 
-                // Mapear dados existentes para as colunas corretas
-                // Tentar encontrar dados pelos cabeçalhos atuais
-                estruturaEsperada.forEach((headerEsperado, indexEsperado) => {
-                    // Procurar o cabeçalho na planilha
-                    const indexAtual = headers.findIndex(h => {
-                        if (!h) return false;
-                        const hStr = h.toString().trim();
-                        const hEsperado = headerEsperado.toString().trim();
-                        return hStr === hEsperado || 
-                               hStr.toLowerCase() === hEsperado.toLowerCase() ||
-                               (hStr.toLowerCase().includes('status') && hEsperado.toLowerCase().includes('status')) ||
-                               (hStr.toLowerCase().includes('feedback') && hEsperado.toLowerCase().includes('feedback'));
-                    });
+                console.log(`📖 Lendo linhas ${linhaInicio} a ${linhaFim}...`);
+                const loteData = await googleSheetsConfig.readData(range);
+                
+                if (!loteData || loteData.length === 0) {
+                    temMaisDados = false;
+                    break;
+                }
 
-                    if (indexAtual >= 0 && row[indexAtual] !== undefined && row[indexAtual] !== null) {
-                        novaRow[indexEsperado] = row[indexAtual];
-                    } else {
-                        // Se não encontrar pelo cabeçalho, tentar pelo índice esperado
-                        if (row[indexEsperado] !== undefined && row[indexEsperado] !== null) {
-                            novaRow[indexEsperado] = row[indexEsperado];
-                        }
-                    }
-                });
+                // Processar cada linha do lote
+                const linhasParaAtualizar = [];
+                for (let i = 0; i < loteData.length; i++) {
+                    const row = loteData[i];
+                    if (!row || row.length === 0) continue;
 
-                // Garantir que ID está na coluna B (índice 1)
-                if (!novaRow[1] && row[1]) novaRow[1] = row[1];
-                if (!novaRow[1] && row[0] && !isNaN(row[0])) novaRow[1] = row[0];
+                    try {
+                        // Criar nova linha com dados nas colunas corretas
+                        const novaRow = new Array(15).fill('');
+                        
+                        // Mapear dados existentes para as colunas corretas
+                        estruturaEsperada.forEach((headerEsperado, indexEsperado) => {
+                            // Procurar o cabeçalho na planilha
+                            const indexAtual = headers.findIndex(h => {
+                                if (!h) return false;
+                                const hStr = h.toString().trim();
+                                const hEsperado = headerEsperado.toString().trim();
+                                return hStr === hEsperado || 
+                                       hStr.toLowerCase() === hEsperado.toLowerCase() ||
+                                       (hStr.toLowerCase().includes('status') && hEsperado.toLowerCase().includes('status')) ||
+                                       (hStr.toLowerCase().includes('feedback') && hEsperado.toLowerCase().includes('feedback'));
+                            });
 
-                // Garantir que Data/Hora está na coluna A (índice 0)
-                if (!novaRow[0] && row[0]) {
-                    // Se row[0] não parece ser data, tentar encontrar data em outra coluna
-                    const dataStr = row[0].toString();
-                    if (!dataStr.match(/^\d{2}\/\d{2}\/\d{4}/) && !dataStr.match(/^\d{4}-\d{2}-\d{2}/)) {
-                        // Não é data, procurar em outras colunas
-                        for (let j = 0; j < row.length; j++) {
-                            if (row[j] && row[j].toString().match(/^\d{2}\/\d{2}\/\d{4}/)) {
-                                novaRow[0] = row[j];
-                                break;
+                            if (indexAtual >= 0 && row[indexAtual] !== undefined && row[indexAtual] !== null) {
+                                novaRow[indexEsperado] = row[indexAtual];
+                            } else if (row[indexEsperado] !== undefined && row[indexEsperado] !== null) {
+                                novaRow[indexEsperado] = row[indexEsperado];
+                            }
+                        });
+
+                        // Garantir que ID está na coluna B (índice 1)
+                        if (!novaRow[1] && row[1]) novaRow[1] = row[1];
+                        if (!novaRow[1] && row[0] && !isNaN(row[0])) novaRow[1] = row[0];
+
+                        // Garantir que Data/Hora está na coluna A (índice 0)
+                        if (!novaRow[0] && row[0]) {
+                            const dataStr = row[0].toString();
+                            if (dataStr.match(/^\d{2}\/\d{2}\/\d{4}/) || dataStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                novaRow[0] = row[0];
+                            } else {
+                                // Procurar data em outras colunas
+                                for (let j = 0; j < row.length; j++) {
+                                    if (row[j] && row[j].toString().match(/^\d{2}\/\d{2}\/\d{4}/)) {
+                                        novaRow[0] = row[j];
+                                        break;
+                                    }
+                                }
                             }
                         }
-                    } else {
-                        novaRow[0] = row[0];
-                    }
-                }
 
-                // Se Status Aprovação estiver vazio mas deveria ser 'Aprovada' (moderações coerentes)
-                // Verificar se há dados nas colunas de moderação coerente
-                if (!novaRow[12] || novaRow[12].toString().trim() === '') {
-                    if (novaRow[10] && novaRow[10].toString().trim() !== '') {
-                        // Se tem Texto Moderação Reformulado, provavelmente é uma moderação coerente
-                        novaRow[12] = 'Aprovada';
-                    }
-                }
+                        // Se Status Aprovação estiver vazio mas deveria ser 'Aprovada' (moderações coerentes)
+                        if (!novaRow[12] || novaRow[12].toString().trim() === '') {
+                            if (novaRow[10] && novaRow[10].toString().trim() !== '') {
+                                novaRow[12] = 'Aprovada';
+                            }
+                        }
 
-                // Adicionar à lista de linhas para atualizar
-                linhasParaAtualizar.push({
-                    linhaNumero: i + 1,
-                    dados: novaRow
-                });
-                
-            } catch (error) {
-                erros.push({ linha: i + 1, erro: error.message });
-                console.error(`❌ Erro ao processar linha ${i + 1}:`, error.message);
-            }
-        }
-
-        console.log(`📝 Processadas ${linhasParaAtualizar.length} linhas para correção`);
-
-        // Atualizar linhas em lotes para evitar rate limiting
-        const tamanhoLote = 10; // Atualizar 10 linhas por vez
-        for (let i = 0; i < linhasParaAtualizar.length; i += tamanhoLote) {
-            const lote = linhasParaAtualizar.slice(i, i + tamanhoLote);
-            
-            try {
-                // Atualizar cada linha do lote
-                for (const item of lote) {
-                    try {
-                        const range = `Moderações!A${item.linhaNumero}:O${item.linhaNumero}`;
-                        await googleSheetsConfig.updateRow(range, item.dados);
-                        linhasCorrigidas.push(item.linhaNumero);
+                        linhasParaAtualizar.push({
+                            linhaNumero: linhaInicio + i,
+                            dados: novaRow
+                        });
                     } catch (error) {
-                        erros.push({ linha: item.linhaNumero, erro: error.message });
-                        console.error(`❌ Erro ao atualizar linha ${item.linhaNumero}:`, error.message);
+                        erros.push({ linha: linhaInicio + i, erro: error.message });
                     }
                 }
-                
-                // Aguardar um pouco entre lotes para evitar rate limiting
-                if (i + tamanhoLote < linhasParaAtualizar.length) {
-                    await new Promise(resolve => setTimeout(resolve, 500)); // 500ms entre lotes
+
+                // Atualizar linhas usando batchUpdate (mais eficiente)
+                if (linhasParaAtualizar.length > 0) {
+                    try {
+                        // Preparar dados para batchUpdate
+                        const dataToUpdate = linhasParaAtualizar.map(item => ({
+                            range: `Moderações!A${item.linhaNumero}:O${item.linhaNumero}`,
+                            values: [item.dados]
+                        }));
+
+                        // Atualizar em lotes de 10 usando batchUpdate
+                        const tamanhoLoteUpdate = 10;
+                        for (let j = 0; j < dataToUpdate.length; j += tamanhoLoteUpdate) {
+                            const loteUpdate = dataToUpdate.slice(j, j + tamanhoLoteUpdate);
+                            
+                            const batchRequest = {
+                                spreadsheetId: spreadsheetId,
+                                resource: {
+                                    valueInputOption: 'RAW',
+                                    data: loteUpdate
+                                }
+                            };
+
+                            await sheets.spreadsheets.values.batchUpdate(batchRequest);
+                            
+                            loteUpdate.forEach((item, idx) => {
+                                const linhaNum = linhasParaAtualizar[j + idx].linhaNumero;
+                                linhasCorrigidas.push(linhaNum);
+                            });
+
+                            console.log(`✅ Atualizadas ${linhasCorrigidas.length} linhas...`);
+                            
+                            // Aguardar entre lotes de atualização
+                            if (j + tamanhoLoteUpdate < dataToUpdate.length) {
+                                await new Promise(resolve => setTimeout(resolve, 1000)); // 1s entre lotes
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`❌ Erro ao atualizar lote:`, error.message);
+                        linhasParaAtualizar.forEach(item => {
+                            erros.push({ linha: item.linhaNumero, erro: error.message });
+                        });
+                    }
                 }
-                
-                console.log(`📝 Corrigidas ${linhasCorrigidas.length} de ${linhasParaAtualizar.length} linhas...`);
+
+                // Verificar se há mais dados
+                if (loteData.length < tamanhoLoteLeitura) {
+                    temMaisDados = false;
+                } else {
+                    linhaInicio += tamanhoLoteLeitura;
+                    // Aguardar entre leituras para evitar quota
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2s entre leituras
+                }
             } catch (error) {
-                console.error(`❌ Erro ao processar lote:`, error.message);
+                console.error(`❌ Erro ao processar lote de leitura:`, error.message);
+                if (error.message.includes('Quota exceeded') || error.message.includes('rateLimitExceeded')) {
+                    // Se exceder quota, aguardar mais tempo
+                    console.log('⏳ Quota excedida, aguardando 10 segundos...');
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    // Continuar do mesmo ponto
+                } else {
+                    temMaisDados = false;
+                    erros.push({ linha: 'lote', erro: error.message });
+                }
             }
         }
 
