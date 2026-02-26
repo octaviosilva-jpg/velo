@@ -7,7 +7,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles.css?v=20250117l" rel="stylesheet">
+    <link href="styles.css?v=20250226" rel="stylesheet">
     
     <!-- CSS inline para garantir que o overlay funcione -->
     <style>
@@ -23,7 +23,7 @@
             z-index: 99999 !important;
             opacity: 1 !important;
             visibility: visible !important;
-            background: linear-gradient(135deg, rgba(0, 0, 88, 0.95) 0%, rgba(22, 52, 255, 0.9) 25%, rgba(29, 253, 185, 0.1) 50%, rgba(22, 52, 255, 0.9) 75%, rgba(0, 0, 88, 0.95) 100%) !important;
+            background: linear-gradient(160deg, rgba(0, 0, 88, 0.97) 0%, rgba(22, 52, 255, 0.85) 40%, rgba(29, 253, 185, 0.08) 100%) !important;
         }
         
         #identificacao-overlay.hidden {
@@ -142,30 +142,37 @@
     </script>
 </head>
 <body>
-    <!-- Overlay de Login -->
+    <!-- Overlay de Login - Rebrand Velotax -->
     <div id="identificacao-overlay">
-        <div id="identificacao-box">
-            <div class="login-header">
-                <img src="logo-reclame-aqui.SVG.png" alt="Velotax Bot" class="login-logo">
-                <h2>Bem-vindo(a) ao Velotax Bot</h2>
-                <p>Por favor, faça login com sua conta Google corporativa (@velotax.com.br).</p>
-            </div>
-            
-            <div id="google-signin-button" class="google-signin-btn">
-                <img src="https://www.google.com/favicon.ico" alt="Google Icon">
-                <span>Entrar com Google</span>
-            </div>
-            
-            <p id="identificacao-error" class="identificacao-error hidden">
-                <i class="fas fa-exclamation-triangle"></i>
-                Acesso permitido apenas para e-mails corporativos @velotax.com.br
-            </p>
-            
-            <div class="login-footer">
-                <small>
-                    <i class="fas fa-shield-alt"></i>
-                    Sistema seguro e protegido
-                </small>
+        <div id="identificacao-box" class="login-modal">
+            <div class="login-modal__card">
+                <header class="login-modal__header">
+                    <h1 class="login-modal__title">Assistente de atendimento</h1>
+                    <p class="login-modal__subtitle"><span class="login-modal__ra-brand">Reclame Aqui</span></p>
+                </header>
+                <div class="login-modal__body">
+                    <p class="login-modal__domain-info">
+                        <i class="fas fa-envelope"></i>
+                        Acesso restrito a contas corporativas <strong>@velotax.com.br</strong>
+                    </p>
+                    <div id="google-signin-button" class="google-signin-btn">
+                        <img src="https://www.google.com/favicon.ico" alt="Google">
+                        <span>Entrar com Google</span>
+                    </div>
+                    <p id="identificacao-error" class="identificacao-error hidden">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Acesso permitido apenas para e-mails corporativos @velotax.com.br
+                    </p>
+                </div>
+                <footer class="login-modal__footer">
+                    <div class="login-modal__badge">
+                        <img src="logo-reclame-aqui.SVG.png" alt="Reclame Aqui" class="login-modal__ra-logo">
+                        <span>Assistente Reclame Aqui</span>
+                    </div>
+                    <small class="login-modal__security">
+                        <i class="fas fa-shield-alt"></i> Conexão segura
+                    </small>
+                </footer>
             </div>
         </div>
     </div>
