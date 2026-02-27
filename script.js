@@ -258,7 +258,7 @@ async function gerarRespostaOpenAI() {
     const reclamacao = document.getElementById('reclamacao-text');
     const solucao = document.getElementById('solucao-implementada');
     const historico = document.getElementById('historico-atendimento');
-    const observacoes = document.getElementById('observacoes-internas');
+    const nomeSolicitanteEl = document.getElementById('nome-solicitante');
     
     console.log('🔍 Elementos encontrados:', {
         tipoSituacao: tipoSituacao ? 'OK' : 'NÃO ENCONTRADO',
@@ -266,10 +266,10 @@ async function gerarRespostaOpenAI() {
         reclamacao: reclamacao ? 'OK' : 'NÃO ENCONTRADO',
         solucao: solucao ? 'OK' : 'NÃO ENCONTRADO',
         historico: historico ? 'OK' : 'NÃO ENCONTRADO',
-        observacoes: observacoes ? 'OK' : 'NÃO ENCONTRADO'
+        nomeSolicitante: nomeSolicitanteEl ? 'OK' : 'NÃO ENCONTRADO'
     });
     
-    if (!tipoSituacao || !idReclamacao || !reclamacao || !solucao) {
+    if (!tipoSituacao || !idReclamacao || !reclamacao || !solucao || !nomeSolicitanteEl) {
         console.error('❌ Elementos obrigatórios não encontrados!');
         showErrorMessage('Erro: Elementos do formulário não encontrados. Verifique se a página carregou corretamente.');
         return;
@@ -280,7 +280,7 @@ async function gerarRespostaOpenAI() {
     const reclamacaoValue = reclamacao.value;
     const solucaoValue = solucao.value;
     const historicoValue = historico.value;
-    const observacoesValue = observacoes.value;
+    const nomeSolicitanteValue = nomeSolicitanteEl ? nomeSolicitanteEl.value.trim() : '';
     
     console.log('Dados coletados:', {
         tipoSituacao: tipoSituacaoValue,
@@ -290,9 +290,9 @@ async function gerarRespostaOpenAI() {
     });
     
     // Validação dos campos obrigatórios
-    if (!tipoSituacaoValue || !idReclamacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim()) || !solucaoValue || (typeof solucaoValue === 'string' && !solucaoValue.trim())) {
+    if (!tipoSituacaoValue || !idReclamacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim()) || !solucaoValue || (typeof solucaoValue === 'string' && !solucaoValue.trim()) || !nomeSolicitanteValue) {
         console.log('Validação falhou - campos obrigatórios não preenchidos');
-        showErrorMessage('Por favor, preencha todos os campos obrigatórios (*).');
+        showErrorMessage('Por favor, preencha todos os campos obrigatórios (*), incluindo Nome do solicitante.');
         return;
     }
     
@@ -311,7 +311,7 @@ async function gerarRespostaOpenAI() {
             texto_cliente: reclamacaoValue,
             solucao_implementada: solucaoValue,
             historico_atendimento: historicoValue,
-            observacoes_internas: observacoesValue,
+            nome_solicitante: nomeSolicitanteValue,
             timestamp: new Date().toISOString()
         };
         
@@ -430,7 +430,7 @@ async function chamarOpenAI(dados) {
 - Reclamação do cliente: ${dados.texto_cliente}
 - Solução implementada: ${dados.solucao_implementada}
 - Histórico de atendimento: ${dados.historico_atendimento || 'Nenhum'}
-- Observações internas: ${dados.observacoes_internas || 'Nenhuma'}
+- Nome do solicitante: ${dados.nome_solicitante || 'N/A'}
 
 Gere a resposta apropriada:`;
 
@@ -520,7 +520,7 @@ async function avaliarResposta(tipoAvaliacao) {
         texto_cliente: document.getElementById('reclamacao-text').value,
         solucao_implementada: document.getElementById('solucao-implementada').value,
         historico_atendimento: document.getElementById('historico-atendimento').value,
-        observacoes_internas: document.getElementById('observacoes-internas').value,
+        nome_solicitante: document.getElementById('nome-solicitante').value.trim(),
         timestamp: new Date().toISOString()
     };
     
@@ -915,7 +915,7 @@ async function reformularRespostaOpenAI(dados, respostaAnterior) {
 - Reclamação do cliente: ${dados.texto_cliente}
 - Solução implementada: ${dados.solucao_implementada}
 - Histórico de atendimento: ${dados.historico_atendimento || 'Nenhum'}
-- Observações internas: ${dados.observacoes_internas || 'Nenhuma'}
+- Nome do solicitante: ${dados.nome_solicitante || 'N/A'}
 
 ### Resposta anterior (incoerente):
 ${respostaAnterior}
@@ -1028,7 +1028,7 @@ function carregarDoHistorico(index) {
         document.getElementById('reclamacao-text').value = item.dados.texto_cliente;
         document.getElementById('solucao-implementada').value = item.dados.solucao_implementada;
         document.getElementById('historico-atendimento').value = item.dados.historico_atendimento;
-        document.getElementById('observacoes-internas').value = item.dados.observacoes_internas;
+        document.getElementById('nome-solicitante').value = item.dados.nome_solicitante || item.dados.observacoes_internas || '';
         
         // Carregar resposta
         document.getElementById('texto-resposta-gpt5').value = item.resposta;
@@ -1051,7 +1051,7 @@ function salvarRascunho() {
         reclamacao: document.getElementById('reclamacao-text').value,
         solucao: document.getElementById('solucao-implementada').value,
         historico: document.getElementById('historico-atendimento').value,
-        observacoes: document.getElementById('observacoes-internas').value,
+        nome_solicitante: document.getElementById('nome-solicitante').value.trim(),
         timestamp: new Date().toISOString()
     };
     
@@ -1079,7 +1079,7 @@ function carregarRascunho() {
     document.getElementById('reclamacao-text').value = rascunho.reclamacao;
     document.getElementById('solucao-implementada').value = rascunho.solucao;
     document.getElementById('historico-atendimento').value = rascunho.historico;
-    document.getElementById('observacoes-internas').value = rascunho.observacoes;
+    document.getElementById('nome-solicitante').value = rascunho.nome_solicitante || rascunho.observacoes || '';
     
     showSuccessMessage('Rascunho carregado com sucesso!');
 }
@@ -1138,7 +1138,7 @@ const exemplosTeste = [
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
         historicoAtendimento: "Cliente já havia solicitado exclusão via WhatsApp em 15/01/2025, mas não recebeu confirmação.",
-        observacoesInternas: "Cliente demonstrou satisfação com o atendimento."
+        nomeSolicitante: "Maria"
     },
     {
         nome: "Exclusão de Cadastro - Negada",
@@ -1147,7 +1147,7 @@ const exemplosTeste = [
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
         historicoAtendimento: "Cliente possui operação em andamento que impede a exclusão.",
-        observacoesInternas: "Explicar ao cliente sobre as pendências e como resolver."
+        nomeSolicitante: "João"
     },
     {
         nome: "Liberação de Chave Pix - Realizada",
@@ -1156,7 +1156,7 @@ const exemplosTeste = [
         reclamacaoCliente: "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
         solucaoImplementada: "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
         historicoAtendimento: "Cliente já havia tentado fazer a portabilidade anteriormente.",
-        observacoesInternas: "Processo realizado em 2 dias úteis conforme previsto."
+        nomeSolicitante: "Carlos"
     },
     {
         nome: "Liberação de Chave Pix - Negada",
@@ -1165,7 +1165,7 @@ const exemplosTeste = [
         reclamacaoCliente: "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
         solucaoImplementada: "Não foi possível realizar a liberação da chave Pix devido a operação ativa.",
         historicoAtendimento: "Cliente possui antecipação em andamento que impede a liberação.",
-        observacoesInternas: "Aguardar finalização da operação para liberar a chave."
+        nomeSolicitante: "Ana"
     },
     {
         nome: "Quitação - Realizada",
@@ -1174,7 +1174,7 @@ const exemplosTeste = [
         reclamacaoCliente: "Cliente questiona sobre quitação de antecipação. Ele acredita que já quitou mas ainda aparece débito.",
         solucaoImplementada: "Antecipação quitada automaticamente em 31/07/2025 quando restituição foi depositada pela Receita Federal.",
         historicoAtendimento: "Cliente recebeu restituição do IR em 31/07/2025.",
-        observacoesInternas: "Sistema atualizado automaticamente após depósito da restituição."
+        nomeSolicitante: "Pedro"
     },
     {
         nome: "SERASA/SPC - Inclusão",
@@ -1183,7 +1183,7 @@ const exemplosTeste = [
         reclamacaoCliente: "Cliente questiona inclusão em SERASA/SPC. Ele não entende por que foi incluído.",
         solucaoImplementada: "Antecipação não foi quitada na data prevista, resultando em inclusão nos órgãos de proteção ao crédito.",
         historicoAtendimento: "Cliente não quitou a antecipação no prazo estabelecido.",
-        observacoesInternas: "Explicar sobre descumprimento contratual e como regularizar."
+        nomeSolicitante: "Fernanda"
     },
     {
         nome: "Análise em Andamento",
@@ -1192,7 +1192,7 @@ const exemplosTeste = [
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações.`,
         solucaoImplementada: "Solicitação em análise pela equipe técnica. Aguardando verificação de pendências.",
         historicoAtendimento: "Cliente fez a solicitação há 2 dias úteis.",
-        observacoesInternas: "Análise deve ser concluída em até 5 dias úteis."
+        nomeSolicitante: "Roberto"
     },
     {
         nome: "Juros Abusivos - Análise",
@@ -1201,7 +1201,7 @@ const exemplosTeste = [
         reclamacaoCliente: "Cliente reclama de juros abusivos na antecipação. Ele acredita que os valores estão incorretos.",
         solucaoImplementada: "Análise dos cálculos em andamento pela equipe financeira. Verificando aplicação das taxas contratuais.",
         historicoAtendimento: "Cliente questionou os valores há 3 dias úteis.",
-        observacoesInternas: "Revisão completa dos cálculos e taxas aplicadas."
+        nomeSolicitante: "Lucia"
     }
 ];
 
@@ -1218,7 +1218,7 @@ function testarFuncao() {
             'reclamacao-text': document.getElementById('reclamacao-text'),
             'solucao-implementada': document.getElementById('solucao-implementada'),
             'historico-atendimento': document.getElementById('historico-atendimento'),
-            'observacoes-internas': document.getElementById('observacoes-internas')
+            'nome-solicitante': document.getElementById('nome-solicitante')
         };
         
     console.log('Elementos encontrados:');
@@ -1251,7 +1251,7 @@ function testarFuncao() {
         elementos['reclamacao-text'].value = exemplo.reclamacaoCliente;
         elementos['solucao-implementada'].value = exemplo.solucaoImplementada;
         elementos['historico-atendimento'].value = exemplo.historicoAtendimento;
-        elementos['observacoes-internas'].value = exemplo.observacoesInternas;
+        elementos['nome-solicitante'].value = exemplo.nomeSolicitante || '';
         
         // Verificar se os valores foram definidos
         console.log('Valores definidos:');
@@ -4331,10 +4331,10 @@ async function buscarSolicitacoes() {
                                 <div class="campo-valor">${solicitacao.historicoAtendimento}</div>
                             </div>
                             ` : ''}
-                            ${solicitacao.observacoesInternas ? `
+                            ${(solicitacao.nomeSolicitante || solicitacao.observacoesInternas) ? `
                             <div class="campo-detalhe">
-                                <div class="campo-label">Observações Internas:</div>
-                                <div class="campo-valor">${solicitacao.observacoesInternas}</div>
+                                <div class="campo-label">Nome do solicitante:</div>
+                                <div class="campo-valor">${solicitacao.nomeSolicitante || solicitacao.observacoesInternas}</div>
                             </div>
                             ` : ''}
                         `;

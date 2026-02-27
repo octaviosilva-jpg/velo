@@ -1,4 +1,4 @@
-﻿// ===== SERVIDOR BACKEND SEGURO - VELOTAX BOT =====
+// ===== SERVIDOR BACKEND SEGURO - VELOTAX BOT =====
 
 const express = require('express');
 const cors = require('cors');
@@ -557,7 +557,8 @@ async function saveFeedbacksRespostas(feedbacks) {
                             id_reclamacao: ultimoFeedback.dadosFormulario?.id_reclamacao || ultimoFeedback.contexto?.idReclamacao || 'N/A',
                             solucao_implementada: ultimoFeedback.dadosFormulario?.solucao_implementada || '',
                             historico_atendimento: ultimoFeedback.dadosFormulario?.historico_atendimento || '',
-                            observacoes_internas: ultimoFeedback.dadosFormulario?.observacoes_internas || '',
+                            nome_solicitante: ultimoFeedback.dadosFormulario?.nome_solicitante || ultimoFeedback.dadosFormulario?.observacoes_internas || '',
+                            observacoes_internas: ultimoFeedback.dadosFormulario?.observacoes_internas || '', // compatibilidade leitura
                             texto_cliente: ultimoFeedback.dadosFormulario?.texto_cliente || 'N/A'
                         },
                         timestamp: ultimoFeedback.timestamp,
@@ -1056,7 +1057,7 @@ DADOS ESPECÍFICOS DO CASO:
 - Solução implementada: ${dadosFormulario.solucao_implementada}
 - Texto do cliente: ${dadosFormulario.texto_cliente}
 - Histórico de atendimento: ${dadosFormulario.historico_atendimento}
-- Observações internas: ${dadosFormulario.observacoes_internas}
+- Nome do solicitante (usar na saudação "Olá, [nome]!"): ${dadosFormulario.nome_solicitante || 'não informado'}
 
 🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
@@ -4898,7 +4899,7 @@ app.post('/api/generate-response', rateLimitMiddleware, async (req, res) => {
             solucao_implementada: dadosFormulario.solucao_implementada?.substring(0, 100) + '...',
             texto_cliente: dadosFormulario.texto_cliente?.substring(0, 100) + '...',
             historico_atendimento: dadosFormulario.historico_atendimento?.substring(0, 50) + '...',
-            observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
+            nome_solicitante: dadosFormulario.nome_solicitante || 'não informado'
         });
         
         // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
@@ -5175,13 +5176,20 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             });
         }
         
+        if (!dadosFormulario.nome_solicitante || !String(dadosFormulario.nome_solicitante).trim()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Nome do solicitante é obrigatório'
+            });
+        }
+        
         console.log('📋 Dados recebidos do formulário:', {
             tipo_solicitacao: dadosFormulario.tipo_solicitacao,
             motivo_solicitacao: dadosFormulario.motivo_solicitacao,
             solucao_implementada: dadosFormulario.solucao_implementada?.substring(0, 100) + '...',
             texto_cliente: dadosFormulario.texto_cliente?.substring(0, 100) + '...',
             historico_atendimento: dadosFormulario.historico_atendimento?.substring(0, 50) + '...',
-            observacoes_internas: dadosFormulario.observacoes_internas?.substring(0, 50) + '...'
+            nome_solicitante: dadosFormulario.nome_solicitante || 'não informado'
         });
         
         // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
@@ -5327,7 +5335,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um assistente especializado em atendimento ao cliente para a empresa Velotax. Sua função é analisar TODOS os campos fornecidos (reclamação do cliente, solução implementada, histórico de atendimento, observações internas) e formular uma resposta personalizada que responda diretamente à solicitação do cliente, explicando como a solução implementada resolve o problema. Use as cláusulas da CCB quando aplicável para fundamentar a resposta.'
+                        content: 'Você é um assistente especializado em atendimento ao cliente para a empresa Velotax. Sua função é analisar TODOS os campos fornecidos (reclamação do cliente, solução implementada, histórico de atendimento, nome do solicitante) e formular uma resposta personalizada que responda diretamente à solicitação do cliente, explicando como a solução implementada resolve o problema. Use as cláusulas da CCB quando aplicável para fundamentar a resposta. A saudação deve usar o nome do solicitante informado (ex.: Olá, Maria!).'
                     },
                     {
                         role: 'user',
@@ -5343,11 +5351,13 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             const data = await response.json();
             let resposta = data.choices[0].message.content;
             
-            // Extrair nome do agente e do cliente
+            // Nome do cliente: priorizar "Nome do solicitante" do formulário, depois extrair do texto
             const nomeAgente = obterPrimeiroNomeUsuario(userData);
-            const nomeCliente = extrairNomeCliente(dadosFormulario.texto_cliente);
+            const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim()) 
+                ? String(dadosFormulario.nome_solicitante).trim() 
+                : extrairNomeCliente(dadosFormulario.texto_cliente);
             
-            // Aplicar formatação da resposta RA com a estrutura solicitada
+            // Aplicar formatação da resposta RA com a estrutura solicitada (Olá, {nome do solicitante}!)
             resposta = formatarRespostaRA(resposta, nomeCliente, nomeAgente);
             
             // Validação pós-processamento mais rigorosa e específica
@@ -5404,11 +5414,13 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 const solucao = dadosFormulario.solucao_implementada;
                 const motivo = dadosFormulario.motivo_solicitacao;
                 const historico = dadosFormulario.historico_atendimento;
-                const observacoes = dadosFormulario.observacoes_internas;
+                const observacoes = dadosFormulario.observacoes_internas; // compatibilidade com dados antigos
                 
-                // Extrair nome do agente e do cliente
+                // Nome do cliente: priorizar nome do solicitante do formulário
                 const nomeAgente = obterPrimeiroNomeUsuario(userData);
-                const nomeCliente = extrairNomeCliente(dadosFormulario.texto_cliente);
+                const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim()) 
+                    ? String(dadosFormulario.nome_solicitante).trim() 
+                    : extrairNomeCliente(dadosFormulario.texto_cliente);
                 
                 // Criar resposta mais específica e completa baseada nos dados fornecidos
                 const textoResposta = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
@@ -6050,11 +6062,13 @@ Gere APENAS o conteúdo explicativo do meio da resposta reformulada.`;
             const data = await response.json();
             let respostaReformulada = data.choices[0].message.content;
             
-            // Extrair nome do agente e do cliente
+            // Nome do cliente: priorizar nome do solicitante do formulário
             const nomeAgente = obterPrimeiroNomeUsuario(userData);
-            const nomeCliente = extrairNomeCliente(dadosFormulario.texto_cliente);
+            const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim()) 
+                ? String(dadosFormulario.nome_solicitante).trim() 
+                : extrairNomeCliente(dadosFormulario.texto_cliente);
             
-            // Aplicar formatação da resposta RA com a estrutura solicitada
+            // Aplicar formatação da resposta RA com a estrutura solicitada (Olá, {nome}!)
             respostaReformulada = formatarRespostaRA(respostaReformulada, nomeCliente, nomeAgente);
             
             // Aplicar feedback diretamente no script de formulação para aprendizado imediato
@@ -8978,7 +8992,8 @@ app.get('/api/moderacao-detalhes/:id', async (req, res) => {
                             linhaRaciocinio: row[10] || '',
                             dataHoraModeracaoOriginal: row[11] || '',
                             statusAprovacao: row[12] || '',
-                            observacoesInternas: row[13] || '',
+                            nomeSolicitante: row[13] || '',
+                            observacoesInternas: row[13] || '', // compatibilidade (mesma coluna N: Nome do solicitante)
                             // Campos específicos de negativa (vazios para aceitas)
                             motivoNegativa: '',
                             erroIdentificado: '',
@@ -9828,7 +9843,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         // A: Data/Hora (0), B: ID (1), C: ID da Reclamação (2), D: Tipo (3), E: Solicitação Cliente (4),
         // F: Resposta Empresa (5), G: Consideração Final (6), H: Motivo Moderação (7),
         // I: Texto Moderação Anterior (8), J: Feedback (9), K: Texto Moderação Reformulado (10),
-        // L: Linha Raciocínio (11), M: Status Aprovação (12), N: Observações Internas (13),
+        // L: Linha Raciocínio (11), M: Status Aprovação (12), N: Nome do solicitante (13),
         // O: Resultado da Moderação (14)
         
         const dataHoraRegistro = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -9841,7 +9856,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const linhaRaciocinio = moderacaoRow[11] || '';
         const consideracaoFinal = moderacaoRow[6] || '';
         const statusAprovacao = moderacaoRow[12] || '';
-        const observacoesInternas = moderacaoRow[13] || '';
+        const nomeSolicitante = moderacaoRow[13] || ''; // Coluna N: Nome do solicitante (antes Observações Internas)
         
         // Identificar tema da moderação (pode ser extraído do motivo ou inferido)
         // Por enquanto, usar o motivo como tema, pode ser refinado depois
@@ -9896,7 +9911,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
             // 11. Linha de Raciocínio
             // 12. Data/Hora da Moderação Original
             // 13. Status Aprovação
-            // 14. Observações Internas
+            // 14. Nome do solicitante (coluna N)
             const novaLinhaAceitas = [
                 dataHoraRegistro || '',                // [0] Data do Registro
                 moderacaoIdNormalized || '',           // [1] ID da Moderação (já normalizado)
@@ -9911,7 +9926,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 linhaRaciocinio || '',                 // [10] Linha de Raciocínio
                 dataHoraModeracao || '',               // [11] Data/Hora da Moderação Original
                 statusAprovacao || '',                 // [12] Status Aprovação
-                observacoesInternas || ''              // [13] Observações Internas
+                nomeSolicitante || ''                  // [13] Nome do solicitante
             ];
             
             // Validar que temos pelo menos os campos essenciais
@@ -9936,7 +9951,7 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                     'Linha de Raciocínio',
                     'Data/Hora da Moderação Original',
                     'Status Aprovação',
-                    'Observações Internas'
+                    'Nome do solicitante'
                 ]);
                 console.log(`✅ Cabeçalhos da aba "Moderações Aceitas" verificados/criados`);
             } catch (ensureError) {
@@ -10185,7 +10200,7 @@ function obterConhecimentoProdutos(dadosFormulario) {
         dadosFormulario.texto_cliente || '',
         dadosFormulario.solucao_implementada || '',
         dadosFormulario.historico_atendimento || '',
-        dadosFormulario.observacoes_internas || '',
+        dadosFormulario.nome_solicitante || dadosFormulario.observacoes_internas || '',
         dadosFormulario.tipo_solicitacao || '',
         dadosFormulario.motivo_solicitacao || ''
     ].join(' ').toLowerCase();
@@ -13221,7 +13236,7 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
             'Texto Moderação Reformulado', // [10]
             'Linha Raciocínio',    // [11]
             'Status Aprovação',    // [12]
-            'Observações Internas', // [13]
+            'Nome do solicitante', // [13] (antes Observações Internas)
             'Resultado da Moderação' // [14]
         ];
 
@@ -13413,7 +13428,7 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
                             novaRow[12] = 'Aprovada';
                         }
                         
-                        // [13] Observações Internas - texto
+                        // [13] Nome do solicitante - texto (antes Observações Internas)
                         for (let j = 0; j < row.length; j++) {
                             const val = row[j];
                             if (val && !novaRow[13] && identificarTipoDado(val) === null) {

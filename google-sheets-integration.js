@@ -370,7 +370,7 @@ class GoogleSheetsIntegration {
                 'Motivo Solicitação',
                 'Solução Implementada',
                 'Histórico Atendimento',
-                'Observações Internas'
+                'Nome do solicitante'
             ]);
 
             await this.ensureSheetExists('Respostas Coerentes', [
@@ -384,7 +384,8 @@ class GoogleSheetsIntegration {
                 'Solução Implementada',
                 'Histórico Atendimento',
                 'Tipo de Situação',
-                'Status Aprovação'
+                'Status Aprovação',
+                'Nome do solicitante'
             ]);
 
             await this.ensureSheetExists('Acessos Interface', [
@@ -411,7 +412,7 @@ class GoogleSheetsIntegration {
                 'Texto Moderação Reformulado',
                 'Linha Raciocínio',
                 'Status Aprovação',
-                'Observações Internas',
+                'Nome do solicitante',
                 'Resultado da Moderação'
             ]);
 
@@ -434,7 +435,7 @@ class GoogleSheetsIntegration {
                 'Linha de Raciocínio',
                 'Data/Hora da Moderação Original',
                 'Status Aprovação',
-                'Observações Internas'
+                'Nome do solicitante'
             ]);
 
             await this.ensureSheetExists('Moderações Negadas', [
@@ -695,7 +696,7 @@ class GoogleSheetsIntegration {
                 feedbackData.dadosFormulario?.id_reclamacao || '', // Coluna I: ID da Reclamação
                 feedbackData.dadosFormulario?.solucao_implementada || '', // Coluna J: Solução Implementada
                 feedbackData.dadosFormulario?.historico_atendimento || '', // Coluna K: Histórico Atendimento
-                feedbackData.dadosFormulario?.observacoes_internas || '' // Coluna L: Observações Internas
+                feedbackData.dadosFormulario?.nome_solicitante || feedbackData.dadosFormulario?.observacoes_internas || '' // Coluna L: Nome do solicitante
             ];
 
             await googleSheetsConfig.appendRow('Feedbacks!A:Z', row);
@@ -757,7 +758,8 @@ class GoogleSheetsIntegration {
                 respostaData.dadosFormulario?.solucao_implementada || '', // Coluna H: Solução Implementada
                 respostaData.dadosFormulario?.historico_atendimento || '', // Coluna I: Histórico Atendimento
                 respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '', // Coluna J: Tipo de Situação
-                'Aprovada' // Coluna K: Status Aprovação
+                'Aprovada', // Coluna K: Status Aprovação
+                respostaData.dadosFormulario?.nome_solicitante || respostaData.dadosFormulario?.observacoes_internas || '' // Coluna L: Nome do solicitante
             ];
 
             await googleSheetsConfig.appendRow('Respostas Coerentes!A:Z', row);
@@ -829,7 +831,7 @@ class GoogleSheetsIntegration {
                 feedbackData.textoReformulado || '', // Coluna K: Texto Moderação Reformulado
                 feedbackData.linhaRaciocinio || '', // Coluna L: Linha Raciocínio
                 'Pendente', // Coluna M: Status Aprovação
-                feedbackData.observacoesInternas || '', // Coluna N: Observações Internas
+                feedbackData.nomeSolicitante || feedbackData.observacoesInternas || '', // Coluna N: Nome do solicitante
                 '' // Coluna O: Resultado da Moderação (vazio até ser preenchido pelo agente)
             ];
 
@@ -919,7 +921,7 @@ class GoogleSheetsIntegration {
             // Criar array com valores na ordem correta baseado nos cabeçalhos esperados
             // Estrutura padrão: Data/Hora, ID, ID da Reclamação, Tipo, Solicitação Cliente, Resposta Empresa, 
             // Consideração Final, Motivo Moderação, Texto Moderação Anterior, Feedback, 
-            // Texto Moderação Reformulado, Linha Raciocínio, Status Aprovação, Observações Internas, Resultado da Moderação
+            // Texto Moderação Reformulado, Linha Raciocínio, Status Aprovação, Nome do solicitante, Resultado da Moderação
             const row = [
                 new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // [0] Data/Hora
                 moderacaoData.id || '', // [1] ID
@@ -934,7 +936,7 @@ class GoogleSheetsIntegration {
                 moderacaoData.textoModeracao || moderacaoData.textoFinal || '', // [10] Texto Moderação Reformulado
                 moderacaoData.linhaRaciocinio || '', // [11] Linha Raciocínio
                 moderacaoData.statusAprovacao || 'Pendente', // [12] Status Aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
-                moderacaoData.observacoesInternas || '', // [13] Observações Internas
+                moderacaoData.nomeSolicitante || moderacaoData.observacoesInternas || '', // [13] Nome do solicitante
                 '' // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
             ];
 
@@ -954,7 +956,7 @@ class GoogleSheetsIntegration {
                 '[10] Texto Moderação Reformulado': row[10] ? 'Preenchido' : 'Vazio',
                 '[11] Linha Raciocínio': row[11] ? 'Preenchido' : 'Vazio',
                 '[12] Status Aprovação': row[12] || 'ERRO: VAZIO!',
-                '[13] Observações Internas': row[13] || 'Vazio',
+                '[13] Nome do solicitante': row[13] || 'Vazio',
                 '[14] Resultado da Moderação': row[14] || 'Vazio (esperado)'
             });
 
