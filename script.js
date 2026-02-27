@@ -3208,12 +3208,6 @@ async function salvarFAQ() {
         }
     }
     
-    // Validar formato do tema (apenas letras minúsculas, números e hífens)
-    if (!/^[a-z0-9-]+$/.test(tema)) {
-        showErrorMessage('O tema deve conter apenas letras minúsculas, números e hífens (sem espaços).');
-        return;
-    }
-    
     try {
         const url = faqId ? `/api/faqs/${faqId}` : '/api/faqs';
         const method = faqId ? 'PUT' : 'POST';
