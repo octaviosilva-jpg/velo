@@ -6213,7 +6213,8 @@ app.get('/api/feedbacks/moderacoes', (req, res) => {
 // Endpoint para buscar solicitações da planilha com filtro de período
 app.get('/api/solicitacoes', async (req, res) => {
     try {
-        const { dataInicio, dataFim, tipo } = req.query;
+        const { dataInicio, dataFim, tipo, idReclamacao } = req.query;
+        const idReclamacaoFiltro = (idReclamacao || '').toString().trim();
         
         if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
             return res.status(200).json({
@@ -6433,10 +6434,14 @@ app.get('/api/solicitacoes', async (req, res) => {
                         const resultadoEncontrado = resultadosMap.get(moderacaoIdNormalized);
                         const resultadoModeracao = resultadoEncontrado ? resultadoEncontrado.resultado : null;
                         
+                        const modIdReclamacao = (moderacao[2] !== undefined && moderacao[2] !== null && moderacao[2] !== ''
+                            ? moderacao[2]
+                            : (moderacao['ID da Reclamação'] || moderacao.idReclamacao || '')).toString().trim();
                         todasSolicitacoes.push({
                             tipo: 'moderacao',
                             data: moderacao['Data/Hora'] || moderacao.data || '',
                             id: moderacao[1] || moderacao.ID || moderacao.id || '', // Usar índice [1] primeiro (coluna B)
+                            idReclamacao: modIdReclamacao,
                             solicitacaoCliente: solicitacaoCliente || 'N/A', // Solicitação completa do cliente da coluna D
                             respostaEmpresa: respostaEmpresa || 'N/A', // Resposta da empresa da coluna E
                             motivoModeracao: moderacao['Motivo Moderação'] || moderacao.motivoModeracao || '',
@@ -6455,8 +6460,15 @@ app.get('/api/solicitacoes', async (req, res) => {
             }
         }
 
-        // Filtrar por período se fornecido (sempre aplicar se datas forem fornecidas)
+        // Filtrar por ID da Reclamação se fornecido (busca nas 4 fontes: Respostas Coerentes, Moderações, Aceitas, Negadas)
         let solicitacoesFiltradas = todasSolicitacoes;
+        if (idReclamacaoFiltro) {
+            solicitacoesFiltradas = todasSolicitacoes.filter(s => {
+                const id = (s.idReclamacao || '').toString().trim();
+                return id === idReclamacaoFiltro;
+            });
+            console.log(`🔍 Filtro por ID da Reclamação "${idReclamacaoFiltro}": ${solicitacoesFiltradas.length} solicitações`);
+        }
         
         // Aplicar filtro de data se fornecido (obrigatório quando datas são enviadas)
         if (dataInicio || dataFim) {
@@ -6538,7 +6550,8 @@ app.get('/api/solicitacoes', async (req, res) => {
             filtros: {
                 dataInicio: dataInicio || null,
                 dataFim: dataFim || null,
-                tipo: tipo || 'todas'
+                tipo: tipo || 'todas',
+                idReclamacao: idReclamacaoFiltro || null
             }
         });
 
@@ -12574,7 +12587,8 @@ app.get('/api/moderacoes', async (req, res) => {
             });
         }
 
-        const { tema, resultado, motivo, periodo } = req.query;
+        const { tema, resultado, motivo, periodo, idReclamacao } = req.query;
+        const idReclamacaoBusca = (idReclamacao || '').toString().trim();
 
         const aceitasData = await googleSheetsConfig.readData('Moderações Aceitas!A1:Z1000');
         const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:Z1000');
@@ -12587,12 +12601,14 @@ app.get('/api/moderacoes', async (req, res) => {
                 const row = aceitasData[i];
                 if (!row || row.length < 6) continue;
 
+                const modIdReclamacao = (row[2] || '').toString().trim();
                 const modTema = (row[3] || '').toString().trim();
                 const modMotivo = (row[4] || '').toString().trim();
                 const modResultado = 'Aceita';
                 const modData = (row[0] || '').toString().trim();
 
                 // Aplicar filtros
+                if (idReclamacaoBusca && modIdReclamacao !== idReclamacaoBusca) continue;
                 if (tema && modTema.toLowerCase() !== tema.toLowerCase()) continue;
                 if (resultado && modResultado !== resultado) continue;
                 if (motivo && modMotivo.toLowerCase() !== motivo.toLowerCase()) continue;
@@ -12615,12 +12631,14 @@ app.get('/api/moderacoes', async (req, res) => {
                 const row = negadasData[i];
                 if (!row || row.length < 6) continue;
 
+                const modIdReclamacao = (row[2] || '').toString().trim();
                 const modTema = (row[3] || '').toString().trim();
                 const modMotivo = (row[4] || '').toString().trim();
                 const modResultado = 'Negada';
                 const modData = (row[0] || '').toString().trim();
 
                 // Aplicar filtros
+                if (idReclamacaoBusca && modIdReclamacao !== idReclamacaoBusca) continue;
                 if (tema && modTema.toLowerCase() !== tema.toLowerCase()) continue;
                 if (resultado && modResultado !== resultado) continue;
                 if (motivo && modMotivo.toLowerCase() !== motivo.toLowerCase()) continue;

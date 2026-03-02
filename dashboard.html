@@ -238,6 +238,10 @@
             color: #155724;
         }
 
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
         .badge-danger {
             background: #f8d7da;
             color: #721c24;
@@ -456,6 +460,10 @@
             <div class="filters">
                 <div class="filters-row">
                     <div class="filter-group">
+                        <label>ID da Reclamação</label>
+                        <input type="text" id="filtroIdReclamacao" placeholder="Buscar por ID da reclamação..." title="Digite o ID para ver apenas as moderações dessa reclamação">
+                    </div>
+                    <div class="filter-group">
                         <label>Tema</label>
                         <select id="filtroTema">
                             <option value="">Todos</option>
@@ -641,11 +649,32 @@
             document.getElementById('temasContent').innerHTML = html;
         }
 
-        // Carregar moderações
+        // Carregar moderações (ou solicitações por ID da Reclamação nas 4 fontes)
         async function loadModeracoes() {
+            const idReclamacao = (document.getElementById('filtroIdReclamacao').value || '').trim();
             const tema = document.getElementById('filtroTema').value;
             const resultado = document.getElementById('filtroResultado').value;
             const motivo = document.getElementById('filtroMotivo').value;
+
+            // Busca por ID da Reclamação: puxa de Respostas Coerentes, Moderação, Moderações Aceitas e Negadas
+            if (idReclamacao) {
+                try {
+                    const response = await fetch(`/api/solicitacoes?idReclamacao=${encodeURIComponent(idReclamacao)}&tipo=todas`);
+                    const data = await response.json();
+                    if (data.success) {
+                        window._ultimasSolicitacoes = data.solicitacoes || [];
+                        renderSolicitacoesPorId(window._ultimasSolicitacoes);
+                        loadFiltros();
+                    } else {
+                        document.getElementById('moderacoesContent').innerHTML = 
+                            `<div class="error">Erro: ${data.error || 'Erro ao carregar dados'}</div>`;
+                    }
+                } catch (error) {
+                    document.getElementById('moderacoesContent').innerHTML = 
+                        `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+                }
+                return;
+            }
 
             let url = '/api/moderacoes?';
             if (tema) url += `tema=${encodeURIComponent(tema)}&`;
@@ -669,6 +698,78 @@
             }
         }
 
+        // Renderiza lista quando buscou por ID da Reclamação (Respostas Coerentes + Moderação + Aceitas + Negadas)
+        function renderSolicitacoesPorId(solicitacoes) {
+            if (!solicitacoes || solicitacoes.length === 0) {
+                document.getElementById('moderacoesContent').innerHTML = 
+                    '<div class="empty-state"><p>Nenhuma solicitação encontrada para este ID da Reclamação</p></div>';
+                return;
+            }
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            html += '<th>Tipo</th><th>ID</th><th>ID Reclamação</th><th>Tema / Motivo</th><th>Resultado</th><th>Data</th><th>Ações</th>';
+            html += '</tr></thead><tbody>';
+
+            solicitacoes.forEach((s, idx) => {
+                const isMod = s.tipo === 'moderacao';
+                const id = (s.id || '').toString().replace(/'/g, "\\'");
+                const resultadoStr = isMod ? (s.resultadoModeracao || 'Pendente') : (s.status || 'Aprovada');
+                const badgeClass = resultadoStr === 'Aceita' ? 'badge-success' : (resultadoStr === 'Negada' ? 'badge-danger' : 'badge-warning');
+                const temaMotivo = isMod ? (s.motivoModeracao || '-') : (s.tipoSolicitacao || s.motivoSolicitacao || '-');
+                html += `<tr>
+                    <td>${isMod ? 'Moderação' : 'Resposta'}</td>
+                    <td>${s.id || '-'}</td>
+                    <td>${s.idReclamacao || '-'}</td>
+                    <td>${escapeHtml(temaMotivo)}</td>
+                    <td><span class="badge ${badgeClass}">${resultadoStr}</span></td>
+                    <td>${s.data || '-'}</td>
+                    <td><a href="#" class="link-btn" onclick="verDetalhesSolicitacao(${idx}); return false;">Ver Detalhes</a></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('moderacoesContent').innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Abre modal: moderação usa API existente; resposta usa conteúdo da solicitação
+        function verDetalhesSolicitacao(index) {
+            const list = window._ultimasSolicitacoes;
+            if (!list || !list[index]) return;
+            const s = list[index];
+            if (s.tipo === 'moderacao') {
+                verDetalhesModeracao(s.id);
+                return;
+            }
+            const modal = document.getElementById('modalDetalhes');
+            const modalBody = document.getElementById('modalBody');
+            modal.classList.add('active');
+            modalBody.innerHTML = `
+                <div class="detail-section">
+                    <h3>Dados Gerais (Resposta Coerente)</h3>
+                    <p><strong>ID da Resposta:</strong> ${s.id || 'N/A'}</p>
+                    <p><strong>ID da Reclamação:</strong> ${s.idReclamacao || 'N/A'}</p>
+                    <p><strong>Tipo de Situação:</strong> ${s.tipoSolicitacao || 'N/A'}</p>
+                    <p><strong>Data:</strong> ${s.data || 'N/A'}</p>
+                </div>
+                <div class="detail-section">
+                    <h3>Texto do Cliente</h3>
+                    <pre>${escapeHtml(s.textoCliente || 'N/A')}</pre>
+                </div>
+                <div class="detail-section">
+                    <h3>Resposta Aprovada</h3>
+                    <pre>${escapeHtml(s.resposta || 'N/A')}</pre>
+                </div>
+                ${s.motivoSolicitacao ? `<div class="detail-section"><h3>Motivo</h3><p>${escapeHtml(s.motivoSolicitacao)}</p></div>` : ''}
+            `;
+        }
+
         function renderModeracoes(moderacoes) {
             if (moderacoes.length === 0) {
                 document.getElementById('moderacoesContent').innerHTML = 
@@ -689,7 +790,7 @@
                     <td>${mod.motivo}</td>
                     <td><span class="badge ${badgeClass}">${mod.resultado}</span></td>
                     <td>${mod.data}</td>
-                    <td><a href="#" class="link-btn" onclick="verDetalhesModeracao('${mod.idModeracao}')">Ver Detalhes</a></td>
+                    <td><a href="#" class="link-btn" onclick="verDetalhesModeracao('${String(mod.idModeracao).replace(/'/g, "\\'")}')">Ver Detalhes</a></td>
                 </tr>`;
             });
 
