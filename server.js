@@ -6470,10 +6470,10 @@ app.get('/api/solicitacoes', async (req, res) => {
             console.log(`🔍 Filtro por ID da Reclamação "${idReclamacaoFiltro}": ${solicitacoesFiltradas.length} solicitações`);
         }
         
-        // Aplicar filtro de data se fornecido (obrigatório quando datas são enviadas)
+        // Aplicar filtro de data se fornecido (sobre a lista já filtrada por ID, se houver)
         if (dataInicio || dataFim) {
             console.log('📅 Aplicando filtro de data:', { dataInicio, dataFim });
-            solicitacoesFiltradas = todasSolicitacoes.filter(solicitacao => {
+            solicitacoesFiltradas = solicitacoesFiltradas.filter(solicitacao => {
                 if (!solicitacao.data) return false;
                 
                 // Função auxiliar para converter data para formato comparável
