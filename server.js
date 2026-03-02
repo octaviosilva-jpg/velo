@@ -9510,19 +9510,22 @@ app.post('/api/sync-estatisticas', async (req, res) => {
                 estatisticas: estatisticas.estatisticas
             });
         } else {
-            res.status(500).json({
+            // Retornar 200 com success: false para não quebrar o frontend (ex.: Sheets indisponível)
+            res.json({
                 success: false,
                 error: 'Erro ao sincronizar estatísticas',
-                message: 'Falha na sincronização com Google Sheets'
+                message: 'Sincronização com Google Sheets indisponível ou falhou. Tente novamente mais tarde.',
+                googleSheetsActive: false
             });
         }
         
     } catch (error) {
         console.error('Erro ao sincronizar estatísticas:', error);
-        res.status(500).json({
+        // Retornar 200 com success: false em vez de 500 para não quebrar o frontend
+        res.json({
             success: false,
-            error: 'Erro interno do servidor',
-            message: error.message
+            error: 'Erro ao sincronizar estatísticas',
+            message: error.message || 'Sincronização indisponível no momento.'
         });
     }
 });
@@ -13976,20 +13979,22 @@ app.get('/api/faqs', async (req, res) => {
             }
         }
 
+        if (!googleSheetsConfig || !googleSheetsConfig.readData) {
+            console.log('📭 Google Sheets config não disponível para leitura');
+            return res.json({ success: true, faqs: [] });
+        }
+
         console.log('📖 Lendo dados da planilha FAQs...');
         let data;
         try {
             data = await googleSheetsConfig.readData('FAQs!A1:F1000');
         } catch (readError) {
-            // Se a planilha não existir, retornar lista vazia
-            if (readError.message && (readError.message.includes('Unable to parse range') || readError.message.includes('not found'))) {
-                console.log('📭 Planilha FAQs não encontrada, retornando lista vazia');
-                return res.json({
-                    success: true,
-                    faqs: []
-                });
-            }
-            throw readError;
+            // Qualquer erro de leitura (planilha não existe, quota, rede): retornar lista vazia em vez de 500
+            console.warn('⚠️ Erro ao ler planilha FAQs:', readError.message);
+            return res.json({
+                success: true,
+                faqs: []
+            });
         }
         
         if (!data || data.length <= 1) {
@@ -14044,11 +14049,10 @@ app.get('/api/faqs', async (req, res) => {
     } catch (error) {
         console.error('❌ Erro ao listar FAQs:', error);
         console.error('Stack:', error.stack);
-        res.status(500).json({
-            success: false,
-            error: 'Erro ao listar FAQs',
-            message: error.message,
-            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        // Retornar lista vazia em vez de 500 para não quebrar o frontend
+        res.json({
+            success: true,
+            faqs: []
         });
     }
 });

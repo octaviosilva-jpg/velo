@@ -4176,22 +4176,18 @@ async function sincronizarEstatisticasComPlanilha() {
             console.log('✅ Estatísticas sincronizadas com Google Sheets:', data.estatisticas);
             showSuccessMessage('Estatísticas sincronizadas com a planilha!');
         } else {
-            // Não mostrar erro se Google Sheets não estiver configurado
-            if (data.error === 'Google Sheets não está ativo') {
-                console.log('📊 Google Sheets não configurado - continuando sem sincronização');
+            // Não mostrar toast de erro quando Sheets está indisponível (evita alarmar o usuário)
+            const msg = (data.message || data.error || '').toLowerCase();
+            if (msg.includes('indisponível') || msg.includes('não está ativo') || data.googleSheetsActive === false) {
+                console.log('📊 Sincronização com planilha indisponível:', data.message || data.error);
             } else {
                 console.error('❌ Erro ao sincronizar estatísticas:', data.error);
-                showErrorMessage('Erro ao sincronizar estatísticas: ' + data.error);
+                showErrorMessage('Erro ao sincronizar estatísticas: ' + (data.message || data.error));
             }
         }
     } catch (error) {
-        // Não mostrar erro se Google Sheets não estiver configurado
-        if (error.message && error.message.includes('400')) {
-            console.log('📊 Google Sheets não configurado - continuando sem sincronização');
-        } else {
-            console.error('❌ Erro ao sincronizar estatísticas:', error);
-            showErrorMessage('Erro ao sincronizar estatísticas com a planilha');
-        }
+        // Não mostrar toast em falha de rede/500 - apenas log
+        console.warn('⚠️ Sincronizar estatísticas:', error.message);
     }
 }
 
