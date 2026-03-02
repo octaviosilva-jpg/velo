@@ -4230,6 +4230,7 @@ function abrirModalSolicitacoes() {
 async function buscarSolicitacoes() {
     const dataInicio = document.getElementById('filtroDataInicio').value;
     const dataFim = document.getElementById('filtroDataFim').value;
+    const idReclamacao = (document.getElementById('filtroIdReclamacaoModal').value || '').trim();
     const tipo = document.getElementById('filtroTipo').value;
     
     const tabela = document.getElementById('tabelaSolicitacoes');
@@ -4248,10 +4249,11 @@ async function buscarSolicitacoes() {
     infoDiv.style.display = 'none';
     
     try {
-        // Construir URL com parâmetros
+        // Construir URL com parâmetros (idReclamacao filtra nas 4 fontes: Respostas Coerentes, Moderação, Aceitas, Negadas)
         const params = new URLSearchParams();
         if (dataInicio) params.append('dataInicio', dataInicio);
         if (dataFim) params.append('dataFim', dataFim);
+        if (idReclamacao) params.append('idReclamacao', idReclamacao);
         if (tipo) params.append('tipo', tipo);
         
         const response = await fetch(`/api/solicitacoes?${params.toString()}`);

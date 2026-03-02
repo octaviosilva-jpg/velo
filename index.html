@@ -902,15 +902,19 @@
                 <div class="modal-body">
                     <!-- Filtros -->
                     <div class="row mb-3">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="filtroDataInicio" class="form-label">Data Início:</label>
                             <input type="date" class="form-control" id="filtroDataInicio">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="filtroDataFim" class="form-label">Data Fim:</label>
                             <input type="date" class="form-control" id="filtroDataFim">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label for="filtroIdReclamacaoModal" class="form-label">ID da Reclamação:</label>
+                            <input type="text" class="form-control" id="filtroIdReclamacaoModal" placeholder="Buscar por ID...">
+                        </div>
+                        <div class="col-md-2">
                             <label for="filtroTipo" class="form-label">Tipo:</label>
                             <select class="form-select" id="filtroTipo">
                                 <option value="todas">Todas</option>
@@ -918,7 +922,7 @@
                                 <option value="moderacoes">Moderações</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end gap-2">
+                        <div class="col-md-4 d-flex align-items-end gap-2">
                             <button class="btn btn-warning btn-sm" onclick="corrigirModeracoes()" title="Corrigir dados desalinhados na planilha">
                                 <i class="fas fa-tools me-1"></i>
                                 Corrigir
