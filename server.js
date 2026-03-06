@@ -7121,8 +7121,9 @@ app.post('/api/save-modelo-resposta', async (req, res) => {
         // Salvar como modelo
         const modelo = await addModeloResposta(dadosFormulario, respostaAprovada, userData);
         
-        // Incrementar estatística global
+        // Incrementar estatística global e registrar na aba Estatísticas da planilha
         await incrementarEstatisticaGlobal('respostas_coerentes');
+        console.log('📊 Resposta coerente: estatística incrementada e sincronizada com aba Estatísticas');
         
         // Se estiver na Vercel, salvar diretamente no Google Sheets
         let syncResult = null;
@@ -8761,21 +8762,31 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         let moderacoes_negadas = 0;
 
         if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
-            try {
-                const range = 'Estatísticas!A2:E1000';
-                const rows = await googleSheetsConfig.readData(range);
-                if (rows && rows.length > 0) {
-                    const linhaHoje = rows.find(row => row && String(row[0]).trim() === dataHojeBR);
-                    if (linhaHoje) {
-                        respostas_coerentes = Number(linhaHoje[1]) || 0;
-                        moderacoes_coerentes = Number(linhaHoje[2]) || 0;
-                        moderacoes_aprovadas = Number(linhaHoje[3]) || 0;
-                        moderacoes_negadas = Number(linhaHoje[4]) || 0;
-                        console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
+            const nomesAba = ['Estatísticas', 'Estatisticas'];
+            let leuPlanilha = false;
+            for (const nomeAba of nomesAba) {
+                try {
+                    const range = `${nomeAba}!A2:E1000`;
+                    const rows = await googleSheetsConfig.readData(range);
+                    if (rows && rows.length > 0) {
+                        const dataNorm = (s) => String(s).trim().replace(/\s+/g, ' ');
+                        const linhaHoje = rows.find(row => row && row[0] != null && dataNorm(row[0]) === dataNorm(dataHojeBR));
+                        if (linhaHoje) {
+                            respostas_coerentes = Number(linhaHoje[1]) || 0;
+                            moderacoes_coerentes = Number(linhaHoje[2]) || 0;
+                            moderacoes_aprovadas = Number(linhaHoje[3]) || 0;
+                            moderacoes_negadas = Number(linhaHoje[4]) || 0;
+                            console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha "${nomeAba}"): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
+                            leuPlanilha = true;
+                            break;
+                        }
+                    }
+                } catch (err) {
+                    if (nomesAba.indexOf(nomeAba) === nomesAba.length - 1) {
+                        console.warn('⚠️ Erro ao ler aba Estatísticas/Estatisticas, usando histórico local:', err.message);
                     }
                 }
-            } catch (err) {
-                console.warn('⚠️ Erro ao ler aba Estatísticas, usando histórico local:', err.message);
+                if (leuPlanilha) break;
             }
         }
 

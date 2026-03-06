@@ -1021,6 +1021,28 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * Resolve o nome real da aba de estatísticas (pode ser "Estatísticas" ou "Estatisticas" na planilha).
+     */
+    async _getNomeAbaEstatisticas() {
+        try {
+            const sheets = googleSheetsConfig.getSheets();
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            const spreadsheet = await sheets.spreadsheets.get({
+                spreadsheetId: spreadsheetId,
+                fields: 'sheets.properties'
+            });
+            const nomesAceitos = ['Estatísticas', 'Estatisticas'];
+            for (const sheet of spreadsheet.data.sheets || []) {
+                const title = (sheet.properties && sheet.properties.title) || '';
+                if (nomesAceitos.some(n => n === title)) return title;
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao resolver nome da aba Estatísticas:', e.message);
+        }
+        return 'Estatísticas';
+    }
+
+    /**
      * Registra estatísticas do DIA no Google Sheets (controle diário).
      * Recebe os totais do dia: apenas respostas coerentes, mod. coerentes, mod. aprovadas, mod. negadas.
      * @param {Object} diario - { data (DD/MM/YYYY), respostas_coerentes, moderacoes_coerentes, moderacoes_aprovadas, moderacoes_negadas }
@@ -1032,7 +1054,8 @@ class GoogleSheetsIntegration {
         }
 
         try {
-            await this.ensureSheetExists('Estatísticas', [
+            const nomeAba = await this._getNomeAbaEstatisticas();
+            await this.ensureSheetExists(nomeAba, [
                 'Data',
                 'Respostas Coerentes',
                 'Moderações Coerentes',
@@ -1040,7 +1063,7 @@ class GoogleSheetsIntegration {
                 'Moderações Negadas'
             ]);
 
-            const dataStr = diario.data || new Date().toLocaleDateString('pt-BR');
+            const dataStr = (diario.data || new Date().toLocaleDateString('pt-BR')).trim();
             const rowData = [
                 dataStr,
                 Number(diario.respostas_coerentes) || 0,
@@ -1049,24 +1072,26 @@ class GoogleSheetsIntegration {
                 Number(diario.moderacoes_negadas) || 0
             ];
 
-            const range = 'Estatísticas!A2:E1000';
-            const rows = await googleSheetsConfig.readData(range);
+            const rangeRead = `${nomeAba}!A2:E1000`;
+            const rows = await googleSheetsConfig.readData(rangeRead);
             let linhaEncontrada = -1;
             if (rows && rows.length > 0) {
-                linhaEncontrada = rows.findIndex(row => row && String(row[0]).trim() === String(dataStr).trim());
+                const dataNorm = (s) => String(s).trim().replace(/\s+/g, ' ');
+                linhaEncontrada = rows.findIndex(row => row && row[0] != null && dataNorm(row[0]) === dataNorm(dataStr));
             }
 
             if (linhaEncontrada >= 0) {
                 const linhaAtualizar = linhaEncontrada + 2;
-                await googleSheetsConfig.updateRow(`Estatísticas!A${linhaAtualizar}:E${linhaAtualizar}`, rowData);
-                console.log(`✅ Estatísticas do dia ${dataStr} atualizadas no Google Sheets`);
+                await googleSheetsConfig.updateRow(`${nomeAba}!A${linhaAtualizar}:E${linhaAtualizar}`, rowData);
+                console.log(`✅ Estatísticas do dia ${dataStr} atualizadas na aba "${nomeAba}"`);
             } else {
-                await googleSheetsConfig.appendRow('Estatísticas!A:E', rowData);
-                console.log(`✅ Estatísticas do dia ${dataStr} registradas no Google Sheets`);
+                await googleSheetsConfig.appendRow(`${nomeAba}!A:E`, rowData);
+                console.log(`✅ Estatísticas do dia ${dataStr} registradas na aba "${nomeAba}" (nova linha)`);
             }
             return true;
         } catch (error) {
             console.error('❌ Erro ao registrar estatísticas no Google Sheets:', error.message);
+            console.error('Stack:', error.stack);
             return false;
         }
     }

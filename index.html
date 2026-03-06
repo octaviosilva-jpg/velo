@@ -274,7 +274,12 @@
                                 <span class="stat-label">Mod. Negadas</span>
                                 <span class="stat-value" data-stat="moderacoes_negadas">0</span>
                             </div>
-                            <small class="text-muted d-block mt-2" id="estatisticas-last-updated" title="Última atualização">—</small>
+                            <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1">
+                                <small class="text-muted" id="estatisticas-last-updated" title="Última atualização">—</small>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="atualizarEstatisticasNaInterface()" title="Atualizar com dados da planilha">
+                                    <i class="fas fa-sync-alt"></i> Atualizar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

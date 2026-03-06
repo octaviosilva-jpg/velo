@@ -4538,6 +4538,9 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
         // Recarregar as solicitações para atualizar o resultado
         await buscarSolicitacoes();
         
+        // Atualizar estatísticas do dia (Mod. Aprovadas / Mod. Negadas) na planilha e no modal
+        carregarEstatisticasGlobais();
+        
         // Re-expandir a linha que foi atualizada
         setTimeout(() => {
             const detalhesRow = document.getElementById(solicitacaoId);
