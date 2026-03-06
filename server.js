@@ -739,6 +739,8 @@ function loadEstatisticasGlobais() {
                         respostas_coerentes: 0,
                         moderacoes_geradas: 0,
                         moderacoes_coerentes: 0,
+                        moderacoes_aprovadas: 0,
+                        moderacoes_negadas: 0,
                         revisoes_texto: 0,
                         explicacoes_geradas: 0
                     },
@@ -750,7 +752,18 @@ function loadEstatisticasGlobais() {
                 return estruturaPadrao;
             }
             
-            return JSON.parse(data);
+            const parsed = JSON.parse(data);
+            if (parsed.estatisticas) {
+                if (parsed.estatisticas.moderacoes_aprovadas === undefined) parsed.estatisticas.moderacoes_aprovadas = 0;
+                if (parsed.estatisticas.moderacoes_negadas === undefined) parsed.estatisticas.moderacoes_negadas = 0;
+            }
+            if (Array.isArray(parsed.historico_diario)) {
+                parsed.historico_diario.forEach(entrada => {
+                    if (entrada.moderacoes_aprovadas === undefined) entrada.moderacoes_aprovadas = 0;
+                    if (entrada.moderacoes_negadas === undefined) entrada.moderacoes_negadas = 0;
+                });
+            }
+            return parsed;
         }
     } catch (error) {
         console.error('Erro ao carregar estatísticas globais:', error);
@@ -762,6 +775,8 @@ function loadEstatisticasGlobais() {
                 respostas_coerentes: 0,
                 moderacoes_geradas: 0,
                 moderacoes_coerentes: 0,
+                moderacoes_aprovadas: 0,
+                moderacoes_negadas: 0,
                 revisoes_texto: 0,
                 explicacoes_geradas: 0
             },
@@ -784,6 +799,8 @@ function loadEstatisticasGlobais() {
             respostas_coerentes: 0,
             moderacoes_geradas: 0,
             moderacoes_coerentes: 0,
+            moderacoes_aprovadas: 0,
+            moderacoes_negadas: 0,
             revisoes_texto: 0,
             explicacoes_geradas: 0
         },
@@ -805,6 +822,8 @@ function saveEstatisticasGlobais(estatisticas) {
                 respostas_coerentes: 0,
                 moderacoes_geradas: 0,
                 moderacoes_coerentes: 0,
+                moderacoes_aprovadas: 0,
+                moderacoes_negadas: 0,
                 revisoes_texto: 0,
                 explicacoes_geradas: 0
             };
@@ -883,6 +902,8 @@ async function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
             respostas_coerentes: tipo === 'respostas_coerentes' ? quantidade : 0,
             moderacoes_geradas: tipo === 'moderacoes_geradas' ? quantidade : 0,
             moderacoes_coerentes: tipo === 'moderacoes_coerentes' ? quantidade : 0,
+            moderacoes_aprovadas: tipo === 'moderacoes_aprovadas' ? quantidade : 0,
+            moderacoes_negadas: tipo === 'moderacoes_negadas' ? quantidade : 0,
             revisoes_texto: tipo === 'revisoes_texto' ? quantidade : 0,
             explicacoes_geradas: tipo === 'explicacoes_geradas' ? quantidade : 0,
             ultimaAtualizacao: hoje.toISOString()
@@ -898,12 +919,20 @@ async function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
     saveEstatisticasGlobais(estatisticas);
     console.log(`✅ Estatística ${tipo} atualizada: ${estatisticas.estatisticas[tipo]}`);
     
-    // 🔄 SINCRONIZAR COM GOOGLE SHEETS AUTOMATICAMENTE
+    // 🔄 SINCRONIZAR COM GOOGLE SHEETS: enviar apenas totais do DIA (controle diário)
     if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
         try {
-            console.log('📊 Sincronizando estatísticas com Google Sheets...');
-            await googleSheetsIntegration.registrarEstatisticas(estatisticas.estatisticas);
-            console.log('✅ Estatísticas sincronizadas com Google Sheets');
+            const [a, m, d] = entradaHoje.data.split('-');
+            const dataBR = `${d}/${m}/${a}`;
+            const diario = {
+                data: dataBR,
+                respostas_coerentes: entradaHoje.respostas_coerentes || 0,
+                moderacoes_coerentes: entradaHoje.moderacoes_coerentes || 0,
+                moderacoes_aprovadas: entradaHoje.moderacoes_aprovadas || 0,
+                moderacoes_negadas: entradaHoje.moderacoes_negadas || 0
+            };
+            await googleSheetsIntegration.registrarEstatisticas(diario);
+            console.log('✅ Estatísticas do dia sincronizadas com Google Sheets');
         } catch (error) {
             console.error('❌ Erro ao sincronizar estatísticas com Google Sheets:', error.message);
         }
@@ -7313,9 +7342,6 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
         const resultado = data.choices[0].message.content;
         console.log('✅ Revisão de texto gerada com sucesso');
 
-        // Incrementar estatística global
-        await incrementarEstatisticaGlobal('revisoes_texto');
-
         res.json({
             success: true,
             result: resultado
@@ -8307,9 +8333,6 @@ Agora, execute TODAS as etapas da metodologia e entregue a análise completa no 
             }
         }
 
-        // Incrementar estatística global
-        await incrementarEstatisticaGlobal('revisoes_texto');
-
         res.json({
             success: true,
             result: resultado
@@ -8720,172 +8743,62 @@ app.post('/api/validateGoogleToken', async (req, res) => {
 
 // ===== ENDPOINTS DE ESTATÍSTICAS GLOBAIS =====
 
-// Endpoint para buscar estatísticas do dia atual da planilha
+// Endpoint para buscar estatísticas do dia atual (aba Estatísticas = controle diário em tempo real)
 app.get('/api/estatisticas-hoje', async (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
     try {
-        // Obter data de hoje no fuso horário de São Paulo
-        const hoje = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const hoje = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
         const dia = String(hoje.getDate()).padStart(2, '0');
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
         const ano = hoje.getFullYear();
-        const dataHojeBR = `${dia}/${mes}/${ano}`; // DD/MM/YYYY
-        const dataHojeISO = `${ano}-${mes}-${dia}`; // YYYY-MM-DD
-        
-        console.log(`📅 Data de hoje: ${dataHojeBR} (${dataHojeISO})`);
-        
-        let respostasHoje = 0;
-        let moderacoesHoje = 0;
-        
-        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
-            console.log('⚠️ Google Sheets não está inicializado');
-            return res.json({
-                success: true,
-                data: dataHojeBR,
-                respostas_geradas: 0,
-                moderacoes_geradas: 0
-            });
-        }
-        
-        try {
-            // ===== BUSCAR RESPOSTAS COERENTES =====
-            // Página: "Respostas Coerentes", Coluna A = Data/Hora
-            const rangeRespostas = 'Respostas Coerentes!A1:Z1000';
-            const dataRespostas = await googleSheetsConfig.readData(rangeRespostas);
-            
-            console.log(`📋 Respostas Coerentes - Total linhas recebidas: ${dataRespostas ? dataRespostas.length : 0}`);
-            
-            if (dataRespostas && dataRespostas.length > 1) {
-                const headersRespostas = dataRespostas[0];
-                console.log('📋 Cabeçalhos Respostas:', headersRespostas);
-                
-                // Encontrar índice da coluna "Status Aprovação" ou "Status"
-                const statusIndex = headersRespostas.findIndex(h => 
-                    h === 'Status Aprovação' || 
-                    h === 'Status' || 
-                    h === 'Status Aprovacao' ||
-                    h.toLowerCase().includes('status')
-                );
-                
-                console.log(`📋 Índice da coluna Status: ${statusIndex}`);
-                
-                let contador = 0;
-                respostasHoje = dataRespostas.slice(1).filter((row, index) => {
-                    // Coluna A (índice 0) = Data/Hora
-                    const dataResposta = row[0];
-                    if (!dataResposta) {
-                        console.log(`⚠️ Linha ${index + 2}: sem data`);
-                        return false;
+        const dataHojeBR = `${dia}/${mes}/${ano}`;
+        const dataHojeISO = `${ano}-${mes}-${dia}`;
+        const lastUpdated = hoje.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        let respostas_coerentes = 0;
+        let moderacoes_coerentes = 0;
+        let moderacoes_aprovadas = 0;
+        let moderacoes_negadas = 0;
+
+        if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
+            try {
+                const range = 'Estatísticas!A2:E1000';
+                const rows = await googleSheetsConfig.readData(range);
+                if (rows && rows.length > 0) {
+                    const linhaHoje = rows.find(row => row && String(row[0]).trim() === dataHojeBR);
+                    if (linhaHoje) {
+                        respostas_coerentes = Number(linhaHoje[1]) || 0;
+                        moderacoes_coerentes = Number(linhaHoje[2]) || 0;
+                        moderacoes_aprovadas = Number(linhaHoje[3]) || 0;
+                        moderacoes_negadas = Number(linhaHoje[4]) || 0;
+                        console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
                     }
-                    
-                    const dataStr = String(dataResposta).trim();
-                    
-                    // Verificar se a data é de hoje
-                    const isHoje = verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO);
-                    
-                    // Verificar status (se encontrou a coluna)
-                    let isAprovada = true; // Se não encontrar coluna, assumir aprovada
-                    if (statusIndex >= 0) {
-                        const status = String(row[statusIndex] || '').trim();
-                        isAprovada = status === 'Aprovada' || status === '';
-                        console.log(`📋 Linha ${index + 2}: Data=${dataStr}, Status=${status}, isHoje=${isHoje}, isAprovada=${isAprovada}`);
-                    } else {
-                        console.log(`📋 Linha ${index + 2}: Data=${dataStr}, Status=N/A (coluna não encontrada), isHoje=${isHoje}, isAprovada=${isAprovada}`);
-                    }
-                    
-                    if (isHoje && isAprovada) {
-                        contador++;
-                        console.log(`✅ Resposta ${contador} encontrada (linha ${index + 2}): Data=${dataStr}`);
-                    }
-                    
-                    return isHoje && isAprovada;
-                }).length;
-                
-                console.log(`📊 Respostas do dia ${dataHojeBR}: ${respostasHoje}`);
-            } else {
-                console.log('⚠️ Nenhuma linha encontrada na planilha Respostas Coerentes');
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao ler aba Estatísticas, usando histórico local:', err.message);
             }
-            
-            // ===== BUSCAR MODERAÇÕES =====
-            // Página: "Moderações", Coluna A = Data/Hora
-            const rangeModeracoes = 'Moderações!A1:Z1000';
-            const dataModeracoes = await googleSheetsConfig.readData(rangeModeracoes);
-            
-            console.log(`📋 Moderações - Total linhas recebidas: ${dataModeracoes ? dataModeracoes.length : 0}`);
-            
-            if (dataModeracoes && dataModeracoes.length > 1) {
-                const headersModeracoes = dataModeracoes[0];
-                console.log('📋 Cabeçalhos Moderações:', headersModeracoes);
-                
-                // Encontrar índices das colunas
-                const statusIndex = headersModeracoes.findIndex(h => 
-                    h === 'Status Aprovação' || 
-                    h === 'Status' || 
-                    h === 'Status Aprovacao' ||
-                    h.toLowerCase().includes('status')
-                );
-                const feedbackIndex = headersModeracoes.findIndex(h => 
-                    h === 'Feedback' || 
-                    h.toLowerCase().includes('feedback')
-                );
-                
-                console.log(`📋 Índice Status: ${statusIndex}, Índice Feedback: ${feedbackIndex}`);
-                
-                let contador = 0;
-                moderacoesHoje = dataModeracoes.slice(1).filter((row, index) => {
-                    // Coluna A (índice 0) = Data/Hora
-                    const dataModeracao = row[0];
-                    if (!dataModeracao) {
-                        console.log(`⚠️ Linha ${index + 2}: sem data`);
-                        return false;
-                    }
-                    
-                    const dataStr = String(dataModeracao).trim();
-                    
-                    // Verificar se a data é de hoje
-                    const isHoje = verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO);
-                    
-                    // Verificar status
-                    let isAprovada = false;
-                    if (statusIndex >= 0) {
-                        const status = String(row[statusIndex] || '').trim();
-                        isAprovada = status === 'Aprovada';
-                    }
-                    
-                    // Verificar se não tem feedback
-                    let semFeedback = true;
-                    if (feedbackIndex >= 0) {
-                        const feedback = String(row[feedbackIndex] || '').trim();
-                        semFeedback = !feedback || feedback === '';
-                    }
-                    
-                    console.log(`📋 Linha ${index + 2}: Data=${dataStr}, Status=${statusIndex >= 0 ? row[statusIndex] : 'N/A'}, Feedback=${feedbackIndex >= 0 ? row[feedbackIndex] : 'N/A'}, isHoje=${isHoje}, isAprovada=${isAprovada}, semFeedback=${semFeedback}`);
-                    
-                    if (isHoje && isAprovada && semFeedback) {
-                        contador++;
-                        console.log(`✅ Moderação ${contador} encontrada (linha ${index + 2}): Data=${dataStr}`);
-                    }
-                    
-                    return isHoje && isAprovada && semFeedback;
-                }).length;
-                
-                console.log(`📊 Moderações do dia ${dataHojeBR}: ${moderacoesHoje}`);
-            } else {
-                console.log('⚠️ Nenhuma linha encontrada na planilha Moderações');
-            }
-            
-            console.log(`📊 RESULTADO FINAL - Data: ${dataHojeBR} (${dataHojeISO}) | Respostas: ${respostasHoje} | Moderações: ${moderacoesHoje}`);
-            
-        } catch (error) {
-            console.error('❌ Erro ao buscar estatísticas da planilha:', error.message);
-            console.error('Stack:', error.stack);
         }
-        
+
+        if (respostas_coerentes === 0 && moderacoes_coerentes === 0 && moderacoes_aprovadas === 0 && moderacoes_negadas === 0) {
+            const estatisticas = loadEstatisticasGlobais();
+            const entradaHoje = estatisticas.historico_diario && estatisticas.historico_diario.find(e => e.data === dataHojeISO);
+            if (entradaHoje) {
+                respostas_coerentes = entradaHoje.respostas_coerentes || 0;
+                moderacoes_coerentes = entradaHoje.moderacoes_coerentes || 0;
+                moderacoes_aprovadas = entradaHoje.moderacoes_aprovadas || 0;
+                moderacoes_negadas = entradaHoje.moderacoes_negadas || 0;
+                console.log(`📊 Estatísticas do dia ${dataHojeBR} (histórico local): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
+            }
+        }
+
         res.json({
             success: true,
             data: dataHojeBR,
-            respostas_geradas: respostasHoje,
-            moderacoes_geradas: moderacoesHoje
+            respostas_coerentes,
+            moderacoes_coerentes,
+            moderacoes_aprovadas,
+            moderacoes_negadas,
+            lastUpdated
         });
     } catch (error) {
         console.error('Erro ao buscar estatísticas do dia:', error);
@@ -9499,15 +9412,25 @@ app.post('/api/sync-estatisticas', async (req, res) => {
         }
 
         const estatisticas = loadEstatisticasGlobais();
-        console.log('📊 Sincronizando estatísticas:', estatisticas.estatisticas);
+        const dataHoje = new Date().toISOString().split('T')[0];
+        const entradaHoje = (estatisticas.historico_diario || []).find(e => e.data === dataHoje);
+        const [a, m, d] = dataHoje.split('-');
+        const dataBR = `${d}/${m}/${a}`;
+        const diario = entradaHoje ? {
+            data: dataBR,
+            respostas_coerentes: entradaHoje.respostas_coerentes || 0,
+            moderacoes_coerentes: entradaHoje.moderacoes_coerentes || 0,
+            moderacoes_aprovadas: entradaHoje.moderacoes_aprovadas || 0,
+            moderacoes_negadas: entradaHoje.moderacoes_negadas || 0
+        } : { data: dataBR, respostas_coerentes: 0, moderacoes_coerentes: 0, moderacoes_aprovadas: 0, moderacoes_negadas: 0 };
         
-        const success = await googleSheetsIntegration.registrarEstatisticas(estatisticas.estatisticas);
+        const success = await googleSheetsIntegration.registrarEstatisticas(diario);
         
         if (success) {
             res.json({
                 success: true,
-                message: 'Estatísticas sincronizadas com sucesso!',
-                estatisticas: estatisticas.estatisticas
+                message: 'Estatísticas do dia sincronizadas com sucesso!',
+                estatisticas: diario
             });
         } else {
             // Retornar 200 com success: false para não quebrar o frontend (ex.: Sheets indisponível)
@@ -10028,6 +9951,17 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 console.error(`❌ Stack trace:`, error.stack);
                 throw new Error(`Erro ao salvar moderação negada: ${error.message}`);
             }
+        }
+        
+        // Estatísticas de controle diário: apenas quantidade (aprovada ou negada)
+        try {
+            if (resultado === 'Aceita') {
+                await incrementarEstatisticaGlobal('moderacoes_aprovadas');
+            } else if (resultado === 'Negada') {
+                await incrementarEstatisticaGlobal('moderacoes_negadas');
+            }
+        } catch (err) {
+            console.error('Erro ao incrementar estatística de moderação:', err.message);
         }
         
         // Invalidar cache
@@ -10972,9 +10906,6 @@ app.post('/api/generate-explanation', async (req, res) => {
         // Gerar explicação usando as respostas fixas do sistema
         const explicacao = gerarMensagemExplicativa(tema, '');
         
-        // Incrementar estatística global
-        await incrementarEstatisticaGlobal('explicacoes_geradas');
-
         res.json({
             success: true,
             result: explicacao,

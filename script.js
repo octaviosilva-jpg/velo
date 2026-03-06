@@ -67,70 +67,43 @@ async function carregarEstatisticasGlobais() {
     }
 }
 
-// Atualizar estatísticas na interface
+// Atualizar estatísticas na interface (dados do dia em tempo real - aba Estatísticas)
 async function atualizarEstatisticasNaInterface() {
     console.log('🔄 Atualizando interface com estatísticas do dia');
     
-    // Buscar estatísticas do dia atual da planilha
     try {
         const response = await fetch('/api/estatisticas-hoje');
         const data = await response.json();
         
         if (data.success) {
-            // Atualizar contadores na interface com dados do dia
-            const statItems = document.querySelectorAll('.stat-item');
-            
-            if (statItems.length >= 2) {
-                // Primeiro item: Respostas Hoje
-                const respostasValue = statItems[0].querySelector('.stat-value');
-                if (respostasValue) {
-                    respostasValue.textContent = data.respostas_geradas || 0;
-                    console.log('📝 Respostas hoje atualizadas:', data.respostas_geradas);
-                }
-                
-                // Segundo item: Moderações Hoje
-                const moderacoesValue = statItems[1].querySelector('.stat-value');
-                if (moderacoesValue) {
-                    moderacoesValue.textContent = data.moderacoes_geradas || 0;
-                    console.log('⚖️ Moderações hoje atualizadas:', data.moderacoes_geradas);
-                }
-            } else {
-                console.log('⚠️ Elementos de estatísticas não encontrados');
-            }
+            const stats = {
+                respostas_coerentes: data.respostas_coerentes ?? 0,
+                moderacoes_coerentes: data.moderacoes_coerentes ?? 0,
+                moderacoes_aprovadas: data.moderacoes_aprovadas ?? 0,
+                moderacoes_negadas: data.moderacoes_negadas ?? 0
+            };
+            document.querySelectorAll('.stat-value[data-stat]').forEach(el => {
+                const key = el.getAttribute('data-stat');
+                if (stats[key] !== undefined) el.textContent = stats[key];
+            });
+            const elUpdated = document.getElementById('estatisticas-last-updated');
+            if (elUpdated) elUpdated.textContent = 'Atualizado: ' + (data.lastUpdated || '—');
+            console.log('✅ Estatísticas do dia:', data.data, stats);
+            console.log('📅 Última atualização:', data.lastUpdated || '—');
         } else {
-            // Fallback para estatísticas globais se o endpoint falhar
-            console.log('⚠️ Usando fallback para estatísticas globais');
-            const statItems = document.querySelectorAll('.stat-item');
-            
-            if (statItems.length >= 2) {
-                const respostasValue = statItems[0].querySelector('.stat-value');
-                if (respostasValue) {
-                    respostasValue.textContent = estatisticasGlobais.respostas_geradas || 0;
-                }
-                
-                const moderacoesValue = statItems[1].querySelector('.stat-value');
-                if (moderacoesValue) {
-                    moderacoesValue.textContent = estatisticasGlobais.moderacoes_geradas || 0;
-                }
-            }
+            console.warn('⚠️ Resposta estatísticas-hoje sem success');
+            zerarEstatisticasNaInterface();
         }
     } catch (error) {
         console.error('❌ Erro ao buscar estatísticas do dia:', error);
-        // Fallback para estatísticas globais
-        const statItems = document.querySelectorAll('.stat-item');
-        
-        if (statItems.length >= 2) {
-            const respostasValue = statItems[0].querySelector('.stat-value');
-            if (respostasValue) {
-                respostasValue.textContent = estatisticasGlobais.respostas_geradas || 0;
-            }
-            
-            const moderacoesValue = statItems[1].querySelector('.stat-value');
-            if (moderacoesValue) {
-                moderacoesValue.textContent = estatisticasGlobais.moderacoes_geradas || 0;
-            }
-        }
+        zerarEstatisticasNaInterface();
     }
+}
+
+function zerarEstatisticasNaInterface() {
+    document.querySelectorAll('.stat-value[data-stat]').forEach(el => el.textContent = '0');
+    const elUpdated = document.getElementById('estatisticas-last-updated');
+    if (elUpdated) elUpdated.textContent = '—';
     
     // Histórico removido - funcionalidade obsoleta
 }

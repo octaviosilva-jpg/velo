@@ -1021,78 +1021,50 @@ class GoogleSheetsIntegration {
     }
 
     /**
-     * Registra estatísticas globais no Google Sheets
+     * Registra estatísticas do DIA no Google Sheets (controle diário).
+     * Recebe os totais do dia: apenas respostas coerentes, mod. coerentes, mod. aprovadas, mod. negadas.
+     * @param {Object} diario - { data (DD/MM/YYYY), respostas_coerentes, moderacoes_coerentes, moderacoes_aprovadas, moderacoes_negadas }
      */
-    async registrarEstatisticas(estatisticas) {
+    async registrarEstatisticas(diario) {
         if (!this.isActive()) {
             console.log('⚠️ Google Sheets não está ativo. Estatísticas não registradas.');
             return false;
         }
 
         try {
-            // Criar planilha de estatísticas se não existir
             await this.ensureSheetExists('Estatísticas', [
                 'Data',
-                'Respostas Geradas',
                 'Respostas Coerentes',
-                'Moderações Geradas',
                 'Moderações Coerentes',
-                'Revisões Texto',
-                'Explicações Geradas'
+                'Moderações Aprovadas',
+                'Moderações Negadas'
             ]);
 
-            const dataHoje = new Date().toLocaleDateString('pt-BR');
-            
-            // Tentar buscar dados existentes para atualizar em vez de sempre adicionar
-            try {
-                const range = 'Estatísticas!A2:G1000'; // Buscar todas as linhas (exceto cabeçalho)
-                const rows = await googleSheetsConfig.readData(range);
-                
-                // Procurar se já existe uma linha para hoje
-                let linhaEncontrada = -1;
-                if (rows && rows.length > 0) {
-                    linhaEncontrada = rows.findIndex(row => row && row[0] === dataHoje);
-                }
-                
-                const rowData = [
-                    dataHoje,
-                    estatisticas.respostas_geradas || 0,
-                    estatisticas.respostas_coerentes || 0,
-                    estatisticas.moderacoes_geradas || 0,
-                    estatisticas.moderacoes_coerentes || 0,
-                    estatisticas.revisoes_texto || 0,
-                    estatisticas.explicacoes_geradas || 0
-                ];
-                
-                if (linhaEncontrada >= 0) {
-                    // Atualizar linha existente (linhaEncontrada + 2 porque começa em A2)
-                    const linhaAtualizar = linhaEncontrada + 2;
-                    const updateRange = `Estatísticas!A${linhaAtualizar}:G${linhaAtualizar}`;
-                    await googleSheetsConfig.updateRow(updateRange, rowData);
-                    console.log(`✅ Estatísticas do dia ${dataHoje} atualizadas no Google Sheets`);
-                } else {
-                    // Adicionar nova linha se não existir
-                    await googleSheetsConfig.appendRow('Estatísticas!A:Z', rowData);
-                    console.log(`✅ Estatísticas do dia ${dataHoje} registradas no Google Sheets`);
-                }
-            } catch (error) {
-                // Se falhar ao buscar, adicionar nova linha
-                console.log('⚠️ Não foi possível verificar linha existente, adicionando nova linha:', error.message);
-                const rowData = [
-                    dataHoje,
-                    estatisticas.respostas_geradas || 0,
-                    estatisticas.respostas_coerentes || 0,
-                    estatisticas.moderacoes_geradas || 0,
-                    estatisticas.moderacoes_coerentes || 0,
-                    estatisticas.revisoes_texto || 0,
-                    estatisticas.explicacoes_geradas || 0
-                ];
-                await googleSheetsConfig.appendRow('Estatísticas!A:Z', rowData);
-                console.log(`✅ Estatísticas do dia ${dataHoje} registradas no Google Sheets (fallback)`);
-            }
-            
-            return true;
+            const dataStr = diario.data || new Date().toLocaleDateString('pt-BR');
+            const rowData = [
+                dataStr,
+                Number(diario.respostas_coerentes) || 0,
+                Number(diario.moderacoes_coerentes) || 0,
+                Number(diario.moderacoes_aprovadas) || 0,
+                Number(diario.moderacoes_negadas) || 0
+            ];
 
+            const range = 'Estatísticas!A2:E1000';
+            const rows = await googleSheetsConfig.readData(range);
+            let linhaEncontrada = -1;
+            if (rows && rows.length > 0) {
+                linhaEncontrada = rows.findIndex(row => row && String(row[0]).trim() === String(dataStr).trim());
+            }
+
+            if (linhaEncontrada >= 0) {
+                const linhaAtualizar = linhaEncontrada + 2;
+                await googleSheetsConfig.updateRow(`Estatísticas!A${linhaAtualizar}:E${linhaAtualizar}`, rowData);
+                console.log(`✅ Estatísticas do dia ${dataStr} atualizadas no Google Sheets`);
+            } else {
+                await googleSheetsConfig.appendRow('Estatísticas!A:E', rowData);
+                console.log(`✅ Estatísticas do dia ${dataStr} registradas no Google Sheets`);
+            }
+            return true;
         } catch (error) {
             console.error('❌ Erro ao registrar estatísticas no Google Sheets:', error.message);
             return false;
@@ -1652,11 +1624,23 @@ class GoogleSheetsIntegration {
                 }
             }
 
-            // Sincronizar estatísticas
+            // Sincronizar estatísticas (uma linha por dia na aba Estatísticas)
             const estatisticasPath = './data/estatisticas_globais.json';
             if (fs.existsSync(estatisticasPath)) {
                 const estatisticas = JSON.parse(fs.readFileSync(estatisticasPath, 'utf8'));
-                await this.registrarEstatisticas(estatisticas.estatisticas);
+                const historico = estatisticas.historico_diario || [];
+                for (const entrada of historico) {
+                    const [ano, mes, dia] = (entrada.data || '').split('-');
+                    if (!dia || !mes || !ano) continue;
+                    const dataBR = `${dia}/${mes}/${ano}`;
+                    await this.registrarEstatisticas({
+                        data: dataBR,
+                        respostas_coerentes: entrada.respostas_coerentes || 0,
+                        moderacoes_coerentes: entrada.moderacoes_coerentes || 0,
+                        moderacoes_aprovadas: entrada.moderacoes_aprovadas || 0,
+                        moderacoes_negadas: entrada.moderacoes_negadas || 0
+                    });
+                }
             }
 
             console.log('✅ Sincronização de dados existentes concluída');
