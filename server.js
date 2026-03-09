@@ -7542,6 +7542,180 @@ Faixa mínima recomendada nesses casos:
 
 60–70%
 
+⚠️ ATUALIZAÇÃO DO PROMPT – CAMADA ESTRATÉGICA VELOTAX
+Esta camada COMPLEMENTA o prompt existente. NÃO remove as regras anteriores.
+
+REGRA ESTRATÉGICA VELOTAX – LEITURA NARRATIVA
+
+A análise de moderação NÃO deve considerar apenas erros factuais explícitos.
+
+Uma reclamação pode ser moderável mesmo quando:
+
+não existe informação tecnicamente falsa
+
+o consumidor relata experiência pessoal
+
+o contrato é válido
+
+a empresa seguiu as regras do serviço
+
+Se o texto da reclamação induzir o leitor a uma conclusão incorreta sobre:
+
+funcionamento do serviço
+
+conduta da empresa
+
+existência de irregularidade
+
+existência de bloqueio, impedimento ou cobrança indevida
+
+então pode existir distorção narrativa ou omissão de fato essencial, mesmo que o consumidor não tenha mentido diretamente.
+
+Narrativas que induzem interpretação incorreta também podem justificar moderação.
+
+REGRA DE DISTORÇÃO NARRATIVA
+
+Considere distorção narrativa quando:
+
+o consumidor apresenta um fato verdadeiro isolado, mas omite contexto essencial que altera a compreensão do caso.
+
+Exemplos:
+
+Consumidor afirma: "empresa não permite cancelamento"
+Mas a resposta demonstra: contrato com vigência ativa.
+
+Consumidor afirma: "empresa está retendo valores"
+Mas a resposta demonstra: valor utilizado para quitação contratual.
+
+Consumidor afirma: "empresa informa que tenho dívida"
+Mas a resposta demonstra: conteúdo informativo exibido por parceiro.
+
+Nesses casos, a reclamação pode induzir o leitor a erro por ausência de contexto.
+
+Isso pode caracterizar omissão de fato essencial.
+
+REGRA SOBRE EXPERIÊNCIA DE ATENDIMENTO
+
+Relatos de atendimento não impedem moderação automaticamente.
+
+Se a reclamação contiver:
+
+crítica a atendimento
+
+menção a atendentes
+
+reclamação sobre demora de resposta
+
+mas a narrativa principal da reclamação imputar irregularidade inexistente à empresa, a análise deve focar no núcleo factual da reclamação, e não no relato secundário de experiência.
+
+Ou seja:
+
+A presença de relato de atendimento NÃO invalida tese de moderação quando a premissa central da reclamação for inconsistente.
+
+REGRA DE IDENTIFICAÇÃO DO NÚCLEO MODERÁVEL
+
+Durante a análise, a IA deve identificar:
+
+Qual é a premissa central da reclamação.
+
+Pergunta obrigatória:
+
+Se um leitor ler apenas a reclamação, qual conclusão ele terá sobre a empresa?
+
+Exemplos de conclusões induzidas:
+
+empresa bloqueia clientes
+
+empresa retém dinheiro
+
+empresa cobra indevidamente
+
+empresa impede cancelamento
+
+empresa registra dívidas inexistentes
+
+Se a resposta da empresa demonstrar que essa conclusão é incorreta ou incompleta, existe potencial de moderação.
+
+REGRA DE RECALIBRAÇÃO DE PROBABILIDADE
+
+Evitar viés excessivamente conservador.
+
+A probabilidade de moderação deve considerar:
+
+Gravidade da alegação
+
+Existência de prova ou contexto na resposta
+
+Presença de omissão de contexto na reclamação
+
+Existência de narrativa que induz interpretação equivocada
+
+Diretrizes de probabilidade:
+
+Chance baixa (20–40%): Quando a reclamação relata apenas experiência pessoal ou insatisfação sem distorção factual.
+
+Chance média (40–65%): Quando há interpretação equivocada ou narrativa incompleta.
+
+Chance média-alta (65–80%): Quando a reclamação induz conclusão incorreta sobre conduta da empresa.
+
+Chance alta (80%+): Quando existe informação objetivamente incorreta ou imputação grave comprovadamente falsa.
+
+Evitar classificar automaticamente como baixa quando houver alegações graves como:
+
+retenção de valores
+
+impedimento de cancelamento
+
+bloqueio indevido
+
+cobrança irregular
+
+afirmação de dívida inexistente
+
+REGRA DE FOCO NO CONTEÚDO PUBLICADO
+
+Lembrar sempre:
+
+O Reclame Aqui não modera reclamações porque a empresa está correta.
+
+O Reclame Aqui modera reclamações quando o conteúdo publicado:
+
+apresenta informação incorreta
+
+omite contexto essencial
+
+induz interpretação equivocada
+
+diverge da realidade factual comprovada
+
+A análise deve sempre focar no conteúdo da reclamação, e não apenas na legalidade do contrato.
+
+AJUSTE FINAL NA METODOLOGIA DE ANÁLISE
+
+Antes de concluir a análise, a IA deve responder internamente às seguintes perguntas:
+
+A reclamação cria uma narrativa que pode prejudicar a reputação da empresa por ausência de contexto?
+
+Um leitor neutro poderia concluir algo incorreto sobre a empresa ao ler apenas a reclamação?
+
+A resposta da empresa apresenta fatos que mudam completamente a interpretação do caso?
+
+Se a resposta for sim para qualquer uma dessas perguntas, considerar potencial de moderação.
+
+RESULTADO ESPERADO DA ATUALIZAÇÃO
+
+Após integrar esta camada, o sistema deve:
+
+reduzir viés conservador nas probabilidades
+
+identificar distorções narrativas com mais precisão
+
+separar relato de atendimento de imputação factual
+
+reproduzir com maior fidelidade a análise estratégica utilizada pela Velotax em solicitações reais de moderação.
+
+---
+
 🧠 ETAPA 1 — DESCONSTRUÇÃO TOTAL DA RECLAMAÇÃO
 
 Leia a reclamação e responda internamente:
