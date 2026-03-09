@@ -981,6 +981,44 @@ function extrairNomeCliente(textoReclamacao) {
     return null;
 }
 
+// Extrair nome do cliente e do agente da resposta pública da empresa (para preservar na reformulação)
+function extrairNomesDaRespostaPublica(respostaPublica) {
+    const out = { nomeCliente: null, nomeAgente: null };
+    if (!respostaPublica || typeof respostaPublica !== 'string') return out;
+    const texto = respostaPublica.trim();
+
+    // Nome do cliente: "Olá, Nome!" ou "Prezado(a) Nome"
+    const matchCliente = texto.match(/Olá,?\s+([^!?\n]+?)\s*[!?.]?\s*(\n|$)/i)
+        || texto.match(/Prezad[oa](?:\(a\))?\s+([^,!\n]+?)[,!.]?\s*(\n|$)/i);
+    if (matchCliente && matchCliente[1]) {
+        const nome = matchCliente[1].trim();
+        if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'cliente') {
+            out.nomeCliente = nome;
+        }
+    }
+
+    // Nome do agente: "Sou [Nome], especialista" ou "Sou [Nome], ..."
+    const matchAgente = texto.match(/Sou\s+([^,]+),\s*(?:especialista|atendente|analista)/i);
+    if (matchAgente && matchAgente[1]) {
+        const nome = matchAgente[1].trim();
+        if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'agente') {
+            out.nomeAgente = nome;
+        }
+    }
+    // Fallback: assinatura "Atenciosamente,\nNome"
+    if (!out.nomeAgente) {
+        const matchAssinatura = texto.match(/Atenciosamente,?\s*\n\s*([^\n]+?)\s*\n\s*Equipe/i);
+        if (matchAssinatura && matchAssinatura[1]) {
+            const nome = matchAssinatura[1].trim();
+            if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'agente') {
+                out.nomeAgente = nome;
+            }
+        }
+    }
+
+    return out;
+}
+
 // Função para formatar resposta RA com a estrutura solicitada
 function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
     if (!respostaTexto || typeof respostaTexto !== 'string') {
@@ -8185,7 +8223,7 @@ Isso "ensina" o analista do RA a enxergar a omissão.
 
 IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudação inicial e SEM assinatura final.
 
-A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
+A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema, utilizando os nomes que constam na RESPOSTA PÚBLICA ORIGINAL DA EMPRESA. Não substitua por genéricos no corpo do texto: preserve no conteúdo que você gerar todos os dados específicos do caso (datas, protocolos, nomes de atendentes ou setores mencionados, canais, valores) exatamente como na resposta original.
 
 Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
 - Responder diretamente à reclamação do consumidor
@@ -8539,7 +8577,7 @@ Agora, execute TODAS as etapas da metodologia e entregue a análise completa no 
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é uma IA Analista Estratégica de Moderação do Reclame Aqui, treinada para replicar o raciocínio humano especializado utilizado pela Velotax em decisões reais de moderação. Você atua como um analista humano sênior, responsável por orientar decisões sensíveis que impactam reputação, score e visibilidade da empresa. Sempre siga exatamente o formato de saída solicitado e execute todas as etapas da metodologia.'
+                        content: 'Você é uma IA Analista Estratégica de Moderação do Reclame Aqui, treinada para replicar o raciocínio humano especializado utilizado pela Velotax em decisões reais de moderação. Você atua como um analista humano sênior, responsável por orientar decisões sensíveis que impactam reputação, score e visibilidade da empresa. Ao gerar a Revisão de Textos, preserve obrigatoriamente todos os dados específicos da resposta pública original (nomes do consumidor e do atendente, datas, protocolos, canais). Sempre siga exatamente o formato de saída solicitado e execute todas as etapas da metodologia.'
                     },
                     {
                         role: 'user',
@@ -8564,16 +8602,18 @@ Agora, execute TODAS as etapas da metodologia e entregue a análise completa no 
         // Extrair e formatar a resposta revisada
         const respostaRevisada = extrairRespostaRevisadaDoResultado(resultado);
         if (respostaRevisada && respostaRevisada.trim().length > 0) {
-            // Extrair nome do cliente da reclamação
-            const nomeCliente = extrairNomeCliente(reclamacaoCompleta);
-            
-            // Tentar obter nome do agente do userData se disponível, senão usar padrão
-            let nomeAgente = 'Agente';
-            if (req.user && req.user.nome) {
-                nomeAgente = obterPrimeiroNomeUsuario(req.user);
+            // Preservar nomes da resposta pública original (regra obrigatória)
+            const nomesRespostaOriginal = extrairNomesDaRespostaPublica(respostaPublica);
+            let nomeCliente = nomesRespostaOriginal.nomeCliente;
+            let nomeAgente = nomesRespostaOriginal.nomeAgente;
+            // Fallback: cliente da reclamação e agente do usuário logado
+            if (!nomeCliente || nomeCliente.trim() === '') {
+                nomeCliente = extrairNomeCliente(reclamacaoCompleta);
             }
-            
-            // Aplicar formatação da resposta RA
+            if (!nomeAgente || nomeAgente.trim() === '') {
+                nomeAgente = (req.user && req.user.nome) ? obterPrimeiroNomeUsuario(req.user) : 'Agente';
+            }
+            // Aplicar formatação da resposta RA (com nomes da resposta original quando existirem)
             const respostaFormatada = formatarRespostaRA(respostaRevisada, nomeCliente, nomeAgente);
             
             // Substituir a resposta revisada no resultado pela versão formatada
