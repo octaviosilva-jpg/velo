@@ -8267,7 +8267,45 @@ app.post('/api/validateGoogleToken', async (req, res) => {
 
 // ===== ENDPOINTS DE ESTATÍSTICAS GLOBAIS =====
 
-// Endpoint para buscar estatísticas do dia atual (aba Estatísticas = controle diário em tempo real)
+// Função simplificada para verificar se a data é hoje (usada pelo endpoint estatísticas-hoje e fallback).
+function verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO) {
+    if (!dataStr) return false;
+    const dataLimpa = String(dataStr).trim();
+    let dataParte = dataLimpa.split(' ')[0];
+    if (dataParte.includes('/')) {
+        const partes = dataParte.split('/');
+        if (partes.length === 3) {
+            const [dia, mes, ano] = partes;
+            const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+            return dataFormatada === dataHojeISO;
+        }
+    }
+    if (dataParte.includes('-')) {
+        const partes = dataParte.split('-');
+        if (partes.length >= 3) {
+            const dataFormatada = `${partes[0]}-${partes[1].padStart(2, '0')}-${partes[2].padStart(2, '0')}`;
+            return dataFormatada === dataHojeISO;
+        }
+    }
+    const [diaHoje, mesHoje, anoHoje] = dataHojeBR.split('/');
+    if (dataLimpa.includes(diaHoje) && dataLimpa.includes(mesHoje) && dataLimpa.includes(anoHoje)) return true;
+    return false;
+}
+
+// Conta registros da coluna A de uma aba cuja data corresponde ao dia da consulta (pula linha de cabeçalho).
+function contarRegistrosDataHoje(rows, dataHojeBR, dataHojeISO) {
+    if (!rows || !Array.isArray(rows)) return 0;
+    let count = 0;
+    for (let i = 1; i < rows.length; i++) {
+        const cell = rows[i] && rows[i][0];
+        if (cell != null && String(cell).trim() && verificarDataHojeSimples(cell, dataHojeBR, dataHojeISO)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Endpoint para buscar estatísticas do dia atual (contagem nas abas: Respostas Coerentes, Moderações, Moderações Aceitas, Moderações Negadas)
 app.get('/api/estatisticas-hoje', async (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
     try {
@@ -8285,34 +8323,42 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         let moderacoes_negadas = 0;
 
         if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
-            const nomesAba = ['Estatísticas', 'Estatisticas'];
-            let leuPlanilha = false;
-            for (const nomeAba of nomesAba) {
-                try {
-                    const range = `${nomeAba}!A2:E1000`;
-                    const rows = await googleSheetsConfig.readData(range);
-                    if (rows && rows.length > 0) {
-                        const dataNorm = (s) => String(s).trim().replace(/\s+/g, ' ');
-                        const linhaHoje = rows.find(row => row && row[0] != null && dataNorm(row[0]) === dataNorm(dataHojeBR));
-                        if (linhaHoje) {
-                            respostas_coerentes = Number(linhaHoje[1]) || 0;
-                            moderacoes_coerentes = Number(linhaHoje[2]) || 0;
-                            moderacoes_aprovadas = Number(linhaHoje[3]) || 0;
-                            moderacoes_negadas = Number(linhaHoje[4]) || 0;
-                            console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha "${nomeAba}"): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
-                            leuPlanilha = true;
-                            break;
-                        }
-                    }
-                } catch (err) {
-                    if (nomesAba.indexOf(nomeAba) === nomesAba.length - 1) {
-                        console.warn('⚠️ Erro ao ler aba Estatísticas/Estatisticas, usando histórico local:', err.message);
-                    }
-                }
-                if (leuPlanilha) break;
+            // Respostas coerentes: aba "Respostas Coerentes", coluna A = Data/Hora
+            try {
+                const rowsRC = await googleSheetsConfig.readData('Respostas Coerentes!A1:A5000');
+                respostas_coerentes = contarRegistrosDataHoje(rowsRC, dataHojeBR, dataHojeISO);
+                console.log(`📊 Respostas Coerentes (col. A = ${dataHojeBR}): ${respostas_coerentes}`);
+            } catch (err) {
+                console.warn('⚠️ Erro ao ler aba Respostas Coerentes:', err.message);
             }
+            // Moderações coerentes: aba "Moderações", coluna A = Data/Hora
+            try {
+                const rowsMod = await googleSheetsConfig.readData('Moderações!A1:A5000');
+                moderacoes_coerentes = contarRegistrosDataHoje(rowsMod, dataHojeBR, dataHojeISO);
+                console.log(`📊 Moderações (col. A = ${dataHojeBR}): ${moderacoes_coerentes}`);
+            } catch (err) {
+                console.warn('⚠️ Erro ao ler aba Moderações:', err.message);
+            }
+            // Moderações aceitas: aba "Moderações Aceitas", coluna A = Data do Registro
+            try {
+                const rowsAceitas = await googleSheetsConfig.readData('Moderações Aceitas!A1:A5000');
+                moderacoes_aprovadas = contarRegistrosDataHoje(rowsAceitas, dataHojeBR, dataHojeISO);
+                console.log(`📊 Moderações Aceitas (col. A = ${dataHojeBR}): ${moderacoes_aprovadas}`);
+            } catch (err) {
+                console.warn('⚠️ Erro ao ler aba Moderações Aceitas:', err.message);
+            }
+            // Moderações negadas: aba "Moderações Negadas", coluna A = Data do Registro
+            try {
+                const rowsNegadas = await googleSheetsConfig.readData('Moderações Negadas!A1:A5000');
+                moderacoes_negadas = contarRegistrosDataHoje(rowsNegadas, dataHojeBR, dataHojeISO);
+                console.log(`📊 Moderações Negadas (col. A = ${dataHojeBR}): ${moderacoes_negadas}`);
+            } catch (err) {
+                console.warn('⚠️ Erro ao ler aba Moderações Negadas:', err.message);
+            }
+            console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
         }
 
+        // Fallback: se não leu da planilha ou todos zerados, usar histórico local
         if (respostas_coerentes === 0 && moderacoes_coerentes === 0 && moderacoes_aprovadas === 0 && moderacoes_negadas === 0) {
             const estatisticas = loadEstatisticasGlobais();
             const entradaHoje = estatisticas.historico_diario && estatisticas.historico_diario.find(e => e.data === dataHojeISO);
@@ -8342,44 +8388,6 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         });
     }
 });
-
-// Função simplificada para verificar se a data é hoje
-function verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO) {
-    if (!dataStr) return false;
-    
-    const dataLimpa = String(dataStr).trim();
-    
-    // Extrair apenas a data (remover hora se houver)
-    let dataParte = dataLimpa.split(' ')[0]; // Pega apenas a parte da data
-    
-    // Formato brasileiro: DD/MM/YYYY
-    if (dataParte.includes('/')) {
-        const partes = dataParte.split('/');
-        if (partes.length === 3) {
-            const [dia, mes, ano] = partes;
-            const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-            return dataFormatada === dataHojeISO;
-        }
-    }
-    
-    // Formato ISO: YYYY-MM-DD
-    if (dataParte.includes('-')) {
-        const partes = dataParte.split('-');
-        if (partes.length >= 3) {
-            const dataFormatada = `${partes[0]}-${partes[1].padStart(2, '0')}-${partes[2].padStart(2, '0')}`;
-            return dataFormatada === dataHojeISO;
-        }
-    }
-    
-    // Verificar se contém a data de hoje no formato BR
-    const [diaHoje, mesHoje, anoHoje] = dataHojeBR.split('/');
-    if (dataLimpa.includes(diaHoje) && dataLimpa.includes(mesHoje) && dataLimpa.includes(anoHoje)) {
-        return true;
-    }
-    
-    return false;
-}
-
 
 app.get('/api/estatisticas-globais', (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-globais chamado');
