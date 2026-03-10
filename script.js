@@ -1458,7 +1458,7 @@ async function gerarModeracao() {
     const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
     const respostaEmpresa = document.getElementById('resposta-empresa').value;
     const motivoModeracao = document.getElementById('motivo-moderacao').value;
-    const consideracaoFinal = document.getElementById('consideracao-final').value;
+    const consideracaoFinal = (document.getElementById('consideracao-final-moderacao') || {}).value || '';
     
     // Validação obrigatória do ID da reclamação
     if (!idReclamacao) {
@@ -3769,7 +3769,7 @@ async function salvarModeracaoComoModelo() {
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
         const respostaEmpresa = document.getElementById('resposta-empresa').value;
         const motivoModeracao = document.getElementById('motivo-moderacao').value;
-        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        const consideracaoFinal = (document.getElementById('consideracao-final-moderacao') || {}).value || '';
         
         const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
         const textoModeracao = document.getElementById('texto-moderacao').innerText;
@@ -3782,26 +3782,28 @@ async function salvarModeracaoComoModelo() {
         
         console.log('🔍 Elementos encontrados:', {
             linhaRaciocinioElement: document.getElementById('linha-raciocinio') ? 'OK' : 'NÃO ENCONTRADO',
-            textoModeracaoElement: document.getElementById('texto-moderacao') ? 'OK' : 'NÃO ENCONTRADO'
+            textoModeracaoElement: document.getElementById('texto-moderacao') ? 'OK' : 'NÃO ENCONTRADO',
+            consideracaoFinalModeracao: document.getElementById('consideracao-final-moderacao') ? 'OK' : 'NÃO ENCONTRADO'
         });
         
         console.log('📝 Dados capturados:', {
             solicitacaoCliente: solicitacaoCliente ? 'OK' : 'VAZIO',
             respostaEmpresa: respostaEmpresa ? 'OK' : 'VAZIO',
             motivoModeracao: motivoModeracao ? 'OK' : 'VAZIO',
-            consideracaoFinal: consideracaoFinal ? 'OK' : 'VAZIO',
+            consideracaoFinal: consideracaoFinal ? 'OK' : '(vazio/opcional)',
             linhaRaciocinio: linhaRaciocinio ? 'OK' : 'VAZIO',
             textoModeracao: textoModeracao ? 'OK' : 'VAZIO'
         });
         
-        if (!solicitacaoCliente || !respostaEmpresa || !motivoModeracao || !consideracaoFinal) {
+        // Consideração final é opcional; obrigatórios: solicitação, resposta da empresa e motivo
+        if (!solicitacaoCliente || !respostaEmpresa || !motivoModeracao) {
             console.error('❌ Dados incompletos:', {
                 solicitacaoCliente: solicitacaoCliente ? 'OK' : 'VAZIO',
                 respostaEmpresa: respostaEmpresa ? 'OK' : 'VAZIO',
                 motivoModeracao: motivoModeracao ? 'OK' : 'VAZIO',
-                consideracaoFinal: consideracaoFinal ? 'OK' : 'VAZIO'
+                consideracaoFinal: consideracaoFinal ? 'OK' : '(opcional)'
             });
-            showErrorMessage('Dados incompletos para salvar como modelo.');
+            showErrorMessage('Preencha Solicitação do Cliente, Resposta da Empresa e Motivo da Moderação para salvar como modelo.');
             return;
         }
         
@@ -3918,7 +3920,7 @@ async function processarFeedbackModeracao() {
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
         const respostaEmpresa = document.getElementById('resposta-empresa').value;
         const motivoModeracao = document.getElementById('motivo-moderacao').value;
-        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        const consideracaoFinal = (document.getElementById('consideracao-final-moderacao') || {}).value || '';
         
         // Chamar o endpoint do servidor para reformulação
         const response = await fetch('/api/reformulate-moderation', {
@@ -3967,7 +3969,7 @@ async function processarFeedbackModeracao() {
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
         const respostaEmpresa = document.getElementById('resposta-empresa').value;
         const motivoModeracao = document.getElementById('motivo-moderacao').value;
-        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        const consideracaoFinal = (document.getElementById('consideracao-final-moderacao') || {}).value || '';
         
         const linhaRaciocinioReformulada = gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCliente, respostaEmpresa, feedbackText);
         const textoModeracaoReformulado = gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedbackText);
@@ -5048,7 +5050,7 @@ async function processarReformulacaoAposNegativa() {
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
         const respostaEmpresa = document.getElementById('resposta-empresa').value;
         const motivoModeracao = document.getElementById('motivo-moderacao').value;
-        const consideracaoFinal = document.getElementById('consideracao-final').value;
+        const consideracaoFinal = (document.getElementById('consideracao-final-moderacao') || {}).value || '';
         const textoNegado = document.getElementById('texto-moderacao').innerText;
         
         // Chamar o endpoint do servidor para reformulação
