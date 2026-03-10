@@ -8292,13 +8292,31 @@ function verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO) {
     return false;
 }
 
-// Conta registros da coluna A de uma aba cuja data corresponde ao dia da consulta (pula linha de cabeçalho).
+// Conta registros onde coluna A = data do dia (pula cabeçalho). Usado para Moderações Negadas (sem filtro de status).
 function contarRegistrosDataHoje(rows, dataHojeBR, dataHojeISO) {
     if (!rows || !Array.isArray(rows)) return 0;
     let count = 0;
     for (let i = 1; i < rows.length; i++) {
         const cell = rows[i] && rows[i][0];
         if (cell != null && String(cell).trim() && verificarDataHojeSimples(cell, dataHojeBR, dataHojeISO)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Conta registros onde coluna A = data do dia E coluna de status = "Aprovada" (pula cabeçalho).
+// statusColIndex: K=10 (Respostas Coerentes), M=12 (Moderações e Moderações Aceitas).
+function contarRegistrosDataHojeComStatusAprovada(rows, dataHojeBR, dataHojeISO, statusColIndex) {
+    if (!rows || !Array.isArray(rows)) return 0;
+    let count = 0;
+    const aprovada = 'aprovada';
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+        const cellData = row[0];
+        const status = String((row[statusColIndex] != null ? row[statusColIndex] : '')).trim().toLowerCase();
+        if (cellData != null && String(cellData).trim() && verificarDataHojeSimples(cellData, dataHojeBR, dataHojeISO) && status === aprovada) {
             count++;
         }
     }
@@ -8323,31 +8341,31 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         let moderacoes_negadas = 0;
 
         if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
-            // Respostas coerentes: aba "Respostas Coerentes", coluna A = Data/Hora
+            // Respostas coerentes: aba "Respostas Coerentes", col. A = data do dia, col. K = Status aprovação "Aprovada"
             try {
-                const rowsRC = await googleSheetsConfig.readData('Respostas Coerentes!A1:A5000');
-                respostas_coerentes = contarRegistrosDataHoje(rowsRC, dataHojeBR, dataHojeISO);
-                console.log(`📊 Respostas Coerentes (col. A = ${dataHojeBR}): ${respostas_coerentes}`);
+                const rowsRC = await googleSheetsConfig.readData('Respostas Coerentes!A1:K5000');
+                respostas_coerentes = contarRegistrosDataHojeComStatusAprovada(rowsRC, dataHojeBR, dataHojeISO, 10); // K = índice 10
+                console.log(`📊 Respostas Coerentes (col. A = ${dataHojeBR}, col. K = Aprovada): ${respostas_coerentes}`);
             } catch (err) {
                 console.warn('⚠️ Erro ao ler aba Respostas Coerentes:', err.message);
             }
-            // Moderações coerentes: aba "Moderações", coluna A = Data/Hora
+            // Moderações coerentes: aba "Moderações", col. A = data do dia, col. M = Status aprovação "Aprovada"
             try {
-                const rowsMod = await googleSheetsConfig.readData('Moderações!A1:A5000');
-                moderacoes_coerentes = contarRegistrosDataHoje(rowsMod, dataHojeBR, dataHojeISO);
-                console.log(`📊 Moderações (col. A = ${dataHojeBR}): ${moderacoes_coerentes}`);
+                const rowsMod = await googleSheetsConfig.readData('Moderações!A1:M5000');
+                moderacoes_coerentes = contarRegistrosDataHojeComStatusAprovada(rowsMod, dataHojeBR, dataHojeISO, 12); // M = índice 12
+                console.log(`📊 Moderações (col. A = ${dataHojeBR}, col. M = Aprovada): ${moderacoes_coerentes}`);
             } catch (err) {
                 console.warn('⚠️ Erro ao ler aba Moderações:', err.message);
             }
-            // Moderações aceitas: aba "Moderações Aceitas", coluna A = Data do Registro
+            // Moderações aceitas: aba "Moderações Aceitas", col. A = data do dia, col. M = Status aprovação "Aprovada"
             try {
-                const rowsAceitas = await googleSheetsConfig.readData('Moderações Aceitas!A1:A5000');
-                moderacoes_aprovadas = contarRegistrosDataHoje(rowsAceitas, dataHojeBR, dataHojeISO);
-                console.log(`📊 Moderações Aceitas (col. A = ${dataHojeBR}): ${moderacoes_aprovadas}`);
+                const rowsAceitas = await googleSheetsConfig.readData('Moderações Aceitas!A1:M5000');
+                moderacoes_aprovadas = contarRegistrosDataHojeComStatusAprovada(rowsAceitas, dataHojeBR, dataHojeISO, 12); // M = índice 12
+                console.log(`📊 Moderações Aceitas (col. A = ${dataHojeBR}, col. M = Aprovada): ${moderacoes_aprovadas}`);
             } catch (err) {
                 console.warn('⚠️ Erro ao ler aba Moderações Aceitas:', err.message);
             }
-            // Moderações negadas: aba "Moderações Negadas", coluna A = Data do Registro
+            // Moderações negadas: aba "Moderações Negadas", col. A = data do registro (qualquer registro do dia conta)
             try {
                 const rowsNegadas = await googleSheetsConfig.readData('Moderações Negadas!A1:A5000');
                 moderacoes_negadas = contarRegistrosDataHoje(rowsNegadas, dataHojeBR, dataHojeISO);
