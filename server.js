@@ -7724,13 +7724,9 @@ A resposta reformulada deve seguir a estrutura:
 
 REGRA DE PRESERVAÇÃO DE IDENTIDADE
 
-A reformulação deve preservar obrigatoriamente:
+A reformulação deve preservar obrigatoriamente o nome do consumidor e o nome do atendente exatamente como já aparecem no texto da resposta original da empresa. Utilizar sempre esses nomes já presentes na resposta; não inventar, não omitir e não substituir por termos genéricos.
 
-• nome do consumidor
-
-• nome do atendente
-
-• cargo do atendente
+Preservar também:
 
 • canais de atendimento da empresa.
 
