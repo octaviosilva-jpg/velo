@@ -7642,43 +7642,131 @@ acusação comprovadamente falsa.
 
 Temas financeiros podem elevar a probabilidade dentro da faixa.
 
-ETAPA 10 — REFORMULAÇÃO ESTRATÉGICA DA RESPOSTA
+ETAPA 10 — REFORMULAÇÃO ESTRATÉGICA DA RESPOSTA (VERSÃO EXPANDIDA)
 
-A resposta reformulada deve ser escrita para maximizar a chance de moderação.
+A reformulação estratégica da resposta pública deve utilizar obrigatoriamente a resposta original da empresa como base principal do texto.
 
-Ela deve:
+O objetivo da reformulação não é resumir a resposta, mas sim:
 
-• negar explicitamente o fato alegado
-• apresentar o contexto omitido
-• demonstrar ausência de responsabilidade da empresa.
+• reorganizar a narrativa
 
-REGRAS OBRIGATÓRIAS DE REFORMULAÇÃO
+• tornar mais explícita a inconsistência da reclamação
 
-Sempre preservar:
+• reforçar os fatos relevantes para moderação.
 
-• nome do consumidor
-• nome do atendente
-• dados específicos do caso.
+A resposta reformulada deve manter a maior parte do conteúdo factual da resposta original, preservando sempre que possível:
 
-Nunca substituir por termos genéricos.
+• datas mencionadas
 
-REGRA DE CLAREZA PARA MODERAÇÃO
+• histórico de atendimento
 
-Utilizar frases que tornem a inconsistência evidente.
+• descrição de contratação ou serviço
 
-Exemplo ideal:
+• contexto contratual
 
-"não há qualquer registro de que a chave Pix tenha sido vinculada ao Velotax".
+• explicações operacionais relevantes.
+
+A reformulação deve ser igual ou ligeiramente mais detalhada que a resposta original, nunca significativamente menor.
+
 
 REGRA DE PRESERVAÇÃO DE CONTEXTO
 
-Não remover informações relevantes que sustentem a tese de moderação.
+A IA não deve remover elementos importantes da resposta original, especialmente quando eles ajudam a demonstrar:
 
-Exemplos:
+• como ocorreu a contratação
 
-• análise realizada em sistema
-• histórico de atendimento
-• responsabilidade de terceiros.
+• quais condições foram aceitas pelo consumidor
+
+• quais procedimentos foram realizados pela empresa
+
+• quais consequências decorreram das ações do consumidor.
+
+Essas informações são fundamentais para que o moderador compreenda o contexto completo do caso.
+
+
+REGRA DE EVIDENCIAÇÃO DA INCONSISTÊNCIA
+
+A resposta reformulada deve deixar explícito:
+
+1️⃣ qual afirmação da reclamação é incorreta ou incompleta
+
+2️⃣ qual contexto factual altera a interpretação do caso
+
+3️⃣ qual ação foi efetivamente realizada pela empresa.
+
+Sempre que possível, a resposta deve conter frases claras como:
+
+"Não houve retenção da chave Pix pelo Velotax."
+
+ou
+
+"A portabilidade da chave Pix foi realizada conforme solicitado."
+
+
+REGRA DE ESTRUTURA DA RESPOSTA
+
+A resposta reformulada deve seguir a estrutura:
+
+1️⃣ saudação e identificação do atendente
+
+2️⃣ contextualização do atendimento
+
+3️⃣ descrição factual detalhada do ocorrido
+
+4️⃣ esclarecimento da inconsistência da reclamação
+
+5️⃣ explicação das consequências contratuais ou operacionais
+
+6️⃣ reforço da transparência da empresa
+
+7️⃣ canais de atendimento.
+
+
+REGRA DE PRESERVAÇÃO DE IDENTIDADE
+
+A reformulação deve preservar obrigatoriamente:
+
+• nome do consumidor
+
+• nome do atendente
+
+• cargo do atendente
+
+• canais de atendimento da empresa.
+
+Nunca substituir por termos genéricos como:
+
+"cliente"
+
+"agente"
+
+"empresa".
+
+
+REGRA DE CLAREZA PARA MODERAÇÃO AUTOMATIZADA
+
+A resposta reformulada deve facilitar a detecção da inconsistência pelo sistema automatizado do Reclame Aqui.
+
+Isso significa que a resposta deve deixar claro que:
+
+• a empresa não realizou a conduta alegada
+
+• o consumidor interpretou incorretamente a situação
+
+• ou omitiu contexto relevante.
+
+
+RESULTADO ESPERADO
+
+Após aplicar essa reformulação, a resposta estratégica deverá:
+
+• manter densidade factual adequada
+
+• preservar o contexto contratual ou operacional do caso
+
+• tornar a inconsistência da reclamação evidente
+
+• facilitar a leitura pelo sistema de moderação do Reclame Aqui.
 
 ETAPA 11 — REAVALIAÇÃO DA PROBABILIDADE
 
@@ -8323,6 +8411,10 @@ function contarRegistrosDataHojeComStatusAprovada(rows, dataHojeBR, dataHojeISO,
     return count;
 }
 
+// Cache simples para /api/estatisticas-hoje (reduz quota do Google Sheets; TTL 90s).
+let cacheEstatisticasHoje = { data: null, dataISO: null, timestamp: 0 };
+const CACHE_ESTATISTICAS_TTL_MS = 90 * 1000;
+
 // Endpoint para buscar estatísticas do dia atual (contagem nas abas: Respostas Coerentes, Moderações, Moderações Aceitas, Moderações Negadas)
 app.get('/api/estatisticas-hoje', async (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
@@ -8335,10 +8427,25 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         const dataHojeISO = `${ano}-${mes}-${dia}`;
         const lastUpdated = hoje.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
+        if (cacheEstatisticasHoje.data && cacheEstatisticasHoje.dataISO === dataHojeISO && (Date.now() - cacheEstatisticasHoje.timestamp) < CACHE_ESTATISTICAS_TTL_MS) {
+            const c = cacheEstatisticasHoje.data;
+            return res.json({
+                success: true,
+                data: dataHojeBR,
+                respostas_coerentes: c.respostas_coerentes,
+                moderacoes_coerentes: c.moderacoes_coerentes,
+                moderacoes_aprovadas: c.moderacoes_aprovadas,
+                moderacoes_negadas: c.moderacoes_negadas,
+                lastUpdated: c.lastUpdated,
+                fromCache: true
+            });
+        }
+
         let respostas_coerentes = 0;
         let moderacoes_coerentes = 0;
         let moderacoes_aprovadas = 0;
         let moderacoes_negadas = 0;
+        let quotaOuErroLeitura = false;
 
         if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
             // Respostas coerentes: aba "Respostas Coerentes", col. A = data do dia, col. K = Status aprovação "Aprovada"
@@ -8347,6 +8454,7 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 respostas_coerentes = contarRegistrosDataHojeComStatusAprovada(rowsRC, dataHojeBR, dataHojeISO, 10); // K = índice 10
                 console.log(`📊 Respostas Coerentes (col. A = ${dataHojeBR}, col. K = Aprovada): ${respostas_coerentes}`);
             } catch (err) {
+                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
                 console.warn('⚠️ Erro ao ler aba Respostas Coerentes:', err.message);
             }
             // Moderações coerentes: aba "Moderações", col. A = data do dia, col. M = Status aprovação "Aprovada"
@@ -8355,6 +8463,7 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 moderacoes_coerentes = contarRegistrosDataHojeComStatusAprovada(rowsMod, dataHojeBR, dataHojeISO, 12); // M = índice 12
                 console.log(`📊 Moderações (col. A = ${dataHojeBR}, col. M = Aprovada): ${moderacoes_coerentes}`);
             } catch (err) {
+                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
                 console.warn('⚠️ Erro ao ler aba Moderações:', err.message);
             }
             // Moderações aceitas: aba "Moderações Aceitas", col. A = data do dia, col. M = Status aprovação "Aprovada"
@@ -8363,6 +8472,7 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 moderacoes_aprovadas = contarRegistrosDataHojeComStatusAprovada(rowsAceitas, dataHojeBR, dataHojeISO, 12); // M = índice 12
                 console.log(`📊 Moderações Aceitas (col. A = ${dataHojeBR}, col. M = Aprovada): ${moderacoes_aprovadas}`);
             } catch (err) {
+                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
                 console.warn('⚠️ Erro ao ler aba Moderações Aceitas:', err.message);
             }
             // Moderações negadas: aba "Moderações Negadas", col. A = data do registro (qualquer registro do dia conta)
@@ -8371,13 +8481,14 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 moderacoes_negadas = contarRegistrosDataHoje(rowsNegadas, dataHojeBR, dataHojeISO);
                 console.log(`📊 Moderações Negadas (col. A = ${dataHojeBR}): ${moderacoes_negadas}`);
             } catch (err) {
+                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
                 console.warn('⚠️ Erro ao ler aba Moderações Negadas:', err.message);
             }
             console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
         }
 
-        // Fallback: se não leu da planilha ou todos zerados, usar histórico local
-        if (respostas_coerentes === 0 && moderacoes_coerentes === 0 && moderacoes_aprovadas === 0 && moderacoes_negadas === 0) {
+        // Fallback: quota excedida, erro de leitura ou todos zerados → usar histórico local
+        if (quotaOuErroLeitura || (respostas_coerentes === 0 && moderacoes_coerentes === 0 && moderacoes_aprovadas === 0 && moderacoes_negadas === 0)) {
             const estatisticas = loadEstatisticasGlobais();
             const entradaHoje = estatisticas.historico_diario && estatisticas.historico_diario.find(e => e.data === dataHojeISO);
             if (entradaHoje) {
@@ -8385,11 +8496,11 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 moderacoes_coerentes = entradaHoje.moderacoes_coerentes || 0;
                 moderacoes_aprovadas = entradaHoje.moderacoes_aprovadas || 0;
                 moderacoes_negadas = entradaHoje.moderacoes_negadas || 0;
-                console.log(`📊 Estatísticas do dia ${dataHojeBR} (histórico local): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
+                console.log(`📊 Estatísticas do dia ${dataHojeBR} (histórico local${quotaOuErroLeitura ? ' - quota/erro de leitura' : ''}): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
             }
         }
 
-        res.json({
+        const payload = {
             success: true,
             data: dataHojeBR,
             respostas_coerentes,
@@ -8397,7 +8508,9 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
             moderacoes_aprovadas,
             moderacoes_negadas,
             lastUpdated
-        });
+        };
+        cacheEstatisticasHoje = { data: payload, dataISO: dataHojeISO, timestamp: Date.now() };
+        res.json(payload);
     } catch (error) {
         console.error('Erro ao buscar estatísticas do dia:', error);
         res.status(500).json({
