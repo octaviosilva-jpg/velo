@@ -510,8 +510,10 @@ class GoogleSheetsIntegration {
                     fields: 'sheets.properties'
                 });
                 
+                const sheetNameNorm = String(sheetName || '').trim().toLowerCase();
                 for (const sheet of spreadsheet.data.sheets) {
-                    if (sheet.properties.title === sheetName) {
+                    const title = (sheet.properties && sheet.properties.title) || '';
+                    if (title === sheetName || title.trim().toLowerCase() === sheetNameNorm) {
                         sheetExists = true;
                         sheetId = sheet.properties.sheetId;
                         console.log(`✅ Aba "${sheetName}" já existe (ID: ${sheetId})`);
@@ -543,8 +545,14 @@ class GoogleSheetsIntegration {
                     sheetId = response.data.replies[0].addSheet.properties.sheetId;
                     console.log(`✅ Aba "${sheetName}" criada com sucesso (ID: ${sheetId})`);
                 } catch (createError) {
-                    console.error(`❌ Erro ao criar aba "${sheetName}":`, createError.message);
-                    throw createError;
+                    const msg = (createError.message || '').toLowerCase();
+                    if (msg.includes('already exists') || msg.includes('duplicate') || msg.includes('já existe')) {
+                        console.log(`✅ Aba "${sheetName}" já existe (ignorando erro de criação).`);
+                        sheetExists = true;
+                    } else {
+                        console.error(`❌ Erro ao criar aba "${sheetName}":`, createError.message);
+                        throw createError;
+                    }
                 }
             }
             

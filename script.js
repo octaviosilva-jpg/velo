@@ -1106,7 +1106,7 @@ let exemploAtual = 0;
 const exemplosTeste = [
     {
         nome: "Exclusão de Cadastro - Realizada",
-        tipoSituacao: "exclusao-cadastro",
+        tipoSituacao: "incoerente",
         idReclamacao: "RA-12345",
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Cadastro excluído no sistema em 12/08/2025 conforme solicitação.",
@@ -1115,7 +1115,7 @@ const exemplosTeste = [
     },
     {
         nome: "Exclusão de Cadastro - Negada",
-        tipoSituacao: "exclusao-cadastro",
+        tipoSituacao: "incoerente",
         idReclamacao: "RA-12346",
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações e deseja que todos os seus dados sejam removidos dos sistemas.`,
         solucaoImplementada: "Não foi possível realizar a exclusão do cadastro devido a pendências contratuais ativas.",
@@ -1124,7 +1124,7 @@ const exemplosTeste = [
     },
     {
         nome: "Liberação de Chave Pix - Realizada",
-        tipoSituacao: "exclusao-chave-pix-cpf",
+        tipoSituacao: "conta-celcoin",
         idReclamacao: "RA-12347",
         reclamacaoCliente: "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
         solucaoImplementada: "Portabilidade da chave Pix concluída e confirmada em contato com o cliente.",
@@ -1133,7 +1133,7 @@ const exemplosTeste = [
     },
     {
         nome: "Liberação de Chave Pix - Negada",
-        tipoSituacao: "exclusao-chave-pix-cpf",
+        tipoSituacao: "conta-celcoin",
         idReclamacao: "RA-12348",
         reclamacaoCliente: "Cliente solicita liberação da chave Pix CPF para portabilidade. Ele quer transferir para outro banco.",
         solucaoImplementada: "Não foi possível realizar a liberação da chave Pix devido a operação ativa.",
@@ -1142,7 +1142,7 @@ const exemplosTeste = [
     },
     {
         nome: "Quitação - Realizada",
-        tipoSituacao: "quitacao",
+        tipoSituacao: "antecipacao",
         idReclamacao: "RA-12349",
         reclamacaoCliente: "Cliente questiona sobre quitação de antecipação. Ele acredita que já quitou mas ainda aparece débito.",
         solucaoImplementada: "Antecipação quitada automaticamente em 31/07/2025 quando restituição foi depositada pela Receita Federal.",
@@ -1151,7 +1151,7 @@ const exemplosTeste = [
     },
     {
         nome: "SERASA/SPC - Inclusão",
-        tipoSituacao: "juros-abusivos",
+        tipoSituacao: "em-cobranca",
         idReclamacao: "RA-12350",
         reclamacaoCliente: "Cliente questiona inclusão em SERASA/SPC. Ele não entende por que foi incluído.",
         solucaoImplementada: "Antecipação não foi quitada na data prevista, resultando em inclusão nos órgãos de proteção ao crédito.",
@@ -1160,7 +1160,7 @@ const exemplosTeste = [
     },
     {
         nome: "Análise em Andamento",
-        tipoSituacao: "exclusao-cadastro",
+        tipoSituacao: "incoerente",
         idReclamacao: "RA-12351",
         reclamacaoCliente: `Cliente solicita exclusão de seu cadastro da ${NOME_EMPRESA}. Ele não quer mais receber comunicações.`,
         solucaoImplementada: "Solicitação em análise pela equipe técnica. Aguardando verificação de pendências.",
@@ -1295,6 +1295,10 @@ function gerarRespostaReclameAqui(estagio, tipoSituacao, baseContratual, reclama
             resposta += '<p>Conforme solicitado, a quitação antecipada foi processada com o desconto aplicável conforme as condições contratuais.</p>';
             break;
         case 'outro':
+            resposta += '<p>Sua solicitação foi devidamente registrada em nossos sistemas.</p>';
+            resposta += '<p>Nossa equipe está analisando o caso e entrará em contato em breve.</p>';
+            break;
+        default:
             resposta += '<p>Sua solicitação foi devidamente registrada em nossos sistemas.</p>';
             resposta += '<p>Nossa equipe está analisando o caso e entrará em contato em breve.</p>';
             break;
