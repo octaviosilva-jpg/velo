@@ -205,7 +205,8 @@ async function handleGoogleSignIn(response) {
                 foto: user.picture,
                 timestamp: Date.now(),
                 funcao: userProfile.funcao || 'Usuário',
-                departamento: userProfile.departamento || 'Geral'
+                departamento: userProfile.departamento || 'Geral',
+                genero: userProfile.genero || undefined
             };
 
             // 5. Persistir no localStorage

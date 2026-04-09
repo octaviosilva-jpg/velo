@@ -346,7 +346,8 @@ async function gerarRespostaRAViaAPI(dadosResposta) {
             nome: window.auth.dadosUsuario().nome,
             email: window.auth.dadosUsuario().email,
             funcao: window.auth.dadosUsuario().funcao,
-            departamento: window.auth.dadosUsuario().departamento
+            departamento: window.auth.dadosUsuario().departamento,
+            genero: window.auth.dadosUsuario().genero
         } : null;
         
         console.log('👤 Dados do usuário para geração:', userData);
@@ -581,7 +582,8 @@ async function salvarRespostaComoModelo(dadosAtuais, respostaAprovada) {
             nome: window.auth.dadosUsuario().nome,
             email: window.auth.dadosUsuario().email,
             funcao: window.auth.dadosUsuario().funcao,
-            departamento: window.auth.dadosUsuario().departamento
+            departamento: window.auth.dadosUsuario().departamento,
+            genero: window.auth.dadosUsuario().genero
         } : null;
         
         console.log('👤 Dados do usuário para envio:', userData);
@@ -818,7 +820,8 @@ async function reformularRespostaComFeedback(dados, respostaAnterior, feedback) 
         nome: window.auth.dadosUsuario().nome,
         email: window.auth.dadosUsuario().email,
         funcao: window.auth.dadosUsuario().funcao,
-        departamento: window.auth.dadosUsuario().departamento
+        departamento: window.auth.dadosUsuario().departamento,
+        genero: window.auth.dadosUsuario().genero
     } : null;
     
     // Chamar servidor para reformular com feedback
@@ -2894,7 +2897,12 @@ async function gerarEmail() {
             body: JSON.stringify({
                 tipoEmail: tipoEmail,
                 destinatario: destinatario || '',
-                contexto: contexto
+                contexto: contexto,
+                userData: window.auth?.dadosUsuario ? {
+                    nome: window.auth.dadosUsuario().nome,
+                    email: window.auth.dadosUsuario().email,
+                    genero: window.auth.dadosUsuario().genero
+                } : null
             })
         });
         

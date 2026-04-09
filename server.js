@@ -959,6 +959,43 @@ function obterPrimeiroNomeUsuario(userData) {
     return primeiroNome || 'Agente';
 }
 
+function normalizarChavePrimeiroNome(nome) {
+    if (!nome || typeof nome !== 'string') return '';
+    const primeiro = nome.trim().split(/\s+/)[0] || '';
+    return primeiro.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
+function inferirGeneroPorNomeExibicao(nomeExibicao, userData) {
+    if (userData) {
+        const g = String(userData.genero || userData.sexo || '').toLowerCase();
+        if (['f', 'feminino', 'mulher', 'fem'].includes(g)) return 'F';
+        if (['m', 'masculino', 'homem', 'masc'].includes(g)) return 'M';
+    }
+    if (!nomeExibicao || String(nomeExibicao).trim() === '' || nomeExibicao === 'Agente') return 'M';
+    const key = normalizarChavePrimeiroNome(nomeExibicao);
+    const feminino = new Set(['carol', 'caroline', 'nayara', 'ana', 'maria', 'julia', 'juliana', 'fernanda', 'patricia', 'amanda', 'camila', 'lais', 'luana', 'bruna', 'beatriz', 'lara', 'laura', 'paula', 'monica', 'janaina', 'taina', 'raquel', 'ingrid', 'deborah', 'debora', 'bianca', 'solange', 'vanessa', 'aline', 'priscila', 'roberta', 'tatiana', 'adriana', 'fabiana', 'liliane', 'simone', 'gabriela', 'daniela', 'leticia', 'tamires', 'jessica', 'carla', 'viviane', 'ariane', 'milene', 'mariana', 'renata', 'cristina', 'silvana', 'suelen', 'thais', 'yasmim', 'yasmin', 'brenda', 'tamara', 'michelle', 'sheila', 'rosana', 'lidiane', 'mayara', 'dayane', 'graziela', 'tainara', 'samara', 'valeria', 'claudia', 'eliane', 'karina', 'sabrina']);
+    const masculino = new Set(['octavio', 'marcos', 'carlos', 'paulo', 'joao', 'pedro', 'lucas', 'gabriel', 'rafael', 'daniel', 'bruno', 'felipe', 'andre', 'ricardo', 'rodrigo', 'thiago', 'gustavo', 'leonardo', 'matheus', 'mateus', 'marcelo', 'vinicius', 'renan', 'eduardo', 'fernando', 'fabricio', 'alexandre', 'diego', 'igor', 'samuel', 'henrique', 'antonio', 'caio', 'murilo', 'sergio', 'jorge', 'william', 'guilherme', 'caua', 'enzo', 'otavio', 'alan', 'julio', 'jonathan', 'wagner', 'kleber', 'fabio', 'rogerio', 'claudio']);
+    const masculinoComA = new Set(['luca', 'isaque', 'isaac', 'josu', 'josue', 'tobias', 'abias', 'elias', 'jonas', 'mathias']);
+    if (feminino.has(key)) return 'F';
+    if (masculino.has(key)) return 'M';
+    if (key.length >= 3 && key.endsWith('a') && !masculinoComA.has(key)) return 'F';
+    return 'M';
+}
+
+function obterArtigoDefinidoAgente(nomeExibicao, userData) {
+    if (!nomeExibicao || String(nomeExibicao).trim() === '' || nomeExibicao === 'Agente') return null;
+    return inferirGeneroPorNomeExibicao(nomeExibicao, userData) === 'F' ? 'a' : 'o';
+}
+
+/** Troca travessoes e hifens usados como pausa (estilo IA) por virgula; mantem telefones e palavras compostas. */
+function humanizarPontuacaoGerada(texto) {
+    if (!texto || typeof texto !== 'string') return texto;
+    let t = texto.replace(/\u2014/g, ', ').replace(/\u2013/g, ', ').replace(/\u2012/g, ', ');
+    t = t.replace(/\s+--\s+/g, ', ').replace(/\s+-\s+/g, ', ');
+    t = t.replace(/,\s*,+/g, ', ');
+    return t;
+}
+
 // Função para tentar extrair o nome do cliente da reclamação
 function extrairNomeCliente(textoReclamacao) {
     if (!textoReclamacao || typeof textoReclamacao !== 'string') {
@@ -1003,7 +1040,7 @@ function extrairNomesDaRespostaPublica(respostaPublica) {
     }
 
     // Nome do agente: "Sou [Nome], analista" (ou legado: especialista/atendente)
-    const matchAgente = texto.match(/Sou\s+([^,]+),\s*(?:analista|especialista|atendente)/i);
+    const matchAgente = texto.match(/Sou\s+(?:(?:o|a)\s+)?([^,]+),\s*(?:analista|especialista|atendente)/i);
     if (matchAgente && matchAgente[1]) {
         const nome = matchAgente[1].trim();
         if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'agente') {
@@ -1025,15 +1062,24 @@ function extrairNomesDaRespostaPublica(respostaPublica) {
 }
 
 // Função para formatar resposta RA com a estrutura solicitada
-function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
+function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
     if (!respostaTexto || typeof respostaTexto !== 'string') {
         return respostaTexto;
     }
-    
+    respostaTexto = humanizarPontuacaoGerada(respostaTexto);
+
     // Garantir que temos um nome de agente válido
     if (!nomeAgente || nomeAgente.trim() === '') {
         nomeAgente = 'Agente';
     }
+    
+    const linhaApresentacaoAgente = () => {
+        if (nomeAgente === 'Agente') {
+            return 'Sou analista de atendimento do Velotax. Recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.';
+        }
+        const art = obterArtigoDefinidoAgente(nomeAgente, userData);
+        return `Sou ${art} ${nomeAgente}, analista de atendimento do Velotax, recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.`;
+    };
     
     // Se a resposta já estiver formatada com a estrutura completa, verificar e atualizar se necessário
     const jaTemEstruturaCompleta = respostaTexto.includes('Permanecemos à disposição por meio de nossos canais oficiais') ||
@@ -1043,19 +1089,23 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
     if (jaTemEstruturaCompleta) {
         // Verificar se a estrutura está completa e correta
         const temSaudacao = /Olá,\s+[^!]+!/.test(respostaTexto);
-        const temApresentacao = /Sou\s+[^,]+,?\s+(?:analista|especialista)\s+de\s+atendimento/i.test(respostaTexto);
+        const temApresentacao = /Sou\s+(?:(?:o|a)\s+)?[^,]+,?\s+(?:analista|especialista)\s+de\s+atendimento/i.test(respostaTexto)
+            || /Sou analista de atendimento do Velotax\.\s*Recebemos sua manifestação/i.test(respostaTexto);
         const temContato = respostaTexto.includes('3003-7293') && respostaTexto.includes('0800-800-0049');
         const temAssinatura = /Atenciosamente,/.test(respostaTexto);
         
         // Se já tem estrutura completa e correta, apenas atualizar nome do agente se necessário
         if (temSaudacao && temApresentacao && temContato && temAssinatura) {
-            // Atualizar nome do agente se estiver diferente
             if (nomeAgente !== 'Agente') {
-                respostaTexto = respostaTexto.replace(/Sou\s+[^,]+,\s+(?:especialista|analista)/g, `Sou ${nomeAgente}, analista`);
+                const art = obterArtigoDefinidoAgente(nomeAgente, userData);
+                respostaTexto = respostaTexto.replace(
+                    /Sou\s+(?:(?:o|a)\s+)?[^,]+,\s+(?:especialista|analista)/gi,
+                    `Sou ${art} ${nomeAgente}, analista`
+                );
                 respostaTexto = respostaTexto.replace(/Atenciosamente,\s*\n\s*[^\n]+\s*\n\s*Equipe de Atendimento Velotax/g, 
                     `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
             }
-            return respostaTexto;
+            return humanizarPontuacaoGerada(respostaTexto);
         }
         // Se tem estrutura mas está incompleta, remover e refazer
     }
@@ -1066,9 +1116,10 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
     // Remover saudações antigas
     textoLimpo = textoLimpo.replace(/^(Olá|Oi|Prezado\(a\)?\s+cliente|Prezado\s+cliente|Prezada\s+cliente)[^!]*[!.,]\s*/i, '');
     
-    // Remover apresentações antigas
-    textoLimpo = textoLimpo.replace(/^Sou\s+[^,]+,\s+(?:especialista|analista)[^.]*\.\s*/i, '');
+    // Remover apresentações antigas (com ou sem artigo; ou frase sem nome próprio)
+    textoLimpo = textoLimpo.replace(/^Sou\s+(?:(?:o|a)\s+)?[^,]+,\s+(?:especialista|analista)[^.]*\.\s*/i, '');
     textoLimpo = textoLimpo.replace(/^[^,]+,\s+(?:especialista|analista)\s+de\s+atendimento[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*Recebemos[^.]*\.\s*/i, '');
     
     // Remover "Espero que esteja bem" se estiver sozinho
     textoLimpo = textoLimpo.replace(/^Espero\s+que\s+esteja\s+bem[.!]?\s*/i, '');
@@ -1097,7 +1148,7 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
 
 Espero que esteja bem.
 
-Sou ${nomeAgente}, analista de atendimento do Velotax, recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.  
+${linhaApresentacaoAgente()}  
 
 ${textoLimpo}
 
@@ -1114,7 +1165,7 @@ Atenciosamente,
 ${nomeAgente} 
 Equipe de Atendimento Velotax`;
 
-    return respostaFormatada;
+    return humanizarPontuacaoGerada(respostaFormatada);
 }
 
 // Gerar script padrão "cru" para geração de respostas
@@ -1177,6 +1228,7 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 - NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
 - Seja firme e objetivo, sem excesso de tom acolhedor
 - Foque em esclarecer e resolver, não em justificar ou se desculpar
+- NUNCA use travessão (—), hífen longo (–) nem hífen com espaços como pausa entre ideias; use vírgula, ponto ou ponto e vírgula
 
 5. ELEMENTOS OBRIGATÓRIOS:
 
@@ -4499,7 +4551,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de Reclame Aqui, com foco em formulação de textos de moderação.'
+                        content: 'Você é um analista de Reclame Aqui, com foco em formulação de textos de moderação. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -4513,7 +4565,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
         
         if (response.ok) {
             const data = await response.json();
-            let resposta = data.choices[0].message.content;
+            let resposta = humanizarPontuacaoGerada(data.choices[0].message.content);
             
             // Validação pós-processamento para moderação - NUNCA usar resposta genérica
             const palavrasGenericas = [
@@ -4628,7 +4680,7 @@ app.post('/api/generate-email', rateLimitMiddleware, async (req, res) => {
             });
         }
         
-        const { tipoEmail, destinatario, contexto } = req.body;
+        const { tipoEmail, destinatario, contexto, userData } = req.body;
         
         // Validações
         if (!tipoEmail) {
@@ -4696,7 +4748,20 @@ Produzir respostas genéricas ou vagas.
 
 Criar leis, artigos ou fundamentos jurídicos inexistentes.
 
+Pontuação (obrigatório):
+Não use travessão (—), hífen longo (–) nem hífen com espaços como pausa entre ideias; use vírgula, ponto ou ponto e vírgula.
+
 `;
+
+        const primeiroNomeEmail = userData && userData.nome ? obterPrimeiroNomeUsuario(userData) : null;
+        if (primeiroNomeEmail && primeiroNomeEmail !== 'Agente') {
+            const artE = obterArtigoDefinidoAgente(primeiroNomeEmail, userData);
+            prompt += `
+Remetente (use na despedida / assinatura do corpo, se fizer sentido):
+Nome de exibição: ${primeiroNomeEmail}
+Use artigo definido correto em português ao se apresentar (ex.: "Sou ${artE} ${primeiroNomeEmail}, analista..." ou "Atenciosamente,\\n${primeiroNomeEmail}").
+`;
+        }
 
         // Adicionar instruções específicas por tipo
         if (tipoEmail === 'resposta-cliente') {
@@ -4893,7 +4958,7 @@ IMPORTANTE: Retorne APENAS o e-mail formatado conforme acima, sem explicações 
         }
 
         const data = await response.json();
-        const emailGerado = data.choices[0]?.message?.content || '';
+        const emailGerado = humanizarPontuacaoGerada(data.choices[0]?.message?.content || '');
 
         if (!emailGerado) {
             return res.status(500).json({
@@ -5097,6 +5162,7 @@ ${conhecimentoFeedback || ''}
 - Use tom profissional, direto e objetivo
 - NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito"
 - Seja firme e claro, sem excesso de tom acolhedor
+- NUNCA use travessão (—), hífen longo (–) nem " - " como pausa entre frases; use vírgula ou ponto
 
 4. VERIFICAÇÃO FINAL:
 - Confirme que a resposta é específica (não genérica)
@@ -5119,7 +5185,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes.'
+                        content: 'Você é um analista de atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -5133,7 +5199,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
         
         if (response.ok) {
             const data = await response.json();
-            const resposta = data.choices[0].message.content;
+            const resposta = humanizarPontuacaoGerada(data.choices[0].message.content);
             
             // Verificar se a resposta foi gerada com conhecimento da planilha
             const temConhecimentoPlanilha = dadosPlanilha && (dadosPlanilha.modelosCoerentes?.length > 0 || dadosPlanilha.feedbacksRelevantes?.length > 0);
@@ -5430,7 +5496,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 : extrairNomeCliente(dadosFormulario.texto_cliente);
             
             // Aplicar formatação da resposta RA com a estrutura solicitada (Olá, {nome do solicitante}!)
-            resposta = formatarRespostaRA(resposta, nomeCliente, nomeAgente);
+            resposta = formatarRespostaRA(resposta, nomeCliente, nomeAgente, userData);
             
             // Validação pós-processamento mais rigorosa e específica
             const palavrasGenericas = [
@@ -5503,7 +5569,7 @@ ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendiment
 
 O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
                 
-                let respostaEspecifica = formatarRespostaRA(textoResposta, nomeCliente, nomeAgente);
+                let respostaEspecifica = formatarRespostaRA(textoResposta, nomeCliente, nomeAgente, userData);
                 
                 // Adicionar contexto específico baseado no tipo de situação
                 if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('exclusao')) {
@@ -5514,7 +5580,7 @@ ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação d
 ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
 O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                    respostaEspecifica = formatarRespostaRA(textoRespostaExclusao, nomeCliente, nomeAgente);
+                    respostaEspecifica = formatarRespostaRA(textoRespostaExclusao, nomeCliente, nomeAgente, userData);
                 } else if (tipoSituacao.toLowerCase().includes('pix') || tipoSituacao.toLowerCase().includes('portabilidade')) {
                     const textoRespostaPix = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
@@ -5525,7 +5591,7 @@ ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendiment
 A operação foi realizada conforme estabelecido na Cláusula 7 de sua Cédula de Crédito Bancário (CCB), que trata do vínculo da chave Pix e quitação automática.
 
 Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                    respostaEspecifica = formatarRespostaRA(textoRespostaPix, nomeCliente, nomeAgente);
+                    respostaEspecifica = formatarRespostaRA(textoRespostaPix, nomeCliente, nomeAgente, userData);
                 } else if (tipoSituacao.toLowerCase().includes('quitação') || tipoSituacao.toLowerCase().includes('liquidação')) {
                     const textoRespostaQuitacao = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
@@ -5536,7 +5602,7 @@ ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendiment
 A operação foi realizada conforme estabelecido na Cláusula 8 de sua Cédula de Crédito Bancário (CCB), que trata da liquidação antecipada.
 
 Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                    respostaEspecifica = formatarRespostaRA(textoRespostaQuitacao, nomeCliente, nomeAgente);
+                    respostaEspecifica = formatarRespostaRA(textoRespostaQuitacao, nomeCliente, nomeAgente, userData);
                 }
                 
                 resposta = respostaEspecifica;
@@ -5749,7 +5815,7 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de Reclame Aqui, com foco em reformulação de textos de moderação negados.'
+                        content: 'Você é um analista de Reclame Aqui, com foco em reformulação de textos de moderação negados. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -5763,7 +5829,7 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
         
         if (response.ok) {
             const data = await response.json();
-            const textoReformulado = data.choices[0].message.content;
+            const textoReformulado = humanizarPontuacaoGerada(data.choices[0].message.content);
             
             // Salvar feedback para aprendizado futuro
             addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado, dadosModeracao, req.userData);
@@ -6085,6 +6151,7 @@ e) Convite para contato direto
 - Evite repetições desnecessárias
 - Seja específico e detalhado
 - Seja objetivo, sem excesso de tom acolhedor ou friendly
+- NUNCA use travessão (—), hífen longo (–) nem hífen com espaços como pausa; prefira vírgula ou ponto
 
 ⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
 
@@ -6141,7 +6208,7 @@ Gere APENAS o conteúdo explicativo do meio da resposta reformulada.`;
                 : extrairNomeCliente(dadosFormulario.texto_cliente);
             
             // Aplicar formatação da resposta RA com a estrutura solicitada (Olá, {nome}!)
-            respostaReformulada = formatarRespostaRA(respostaReformulada, nomeCliente, nomeAgente);
+            respostaReformulada = formatarRespostaRA(respostaReformulada, nomeCliente, nomeAgente, userData);
             
             // Aplicar feedback diretamente no script de formulação para aprendizado imediato
             if (feedback) {
@@ -7364,7 +7431,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado.'
+                        content: 'Você é um analista de revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -7383,7 +7450,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
         }
 
         const data = await response.json();
-        const resultado = data.choices[0].message.content;
+        const resultado = humanizarPontuacaoGerada(data.choices[0].message.content);
         console.log('✅ Revisão de texto gerada com sucesso');
 
         res.json({
@@ -7868,7 +7935,7 @@ Agora, execute as etapas 1 a 12 da metodologia e entregue a análise no formato 
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é o sistema de análise estratégica de moderação do Reclame Aqui (PROMPT DEFINITIVO VELOTAX V7 MASTER). Atue como analista sênior de reputação digital: identifique inconsistências moderáveis, estime probabilidade de aceite, oriente ajustes na resposta pública e preveja como o RA interpretaria o caso. Ao gerar a Revisão estratégica da resposta, preserve obrigatoriamente nome do consumidor, nome do atendente e dados específicos do caso. Entregue a análise no formato da seção 15 (FORMATO FINAL DA ANÁLISE).'
+                        content: 'Você é o sistema de análise estratégica de moderação do Reclame Aqui (PROMPT DEFINITIVO VELOTAX V7 MASTER). Atue como analista sênior de reputação digital: identifique inconsistências moderáveis, estime probabilidade de aceite, oriente ajustes na resposta pública e preveja como o RA interpretaria o caso. Ao gerar a Revisão estratégica da resposta, preserve obrigatoriamente nome do consumidor, nome do atendente e dados específicos do caso. Entregue a análise no formato da seção 15 (FORMATO FINAL DA ANÁLISE). Não use travessão (—) nem hífen com espaços como pausa entre ideias; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -7902,10 +7969,11 @@ Agora, execute as etapas 1 a 12 da metodologia e entregue a análise no formato 
                 nomeCliente = extrairNomeCliente(reclamacaoCompleta);
             }
             if (!nomeAgente || nomeAgente.trim() === '') {
-                nomeAgente = (req.user && req.user.nome) ? obterPrimeiroNomeUsuario(req.user) : 'Agente';
+                const u = req.user || req.userData;
+                nomeAgente = (u && u.nome) ? obterPrimeiroNomeUsuario(u) : 'Agente';
             }
             // Aplicar formatação da resposta RA (com nomes da resposta original quando existirem)
-            const respostaFormatada = formatarRespostaRA(respostaRevisada, nomeCliente, nomeAgente);
+            const respostaFormatada = formatarRespostaRA(respostaRevisada, nomeCliente, nomeAgente, req.user || req.userData || null);
             
             // Substituir a resposta revisada no resultado pela versão formatada (V7 e legado)
             const marcadoresSubst = [
@@ -7948,7 +8016,7 @@ Agora, execute as etapas 1 a 12 da metodologia e entregue a análise no formato 
 
         res.json({
             success: true,
-            result: resultado
+            result: humanizarPontuacaoGerada(resultado)
         });
 
     } catch (error) {
@@ -8151,7 +8219,7 @@ Retorne APENAS a resposta ajustada, sem comentários ou explicações adicionais
         }
 
         const data = await response.json();
-        const respostaAjustada = data.choices[0].message.content.trim();
+        const respostaAjustada = humanizarPontuacaoGerada(data.choices[0].message.content.trim());
         
         console.log('✅ Ajuste manual aplicado com sucesso');
         
@@ -8229,7 +8297,8 @@ app.get('/api/getUserProfile', (req, res) => {
         const userProfile = {
             funcao: 'Usuário',
             departamento: 'Geral',
-            permissoes: ['visualizar', 'gerar_respostas']
+            permissoes: ['visualizar', 'gerar_respostas'],
+            genero: null
         };
         
         console.log('📋 Perfil do usuário retornado:', userProfile);
@@ -9315,7 +9384,7 @@ Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de moderações do Reclame Aqui, com conhecimento profundo dos manuais oficiais da plataforma.'
+                        content: 'Você é um analista de moderações do Reclame Aqui, com conhecimento profundo dos manuais oficiais da plataforma. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -9333,7 +9402,7 @@ Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content.trim();
+        const content = humanizarPontuacaoGerada(data.choices[0].message.content.trim());
 
         // Tentar extrair JSON da resposta
         let resultado;
@@ -9357,9 +9426,9 @@ Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
         }
 
         return {
-            bloco1_motivo_negativa: resultado.bloco1_motivo_negativa || 'Análise não disponível',
-            bloco2_onde_errou: resultado.bloco2_onde_errou || 'Análise não disponível',
-            bloco3_como_corrigir: resultado.bloco3_como_corrigir || 'Análise não disponível'
+            bloco1_motivo_negativa: humanizarPontuacaoGerada(String(resultado.bloco1_motivo_negativa || 'Análise não disponível')),
+            bloco2_onde_errou: humanizarPontuacaoGerada(String(resultado.bloco2_onde_errou || 'Análise não disponível')),
+            bloco3_como_corrigir: humanizarPontuacaoGerada(String(resultado.bloco3_como_corrigir || 'Análise não disponível'))
         };
 
     } catch (error) {
