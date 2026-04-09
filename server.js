@@ -943,14 +943,19 @@ async function incrementarEstatisticaGlobal(tipo, quantidade = 1) {
 
 // ===== SISTEMA DE APRENDIZADO SEPARADO =====
 
-// Função para extrair o primeiro nome do usuário logado
+// Função para extrair o primeiro nome do usuário logado (nome de exibição em respostas/e-mail)
 function obterPrimeiroNomeUsuario(userData) {
     if (!userData || !userData.nome) {
         return 'Agente';
     }
-    
-    // Extrair primeiro nome (até o primeiro espaço)
-    const primeiroNome = userData.nome.trim().split(/\s+/)[0];
+
+    const nomeCompleto = userData.nome.trim().replace(/\s+/g, ' ');
+    // Caroline Santiago: assinar e apresentar como "Carol" nas respostas geradas
+    if (/^caroline\s+santiago$/i.test(nomeCompleto)) {
+        return 'Carol';
+    }
+
+    const primeiroNome = nomeCompleto.split(/\s+/)[0];
     return primeiroNome || 'Agente';
 }
 
@@ -997,8 +1002,8 @@ function extrairNomesDaRespostaPublica(respostaPublica) {
         }
     }
 
-    // Nome do agente: "Sou [Nome], especialista" ou "Sou [Nome], ..."
-    const matchAgente = texto.match(/Sou\s+([^,]+),\s*(?:especialista|atendente|analista)/i);
+    // Nome do agente: "Sou [Nome], analista" (ou legado: especialista/atendente)
+    const matchAgente = texto.match(/Sou\s+([^,]+),\s*(?:analista|especialista|atendente)/i);
     if (matchAgente && matchAgente[1]) {
         const nome = matchAgente[1].trim();
         if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'agente') {
@@ -1038,7 +1043,7 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
     if (jaTemEstruturaCompleta) {
         // Verificar se a estrutura está completa e correta
         const temSaudacao = /Olá,\s+[^!]+!/.test(respostaTexto);
-        const temApresentacao = /Sou\s+[^,]+,?\s+especialista\s+de\s+atendimento/.test(respostaTexto);
+        const temApresentacao = /Sou\s+[^,]+,?\s+(?:analista|especialista)\s+de\s+atendimento/i.test(respostaTexto);
         const temContato = respostaTexto.includes('3003-7293') && respostaTexto.includes('0800-800-0049');
         const temAssinatura = /Atenciosamente,/.test(respostaTexto);
         
@@ -1046,7 +1051,7 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
         if (temSaudacao && temApresentacao && temContato && temAssinatura) {
             // Atualizar nome do agente se estiver diferente
             if (nomeAgente !== 'Agente') {
-                respostaTexto = respostaTexto.replace(/Sou\s+[^,]+,\s+especialista/g, `Sou ${nomeAgente}, especialista`);
+                respostaTexto = respostaTexto.replace(/Sou\s+[^,]+,\s+(?:especialista|analista)/g, `Sou ${nomeAgente}, analista`);
                 respostaTexto = respostaTexto.replace(/Atenciosamente,\s*\n\s*[^\n]+\s*\n\s*Equipe de Atendimento Velotax/g, 
                     `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
             }
@@ -1062,8 +1067,8 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
     textoLimpo = textoLimpo.replace(/^(Olá|Oi|Prezado\(a\)?\s+cliente|Prezado\s+cliente|Prezada\s+cliente)[^!]*[!.,]\s*/i, '');
     
     // Remover apresentações antigas
-    textoLimpo = textoLimpo.replace(/^Sou\s+[^,]+,\s+especialista[^.]*\.\s*/i, '');
-    textoLimpo = textoLimpo.replace(/^[^,]+,\s+especialista\s+de\s+atendimento[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Sou\s+[^,]+,\s+(?:especialista|analista)[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^[^,]+,\s+(?:especialista|analista)\s+de\s+atendimento[^.]*\.\s*/i, '');
     
     // Remover "Espero que esteja bem" se estiver sozinho
     textoLimpo = textoLimpo.replace(/^Espero\s+que\s+esteja\s+bem[.!]?\s*/i, '');
@@ -1092,7 +1097,7 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente) {
 
 Espero que esteja bem.
 
-Sou ${nomeAgente}, especialista de atendimento do Velotax, recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.  
+Sou ${nomeAgente}, analista de atendimento do Velotax, recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.  
 
 ${textoLimpo}
 
@@ -1116,7 +1121,7 @@ Equipe de Atendimento Velotax`;
 function gerarScriptPadraoResposta(dadosFormulario) {
     return `📌 SCRIPT INTELIGENTE PARA GERAÇÃO DE RESPOSTA RA - VELOTAX
 
-Você é um especialista em atendimento ao cliente da Velotax, empresa de antecipação de restituição do Imposto de Renda. Sua função é gerar respostas personalizadas e inteligentes para o Reclame Aqui.
+Você é um analista de atendimento ao cliente da Velotax, empresa de antecipação de restituição do Imposto de Renda. Sua função é gerar respostas personalizadas e inteligentes para o Reclame Aqui.
 
 DADOS ESPECÍFICOS DO CASO:
 - Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
@@ -1129,7 +1134,7 @@ DADOS ESPECÍFICOS DO CASO:
 🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
 1. CONTEXTUALIZAÇÃO DA VELOTAX:
-- Somos especialistas em antecipação de restituição do Imposto de Renda
+- Somos referência em antecipação de restituição do Imposto de Renda
 - Trabalhamos com Cédula de Crédito Bancário (CCB) conforme legislação
 - Seguimos rigorosamente a LGPD e normas do Banco Central
 - Nossa operação é 100% legal e regulamentada
@@ -1175,7 +1180,7 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 
 5. ELEMENTOS OBRIGATÓRIOS:
 
-- Mencione a Velotax como especialista em antecipação de restituição
+- Mencione a Velotax como referência em antecipação de restituição
 - Cite a legalidade da operação (CCB, regulamentação BC)
 - Demonstre conhecimento técnico do processo
 - Ofereça canais de contato direto
@@ -1198,7 +1203,7 @@ Gere APENAS o texto explicativo que vai entre a apresentação do agente e as in
 
 NÃO inclua:
 - "Olá, [nome]" ou qualquer saudação
-- "Sou [nome], especialista..." ou apresentação
+- "Sou [nome], analista..." ou apresentação
 - Informações de contato (telefones, site)
 - "Atenciosamente" ou assinatura
 - Qualquer estrutura de cabeçalho ou rodapé
@@ -4494,7 +4499,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um especialista em Reclame Aqui, com foco em formulação de textos de moderação.'
+                        content: 'Você é um analista de Reclame Aqui, com foco em formulação de textos de moderação.'
                     },
                     {
                         role: 'user',
@@ -5114,7 +5119,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um especialista em atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes.'
+                        content: 'Você é um analista de atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes.'
                     },
                     {
                         role: 'user',
@@ -5744,7 +5749,7 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um especialista em Reclame Aqui, com foco em reformulação de textos de moderação negados.'
+                        content: 'Você é um analista de Reclame Aqui, com foco em reformulação de textos de moderação negados.'
                     },
                     {
                         role: 'user',
@@ -6095,7 +6100,7 @@ Gere APENAS o texto explicativo que vai entre a apresentação do agente e as in
 
 NÃO inclua:
 - "Olá, [nome]" ou qualquer saudação
-- "Sou [nome], especialista..." ou apresentação
+- "Sou [nome], analista..." ou apresentação
 - Informações de contato (telefones, site)
 - "Atenciosamente" ou assinatura
 - Qualquer estrutura de cabeçalho ou rodapé
@@ -7359,7 +7364,7 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um especialista em revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado.'
+                        content: 'Você é um analista de revisão de textos corporativos, focado em clareza, compliance e padronização. Sempre siga exatamente o formato de saída solicitado.'
                     },
                     {
                         role: 'user',
@@ -7456,7 +7461,7 @@ Seu papel é atuar como um analista sênior de reputação digital e moderação
 
 Você não é um assistente genérico.
 
-Você é um especialista em moderação de conteúdo do Reclame Aqui, treinado para reproduzir o raciocínio utilizado por analistas humanos experientes que trabalham diariamente com moderação de reclamações.
+Você é um analista de moderação de conteúdo do Reclame Aqui, treinado para reproduzir o raciocínio utilizado por analistas humanos experientes que trabalham diariamente com moderação de reclamações.
 
 2. OBJETIVO PRINCIPAL
 
@@ -9241,7 +9246,7 @@ async function analisarModeracaoNegada(dadosModeracao) {
         const prompt = `
 📌 ANÁLISE DE MODERAÇÃO NEGADA PELO RECLAME AQUI
 
-Você é um especialista em análise de moderações do Reclame Aqui. Sua tarefa é analisar uma moderação que foi NEGADA e gerar feedback estruturado em 3 blocos obrigatórios.
+Você é um analista de moderações do Reclame Aqui. Sua tarefa é analisar uma moderação que foi NEGADA e gerar feedback estruturado em 3 blocos obrigatórios.
 
 DADOS DA MODERAÇÃO NEGADA:
 - Texto da moderação enviada: ${textoModeracao}
@@ -9310,7 +9315,7 @@ Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um especialista em análise de moderações do Reclame Aqui, com conhecimento profundo dos manuais oficiais da plataforma.'
+                        content: 'Você é um analista de moderações do Reclame Aqui, com conhecimento profundo dos manuais oficiais da plataforma.'
                     },
                     {
                         role: 'user',
