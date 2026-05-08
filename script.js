@@ -121,8 +121,8 @@ const PROMPT_MASTER_OPENAI = `Você é o assistente especializado da ${NOME_EMPR
 1. **Respostas Reclame Aqui**
    - Tom formal, técnico, cordial e imparcial
    - Estruture em parágrafos curtos, objetivos e claros
-   - Baseie respostas nas cláusulas da CCB quando aplicável
-   - Explique questões de chave Pix e exclusão de cadastro conforme políticas internas
+   - Cite LGPD, CCB ou CDC somente se constarem na solução implementada ou forem indispensáveis ao relato do que foi feito
+   - Explique chave Pix, exclusão de cadastro e demais pontos conforme a solução implementada e os dados do caso, sem fundamentação extra
    - Para atrasos de crédito, cite prazos oficiais (ex.: Banco do Brasil: até o próximo dia útil)
 
 2. **E-mails para clientes**

@@ -1186,9 +1186,8 @@ DADOS ESPECÍFICOS DO CASO:
 
 1. CONTEXTUALIZAÇÃO DA VELOTAX:
 - Somos referência em antecipação de restituição do Imposto de Renda
-- Trabalhamos com Cédula de Crédito Bancário (CCB) conforme legislação
-- Seguimos rigorosamente a LGPD e normas do Banco Central
-- Nossa operação é 100% legal e regulamentada
+- Descreva a operação com base na solução implementada e nos dados do caso
+- Não mencione LGPD, CCB, CDC nem outras normas por hábito ou completude retórica
 
 2. ANÁLISE ESPECÍFICA POR TIPO DE SOLICITAÇÃO:
 
@@ -1203,8 +1202,8 @@ a) RECONHECIMENTO PERSONALIZADO:
 
 b) ESCLARECIMENTO TÉCNICO:
 - Explique o que foi feito de forma clara e técnica
-- Cite datas, processos e procedimentos específicos
-- Contextualize com a legislação aplicável (CCB, LGPD, etc.)
+- Cite datas, processos e procedimentos conforme constarem na solução implementada ou no histórico
+- Cite LGPD, CCB ou CDC somente se esses termos (ou ideia equivalente) estiverem explicitamente na solução implementada ou forem estritamente necessários para relatar o que já foi feito, sem acrescentar fundamentação nova
 
 c) SOLUÇÃO IMPLEMENTADA:
 - Detalhe as ações tomadas pela Velotax
@@ -1219,24 +1218,24 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 4. DIRETRIZES ESPECÍFICAS DA VELOTAX:
 
 - Use linguagem técnica mas acessível
-- Cite sempre a legislação aplicável (CCB, LGPD, etc.)
-- Mencione a regulamentação do Banco Central quando relevante
-- Demonstre expertise em antecipação de restituição
+- Evite blocos longos de justificativa ou tom defensivo; prefira fatos e conclusões alinhados à solução implementada
+- Não use eufemismos de desculpa ("regrettable", "compreendemos o transtorno" excessivo, "lamentamos o ocorrido" indireto)
+- Mencione Banco Central, CCB, LGPD ou CDC só se constarem na solução implementada ou no material do caso, não como enfeite
+- Demonstre domínio do caso sem extrapolar além dos dados fornecidos
 - Mantenha tom profissional, direto e solucionador
-- Seja específico sobre processos e prazos
+- Seja específico sobre processos e prazos apenas quando estiverem nos dados (solução implementada, histórico, observações)
 - Evite generalizações - seja sempre específico ao caso
 - NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
 - Seja firme e objetivo, sem excesso de tom acolhedor
 - Foque em esclarecer e resolver, não em justificar ou se desculpar
 - NUNCA use travessão (—), hífen longo (–) nem hífen com espaços como pausa entre ideias; use vírgula, ponto ou ponto e vírgula
 
-5. ELEMENTOS OBRIGATÓRIOS:
+5. ELEMENTOS DE QUALIDADE (SEM INVENTAR CONTEÚDO):
 
-- Mencione a Velotax como referência em antecipação de restituição
-- Cite a legalidade da operação (CCB, regulamentação BC)
-- Demonstre conhecimento técnico do processo
-- Ofereça canais de contato direto
-- Mantenha transparência total
+- Posicione a Velotax de forma objetiva quando couber ao caso
+- Demonstre conhecimento técnico apenas sobre o que foi feito e registrado
+- Ofereça canais de contato direto (o sistema já inclui rodapé; não repita telefone e site no miolo se não for necessário ao caso)
+- Transparência factual, sem prolixidade
 
 ⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
 
@@ -1268,35 +1267,28 @@ function gerarContextoEspecifico(tipoSolicitacao) {
     const contextos = {
         'exclusao-cadastro': `
 🔹 EXCLUSÃO DE CADASTRO:
-- Processo de exclusão conforme LGPD (Lei 13.709/2018)
-- Remoção completa dos dados pessoais do sistema
-- Confirmação de que não receberá mais comunicações
-- Prazo de processamento: até 15 dias úteis
-- Direito do titular conforme art. 16 da LGPD`,
+- Descreva exclusão e remoção de dados conforme a solução implementada (prazos e status só se constarem nela)
+- Remoção de dados e fim de comunicações conforme registrado
+- Não cite LGPD nem artigos da lei salvo se estiverem na solução implementada ou forem indispensáveis ao relato do que foi feito`,
 
         'liberacao-chave-pix': `
 🔹 LIBERAÇÃO DE CHAVE PIX:
-- Processo de desvinculação da chave PIX conforme CCB
-- Verificação de quitação da operação
-- Liberação para uso em outras instituições
-- Conformidade com regulamentação do Banco Central
-- Prazo de processamento: até 2 dias úteis`,
+- Desvinculação/liberação da chave Pix conforme a solução implementada
+- Verificação de quitação ou status da operação quando constar nos dados
+- Liberação para uso em outras instituições se for o caso registrado
+- Prazos apenas se estiverem na solução implementada ou histórico`,
 
         'antecipacao-restituicao': `
 🔹 ANTECIPAÇÃO DE RESTITUIÇÃO:
-- Operação baseada em Cédula de Crédito Bancário (CCB)
-- Análise de elegibilidade conforme Receita Federal
-- Processamento conforme regulamentação do Banco Central
-- Transparência total nos custos e prazos
-- Garantia de legalidade da operação`,
+- Descreva a operação e etapas com base na solução implementada
+- Análise de elegibilidade e processamento apenas conforme registrado
+- Custos e prazos com transparência factual, sem valores ou prazos inventados`,
 
         'quitação-antecipada': `
 🔹 QUITAÇÃO ANTECIPADA:
-- Direito do cliente conforme CCB
-- Cálculo de juros proporcionais
-- Processamento conforme regulamentação
-- Transparência nos valores e prazos
-- Conformidade com normas do Banco Central`,
+- Liquidação ou quitação conforme a solução implementada
+- Valores e encargos apenas se constarem nos dados fornecidos
+- Evite citar cláusulas da CCB salvo se estiverem na solução implementada`,
 
         'esclarecimento': `
 🔹 ESCLARECIMENTO:
@@ -1355,7 +1347,7 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario)
             promptFinal += '   - A estrutura e organização do texto\n';
             promptFinal += '   - O tom profissional e empático usado\n';
             promptFinal += '   - Como integram a solução implementada com o problema do cliente\n';
-            promptFinal += '   - As referências legais (CCB, LGPD) quando aplicáveis\n';
+            promptFinal += '   - Referências a LGPD, CCB ou CDC somente quando coerentes com a solução implementada deste caso (não por hábito)\n';
             promptFinal += '   - A personalização para cada caso específico\n\n';
         }
         
@@ -1376,7 +1368,7 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario)
             promptFinal += '   - Não seja genérico - seja específico para o caso\n';
             promptFinal += '   - Não ignore a solução implementada - explique como ela resolve o problema\n';
             promptFinal += '   - Não use linguagem muito técnica ou muito informal\n';
-            promptFinal += '   - Não deixe de mencionar aspectos legais quando relevante\n\n';
+            promptFinal += '   - Não acrescente fundamentação legal que não esteja na solução implementada ou nos dados do caso\n\n';
         }
         
         promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
@@ -2240,7 +2232,7 @@ async function processarAprendizadoObrigatorio(dadosFormulario) {
         
         // Adicionar padrões identificados
         if (aprendizadoScript?.padroesIdentificados?.length > 0) {
-            instrucoesAprendizado += '📋 PADRÕES OBRIGATÓRIOS (SEGUIR SEMPRE):\n';
+            instrucoesAprendizado += '📋 PADRÕES IDENTIFICADOS (APLICAR QUANDO COMPATÍVEIS COM A SOLUÇÃO IMPLEMENTADA DESTE CASO):\n';
             aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
                 instrucoesAprendizado += `${index + 1}. ${padrao}\n`;
             });
@@ -2258,6 +2250,8 @@ async function processarAprendizadoObrigatorio(dadosFormulario) {
             console.log('⚠️ Feedback contrário detectado - NÃO incluindo cláusulas CCB');
             instrucoesAprendizado += '⚠️ ATENÇÃO: NÃO cite cláusulas da CCB conforme feedbacks anteriores!\n\n';
         }
+
+        instrucoesAprendizado += '⚠️ ALINHAMENTO: LGPD, CDC, CCB ou cláusulas contratuais só devem aparecer na resposta se constarem na solução implementada deste caso ou forem indispensáveis para descrever o que já foi feito; não acrescente normas por hábito.\n\n';
         
         // Adicionar feedbacks críticos (ERROS A EVITAR)
         if (aprendizadoScript?.feedbacks?.length > 0) {
@@ -2534,7 +2528,8 @@ async function identificarPadroesAprendizado(tipoSituacao, idReclamacao, respost
     } else if (tipoSituacao.toLowerCase().includes('inadimplência') || tipoSituacao.toLowerCase().includes('vencimento')) {
         clausulaIdentificada = 'Cláusula 10 - Inadimplência e Vencimento Antecipado';
     } else if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('dados')) {
-        clausulaIdentificada = 'Cláusula 14 - Proteção de Dados (LGPD)';
+        // Exclusão de dados: não forçar CCB/cláusula 14 no aprendizado (feedback histórico: evitar CCB nestes casos)
+        clausulaIdentificada = '';
     }
     
     if (clausulaIdentificada && !aprendizado.tiposSituacao[tipoSituacao].clausulasUsadas.includes(clausulaIdentificada)) {
@@ -2584,6 +2579,9 @@ async function identificarPadroesAprendizado(tipoSituacao, idReclamacao, respost
         if (feedback.includes('portabilidade') || feedback.includes('chave pix')) {
             padroes.push('Para portabilidade: confirmar que processo foi concluído e chave liberada');
         }
+        if ((feedback.includes('não cite') || feedback.includes('nao cite')) && feedback.includes('ccb')) {
+            padroes.push('Não citar CCB ou cláusulas contratuais salvo se constarem na solução implementada');
+        }
     });
     
     console.log('📋 Padrões identificados:', padroes);
@@ -2614,8 +2612,6 @@ async function processarPadroesExistentes(tipoSituacao) {
         clausulas.push('Cláusula 8 - Liquidação Antecipada');
     } else if (tipoSituacao.toLowerCase().includes('inadimplência') || tipoSituacao.toLowerCase().includes('vencimento')) {
         clausulas.push('Cláusula 10 - Inadimplência e Vencimento Antecipado');
-    } else if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('dados')) {
-        clausulas.push('Cláusula 14 - Proteção de Dados (LGPD)');
     }
     
     // Analisar todos os feedbacks para extrair padrões
@@ -5157,21 +5153,24 @@ ${conhecimentoFeedback || ''}
 
 3. GERAÇÃO DA RESPOSTA:
 - Estruture a resposta seguindo o padrão dos modelos coerentes
-- Seja específico sobre a solução implementada
-- Integre o histórico de atendimento quando relevante
-- Use tom profissional, direto e objetivo
+- Ancore fatos, prazos e conclusões na solução implementada e nos demais campos; não invente detalhes
+- Seja específico sobre o que foi feito conforme a solução implementada
+- Integre o histórico de atendimento quando relevante e quando constar nos dados
+- Use tom profissional, direto e objetivo; evite parágrafos longos só para justificar ou "adubar" o texto
+- Não mencione LGPD, CCB, CDC, artigos de lei ou cláusulas contratuais salvo se constarem na solução implementada (ou forem estritamente necessários para relatar o que já foi feito, sem criar fundamentação nova)
 - NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito"
+- Evite eufemismos que funcionem como desculpa indireta ("compreendemos o transtorno", "infelizmente", "lamentamos qualquer inconveniente")
 - Seja firme e claro, sem excesso de tom acolhedor
 - NUNCA use travessão (—), hífen longo (–) nem " - " como pausa entre frases; use vírgula ou ponto
 
 4. VERIFICAÇÃO FINAL:
 - Confirme que a resposta é específica (não genérica)
-- Verifique se menciona a solução implementada
+- Verifique se reflete fielmente a solução implementada (sem extrapolar)
 - Garanta que o tom está adequado para o RA
 
 🎯 INSTRUÇÃO CRÍTICA: Use o conhecimento dos modelos coerentes para gerar uma resposta de alta qualidade desde o início, aplicando a estrutura e abordagem dos modelos aprovados.
 
-IMPORTANTE: A resposta deve ser específica para esta situação, não genérica. Use os dados fornecidos e o conhecimento dos modelos coerentes para criar uma resposta personalizada e de alta qualidade.`;
+IMPORTANTE: A resposta deve ser específica para esta situação, não genérica. Use os dados fornecidos e o conhecimento dos modelos coerentes para criar uma resposta personalizada e completa, sem prolixidade nem informação nova.`;
 
         // Fazer a requisição para a OpenAI
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -5185,7 +5184,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de atendimento ao cliente para o Reclame Aqui, com foco em gerar respostas de alta qualidade baseadas em modelos coerentes. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
+                        content: 'Você é um analista de atendimento ao cliente para o Reclame Aqui. Baseie-se na solução implementada e nos dados do caso; não cite LGPD, CCB ou CDC salvo se isso constar na solução implementada ou for indispensável ao relato factual. Evite justificativas longas e tom defensivo. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -5473,7 +5472,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um assistente especializado em atendimento ao cliente para a empresa Velotax. Sua função é analisar TODOS os campos fornecidos (reclamação do cliente, solução implementada, histórico de atendimento, nome do solicitante) e formular uma resposta personalizada que responda diretamente à solicitação do cliente, explicando como a solução implementada resolve o problema. Use as cláusulas da CCB quando aplicável para fundamentar a resposta. A saudação deve usar o nome do solicitante informado (ex.: Olá, Maria!).'
+                        content: 'Você é um assistente da Velotax para respostas ao Reclame Aqui. Use reclamação do cliente, solução implementada, histórico e observações como fonte: explique de forma clara e completa o que foi feito, sem inventar fatos. Cite LGPD, CCB, CDC ou cláusulas só se constarem na solução implementada ou forem estritamente necessários ao que foi executado. Evite parágrafos demasiadamente justificativos ou tom de desculpa indireta. A saudação com nome é aplicada pelo sistema após o texto.'
                     },
                     {
                         role: 'user',
@@ -5588,7 +5587,7 @@ ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação d
 
 ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
-A operação foi realizada conforme estabelecido na Cláusula 7 de sua Cédula de Crédito Bancário (CCB), que trata do vínculo da chave Pix e quitação automática.
+As informações acima correspondem ao que foi registrado na solução implementada para o seu caso.
 
 Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
                     respostaEspecifica = formatarRespostaRA(textoRespostaPix, nomeCliente, nomeAgente, userData);
@@ -5599,7 +5598,7 @@ ${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação d
 
 ${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
 
-A operação foi realizada conforme estabelecido na Cláusula 8 de sua Cédula de Crédito Bancário (CCB), que trata da liquidação antecipada.
+Os dados acima refletem o que foi registrado na solução implementada para o seu pedido.
 
 Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
                     respostaEspecifica = formatarRespostaRA(textoRespostaQuitacao, nomeCliente, nomeAgente, userData);
@@ -5911,7 +5910,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             
             // Adicionar padrões identificados
             if (aprendizadoScript?.padroesIdentificados?.length > 0) {
-                conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (OBRIGATÓRIOS):\n';
+                conhecimentoFeedback += '📋 PADRÕES IDENTIFICADOS (aplicar quando compatíveis com o texto atual e com o feedback do operador):\n';
                 aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
                     conhecimentoFeedback += `${index + 1}. ${padrao}\n`;
                 });
@@ -5935,6 +5934,8 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
             } else if (temFeedbackContrario) {
                 console.log('⚠️ Feedback contrário detectado - não incluindo cláusulas CCB');
             }
+
+            conhecimentoFeedback += '⚠️ ALINHAMENTO: LGPD, CDC, CCB ou cláusulas listadas só devem aparecer na resposta se constarem na solução implementada deste caso ou forem indispensáveis ao relato do que foi feito.\n';
             
             // Adicionar feedbacks recentes (CRÍTICO - EVITAR ESTES ERROS)
             if (aprendizadoScript?.feedbacks?.length > 0) {
@@ -5954,7 +5955,7 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
                 });
             }
             
-            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este aprendizado direto do script para gerar uma resposta de alta qualidade, aplicando os padrões identificados e evitando os erros documentados.\n';
+            conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este aprendizado para orientar tom e detalhes; em reformulação com feedback do operador, não substitua o texto atual inteiro por um modelo da base, salvo se o feedback pedir reestruturação total.\n';
         }
         
         // PRIORIDADE 2: FEEDBACKS COMPLEMENTARES (se não houver aprendizado do script)
@@ -6030,149 +6031,115 @@ app.post('/api/reformulate-response', rateLimitMiddleware, async (req, res) => {
                 conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento dos feedbacks de respostas RA para evitar os problemas identificados e aplicar as correções já validadas na reformulação.\n';
             }
         }
-        
-        let prompt = `
-TAREFA: ${feedback ? 'GERAR NOVA RESPOSTA' : 'REFORMULAR RESPOSTA'} do Reclame Aqui
 
-DADOS DO CASO:
-- Tipo de Situação: ${dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao}
-- Motivo da Solicitação: ${dadosFormulario.motivo_solicitacao || dadosFormulario.motivoSolicitacao}
-- Solução Implementada: ${dadosFormulario.solucao_implementada || dadosFormulario.solucaoImplementada}
-- Reclamação do Cliente: ${dadosFormulario.texto_cliente || dadosFormulario.reclamacaoCliente}
-- Histórico de Atendimento: ${dadosFormulario.historico_atendimento || dadosFormulario.historicoAtendimento}
-- Observações Internas: ${dadosFormulario.observacoes_internas || dadosFormulario.observacoesInternas}
-
-`;
-
-        if (feedback) {
-            prompt += `
-FEEDBACK DO OPERADOR (a resposta anterior estava incorreta):
-${feedback}
-
-INSTRUÇÕES CRÍTICAS:
-- A resposta anterior estava INCORRETA e não deve ser usada como base
-- GERE UMA NOVA RESPOSTA COMPLETA do zero
-- Use APENAS os dados do caso acima como base
-- Analise o feedback para entender o que estava errado
-- Evite os erros identificados no feedback
-- Foque na solução implementada e como ela resolve a solicitação do cliente
-- Seja específico e conclusivo`;
-        } else {
-            prompt += `
-RESPOSTA ANTERIOR (para referência):
-${respostaAnterior}
-
-INSTRUÇÕES PARA REFORMULAÇÃO:
-- Analise a resposta anterior e identifique pontos de melhoria
-- Reformule para ser mais completa e eficaz
-- Mantenha o tom profissional, direto e objetivo
-- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito"
-- Seja firme e claro, sem excesso de tom acolhedor
-- Aborde todos os aspectos da reclamação do cliente`;
-        }
-
-        // ADICIONAR CONHECIMENTO DE PRODUTOS SE MENCIONADOS
         const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
         if (conhecimentoProdutos) {
             conhecimentoFeedback += conhecimentoProdutos;
             console.log('✅ CONHECIMENTO DE PRODUTOS INCLUÍDO NO PROMPT DE REFORMULAÇÃO');
         }
-        
-        prompt += `
+
+        if (feedback) {
+            conhecimentoFeedback += '\n\n⚠️ MODO CIRÚRGICO (feedback do operador): exemplos e modelos da base acima servem só como referência de tom ou detalhe. Não substitua a resposta atual inteira por um modelo genérico. Prioridade: aplicar o pedido do operador sobre o texto atual.\n';
+        }
+
+        const dadosScriptGeracao = {
+            tipo_solicitacao: dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao || '',
+            id_reclamacao: dadosFormulario.id_reclamacao || dadosFormulario.idReclamacao || '',
+            solucao_implementada: dadosFormulario.solucao_implementada || dadosFormulario.solucaoImplementada || '',
+            texto_cliente: dadosFormulario.texto_cliente || dadosFormulario.reclamacaoCliente || '',
+            historico_atendimento: dadosFormulario.historico_atendimento || dadosFormulario.historicoAtendimento || '',
+            nome_solicitante: dadosFormulario.nome_solicitante || dadosFormulario.nomeSolicitante || ''
+        };
+        const scriptGeracaoRA = gerarScriptPadraoResposta(dadosScriptGeracao);
+
+        const dadosConferencia = `Tipo de Situação: ${dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao}
+Motivo da Solicitação: ${dadosFormulario.motivo_solicitacao || dadosFormulario.motivoSolicitacao}
+Solução Implementada: ${dadosFormulario.solucao_implementada || dadosFormulario.solucaoImplementada}
+Reclamação do Cliente: ${dadosFormulario.texto_cliente || dadosFormulario.reclamacaoCliente}
+Histórico de Atendimento: ${dadosFormulario.historico_atendimento || dadosFormulario.historicoAtendimento}
+Observações Internas: ${dadosFormulario.observacoes_internas || dadosFormulario.observacoesInternas}`;
+
+        let prompt;
+        if (feedback) {
+            prompt = `📌 REFORMULAÇÃO CIRÚRGICA — RESPOSTA RA (MESMAS REGRAS DA GERAÇÃO PADRÃO)
+
+Objetivo principal: aplicar EXATAMENTE o pedido do operador no texto já produzido.
+Objetivo secundário: preservar o máximo possível da redação anterior (estrutura, ordem dos parágrafos e trechos que o feedback não mexe).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGRAS PERMANENTES — SCRIPT DE GERAÇÃO RA (VÁLIDAS PARA O TEXTO FINAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${scriptGeracaoRA}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEXTO ATUAL (BASE OBRIGATÓRIA — AJUSTAR SÓ O QUE O FEEDBACK EXIGE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${respostaAnterior}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SOLICITAÇÃO DE CORREÇÃO DO OPERADOR (PRIORIDADE ABSOLUTA)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${feedback}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONFERÊNCIA DE DADOS (corrigir inconsistência factual se preciso; não inventar fatos)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${dadosConferencia}
 
 ${conhecimentoFeedback || ''}
 
-ANÁLISE OBRIGATÓRIA DE TODOS OS CAMPOS:
+⚙️ COMO EXECUTAR (ORDEM OBRIGATÓRIA):
 
-Você receberá os seguintes campos que DEVEM ser analisados em conjunto:
-- **Reclamação do Cliente**: O que o cliente está solicitando/reclamando
-- **Solução Implementada**: O que a empresa fez para resolver
-- **Histórico de Atendimento**: Contexto de atendimentos anteriores
-- **Observações Internas**: Informações adicionais da equipe
-- **Tipo de Situação**: Categoria da solicitação
-- **Motivo da Solicitação**: Razão da solicitação
+1. Leia o feedback e defina com precisão o que deve mudar (trechos a remover, acrescentar, alterar tom, corrigir dado).
+2. Parta do TEXTO ATUAL acima: altere apenas o necessário para cumprir o feedback. Mantenha igual trechos que não são alvo do pedido.
+3. Se o pedido for pontual (uma palavra, uma frase, um parágrafo), limite-se a isso e preserve o restante.
+4. Em caso de conflito entre um exemplo da base de aprendizado e o TEXTO ATUAL, prevalecem o feedback do operador e a fidelidade ao TEXTO ATUAL (salvo erro factual contra os dados de conferência).
+5. O resultado final deve obedecer ao FORMATO DE SAÍDA do script (apenas miolo: sem saudação "Olá", sem assinatura, sem telefone/site no miolo).
 
-SUA TAREFA É:
+PROIBIDO: reescrever "do zero", descartar o texto atual sem necessidade ou substituir a resposta inteira por um modelo genérico.
 
-1. **ANALISAR** a reclamação do cliente para entender exatamente o que ele está pedindo
-2. **CONSIDERAR** a solução implementada como base factual do que foi feito
-3. **INTEGRAR** o histórico de atendimento e observações internas para contexto completo
-4. **FORMULAR** uma resposta personalizada que responda diretamente à solicitação do cliente
-5. **ALINHAR** a resposta com a solução implementada, explicando como ela resolve a solicitação
+`;
+        } else {
+            prompt = `📌 REFORMULAR RESPOSTA RA (MESMAS REGRAS DA GERAÇÃO PADRÃO)
 
-REGRAS OBRIGATÓRIAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGRAS PERMANENTES — SCRIPT DE GERAÇÃO RA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- **NUNCA** copie literalmente o texto da "Solução implementada"
-- **SEMPRE** formule uma resposta que responda diretamente à reclamação do cliente
-- **SEMPRE** explique como a solução implementada resolve a solicitação do cliente
-- **SEMPRE** use linguagem cordial, objetiva e empática
-- **SEMPRE** contextualize com referências legais quando aplicável (LGPD, CCB, etc.)
-- **SEMPRE** deixe o texto pronto para publicação no Reclame Aqui
+${scriptGeracaoRA}
 
-IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros similares e melhorar a qualidade da resposta.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEXTO ATUAL (PRESERVAR AO MÁXIMO — REFINAR COM LEVEZA)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🧠 INSTRUÇÕES CRÍTICAS PARA APLICAR O APRENDIZADO:
+${respostaAnterior}
 
-1. **ANALISE O CONHECIMENTO FORNECIDO**: Leia cuidadosamente todos os feedbacks e respostas aprovadas acima
-2. **EVITE ERROS IDENTIFICADOS**: NUNCA repita os erros mencionados nos feedbacks
-3. **SEGUE PADRÕES APROVADOS**: Use as respostas aprovadas como modelo de qualidade
-4. **APLIQUE PADRÕES IDENTIFICADOS**: Siga os padrões obrigatórios listados
-5. **USE CLÁUSULAS CORRETAS**: Aplique as cláusulas CCB identificadas para cada tipo de situação
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONFERÊNCIA DE DADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎯 SUA RESPOSTA DEVE:
-- Ser diferente das respostas incorretas mencionadas nos feedbacks
-- Seguir a estrutura e qualidade das respostas aprovadas
-- Aplicar os padrões identificados automaticamente
-- Usar as cláusulas CCB corretas para o tipo de situação
-- Demonstrar que você aprendeu com os feedbacks anteriores
+${dadosConferencia}
 
-DIRETRIZES GERAIS:
-1. TOM E ESTILO:
-- Profissional, respeitoso e direto
-- Linguagem clara e acessível
-- Tom objetivo e solucionador
-- Evite jargões técnicos desnecessários
-- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
-- Seja firme e claro, sem excesso de tom acolhedor ou friendly
+${conhecimentoFeedback || ''}
 
-2. ESTRUTURA DA RESPOSTA:
-a) Agradecimento e reconhecimento
-b) Esclarecimento da situação
-c) Solução apresentada/implementada
-d) Compromisso de melhoria
-e) Convite para contato direto
+INSTRUÇÕES (SEM FEEDBACK ESPECÍFICO DO OPERADOR):
+- Parta do TEXTO ATUAL; não substitua por uma resposta genérica nova
+- Melhore clareza, lacunas frente à reclamação ou à solução implementada e redundâncias; mantenha parágrafos e trechos válidos
+- Tom profissional, direto e objetivo; NUNCA peça desculpas nem use "lamentamos", "sentimos muito"
+- Não invente fatos além da solução implementada e dos campos de conferência
+- Os exemplos da base de aprendizado são referência; não descarte o texto atual para copiar um modelo
 
-3. DIRETRIZES:
-- Reconheça o problema do cliente de forma objetiva (sem pedir desculpas)
-- Explique as ações tomadas de forma clara e direta
-- Demonstre compromisso com a satisfação (sem exageros)
-- Mantenha tom profissional, respeitoso e firme
-- NUNCA peça desculpas ou use expressões como "lamentamos", "sentimos muito", "nos desculpamos"
-- Evite repetições desnecessárias
-- Seja específico e detalhado
-- Seja objetivo, sem excesso de tom acolhedor ou friendly
-- NUNCA use travessão (—), hífen longo (–) nem hífen com espaços como pausa; prefira vírgula ou ponto
+⚠️ FORMATO: apenas o miolo da resposta, conforme o script acima (sem saudação "Olá", sem assinatura, sem telefone/site no miolo).
 
-⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
+`;
+        }
 
-IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudação inicial e SEM assinatura final. 
-
-A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
-
-Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
-- Responder diretamente à solicitação do cliente
-- Explicar a solução implementada
-- Ser mais completo, eficaz e atender aos pontos levantados no feedback
-- Ser específico e detalhado (não genérico)
-
-NÃO inclua:
-- "Olá, [nome]" ou qualquer saudação
-- "Sou [nome], analista..." ou apresentação
-- Informações de contato (telefones, site)
-- "Atenciosamente" ou assinatura
-- Qualquer estrutura de cabeçalho ou rodapé
-
-Gere APENAS o conteúdo explicativo do meio da resposta reformulada.`;
+        // Com feedback do operador: temperatura mais baixa para preservar o texto e aplicar correção pontual
+        const temperatureReform = feedback ? 0.35 : (parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7);
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -6185,14 +6152,16 @@ Gere APENAS o conteúdo explicativo do meio da resposta reformulada.`;
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um assistente especializado em atendimento ao cliente para a empresa Velotax, com foco em reformulação de respostas do Reclame Aqui.'
+                        content: feedback
+                            ? 'Reformulação CIRÚRGICA de respostas RA na Velotax. O usuário envia o script completo de geração: cumpra-o no texto final. Preserve ao máximo o "TEXTO ATUAL" e altere somente o que o feedback do operador exige. Não reescreva do zero. Não cite LGPD, CCB ou CDC salvo se constar na solução implementada ou for indispensável ao relato. Sem travessão (—) nem hífen com espaços como pausa.'
+                            : 'Reformulação de respostas RA na Velotax. Siga o script de geração enviado na mensagem. Parta do texto atual; refine sem substituir por modelo genérico. Não cite LGPD, CCB ou CDC salvo se constar na solução implementada ou for indispensável ao relato.'
                     },
                     {
                         role: 'user',
                         content: prompt
                     }
                 ],
-                temperature: parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7,
+                temperature: temperatureReform,
                 max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
             })
         });
@@ -7676,15 +7645,23 @@ Possíveis categorias:
 • atendimento
 • problema técnico.
 
-ETAPA 8 — AVALIAÇÃO DE RISCO REPUTACIONAL
+PRINCÍPIO DE SEPARAÇÃO (OBRIGATÓRIO — LEIA ANTES DAS ETAPAS 8 E 9)
 
-Classifique o risco:
+• A "chance de moderação" / probabilidade de aceite pelo Reclame Aqui depende dos CRITÉRIOS DOS MANUAIS DO RA e da inconsistência entre o conteúdo publicado na reclamação e os fatos demonstráveis (incluindo o que a resposta da empresa prova). Isso é o que a plataforma avalia ao decidir moderação.
+
+• O RISCO REPUTACIONAL (ETAPA 8) é uma dimensão À PARTE: sensibilidade do tema para imagem, visibilidade ou gravidade percebida na conversa pública. Ele NÃO substitui nem replica as regras do RA.
+
+• PROIBIDO deixar que risco reputacional ALTO, MÉDIO ou BAIXO altere, explique ou "justifique" a faixa de probabilidade da ETAPA 9. PROIBIDO subir ou descer a % só porque o caso menciona Pix, CPF, banco ou dados pessoais: esses fatores podem aumentar risco de imagem (ETAPA 8), mas a probabilidade de aceite da moderação deve refletir apenas aderência ao critério de moderação do conteúdo (informação incorreta, omissão essencial, etc.) e clareza da prova na resposta da empresa.
+
+ETAPA 8 — AVALIAÇÃO DE RISCO REPUTACIONAL (INFORMATIVO — NÃO MISTURAR COM A % DO RA)
+
+Classifique o risco para gestão de imagem e priorização interna, independentemente da probabilidade de aceite pelo RA:
 
 BAIXO
 MÉDIO
 ALTO.
 
-Risco alto quando envolve:
+Indicadores que costumam elevar o risco de imagem (lista não exaustiva):
 
 • Pix
 • CPF
@@ -7693,7 +7670,11 @@ Risco alto quando envolve:
 • Bacen
 • dados pessoais.
 
-ETAPA 9 — CÁLCULO DE PROBABILIDADE
+Observação: presença desses temas na reclamação não significa, por si só, maior chance de o RA aceitar moderação; relate-as aqui como risco reputacional, sem transportar esse juízo para a ETAPA 9.
+
+ETAPA 9 — CÁLCULO DE PROBABILIDADE (APENAS CRITÉRIOS DE MODERAÇÃO DO RA)
+
+Estime a probabilidade de aceite EXCLUSIVAMENTE com base no tipo e na força da inconsistência moderável face aos manuais do RA, na objetividade da contradição entre reclamação e resposta, e na facilidade de o moderador ou o fluxo automatizado identificarem o descompasso factual. Ignore reputação, visibilidade do tema ou "peso" midiático.
 
 Utilize as faixas:
 
@@ -7712,7 +7693,7 @@ informação incorreta clara.
 85–95%
 acusação comprovadamente falsa.
 
-Temas financeiros podem elevar a probabilidade dentro da faixa.
+Não use "tema financeiro" ou "tema sensível" como atalho para subir a faixa: só evidência de inconsistência qualificável segundo os manuais do RA.
 
 ETAPA 10 — REFORMULAÇÃO ESTRATÉGICA DA RESPOSTA (VERSÃO EXPANDIDA)
 
@@ -7838,17 +7819,18 @@ Após aplicar essa reformulação, a resposta estratégica deverá:
 
 ETAPA 11 — REAVALIAÇÃO DA PROBABILIDADE
 
-Após reformular a resposta, reavaliar a probabilidade.
+Após reformular a resposta, reavaliar a probabilidade somente se a revisão deixar mais clara, para os critérios do RA, a inconsistência entre reclamação e fatos (não aumentar % por impacto reputacional ou sensibilidade do tema).
 
-Se a inconsistência ficar mais clara, aumentar a estimativa.
+Se a inconsistência ficar mais evidente para moderação, ajuste a estimativa em conformidade com as faixas da ETAPA 9.
 
 ETAPA 12 — VALIDAÇÃO INTERNA
 
 Antes de finalizar a análise, verificar:
 
 • a tese escolhida corresponde ao caso
-• a probabilidade estimada está coerente com a tese
-• a resposta reformulada facilita a detecção da inconsistência.
+• a probabilidade estimada está coerente com a tese e com os manuais do RA (não com o nível de risco reputacional da ETAPA 8)
+• a resposta reformulada facilita a detecção da inconsistência
+• risco reputacional e chance de moderação foram tratados como dimensões independentes na narrativa da análise
 
 13. APRENDIZADO CONTÍNUO
 
@@ -7866,11 +7848,11 @@ Se múltiplas reclamações apresentarem o mesmo padrão narrativo, indicar poss
 
 15. FORMATO FINAL DA ANÁLISE
 
-A resposta deve sempre apresentar:
+A resposta deve sempre apresentar (mantendo claro que chance de moderação e risco reputacional são dimensões independentes):
 
 📊 Chance de moderação
 
-⚠️ Risco reputacional
+⚠️ Risco reputacional (somente sensibilidade de imagem; não repetir como justificativa da % acima)
 
 🎯 Tese principal
 
@@ -7935,7 +7917,7 @@ Agora, execute as etapas 1 a 12 da metodologia e entregue a análise no formato 
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é o sistema de análise estratégica de moderação do Reclame Aqui (PROMPT DEFINITIVO VELOTAX V7 MASTER). Atue como analista sênior de reputação digital: identifique inconsistências moderáveis, estime probabilidade de aceite, oriente ajustes na resposta pública e preveja como o RA interpretaria o caso. Ao gerar a Revisão estratégica da resposta, preserve obrigatoriamente nome do consumidor, nome do atendente e dados específicos do caso. Entregue a análise no formato da seção 15 (FORMATO FINAL DA ANÁLISE). Não use travessão (—) nem hífen com espaços como pausa entre ideias; prefira vírgula ou ponto.'
+                        content: 'Você é o sistema de análise de moderação do Reclame Aqui (PROMPT DEFINITIVO VELOTAX V7 MASTER). Estime a probabilidade de aceite SOMENTE com base nos critérios dos manuais do RA e na inconsistência factual entre reclamação e resposta; o risco reputacional é métrica separada e NÃO deve alterar essa probabilidade. Identifique inconsistências moderáveis, oriente ajustes na resposta pública e preveja como o RA interpretaria o caso. Na revisão estratégica da resposta, preserve nome do consumidor, nome do atendente e dados do caso. Entregue no formato da seção 15. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
