@@ -28,10 +28,12 @@ Regras obrigatórias:
 - Quando existirem reclamações fora do expediente, criar uma seção específica.
 - Utilizar emojis apenas para melhorar a leitura.
 - Não exagerar no uso de emojis.
-- Formatação em linhas separadas (obrigatório): cada item em sua própria linha, nunca vários na mesma linha.
+- Formatação do TEXTO DO RELATÓRIO (obrigatório): cada reclamação em sua própria linha; NUNCA agrupe várias reclamações na mesma linha, separadas por vírgula, ponto e vírgula ou "e".
+- Se totalReclamacoes for 9, o detalhamento cronológico deve ter exatamente 9 linhas (uma por entrada em detalhamentoCronologico), na ordem do JSON.
+- Use o array detalhamentoCronologico: uma linha de saída para cada objeto, sem omitir nem fundir registros.
 - Na distribuição por motivo, um motivo por linha, no formato: "XX% – Nome do motivo (quantidade)".
-- Em "Fora do expediente", uma reclamação por linha: "DD/MM/AA – HH:MM – Motivo".
-- No detalhamento cronológico, uma reclamação por linha: "DD/MM/AA às HH:MM – Motivo".
+- Em "Fora do expediente", uma reclamação por linha: "DD/MM/AA – HH:MM – Motivo" (uma linha por item em foraExpediente).
+- No detalhamento cronológico, uma reclamação por linha: "DD/MM/AA às HH:MM – Motivo" (pode incluir emoji de horário quando fizer sentido).
 
 Padrão de referência (estrutura e tom, não copie números se os dados forem outros):
 Bom dia, pessoal!
@@ -61,6 +63,7 @@ REGRAS OBRIGATÓRIAS:
 - Aplique APENAS os ajustes descritos nas instruções de correção.
 - Todo o restante do texto deve permanecer intacto, salvo o que for necessário para o ajuste pedido.
 - Mantenha português brasileiro, tom corporativo e leve.
+- Mantenha a regra de uma reclamação por linha no detalhamento e listas (nunca várias na mesma linha).
 - Retorne o relatório completo atualizado (texto integral), pronto para envio.
 - Sem markdown code blocks, sem explicações meta.`;
 
@@ -244,7 +247,10 @@ function validarEProcessar({ horarios, produtos, motivos }) {
 
 function montarPromptGeracao(dadosProcessados, observacoes) {
     const obs = observacoes && observacoes.trim() ? observacoes.trim() : '(nenhuma)';
+    const total = dadosProcessados.totalReclamacoes || 0;
     return `Gere o relatório operacional com base EXCLUSIVAMENTE nos dados JSON abaixo.
+
+IMPORTANTE: Existem ${total} reclamação(ões). No detalhamento cronológico e em listas de reclamações, inclua exatamente ${total} linhas — uma linha por item em detalhamentoCronologico, sem agrupar na mesma linha.
 
 DADOS ESTRUTURADOS:
 ${JSON.stringify(dadosProcessados, null, 2)}

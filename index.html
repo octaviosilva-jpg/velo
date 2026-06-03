@@ -719,11 +719,12 @@
                                         </div>
                                         <p class="mb-0 mt-2 small text-muted">
                                             <i class="fas fa-infinity me-1"></i> Sem limite de quantidade de linhas — cole todas as reclamações do período.
+                                            No <strong>relatório gerado</strong>, cada reclamação aparece em uma linha própria (ex.: 9 registros = 9 linhas no detalhamento).
                                         </p>
                                     </div>
 
                                     <div id="relatorio-status-contagem" class="relatorio-status-bar mb-3" aria-live="polite">
-                                        <div class="relatorio-contagem-lista d-flex flex-column gap-2">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
                                             <span class="relatorio-contagem-chip" id="relatorio-chip-horarios" title="Linhas em Horários">
                                                 <i class="fas fa-clock me-1"></i> Horários: <strong id="relatorio-count-horarios">0</strong>
                                             </span>
@@ -739,27 +740,33 @@
                                         </p>
                                     </div>
 
-                                    <div class="relatorio-colunas-grid d-flex flex-column gap-3">
-                                        <div class="relatorio-coluna-card">
-                                            <label for="relatorio-horarios" class="form-label fw-semibold mb-2">
-                                                <i class="fas fa-clock text-primary me-1"></i> Horários
-                                            </label>
-                                            <textarea class="form-control font-monospace relatorio-coluna-input" id="relatorio-horarios" placeholder="01/06/2026 13:03:00&#10;01/06/2026 14:38:00&#10;01/06/2026 15:00:00" spellcheck="false"></textarea>
-                                            <small class="form-text text-muted">Formato: DD/MM/AAAA HH:MM:SS — uma linha por reclamação</small>
+                                    <div class="row g-3 relatorio-colunas-grid">
+                                        <div class="col-lg-4">
+                                            <div class="relatorio-coluna-card h-100">
+                                                <label for="relatorio-horarios" class="form-label fw-semibold mb-2">
+                                                    <i class="fas fa-clock text-primary me-1"></i> Horários
+                                                </label>
+                                                <textarea class="form-control font-monospace relatorio-coluna-input" id="relatorio-horarios" placeholder="01/06/2026 13:03:00&#10;01/06/2026 14:38:00&#10;01/06/2026 15:00:00" spellcheck="false"></textarea>
+                                                <small class="form-text text-muted">Formato: DD/MM/AAAA HH:MM:SS — uma linha por reclamação</small>
+                                            </div>
                                         </div>
-                                        <div class="relatorio-coluna-card">
-                                            <label for="relatorio-produtos" class="form-label fw-semibold mb-2">
-                                                <i class="fas fa-box text-primary me-1"></i> Produto
-                                            </label>
-                                            <textarea class="form-control relatorio-coluna-input" id="relatorio-produtos" placeholder="Antecipação 2026&#10;Antecipação&#10;Empréstimo Pessoal"></textarea>
-                                            <small class="form-text text-muted">Uma linha por reclamação (mesma ordem dos horários)</small>
+                                        <div class="col-lg-4">
+                                            <div class="relatorio-coluna-card h-100">
+                                                <label for="relatorio-produtos" class="form-label fw-semibold mb-2">
+                                                    <i class="fas fa-box text-primary me-1"></i> Produto
+                                                </label>
+                                                <textarea class="form-control relatorio-coluna-input" id="relatorio-produtos" placeholder="Antecipação 2026&#10;Antecipação&#10;Empréstimo Pessoal"></textarea>
+                                                <small class="form-text text-muted">Uma linha por reclamação (mesma ordem dos horários)</small>
+                                            </div>
                                         </div>
-                                        <div class="relatorio-coluna-card">
-                                            <label for="relatorio-motivos" class="form-label fw-semibold mb-2">
-                                                <i class="fas fa-tag text-primary me-1"></i> Motivo Reduzido
-                                            </label>
-                                            <textarea class="form-control relatorio-coluna-input" id="relatorio-motivos" placeholder="Portabilidade Pix&#10;Liberação chave Pix&#10;Não elegível a crédito"></textarea>
-                                            <small class="form-text text-muted">Uma linha por reclamação (mesma ordem dos horários)</small>
+                                        <div class="col-lg-4">
+                                            <div class="relatorio-coluna-card h-100">
+                                                <label for="relatorio-motivos" class="form-label fw-semibold mb-2">
+                                                    <i class="fas fa-tag text-primary me-1"></i> Motivo Reduzido
+                                                </label>
+                                                <textarea class="form-control relatorio-coluna-input" id="relatorio-motivos" placeholder="Portabilidade Pix&#10;Liberação chave Pix&#10;Não elegível a crédito"></textarea>
+                                                <small class="form-text text-muted">Uma linha por reclamação (mesma ordem dos horários)</small>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -818,7 +825,7 @@
     </script>
     
         <script src="auth.js?v=20250117dd"></script>
-    <script src="script.js?v=10"></script>
+    <script src="script.js?v=11"></script>
     
     <!-- Sistema de ajuste automático do nome da interface -->
     <script>
