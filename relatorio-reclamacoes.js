@@ -5,6 +5,11 @@
 const ERRO_LINHAS_DIFERENTES =
     'As colunas Horários, Produtos e Motivos devem possuir a mesma quantidade de registros.';
 
+/** Relatório executivo: apenas os 3 maiores temas por volume no dia. */
+const TOP_MOTIVOS_EXECUTIVO = 3;
+
+const SEPARADOR_CAMPO = ' - ';
+
 /** Horário de Brasília para saudação (Bom dia 5h–11h59, Boa tarde 12h–17h59, Boa noite 18h–4h59). */
 function obterHoraBrasilia(data = new Date()) {
     const parts = new Intl.DateTimeFormat('pt-BR', {
@@ -40,19 +45,29 @@ function formatarDataCurtaFromISO(iso) {
     return `${dia}/${mes}/${ano.slice(-2)}`;
 }
 
-function agruparPorMotivo(lista) {
+function agruparPorMotivo(lista, limite = TOP_MOTIVOS_EXECUTIVO) {
     const total = lista.length;
     const porMotivoMap = new Map();
     for (const r of lista) {
         porMotivoMap.set(r.motivo, (porMotivoMap.get(r.motivo) || 0) + 1);
     }
-    return Array.from(porMotivoMap.entries())
+    const ordenado = Array.from(porMotivoMap.entries())
         .map(([motivo, quantidade]) => ({
             motivo,
             quantidade,
             percentual: total > 0 ? Math.round((quantidade / total) * 100) : 0
         }))
-        .sort((a, b) => b.quantidade - a.quantidade);
+        .sort(
+            (a, b) =>
+                b.percentual - a.percentual ||
+                b.quantidade - a.quantidade ||
+                a.motivo.localeCompare(b.motivo, 'pt-BR')
+        );
+    const top = limite > 0 ? ordenado.slice(0, limite) : ordenado;
+    return top.map((item) => ({
+        ...item,
+        linhaFormatada: `${item.percentual}%${SEPARADOR_CAMPO}${item.motivo} (${item.quantidade})`
+    }));
 }
 
 function mapearReclamacaoResumo(r) {
@@ -76,13 +91,15 @@ function montarBlocoPeriodo(lista) {
         foraExpediente: foraLista.map((r) => ({
             dataHoraCurta: r.dataHoraCurta,
             motivo: r.motivo,
-            produto: r.produto
+            produto: r.produto,
+            linhaFormatada: `${r.dataHoraCurta}${SEPARADOR_CAMPO}${r.motivo}`
         })),
         detalhamentoCronologico: lista.map((r) => ({
             dataHoraDetalhe: r.dataHoraDetalhe,
             motivo: r.motivo,
             produto: r.produto,
-            foraExpediente: r.foraExpediente
+            foraExpediente: r.foraExpediente,
+            linhaDetalhe: `${r.dataHoraDetalhe}${SEPARADOR_CAMPO}${r.motivo}`
         }))
     };
 }
@@ -123,7 +140,7 @@ Regras obrigatórias:
 - Na frase "Ontem recebemos X reclamações", use EXATAMENTE ontem.totalReclamacoes e ontem.quantidadeForaExpediente (somente reclamações de ontem.data).
 - Se ontem.totalReclamacoes for 0, informe naturalmente que ontem não houve reclamações (sem inventar números).
 - Na frase "Hoje, até o momento, recebemos N reclamações", use EXATAMENTE hoje.totalReclamacoes (somente reclamações de hoje.data / dataReferenciaGeracao).
-- Os percentuais após "distribuídas da seguinte forma" devem vir APENAS de hoje.agrupamentoPorMotivo (reclamações de hoje).
+- Os percentuais após "distribuídas da seguinte forma" devem listar APENAS os itens de hoje.agrupamentoPorMotivo (no máximo 3, já são os maiores temas do dia). Não liste outros motivos nem recalcule.
 - A seção "Detalhamento" deve listar APENAS hoje.detalhamentoCronologico, uma linha por item, em ordem cronológica.
 - A lista 🌙 Fora do expediente após o trecho de ontem deve usar APENAS ontem.foraExpediente (reclamações de ontem fora do expediente).
 - Se hoje.totalReclamacoes for 0, informe naturalmente que ainda não há reclamações hoje (percentuais e detalhamento de hoje não se aplicam).
@@ -141,9 +158,10 @@ Regras obrigatórias:
 - Formatação do TEXTO DO RELATÓRIO (obrigatório): cada reclamação em sua própria linha; NUNCA agrupe várias reclamações na mesma linha, separadas por vírgula, ponto e vírgula ou "e".
 - Se hoje.totalReclamacoes for 9, o detalhamento de hoje deve ter exatamente 9 linhas (uma por entrada em hoje.detalhamentoCronologico), na ordem do JSON.
 - Use hoje.detalhamentoCronologico para o Detalhamento: uma linha de saída para cada objeto, sem omitir nem fundir registros.
-- Na distribuição por motivo, um motivo por linha, no formato: "XX% – Nome do motivo (quantidade)".
-- Em "Fora do expediente", uma reclamação por linha: "DD/MM/AA – HH:MM – Motivo" (uma linha por item em foraExpediente).
-- No detalhamento cronológico, uma reclamação por linha: "DD/MM/AA às HH:MM – Motivo" (pode incluir emoji de horário quando fizer sentido).
+- Separador entre horário/data e motivo: hífen com espaços " - " (NUNCA vírgula). Ex.: "03/06/26 às 06:43 - Portabilidade Pix".
+- Na distribuição por motivo (máx. 3 linhas), use linhaFormatada quando existir ou: "XX% - Nome do motivo (quantidade)".
+- Em "Fora do expediente", use linhaFormatada de ontem.foraExpediente ou "DD/MM/AA - HH:MM - Motivo".
+- No detalhamento, use linhaDetalhe de hoje.detalhamentoCronologico (pode prefixar emoji de horário); mantenha " - " antes do motivo.
 - A primeira linha do relatório DEVE ser exatamente o valor de saudacaoAbertura nos dados JSON (horário de geração em Brasília: Bom dia, Boa tarde ou Boa noite).
 - A despedida final deve usar o tom de despedida coerente com o período (campo despedida nos dados, se fornecido).
 
@@ -151,15 +169,15 @@ Padrão de referência (estrutura e tom, não copie números se os dados forem o
 {Bom dia|Boa tarde|Boa noite}, pessoal!
 Ontem recebemos X reclamações, sendo Y fora do horário de expediente.
 🌙 Fora do expediente:
-02/06/26 – 19:58 – Liberação chave Pix
-02/06/26 – 22:51 – Liberação chave Pix
+02/06/26 - 19:58 - Liberação chave Pix
+02/06/26 - 22:51 - Liberação chave Pix
 📌 Hoje, até o momento, recebemos N reclamações, distribuídas da seguinte forma:
-60% – Vencimento antecipado da CCB (3)
-20% – Suspeita de fraude (1)
-20% – Portabilidade Pix (1)
+60% - Vencimento antecipado da CCB (3)
+20% - Suspeita de fraude (1)
+20% - Portabilidade Pix (1)
 Detalhamento:
-🕡 03/06/26 às 06:43 – Vencimento antecipado da CCB
-🕖 03/06/26 às 06:54 – Portabilidade Pix
+🕡 03/06/26 às 06:43 - Vencimento antecipado da CCB
+🕖 03/06/26 às 06:54 - Portabilidade Pix
 📌 Observações: (incorporadas naturalmente)
 Tenham um excelente dia!
 
@@ -176,6 +194,7 @@ REGRAS OBRIGATÓRIAS:
 - Todo o restante do texto deve permanecer intacto, salvo o que for necessário para o ajuste pedido.
 - Mantenha português brasileiro, tom corporativo e leve.
 - Mantenha a regra de uma reclamação por linha no detalhamento e listas (nunca várias na mesma linha).
+- Use hífen " - " entre horário e motivo (não vírgula). Percentuais: no máximo 3 maiores temas, formato "XX% - motivo (qtd)".
 - Retorne o relatório completo atualizado (texto integral), pronto para envio.
 - Sem markdown code blocks, sem explicações meta.`;
 
@@ -236,7 +255,7 @@ function formatarHora(data) {
 }
 
 function formatarDataHoraCurta(data) {
-    return `${formatarDataCurta(data)} – ${formatarHora(data)}`;
+    return `${formatarDataCurta(data)}${SEPARADOR_CAMPO}${formatarHora(data)}`;
 }
 
 function formatarDataHoraDetalhe(data) {
@@ -362,6 +381,18 @@ function validarEProcessar({ horarios, produtos, motivos }) {
     };
 }
 
+/** Corrige vírgulas indevidas entre horário/percentual e motivo; padroniza hífen. */
+function normalizarFormatacaoRelatorio(texto) {
+    let t = String(texto || '');
+    t = t.replace(/(\d{2}\/\d{2}\/\d{2,4})\s*[–—]\s*/g, `$1${SEPARADOR_CAMPO}`);
+    t = t.replace(/(\d{2}:\d{2})\s*[–—]\s*/g, `$1${SEPARADOR_CAMPO}`);
+    t = t.replace(/(às\s+\d{2}:\d{2})\s*,\s*/gi, `$1${SEPARADOR_CAMPO}`);
+    t = t.replace(/(\d{2}:\d{2})\s*,\s*/g, `$1${SEPARADOR_CAMPO}`);
+    t = t.replace(/(\d{1,3}%)\s*,\s*/g, `$1${SEPARADOR_CAMPO}`);
+    t = t.replace(/(\d{1,3}%)\s*[–—]\s*/g, `$1${SEPARADOR_CAMPO}`);
+    return t;
+}
+
 function normalizarSaudacaoRelatorio(texto, data = new Date()) {
     const { saudacaoAbertura, despedida } = obterSaudacaoRelatorio(data);
     const linhas = String(texto || '').trim().split(/\r?\n/);
@@ -390,7 +421,8 @@ function montarPromptGeracao(dadosProcessados, observacoes) {
     const ontemFora = dadosProcessados.ontem?.quantidadeForaExpediente ?? 0;
     const outrosTotal = dadosProcessados.outrosDias?.totalReclamacoes ?? 0;
     let instrucaoDatas = `ONTEM (${dadosProcessados.ontem?.dataLabel || 'dia anterior'}): use total ${ontemTotal} e fora do expediente ${ontemFora} na abertura; lista 🌙 somente de ontem.foraExpediente.`;
-    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; percentuais só de hoje.agrupamentoPorMotivo; Detalhamento com exatamente ${hojeTotal} linha(s) de hoje.detalhamentoCronologico.`;
+    const qtdMotivosTop = dadosProcessados.hoje?.agrupamentoPorMotivo?.length ?? 0;
+    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; liste só as ${qtdMotivosTop} linha(s) de hoje.agrupamentoPorMotivo (top 3 executivo), copiando linhaFormatada; separador " - " (não vírgula); Detalhamento com ${hojeTotal} linha(s) usando linhaDetalhe.`;
     if (outrosTotal > 0) {
         instrucaoDatas += ` Há ${outrosTotal} reclamação(ões) em outras datas (outrosDias) — não inclua em ontem nem em hoje; mencione brevemente se relevante.`;
     }
@@ -430,7 +462,9 @@ module.exports = {
     parseLinhas,
     obterReferenciasDatasBrasilia,
     obterSaudacaoRelatorio,
+    normalizarFormatacaoRelatorio,
     normalizarSaudacaoRelatorio,
+    TOP_MOTIVOS_EXECUTIVO,
     validarEProcessar,
     montarPromptGeracao,
     montarPromptCorrecao,

@@ -1005,6 +1005,41 @@ function humanizarPontuacaoGerada(texto) {
     return t;
 }
 
+function normalizarNomeVelotax(texto) {
+    if (!texto || typeof texto !== 'string') return texto;
+    const urls = [];
+    let t = texto.replace(/(https?:\/\/[^\s]+|www\.velotax\.com\.br)/gi, (match) => {
+        urls.push(match);
+        return `\x00URL${urls.length - 1}\x00`;
+    });
+    t = t.replace(/\b(?:a|A) Velotax\b/g, 'o Velotax');
+    t = t.replace(/\b(?:ao|Ao) Velotax\b/g, 'ao Velotax');
+    t = t.replace(/\b(?:da|Da) Velotax\b/g, 'do Velotax');
+    t = t.replace(/\b(?:das|Das) Velotax\b/g, 'dos Velotax');
+    t = t.replace(/\b(?:na|Na) Velotax\b/g, 'no Velotax');
+    t = t.replace(/\b(?:nas|Nas) Velotax\b/g, 'nos Velotax');
+    t = t.replace(/\b(?:pela|Pela) Velotax\b/g, 'pelo Velotax');
+    t = t.replace(/\b(?:pelas|Pelas) Velotax\b/g, 'pelos Velotax');
+    t = t.replace(/\b(?:uma|Uma) Velotax\b/g, 'um Velotax');
+    t = t.replace(/\bvelotax\b/gi, 'Velotax');
+    t = t.replace(/\x00URL(\d+)\x00/g, (_, i) => urls[Number(i)]);
+    return t;
+}
+
+function reduzirAgradecimentosExcessivos(texto) {
+    if (!texto || typeof texto !== 'string') return texto;
+    const padroesAgradecimento = [
+        /[^.!?\n]*\b(?:agradecemos|agradeço|agradece|obrigad[oa])\b[^.!?\n]*[.!?]\s*/gi,
+        /[^.!?\n]*\b(?:pela (?:preocupa(?:ção|co)|confiança|oportunidade de esclarecimento|sua manifestação))\b[^.!?\n]*[.!?]\s*/gi,
+        /[^.!?\n]*\brecebemos sua manifestação\b[^.!?\n]*[.!?]\s*/gi,
+    ];
+    let t = texto;
+    for (const padrao of padroesAgradecimento) {
+        t = t.replace(padrao, '');
+    }
+    return t.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // Função para tentar extrair o nome do cliente da reclamação
 function extrairNomeCliente(textoReclamacao) {
     if (!textoReclamacao || typeof textoReclamacao !== 'string') {
@@ -1084,10 +1119,10 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
     
     const linhaApresentacaoAgente = () => {
         if (nomeAgente === 'Agente') {
-            return 'Sou analista de atendimento do Velotax. Recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.';
+            return 'Sou analista de atendimento do Velotax.';
         }
         const art = obterArtigoDefinidoAgente(nomeAgente, userData);
-        return `Sou ${art} ${nomeAgente}, analista de atendimento do Velotax, recebemos sua manifestação e agradecemos a oportunidade de esclarecimento.`;
+        return `Sou ${art} ${nomeAgente}, analista de atendimento do Velotax.`;
     };
     
     // Se a resposta já estiver formatada com a estrutura completa, verificar e atualizar se necessário
@@ -1099,7 +1134,7 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
         // Verificar se a estrutura está completa e correta
         const temSaudacao = /Olá,\s+[^!]+!/.test(respostaTexto);
         const temApresentacao = /Sou\s+(?:(?:o|a)\s+)?[^,]+,?\s+(?:analista|especialista)\s+de\s+atendimento/i.test(respostaTexto)
-            || /Sou analista de atendimento do Velotax\.\s*Recebemos sua manifestação/i.test(respostaTexto);
+            || /Sou analista de atendimento do Velotax/i.test(respostaTexto);
         const temContato = respostaTexto.includes('3003-7293') && respostaTexto.includes('0800-800-0049');
         const temAssinatura = /Atenciosamente,/.test(respostaTexto);
         
@@ -1114,7 +1149,7 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
                 respostaTexto = respostaTexto.replace(/Atenciosamente,\s*\n\s*[^\n]+\s*\n\s*Equipe de Atendimento Velotax/g, 
                     `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
             }
-            return humanizarPontuacaoGerada(respostaTexto);
+            return normalizarNomeVelotax(humanizarPontuacaoGerada(respostaTexto));
         }
         // Se tem estrutura mas está incompleta, remover e refazer
     }
@@ -1129,12 +1164,15 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
     textoLimpo = textoLimpo.replace(/^Sou\s+(?:(?:o|a)\s+)?[^,]+,\s+(?:especialista|analista)[^.]*\.\s*/i, '');
     textoLimpo = textoLimpo.replace(/^[^,]+,\s+(?:especialista|analista)\s+de\s+atendimento[^.]*\.\s*/i, '');
     textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*Recebemos[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*/i, '');
     
     // Remover "Espero que esteja bem" se estiver sozinho
     textoLimpo = textoLimpo.replace(/^Espero\s+que\s+esteja\s+bem[.!]?\s*/i, '');
     
     // Remover "recebemos sua manifestação" se estiver no início
     textoLimpo = textoLimpo.replace(/^[^.]*recebemos\s+sua\s+manifestação[^.]*\.\s*/i, '');
+    
+    textoLimpo = reduzirAgradecimentosExcessivos(textoLimpo);
     
     // Remover informações de contato antigas
     textoLimpo = textoLimpo.replace(/\n*Permanecemos\s+à\s+disposição[^.]*\.\s*/gi, '');
@@ -1174,14 +1212,14 @@ Atenciosamente,
 ${nomeAgente} 
 Equipe de Atendimento Velotax`;
 
-    return humanizarPontuacaoGerada(respostaFormatada);
+    return normalizarNomeVelotax(humanizarPontuacaoGerada(respostaFormatada));
 }
 
 // Gerar script padrão "cru" para geração de respostas
 function gerarScriptPadraoResposta(dadosFormulario) {
     return `📌 SCRIPT INTELIGENTE PARA GERAÇÃO DE RESPOSTA RA - VELOTAX
 
-Você é um analista de atendimento ao cliente da Velotax, empresa de antecipação de restituição do Imposto de Renda. Sua função é gerar respostas personalizadas e inteligentes para o Reclame Aqui.
+Você é um analista de atendimento ao cliente do Velotax, empresa de antecipação de restituição do Imposto de Renda. Sua função é gerar respostas personalizadas e inteligentes para o Reclame Aqui.
 
 DADOS ESPECÍFICOS DO CASO:
 - Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
@@ -1205,8 +1243,9 @@ ${gerarContextoEspecifico(dadosFormulario.tipo_solicitacao)}
 3. ESTRUTURA INTELIGENTE DA RESPOSTA:
 
 a) RECONHECIMENTO PERSONALIZADO:
-- Agradeça especificamente pela confiança na Velotax (de forma objetiva, sem exageros)
-- Reconheça a importância da solicitação do cliente (de forma direta)
+- Reconheça a solicitação do cliente de forma direta, sem agradecer pelo contato, pela preocupação ou pela confiança
+- NÃO use "agradecemos", "obrigado por", "agradecemos a oportunidade", "agradecemos sua manifestação" nem variações
+- A apresentação do agente já registra o recebimento; o miolo da resposta NÃO deve repetir agradecimentos
 - Demonstre compreensão da situação específica (sem pedir desculpas)
 
 b) ESCLARECIMENTO TÉCNICO:
@@ -1215,7 +1254,7 @@ b) ESCLARECIMENTO TÉCNICO:
 - Cite LGPD, CCB ou CDC somente se esses termos (ou ideia equivalente) estiverem explicitamente na solução implementada ou forem estritamente necessários para relatar o que já foi feito, sem acrescentar fundamentação nova
 
 c) SOLUÇÃO IMPLEMENTADA:
-- Detalhe as ações tomadas pela Velotax
+- Detalhe as ações tomadas pelo Velotax
 - Explique como a solução resolve a solicitação
 - Mencione benefícios e resultados para o cliente
 
@@ -1226,6 +1265,7 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 
 4. DIRETRIZES ESPECÍFICAS DA VELOTAX:
 
+- Sempre referir-se à marca como "Velotax" (V maiúsculo), no masculino: o Velotax, ao Velotax, do Velotax, no Velotax, pelo Velotax — nunca "a Velotax", "da Velotax", "na Velotax"
 - Use linguagem técnica mas acessível
 - Evite blocos longos de justificativa ou tom defensivo; prefira fatos e conclusões alinhados à solução implementada
 - Não use eufemismos de desculpa ("regrettable", "compreendemos o transtorno" excessivo, "lamentamos o ocorrido" indireto)
@@ -1241,7 +1281,7 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 
 5. ELEMENTOS DE QUALIDADE (SEM INVENTAR CONTEÚDO):
 
-- Posicione a Velotax de forma objetiva quando couber ao caso
+- Posicione o Velotax de forma objetiva quando couber ao caso
 - Demonstre conhecimento técnico apenas sobre o que foi feito e registrado
 - Ofereça canais de contato direto (o sistema já inclui rodapé; não repita telefone e site no miolo se não for necessário ao caso)
 - Transparência factual, sem prolixidade
@@ -1257,9 +1297,10 @@ Gere APENAS o texto explicativo que vai entre a apresentação do agente e as in
 - Explicar a solução implementada
 - Ser específico e detalhado
 - Demonstrar expertise técnica, transparência e compromisso com a satisfação do cliente
-- Estar sempre contextualizado para a Velotax e o tipo de solicitação específica
+- Estar sempre contextualizado para o Velotax e o tipo de solicitação específica
 - NUNCA incluir pedidos de desculpas ou expressões como "lamentamos", "sentimos muito", "nos desculpamos"
 - Ser firme e objetivo, sem excesso de tom acolhedor ou friendly
+- Evite agradecimentos no miolo; vá direto ao esclarecimento da solução implementada
 
 NÃO inclua:
 - "Olá, [nome]" ou qualquer saudação
@@ -1311,7 +1352,7 @@ function gerarContextoEspecifico(tipoSolicitacao) {
     return contextos[tipoSolicitacao] || `
 🔹 SOLICITAÇÃO GERAL:
 - Análise específica do caso apresentado
-- Aplicação das melhores práticas da Velotax
+- Aplicação das melhores práticas do Velotax
 - Conformidade com regulamentação aplicável
 - Transparência e compromisso com a satisfação
 - Especialização em antecipação de restituição`;
@@ -1354,7 +1395,7 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario)
             
             promptFinal += '\n🎯 INSTRUÇÃO: Analise cuidadosamente estas respostas aprovadas. Observe:\n';
             promptFinal += '   - A estrutura e organização do texto\n';
-            promptFinal += '   - O tom profissional e empático usado\n';
+            promptFinal += '   - O tom profissional e objetivo usado (sem excesso de agradecimentos)\n';
             promptFinal += '   - Como integram a solução implementada com o problema do cliente\n';
             promptFinal += '   - Referências a LGPD, CCB ou CDC somente quando coerentes com a solução implementada deste caso (não por hábito)\n';
             promptFinal += '   - A personalização para cada caso específico\n\n';
@@ -5215,6 +5256,8 @@ ${conhecimentoFeedback || ''}
 - Evite eufemismos que funcionem como desculpa indireta ("compreendemos o transtorno", "infelizmente", "lamentamos qualquer inconveniente")
 - Seja firme e claro, sem excesso de tom acolhedor
 - NUNCA use travessão (—), hífen longo (–) nem " - " como pausa entre frases; use vírgula ou ponto
+- NÃO agradeça pelo contato, pela preocupação ou pela confiança; vá direto ao esclarecimento
+- Sempre referir-se à marca como "Velotax" (V maiúsculo), no masculino: o Velotax, ao Velotax, do Velotax
 
 4. VERIFICAÇÃO FINAL:
 - Confirme que a resposta é específica (não genérica)
@@ -5237,7 +5280,7 @@ IMPORTANTE: A resposta deve ser específica para esta situação, não genérica
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de atendimento ao cliente para o Reclame Aqui. Baseie-se na solução implementada e nos dados do caso; não cite LGPD, CCB ou CDC salvo se isso constar na solução implementada ou for indispensável ao relato factual. Evite justificativas longas e tom defensivo. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
+                        content: 'Você é um analista de atendimento ao cliente do Velotax para o Reclame Aqui. Baseie-se na solução implementada e nos dados do caso; não cite LGPD, CCB ou CDC salvo se isso constar na solução implementada ou for indispensável ao relato factual. Evite justificativas longas e tom defensivo. Não agradeça pelo contato ou preocupação. Sempre escreva "Velotax" com V maiúsculo e no masculino (o Velotax, ao Velotax, do Velotax). Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -5525,7 +5568,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um assistente da Velotax para respostas ao Reclame Aqui. Use reclamação do cliente, solução implementada, histórico e observações como fonte: explique de forma clara e completa o que foi feito, sem inventar fatos. Cite LGPD, CCB, CDC ou cláusulas só se constarem na solução implementada ou forem estritamente necessários ao que foi executado. Evite parágrafos demasiadamente justificativos ou tom de desculpa indireta. A saudação com nome é aplicada pelo sistema após o texto.'
+                        content: 'Você é um assistente do Velotax para respostas ao Reclame Aqui. Use reclamação do cliente, solução implementada, histórico e observações como fonte: explique de forma clara e completa o que foi feito, sem inventar fatos. Cite LGPD, CCB, CDC ou cláusulas só se constarem na solução implementada ou forem estritamente necessários ao que foi executado. Evite parágrafos demasiadamente justificativos ou tom de desculpa indireta. Não agradeça pelo contato, pela preocupação ou pela confiança; vá direto ao esclarecimento. Sempre escreva "Velotax" com V maiúsculo e no masculino (o Velotax, ao Velotax, do Velotax). A saudação com nome é aplicada pelo sistema após o texto.'
                     },
                     {
                         role: 'user',
@@ -6206,8 +6249,8 @@ INSTRUÇÕES (SEM FEEDBACK ESPECÍFICO DO OPERADOR):
                     {
                         role: 'system',
                         content: feedback
-                            ? 'Reformulação CIRÚRGICA de respostas RA na Velotax. O usuário envia o script completo de geração: cumpra-o no texto final. Preserve ao máximo o "TEXTO ATUAL" e altere somente o que o feedback do operador exige. Não reescreva do zero. Não cite LGPD, CCB ou CDC salvo se constar na solução implementada ou for indispensável ao relato. Sem travessão (—) nem hífen com espaços como pausa.'
-                            : 'Reformulação de respostas RA na Velotax. Siga o script de geração enviado na mensagem. Parta do texto atual; refine sem substituir por modelo genérico. Não cite LGPD, CCB ou CDC salvo se constar na solução implementada ou for indispensável ao relato.'
+                            ? 'Reformulação CIRÚRGICA de respostas RA no Velotax. O usuário envia o script completo de geração: cumpra-o no texto final. Preserve ao máximo o "TEXTO ATUAL" e altere somente o que o feedback do operador exige. Não reescreva do zero. Não cite LGPD, CCB ou CDC salvo se constar na solução implementada ou for indispensável ao relato. Sem travessão (—) nem hífen com espaços como pausa. Não agradeça pelo contato ou preocupação. Sempre escreva "Velotax" com V maiúsculo e no masculino (o Velotax, ao Velotax, do Velotax).'
+                            : 'Reformulação de respostas RA no Velotax. Siga o script de geração enviado na mensagem. Parta do texto atual; refine sem substituir por modelo genérico. Não cite LGPD, CCB ou CDC salvo se constar na solução implementada ou for indispensável ao relato. Não agradeça pelo contato ou preocupação. Sempre escreva "Velotax" com V maiúsculo e no masculino (o Velotax, ao Velotax, do Velotax).'
                     },
                     {
                         role: 'user',
@@ -13364,7 +13407,9 @@ app.post('/api/relatorio-reclamacoes/gerar', rateLimitMiddleware, async (req, re
             userPrompt,
             maxTokens
         );
-        const relatorio = relatorioReclamacoes.normalizarSaudacaoRelatorio(relatorioBruto);
+        const relatorio = relatorioReclamacoes.normalizarSaudacaoRelatorio(
+            relatorioReclamacoes.normalizarFormatacaoRelatorio(relatorioBruto)
+        );
 
         res.json({
             success: true,
