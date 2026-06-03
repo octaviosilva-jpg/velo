@@ -1,4 +1,4 @@
-// Bot Interno Velotax - Assistente Especializado
+﻿// Bot Interno Velotax - Assistente Especializado
 // Sistema de autenticação gerenciado pelo auth.js
 
 // ================== EXEMPLO DE USO COMPLETO ==================
@@ -149,27 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeBot();
     setupEventListeners();
     inicializarHistorico();
-    
-    // Carregar FAQs do backend
-    carregarFAQs();
-    
-    // Listener para quando as abas de FAQ forem abertas
-    const gerarFAQTab = document.getElementById('gerar-faq-tab');
-    const gerenciarFAQTab = document.getElementById('gerenciar-faq-tab');
-    
-    if (gerarFAQTab) {
-        gerarFAQTab.addEventListener('shown.bs.tab', function() {
-            console.log('📋 Aba "Gerar FAQ" aberta, recarregando FAQs...');
-            carregarFAQs();
-        });
-    }
-    
-    if (gerenciarFAQTab) {
-        gerenciarFAQTab.addEventListener('shown.bs.tab', function() {
-            console.log('📋 Aba "Gerenciar FAQs" aberta, recarregando FAQs...');
-            carregarFAQs();
-        });
-    }
+    inicializarRelatorioReclamacoesUI();
     
     // Verificar dados do localStorage ao carregar a página
     setTimeout(() => {
@@ -2956,647 +2936,227 @@ async function gerarEmail() {
     }
 }
 
+// ===== RELATÓRIO DE RECLAMAÇÕES (RECLAME AQUI) =====
 
-// ===== FUNÇÕES DE FAQ & COMPLIANCE =====
+let ultimoRelatorioReclamacoes = null;
 
-// Variável global para armazenar FAQs
-let faqsCache = [];
-
-// Carregar FAQs do backend
-async function carregarFAQs() {
-    const select = document.getElementById('tema-faq');
-    const lista = document.getElementById('faqs-list');
-    
-    // Mostrar indicador de carregamento
-    if (select) {
-        select.innerHTML = '<option value="">Carregando temas...</option>';
-        select.disabled = true;
-    }
-    
-    if (lista) {
-        lista.innerHTML = `
-            <div class="text-center p-3">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Carregando...</span>
-                </div>
-                <p class="mt-2 text-muted">Carregando FAQs...</p>
-            </div>
-        `;
-    }
-    
-    try {
-        console.log('📡 Carregando FAQs do backend...');
-        const response = await fetch('/api/faqs');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('📦 Dados recebidos:', data);
-        
-        if (data.success) {
-            faqsCache = data.faqs || [];
-            console.log(`✅ ${faqsCache.length} FAQ(s) carregado(s)`);
-            
-            atualizarSelectFAQs();
-            atualizarListaFAQs();
-            
-            if (select) {
-                select.disabled = false;
-            }
-            
-            return faqsCache;
-        } else {
-            throw new Error(data.error || 'Erro ao carregar FAQs');
-        }
-    } catch (error) {
-        console.error('❌ Erro ao carregar FAQs:', error);
-        
-        // Atualizar UI com erro
-        if (select) {
-            select.innerHTML = '<option value="">Erro ao carregar temas</option>';
-            select.disabled = false;
-        }
-        
-        if (lista) {
-            lista.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Erro ao carregar FAQs: ${error.message}
-                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="carregarFAQs()">
-                        <i class="fas fa-redo me-1"></i> Tentar novamente
-                    </button>
-                </div>
-            `;
-        }
-        
-        // Não mostrar mensagem de erro global para não incomodar o usuário
-        // showErrorMessage('Erro ao carregar FAQs: ' + error.message);
-        
-        return [];
-    }
-}
-
-// Atualizar select de temas com FAQs do backend
-function atualizarSelectFAQs() {
-    const select = document.getElementById('tema-faq');
-    if (!select) {
-        console.warn('⚠️ Elemento tema-faq não encontrado');
-        return;
-    }
-    
-    // Limpar opções existentes
-    select.innerHTML = '<option value="">Selecione o tema...</option>';
-    
-    // Adicionar FAQs do backend
-    let faqsAdicionadas = 0;
-    faqsCache.forEach(faq => {
-        if (faq && faq.tema && faq.titulo) {
-            const option = document.createElement('option');
-            option.value = faq.tema;
-            option.textContent = faq.titulo;
-            select.appendChild(option);
-            faqsAdicionadas++;
-        }
+function inicializarRelatorioReclamacoesUI() {
+    const ids = ['relatorio-horarios', 'relatorio-produtos', 'relatorio-motivos'];
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', atualizarContagemRelatorioReclamacoes);
+        el.addEventListener('paste', () => {
+            setTimeout(atualizarContagemRelatorioReclamacoes, 0);
+        });
     });
-    
-    // Se não houver FAQs, mostrar mensagem
-    if (faqsAdicionadas === 0) {
-        select.innerHTML = '<option value="">Nenhum FAQ cadastrado - Clique em "Importar FAQs Antigas" para começar</option>';
-        console.log('⚠️ Nenhum FAQ encontrado para popular o select');
-    } else {
-        console.log(`✅ ${faqsAdicionadas} FAQ(s) adicionado(s) ao select`);
-    }
+    atualizarContagemRelatorioReclamacoes();
 }
 
-// Atualizar lista de FAQs na interface de gerenciamento
-function atualizarListaFAQs() {
-    const lista = document.getElementById('faqs-list');
-    if (!lista) {
-        console.warn('⚠️ Elemento faqs-list não encontrado');
-        return;
-    }
-    
-    if (faqsCache.length === 0) {
-        lista.innerHTML = `
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                Nenhum FAQ cadastrado. Clique em "Novo FAQ" para criar o primeiro.
-            </div>
-        `;
-        return;
-    }
-    
-    try {
-        lista.innerHTML = faqsCache.map(faq => {
-            // Escapar apenas o título para exibição, mas manter o ID seguro
-            const tituloEscapado = escapeHtml(faq.titulo || 'Sem título');
-            const temaEscapado = escapeHtml(faq.tema || '');
-            const idEscapado = String(faq.id || '').replace(/'/g, "\\'");
-            
-            return `
-                <div class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">${tituloEscapado}</h6>
-                            <p class="mb-1 text-muted">
-                                <small><strong>Tema:</strong> <code>${temaEscapado}</code></small>
-                            </p>
-                            <small class="text-muted">
-                                Criado: ${faq.dataCriacao || 'N/A'} | 
-                                Atualizado: ${faq.dataAtualizacao || 'N/A'}
-                            </small>
-                        </div>
-                        <div class="btn-group btn-group-sm ms-2">
-                            <button class="btn btn-outline-primary" onclick="editarFAQ('${idEscapado}')" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="excluirFAQ('${idEscapado}', '${tituloEscapado.replace(/'/g, "\\'")}')" title="Excluir">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        console.log(`✅ Lista de FAQs atualizada: ${faqsCache.length} item(s)`);
-    } catch (error) {
-        console.error('❌ Erro ao atualizar lista de FAQs:', error);
-        lista.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Erro ao exibir lista de FAQs: ${error.message}
-            </div>
-        `;
-    }
-}
+function atualizarContagemRelatorioReclamacoes() {
+    const horarios = parseLinhasRelatorio(document.getElementById('relatorio-horarios')?.value || '');
+    const produtos = parseLinhasRelatorio(document.getElementById('relatorio-produtos')?.value || '');
+    const motivos = parseLinhasRelatorio(document.getElementById('relatorio-motivos')?.value || '');
 
-// Função auxiliar para escapar HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    const setCount = (id, n) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(n);
+    };
+    setCount('relatorio-count-horarios', horarios.length);
+    setCount('relatorio-count-produtos', produtos.length);
+    setCount('relatorio-count-motivos', motivos.length);
 
-// Abrir modal para criar novo FAQ
-function abrirModalFAQ(faqId = null) {
-    const modal = new bootstrap.Modal(document.getElementById('modalFAQ'));
-    const form = document.getElementById('formFAQ');
-    const modalTitle = document.getElementById('modalFAQLabel');
-    
-    // Limpar formulário
-    form.reset();
-    document.getElementById('faq-id').value = '';
-    
-    if (faqId) {
-        // Modo edição
-        const faq = faqsCache.find(f => f.id === faqId);
-        if (faq) {
-            modalTitle.textContent = 'Editar FAQ';
-            document.getElementById('faq-id').value = faq.id;
-            document.getElementById('faq-titulo').value = faq.titulo || '';
-            document.getElementById('faq-tema').value = faq.tema || '';
-            document.getElementById('faq-explicacao').value = faq.explicacao || '';
-        }
-    } else {
-        // Modo criação
-        modalTitle.textContent = 'Novo FAQ';
-    }
-    
-    modal.show();
-}
+    const chipHor = document.getElementById('relatorio-chip-horarios');
+    const chipProd = document.getElementById('relatorio-chip-produtos');
+    const chipMot = document.getElementById('relatorio-chip-motivos');
+    const msg = document.getElementById('relatorio-status-mensagem');
+    const btnGerar = document.getElementById('btn-gerar-relatorio-reclamacoes');
+    const hint = document.getElementById('relatorio-gerar-hint');
 
-// Editar FAQ
-function editarFAQ(faqId) {
-    abrirModalFAQ(faqId);
-}
+    const total = horarios.length;
+    const alinhado =
+        total > 0 &&
+        horarios.length === produtos.length &&
+        horarios.length === motivos.length;
+    const temAlgumDado = horarios.length > 0 || produtos.length > 0 || motivos.length > 0;
 
-// Salvar FAQ (criar ou atualizar)
-async function salvarFAQ() {
-    const form = document.getElementById('formFAQ');
-    const faqId = document.getElementById('faq-id').value;
-    const titulo = document.getElementById('faq-titulo').value.trim();
-    const tema = document.getElementById('faq-tema').value.trim();
-    const explicacao = document.getElementById('faq-explicacao').value.trim();
-    
-    // Validações
-    if (!titulo || !tema) {
-        showErrorMessage('Por favor, preencha pelo menos o título e o tema.');
-        return;
-    }
-    
-    if (!explicacao) {
-        if (!confirm('A explicação está vazia. Deseja continuar mesmo assim?')) {
-            return;
+    [chipHor, chipProd, chipMot].forEach((chip) => {
+        if (!chip) return;
+        chip.classList.remove('chip-ok', 'chip-erro');
+        if (!temAlgumDado) return;
+        chip.classList.add(alinhado ? 'chip-ok' : 'chip-erro');
+    });
+
+    if (msg) {
+        msg.classList.remove('status-ok', 'status-erro', 'status-neutro');
+        if (!temAlgumDado) {
+            msg.classList.add('status-neutro');
+            msg.textContent = 'Cole os dados nas três colunas para ver a contagem.';
+        } else if (alinhado) {
+            msg.classList.add('status-ok');
+            msg.innerHTML =
+                '<i class="fas fa-check-circle me-1"></i>' +
+                `${total} reclamação(ões) alinhada(s) — pronto para gerar o relatório.`;
+        } else {
+            msg.classList.add('status-erro');
+            msg.innerHTML =
+                '<i class="fas fa-exclamation-triangle me-1"></i>' +
+                'As colunas Horários, Produtos e Motivos devem possuir a mesma quantidade de registros ' +
+                `(atual: ${horarios.length} / ${produtos.length} / ${motivos.length}).`;
         }
     }
-    
+
+    if (btnGerar) btnGerar.disabled = !alinhado;
+    if (hint) {
+        hint.textContent = alinhado
+            ? 'Clique para gerar o relatório completo.'
+            : temAlgumDado
+              ? 'Ajuste as colunas até as contagens ficarem iguais.'
+              : 'Alinhe as três colunas para habilitar a geração.';
+    }
+}
+
+function parseLinhasRelatorio(texto) {
+    if (!texto || typeof texto !== 'string') return [];
+    return texto.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+}
+
+function validarColunasRelatorioReclamacoes() {
+    const horarios = parseLinhasRelatorio(document.getElementById('relatorio-horarios')?.value || '');
+    const produtos = parseLinhasRelatorio(document.getElementById('relatorio-produtos')?.value || '');
+    const motivos = parseLinhasRelatorio(document.getElementById('relatorio-motivos')?.value || '');
+
+    if (horarios.length !== produtos.length || horarios.length !== motivos.length) {
+        showErrorMessage('As colunas Horários, Produtos e Motivos devem possuir a mesma quantidade de registros.');
+        return null;
+    }
+
+    if (horarios.length === 0) {
+        showErrorMessage('Informe ao menos um registro nas colunas Horários, Produtos e Motivos.');
+        return null;
+    }
+
+    return { horarios, produtos, motivos };
+}
+
+function exibirRelatorioReclamacoes(texto) {
+    const pre = document.getElementById('relatorio-reclamacoes-content');
+    const resultado = document.getElementById('relatorio-reclamacoes-resultado');
+    const btnCorrigir = document.getElementById('btn-corrigir-relatorio-reclamacoes');
+
+    if (pre) pre.textContent = texto;
+    if (resultado) resultado.style.display = 'block';
+    if (btnCorrigir) btnCorrigir.disabled = false;
+
+    ultimoRelatorioReclamacoes = texto;
+}
+
+async function gerarRelatorioReclamacoes() {
+    const validacao = validarColunasRelatorioReclamacoes();
+    if (!validacao) return;
+
+    const btn = document.getElementById('btn-gerar-relatorio-reclamacoes');
+    const btnOriginal = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Gerando relatório...';
+    }
+
     try {
-        const url = faqId ? `/api/faqs/${faqId}` : '/api/faqs';
-        const method = faqId ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json'
-            },
+        const response = await fetch('/api/relatorio-reclamacoes/gerar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                titulo: titulo,
-                tema: tema,
-                explicacao: explicacao
+                horarios: document.getElementById('relatorio-horarios').value,
+                produtos: document.getElementById('relatorio-produtos').value,
+                motivos: document.getElementById('relatorio-motivos').value,
+                observacoes: document.getElementById('relatorio-observacoes')?.value || ''
             })
         });
-        
+
         const data = await response.json();
-        
-        if (data.success) {
-            showSuccessMessage(faqId ? 'FAQ atualizado com sucesso!' : 'FAQ criado com sucesso!');
-            
-            // Fechar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalFAQ'));
-            modal.hide();
-            
-            // Recarregar FAQs
-            await carregarFAQs();
-        } else {
-            throw new Error(data.error || 'Erro ao salvar FAQ');
-        }
-    } catch (error) {
-        console.error('❌ Erro ao salvar FAQ:', error);
-        showErrorMessage('Erro ao salvar FAQ: ' + error.message);
-    }
-}
 
-// Migrar FAQs hardcoded para a planilha
-async function migrarFAQs() {
-    if (!confirm('Deseja importar as FAQs do sistema anterior para a planilha? Isso adicionará todas as FAQs que estavam hardcoded no código.')) {
-        return;
-    }
-
-    try {
-        const btnMigrar = event?.target || document.querySelector('button[onclick="migrarFAQs()"]');
-        const btnOriginalText = btnMigrar?.innerHTML;
-        
-        if (btnMigrar) {
-            btnMigrar.disabled = true;
-            btnMigrar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Importando...';
-        }
-
-        console.log('🔄 Iniciando migração de FAQs...');
-        const response = await fetch('/api/faqs/migrate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+        if (!response.ok || !data.success) {
+            const msg = data.error || 'Erro ao gerar relatório';
+            if (data.detalhes && Array.isArray(data.detalhes)) {
+                throw new Error(msg + '\n' + data.detalhes.join('\n'));
             }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(msg);
         }
 
-        const data = await response.json();
-
-        if (data.success) {
-            showSuccessMessage(`Migração concluída! ${data.created} FAQ(s) criado(s), ${data.skipped} já existiam.`);
-            
-            // Recarregar FAQs
-            await carregarFAQs();
-        } else {
-            throw new Error(data.error || 'Erro ao migrar FAQs');
-        }
+        exibirRelatorioReclamacoes(data.relatorio);
+        showSuccessMessage('Relatório gerado com sucesso!');
     } catch (error) {
-        console.error('❌ Erro ao migrar FAQs:', error);
-        showErrorMessage('Erro ao migrar FAQs: ' + error.message);
+        console.error('Erro ao gerar relatório de reclamações:', error);
+        showErrorMessage(error.message || 'Erro ao gerar relatório. Tente novamente.');
     } finally {
-        const btnMigrar = document.querySelector('button[onclick="migrarFAQs()"]');
-        if (btnMigrar) {
-            btnMigrar.disabled = false;
-            btnMigrar.innerHTML = '<i class="fas fa-download me-1"></i> Importar FAQs Antigas';
+        if (btn) {
+            btn.innerHTML = btnOriginal;
         }
+        atualizarContagemRelatorioReclamacoes();
     }
 }
 
-// Excluir FAQ
-async function excluirFAQ(faqId, titulo) {
-    if (!confirm(`Tem certeza que deseja excluir o FAQ "${titulo}"?`)) {
+async function aplicarCorrecoesRelatorioReclamacoes() {
+    if (!ultimoRelatorioReclamacoes) {
+        showErrorMessage('Gere o relatório antes de aplicar correções.');
         return;
     }
-    
+
+    const correcoes = document.getElementById('relatorio-correcoes')?.value?.trim();
+    if (!correcoes) {
+        showErrorMessage('Informe as correções ou ajustes desejados.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-corrigir-relatorio-reclamacoes');
+    const btnOriginal = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando correções...';
+    }
+
     try {
-        console.log(`🗑️ Excluindo FAQ: ${faqId}`);
-        
-        const response = await fetch(`/api/faqs/${faqId}`, {
-            method: 'DELETE'
+        const response = await fetch('/api/relatorio-reclamacoes/corrigir', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                relatorioAtual: ultimoRelatorioReclamacoes,
+                correcoes
+            })
         });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+
         const data = await response.json();
-        
-        if (data.success) {
-            showSuccessMessage('FAQ excluído com sucesso!');
-            
-            // Recarregar FAQs
-            await carregarFAQs();
-        } else {
-            throw new Error(data.error || 'Erro ao excluir FAQ');
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Erro ao aplicar correções');
         }
+
+        exibirRelatorioReclamacoes(data.relatorio);
+        document.getElementById('relatorio-correcoes').value = '';
+        showSuccessMessage('Correções aplicadas com sucesso!');
     } catch (error) {
-        console.error('❌ Erro ao excluir FAQ:', error);
-        showErrorMessage('Erro ao excluir FAQ: ' + error.message);
+        console.error('Erro ao corrigir relatório:', error);
+        showErrorMessage(error.message || 'Erro ao aplicar correções. Tente novamente.');
+    } finally {
+        if (btn) {
+            btn.disabled = !ultimoRelatorioReclamacoes;
+            btn.innerHTML = btnOriginal;
+        }
     }
 }
 
-function gerarFAQ() {
-    const tema = document.getElementById('tema-faq').value;
-    
-    if (!tema) {
-        showErrorMessage('Por favor, selecione o tema.');
+function copiarRelatorioReclamacoes() {
+    const texto = document.getElementById('relatorio-reclamacoes-content')?.textContent || ultimoRelatorioReclamacoes;
+    if (!texto) {
+        showErrorMessage('Nenhum relatório para copiar.');
         return;
     }
-    
-    const respostaFAQ = gerarRespostaFAQ(tema);
-    
-    console.log('🔍 Resposta FAQ gerada (primeiros 200 chars):', respostaFAQ ? respostaFAQ.substring(0, 200) : 'vazia');
-    
-    // Garantir que o HTML seja renderizado corretamente
-    const faqContent = document.getElementById('faq-content');
-    if (faqContent) {
-        // Limpar conteúdo anterior
-        faqContent.innerHTML = '';
-        
-        if (respostaFAQ) {
-            // Sempre usar innerHTML para renderizar - permite HTML e texto simples
-            // Se contiver HTML, será renderizado; se for texto simples, será exibido normalmente
-            faqContent.innerHTML = respostaFAQ;
-            console.log('✅ Conteúdo renderizado com innerHTML');
-        } else {
-            faqContent.innerHTML = '<p>Resposta não disponível.</p>';
-        }
-    }
-    
-    document.getElementById('faq-resultado').style.display = 'block';
-    
-    showSuccessMessage('Resposta FAQ gerada com sucesso!');
-}
-
-function gerarRespostaFAQ(tema) {
-    // Primeiro, tentar buscar do cache (backend)
-    if (faqsCache && faqsCache.length > 0) {
-        const faq = faqsCache.find(f => f.tema === tema);
-        if (faq && faq.explicacao) {
-            console.log(`✅ FAQ encontrado no cache para tema: ${tema}`);
-            // Retornar a explicação diretamente - já vem como HTML da planilha
-            // Não escapar, pois será renderizado com innerHTML
-            const explicacao = faq.explicacao;
-            console.log('🔍 Explicação encontrada (primeiros 100 chars):', explicacao.substring(0, 100));
-            return explicacao;
-        }
-    }
-    
-    console.log(`⚠️ FAQ não encontrado no cache para tema: ${tema}, usando fallback`);
-    
-    // Fallback para respostas hardcoded (compatibilidade)
-    const respostas = {
-        'servicos-velotax': `
-            <p><strong>Pergunta:</strong> 'Quais são os serviços oferecidos pelo Velotax?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>O Velotax é uma empresa de tecnologia focada em criar soluções que simplificam o cálculo e o pagamento de impostos Pessoa Física e agora oferece soluções de crédito de maneira simples e rápida. Somos o maior aplicativo de antecipação do país, com mais de 3 milhões de downloads, 📲 oferecendo os serviços abaixo:</p>
-            
-            <p><strong>💸 Antecipação da Restituição:</strong> Para facilitar ainda mais, oferecemos a opção de antecipação da sua restituição de Imposto de Renda. Em até 48 horas ⏳, o valor estará na sua conta, sem burocracia e sem enrolação. Com o Velotax, você tem praticidade, segurança e velocidade🚀, tudo em um só lugar.</p>
-            
-            <p><strong>📝 Envio do IRPF:</strong> Nosso serviço de envio de declaração de Imposto de Renda é rápido, fácil ✅ e intuitivo. A plataforma do Velotax guia você passo a passo para garantir o preenchimento correto e eficiente da sua declaração de Imposto de Renda Pessoa Física com rapidez e segurança! Em apenas alguns minutos, você pode declarar seu Imposto de Renda com 100% de precisão.</p>
-            
-            <p><strong>👷‍♂️ Crédito do Trabalhador:</strong> Empréstimo consignado para trabalhadores CLT, domésticos e diretores, com vínculo ativo mínimo de 12 meses e pagamento descontado diretamente na folha de pagamento pelo e-Social. O processo é 100% digital, com juros menores, liberação rápida via Pix e carência de até 92 dias no primeiro vencimento.</p>
-            
-            <p><strong>💰 Crédito Pessoal:</strong> É um empréstimo em dinheiro que você pode usar como quiser para pagar dívidas, ou fazer compras. O pagamento é feito em parcelas com juros, e todo o processo é 100% digital pelo aplicativo. A análise é rápida via Open Finance e o valor pode ser liberado em até 24 horas. As propostas são atualizadas diariamente, aumentando suas chances de conseguir uma oferta adequada ao seu perfil.</p>
-            
-            <p><strong>📌 Veloprime, nossa Calculadora de DARF:</strong> Cálculo automático preciso de impostos, além de emissão de DARF. Tudo o que você precisa para investir com mais segurança 📈 sem se preocupar com os impostos. Nossa ferramenta é completa, integrando informações da B3 e exterior 🌍.</p>
-        `,
-        'antecipacao-restituicao': `
-            <p><strong>Pergunta:</strong> 'Qual é o serviço de Antecipação da Restituição oferecido pelo Velotax?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>Durante o período de declaração do Imposto de Renda💰, que ocorre normalmente entre Março e Maio de cada ano📅, o Velotax 📲 oferece aos clientes o serviço de Antecipação da Restituição. Ao declarar seu Imposto de Renda conosco e confirmar que possui saldo a restituir, você tem a opção de antecipar parte desse valor de forma rápida e segura.</p>
-            
-            <p>A principal vantagem desse serviço é a agilidade🚀: a antecipação é feita em minutos, sem burocracia ou análise de crédito. O valor antecipado é creditado diretamente na sua conta e, quando a Receita Federal libera sua restituição, o montante é utilizado para quitar a antecipação automaticamente✅.</p>
-            
-            <p>📢 O período de entrega da declaração de 2025 já foi encerrado, mas você ainda pode contar com o Velotax para realizar a antecipação da restituição do Imposto de Renda. Nosso processo é simples, rápido e seguro🔒, garantindo que você tenha acesso ao valor antes do crédito da Receita Federal.</p>
-            
-            <p>Fique atento ao nosso aplicativo e redes sociais para mais novidades! 🚀💙</p>
-        `,
-        'credito-trabalhador': `
-            <p><strong>Pergunta:</strong> 'Crédito do Trabalhador Velotax: O que é?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p><strong>👷‍♂️ Crédito do Trabalhador Velotax: O que é o Crédito do Trabalhador?</strong> Empréstimo consignado lançado em 2025 📅 para trabalhadores CLT, domésticos e diretores, com vínculo ativo mínimo de 12 meses e empresa ativa há 24 meses. Pagamento com desconto diretamente na folha de pagamento pelo e-Social.</p>
-            
-            <p><strong>Quais os diferenciais de contratar com o Velotax?</strong> Juros menores, troca de dívidas mais caras, processo 100% digital 💻, liberação via Pix CPF e carência de até 92 dias no 1º vencimento.</p>
-            
-            <p><strong>Como contratar o serviço?</strong> Acesse o app Velotax, autorize a Consulta de Margem, valide informações, assine o contrato digitalmente ✍️ e receba o crédito via Pix em até 24 horas.</p>
-            
-            <p><strong>Quais documentos são necessários?</strong> Você realizará um processo de confirmação de identidade onde enviará uma foto ou exportação da carteira digital de seu documento de identidade ✍️, e uma selfie para garantir que você mesmo esteja fazendo a solicitação.</p>
-        `,
-        'credito-pessoal': `
-            <p><strong>Pergunta:</strong> 'Crédito Pessoal Velotax: O que é?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p><strong>💰 Crédito Pessoal Velotax: O que é o Empréstimo Pessoal?</strong></p>
-            <p>O Empréstimo Pessoal é uma linha de crédito concedida a pessoas físicas por instituições financeiras. Nessa modalidade, o cliente recebe um valor e o paga em parcelas mensais com juros, sem a necessidade de oferecer garantias ou justificar o uso do dinheiro. Esse tipo de crédito oferece flexibilidade e praticidade, podendo ser utilizado para diferentes finalidades, como quitar dívidas, investir em educação, cobrir emergências ou realizar projetos pessoais.</p>
-            
-            <p><strong>📋 Características do Produto:</strong></p>
-            <ul>
-                <li><strong>Valor do limite:</strong> R$ 500,00</li>
-                <li><strong>Parcelamento:</strong> 4 parcelas, com vencimento a cada 30 dias</li>
-                <li><strong>Data de vencimento:</strong> Definida automaticamente, com base na movimentação financeira do cliente via Open Finance</li>
-                <li><strong>Taxa de juros:</strong> 19% a.m. (nesta versão inicial)</li>
-                <li><strong>Faixa etária:</strong> 18 a 75 anos para todos os clientes</li>
-            </ul>
-            
-            <p><strong>🔗 O que é Open Finance?</strong></p>
-            <p>O Open Finance é como se fosse uma "ponte segura" que conecta diferentes bancos e instituições financeiras. Ele permite que você, com a sua autorização, compartilhe suas informações financeiras (como saldo, histórico de movimentações ou limites de crédito) de um banco para outro. Assim, os bancos passam a ter uma visão mais completa do seu perfil financeiro, ajudando a oferecer melhores condições de crédito, taxas mais baixas e serviços personalizados.</p>
-            
-            <p><strong>📱 Como contratar o serviço?</strong></p>
-            <p>O processo é 100% digital, feito diretamente no aplicativo Velotax:</p>
-            <ol>
-                <li>Acesse o aplicativo Velotax e seleciona o ícone do Empréstimo Pessoal na tela inicial</li>
-                <li>Autorize a conexão com o Open Finance para análise de crédito</li>
-                <li>Se aprovado, visualize o limite disponível (R$ 500,00)</li>
-                <li>Revise a proposta com todas as condições (valor, juros, parcelas)</li>
-                <li>Leia a CCB (Contrato de Crédito Bancário) e assine digitalmente</li>
-                <li>O valor será creditado na sua conta entre 30 minutos e 24 horas</li>
-            </ol>
-            
-            <p><strong>✨ Diferenciais de contratar com o Velotax:</strong></p>
-            <ul>
-                <li>Análise rápida via Open Finance (até 5 minutos) ⏱️</li>
-                <li>Liberação do valor entre 30 minutos e 24 horas</li>
-                <li>Processo 100% digital, sem burocracia</li>
-                <li>Acompanhamento completo pelo aplicativo</li>
-                <li>Sem necessidade de biometria ou envio de documentos adicionais (nesta versão inicial)</li>
-            </ul>
-            
-            <p><strong>🏦 Bancos disponíveis:</strong><br>
-            Nubank, Itaú (Pessoa Física), Bradesco (Pessoa Física), Santander (Pessoa Física), Banco do Brasil, Caixa Econômica e Inter.</p>
-            
-            <p><strong>💳 Como quitar o empréstimo?</strong><br>
-            Acesse o app Velotax, vá até "Próximos Pagamentos", selecione "Crédito Pessoal" e escolha pagar via PIX (preferencial) ou cartão de crédito (principalmente para clientes em atraso).</p>
-            
-            <p><strong>🚫 Cancelamento:</strong><br>
-            O cliente pode solicitar o cancelamento em até 7 dias após a contratação, devolvendo o valor integral via PIX. Após esse prazo, não será mais possível cancelar.</p>
-            
-            <p><strong>⚠️ Importante:</strong></p>
-            <ul>
-                <li>Não é permitido ter mais de um contrato ativo ao mesmo tempo</li>
-                <li>Clientes com Crédito do Trabalhador ou débitos de Antecipação IRPF precisam quitar esses produtos antes</li>
-                <li>Em caso de atraso: multa de 2% e encargos de 1% ao mês</li>
-                <li>Caso o atraso não seja regularizado, o contrato poderá ser enviado aos órgãos de proteção ao crédito</li>
-            </ul>
-            
-            <p><strong>📄 Documentos necessários:</strong><br>
-            Não é necessário enviar documentos. Basta ter o CPF cadastrado como chave PIX na conta bancária e autorizar o compartilhamento dos dados pelo app.</p>
-        `,
-        'veloprime': `
-            <p><strong>Pergunta:</strong> 'Veloprime: Calculadora e DARF do Velotax: O que é?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>A Calculadora de DARF Velotax é uma ferramenta desenvolvida para facilitar a vida de investidores que atuam na bolsa de valores e em investimentos internacionais. Ela gera automaticamente suas DARFs de imposto sobre ganhos em bolsa de forma altamente precisa, com base em um sistema conectado diretamente à B3, além de possuir integração com investimentos internacionais das corretoras internacionais da BTG e Warren, permitindo que você centralize seus cálculos e relatórios em um só lugar.</p>
-            
-            <p><strong>❌ Cancelamento do Plano</strong><br>
-            Você pode solicitar o cancelamento dentro de 7 dias a partir do início do uso da plataforma, com estorno integral dos valores pagos, desde que não tenham sido feitas emissões de DARFs ou relatórios durante esse período.</p>
-            
-            <p><strong>Como solicitar o cancelamento:</strong></p>
-            <p><strong>🔹 📱 Pelo aplicativo Velotax:</strong></p>
-            <ol>
-                <li>Acesse Início e clique em Ajuda (ícone ❓ no topo do app).</li>
-                <li>Escolha a opção desejada: Falar no telefone, perguntar ao nosso Chatbot ou abrir chamado (nosso time responderá por e-mail).</li>
-            </ol>
-            <p><strong>🔹 📄 Formulário Web:</strong> [Clique aqui] para abrir um chamado rapidamente.</p>
-            
-            <p><strong>🔄 Cancelamento da Renovação Automática</strong><br>
-            Os planos da Calculadora Velotax são renovados automaticamente para sua conveniência. Caso queira desativar a renovação, siga os passos no app: 1️⃣ Impostos > DARFs para investidores > Clique no menu do lado esquerdo (≡) > Desça até Conta > Dados do Plano > Cancelar Recorrência.</p>
-            
-            <p><strong>Ainda precisa de ajuda?</strong><br>
-            <strong>📞 Atendimento Telefônico:</strong> (Disponível de segunda à sexta, das 08h00 às 19h00 e aos sábados, das 09h00 às 15h00)<br>
-            📍 3003 7293 – Capitais e regiões metropolitanas<br>
-            📍 0800 800 0049 – Demais localidades</p>
-        `,
-        'login-cadastro': `
-            <p><strong>Pergunta:</strong> 'Como faço login ou criar uma conta no aplicativo Velotax?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p><strong>Dificuldade de cadastro</strong><br>
-            Para acessar sua conta no Velotax, siga os passos abaixo:</p>
-            
-            <p>Se você já tem o app e a conta no Velotax, basta informar seu CPF e senha para acessar! Se seu dispositivo possui essa função, você pode fazer login de forma muito mais prática e segura usando a biometria!</p>
-            
-            <p><strong>Criando uma conta</strong></p>
-            <p>Se ainda não tiver, faça o download do Velotax na App Store (iOS) ou Google Play Store (Android). Clique aqui para baixar</p>
-            
-            <ol>
-                <li>Abra o aplicativo e clique em "Começar".</li>
-                <li>Se for seu primeiro acesso, crie sua conta com seu cpf e número de celular. Confirme o acesso com o SMS enviado.</li>
-                <li>Informe seu melhor e-mail e defina uma senha.</li>
-                <li>Pronto! Você criou sua conta rápido e fácil!!</li>
-            </ol>
-        `,
-        'malha-fina': `
-            <p><strong>Pergunta:</strong> 'O que é a malha fina e como saber se minha declaração está retida?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>A malha fina ocorre quando a Receita Federal encontra inconsistências, erros ou falta de informações na sua declaração de Imposto de Renda. Isso pode acontecer, por exemplo, quando os dados fornecidos não correspondem ao que consta nas bases de dados da Receita📊, ou quando há divergências nos valores declarados.</p>
-            
-            <p><strong>Veja alguns motivos para cair na malha fina:</strong></p>
-            <ul>
-                <li>❌ erros de digitação;</li>
-                <li>💲apresentação incorreta ou ilegítima de valores;</li>
-                <li>📉 omissão de rendimento(s);</li>
-                <li>📝 erros ou ausência de informações de cadastro;</li>
-                <li>👨‍👩‍👧 inclusão irregular de dependentes da declaração ou omissão de seus rendimentos;</li>
-                <li>🏥 incompatibilidade nas despesas médicas apresentadas; e</li>
-                <li>📑 informações divergentes das informações da fonte pagadora.</li>
-            </ul>
-            
-            <p>Para evitar cair na malha fina, é fundamental prestar muita atenção ao preenchimento de todos os campos da sua declaração. Verifique se os valores de rendimentos, deduções e investimentos foram informados corretamente ✅, e se todos os comprovantes necessários estão em ordem. O cuidado com esses detalhes ajuda a evitar problemas futuros.</p>
-            
-            <p>Caso sua declaração seja retida na malha fina, você pode verificar essa informação diretamente no aplicativo Velotax 📲 ou no site da Receita Federal clicando aqui.</p>
-            
-            <p>Lembre-se⚠️: se houver pendências, será necessário regularizar a situação junto à Receita Federal para desbloquear a restituição ou evitar multas</p>
-        `,
-        'envio-gratuito': `
-            <p><strong>Pergunta:</strong> 'O envio da declaração pelo app Velotax é gratuito?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>O Velotax 📲 oferece uma plataforma simples e segura 🔒 para o preenchimento e envio da sua declaração de Imposto de Renda. Nosso serviço inclui verificação automática dos dados, suporte para esclarecer dúvidas 💬 e a facilidade de envio direto pelo aplicativo, garantindo que todo o processo seja realizado de forma correta e eficiente.</p>
-            
-            <p>A taxa de serviço💵 é cobrada para cobrir os benefícios oferecidos aos nossos clientes e o valor é sempre informado antes da conclusão do envio da declaração. Além disso, o pagamento é realizado apenas quando você recebe a restituição do Imposto de Renda 💸, mas você também tem a opção de pagar na hora, se preferir.</p>
-        `,
-        'restituicao-pendente': `
-            <p><strong>Pergunta:</strong> 'Porque ainda não recebi minha restituição?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>A restituição do Imposto de Renda 💰 é paga em lotes, conforme o cronograma definido pela Receita Federal. Em 2025, foram 5 📅 lotes, distribuídos entre Maio e Setembro.</p>
-            
-            <p>Você pode acompanhar o status da sua restituição pelo aplicativo Velotax📲, acessando a opção "Consultar Restituição", ou diretamente no site da Receita Federal Consulta Restituição.</p>
-            
-            <p><strong>🔎 Ao consultar, preste atenção ao status da sua declaração:</strong></p>
-            <p>"No banco de dados", "Em processamento" ou "Em fila de restituição"⏳: significa que a sua declaração ainda não foi incluída em um lote de pagamento, e é necessário aguardar a liberação.</p>
-            
-            <p>"Com Pendência", indica que sua declaração apresenta irregularidades ou foi retida na malha fina. Nesse caso, será necessário regularizar a situação diretamente no site (acesse aqui), pois a restituição ficará bloqueada até que as pendências sejam resolvidas. ➡️Para maiores informações, acesse nossa FAQ: "O que é a malha fina e como saber se minha declaração está retida?"</p>
-            
-            <p><strong>📌Se Você contratou o serviço de antecipação da restituição com o Velotax:</strong><br>
-            Quando você optou por contratar a antecipação da sua restituição de IRPF, foram exibidos dois valores na tela:</p>
-            <ul>
-                <li><strong>💵 Valor antecipado:</strong> Esse é o valor líquido que você recebeu imediatamente após a aprovação da antecipação.</li>
-                <li><strong>⏰ Valor em prazo normal:</strong> Esse seria o valor total que você receberia caso esperasse o pagamento conforme o calendário da Receita Federal.</li>
-            </ul>
-            
-            <p>O valor que você recebeu como antecipação já estava líquido, ou seja, após a dedução dos custos de operação da plataforma e da linha de crédito utilizada para liberar o valor. O valor restante, que normalmente seria pago posteriormente, foi retido para cobrir esses custos operacionais e a operação de crédito.</p>
-            
-            <p>✅ Assim, após a antecipação, não há mais valores pendentes a receber, pois a diferença foi utilizada para cobrir as despesas relacionadas à operação do serviço de antecipação.</p>
-        `,
-        'restituicao-resgate': `
-            <p><strong>Pergunta:</strong> 'Restituição do Imposto de Renda disponível para resgate'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>Se você está esperando a restituição do Imposto de Renda e o valor ainda não apareceu na sua conta, não precisa se preocupar! Em algumas situações, o valor pode não ter sido creditado diretamente na conta cadastrada e, nesse caso, fica disponível para resgate manual no site do Banco do Brasil.</p>
-            
-            <p><strong>❗Ficou com alguma dúvida? 💙</strong><br>
-            Não se preocupe, a equipe Velotax está aqui para te ajudar! É só entrar em contato que vamos te acompanhar de pertinho, passo a passo, com todo o suporte que você precisar. 👉 Siga as orientações neste link.</p>
-        `,
-        'open-finance': `
-            <p><strong>Pergunta:</strong> 'O que é Open Finance?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>Open Finance é um jeito seguro de você compartilhar seus dados financeiros entre bancos e outras instituições, sempre com a sua permissão. 🔒</p>
-            
-            <p>Na prática, isso permite juntar em um só lugar informações de contas, cartões, investimentos e empréstimos. Assim, fica muito mais fácil entender e organizar sua vida financeira.</p>
-            
-            <p>Com esse compartilhamento, os bancos e financeiras conseguem entender melhor o seu perfil e, assim, oferecer produtos e serviços mais personalizados como crédito, investimentos ou seguros, muitas vezes com condições mais justas e vantajosas do que as oferecidas de forma padrão.</p>
-            
-            <p>O mais importante: você tem total controle. ✅ Só compartilhe se quiser e pode cancelar a autorização a qualquer momento.</p>
-        `,
-        'suporte': `
-            <p><strong>Pergunta:</strong> 'Como obter suporte no Velotax? Como falar com um atendente?'}</p>
-            <p><strong>Resposta:</strong></p>
-            <p>Se precisar de ajuda, não hesite em ligar para a equipe Velotax 📞 teremos prazer em te atender e te orientar passo a passo!</p>
-            
-            <p>Se preferir, você também pode consultar nossa FAQ no Reclame Aqui, onde encontrará respostas rápidas para as dúvidas mais comuns 💙.</p>
-            
-            <p>Caso ainda precise de suporte, você pode entrar em contato conosco pelos seguintes canais:</p>
-            
-            <p><strong>🔹 📞 Atendimento Telefônico:</strong> (Disponível de segunda à sexta, das 08h00 às 19h00 e aos sábados, das 09h00 às 15h00)<br>
-            📍 3003 7293 – Capitais e regiões metropolitanas<br>
-            📍 0800 800 0049 – Demais localidades</p>
-            
-            <p><strong>🔹 📱 Pelo aplicativo Velotax:</strong><br>
-            1️⃣ Acesse Início e cliente em Ajuda (ícone ❓ no topo do app).<br>
-            2️⃣ Escolha a opção que preferir, Falar no telefone, perguntar ao nosso Chatbot ou abrir chamado por lá que nosso time te responde por e-mail. Simples assim!</p>
-            
-            <p><strong>🔹 📄 Formulário Web:</strong> [Clique aqui] para abrir um chamado rapidamente.</p>
-            
-            <p><strong>🔹 💻 Pelo Reclame Aqui:</strong><br>
-            Na página inicial do Velotax no Reclame Aqui, clique em "Ir para o atendimento".</p>
-            
-            <p>Estamos aqui para ajudar! 😊</p>
-        `
-    };
-    
-    return respostas[tema] || '<p>Resposta não disponível para este tema.</p>';
+    navigator.clipboard.writeText(texto).then(() => {
+        showSuccessMessage('Relatório copiado para a área de transferência!');
+    }).catch(() => {
+        showErrorMessage('Erro ao copiar relatório.');
+    });
 }
 
 // ===== FUNÇÕES DE MODERAÇÃO DE NOTAS =====
@@ -4950,7 +4510,9 @@ window.velotaxBot = {
     gerarExplicacao,
     analisarChanceModeracao,
     gerarEmail,
-    gerarFAQ,
+    gerarRelatorioReclamacoes,
+    aplicarCorrecoesRelatorioReclamacoes,
+    copiarRelatorioReclamacoes,
     salvarRascunho,
     carregarRascunho,
     copiarResposta,

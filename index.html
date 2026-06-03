@@ -236,9 +236,9 @@
                                     <i class="fas fa-envelope me-2"></i>
                                     Formulação de E-mail
                                 </a>
-                                <a class="nav-link" href="#" data-tool="faq">
-                                    <i class="fas fa-question me-2"></i>
-                                    FAQ
+                                <a class="nav-link" href="#" data-tool="relatorio-reclamacoes">
+                                    <i class="fas fa-chart-line me-2"></i>
+                                    Relatório de Reclamações
                                 </a>
                             </nav>
                         </div>
@@ -690,121 +690,129 @@
                             </div>
                         </div>
 
-
-                        <!-- FAQ Tool -->
-                        <div id="faq-tool" class="tool-panel">
+                        <!-- Relatório de Reclamações Tool -->
+                        <div id="relatorio-reclamacoes-tool" class="tool-panel">
                             <div class="card">
                                 <div class="card-header" style="background: linear-gradient(135deg, #1DFDB9 0%, #1634FF 100%); color: white;">
                                     <h5 class="mb-0">
-                                        <i class="fas fa-question me-2"></i>
-                                        FAQ
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        Relatório de Reclamações
                                     </h5>
                                 </div>
                                 <div class="card-body">
-                                    <!-- Abas para FAQ e Gerenciamento -->
-                                    <ul class="nav nav-tabs mb-3" id="faqTabs" role="tablist">
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link active" id="gerar-faq-tab" data-bs-toggle="tab" data-bs-target="#gerar-faq" type="button" role="tab">
-                                                <i class="fas fa-magic me-1"></i> Gerar FAQ
-                                            </button>
-                                        </li>
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link" id="gerenciar-faq-tab" data-bs-toggle="tab" data-bs-target="#gerenciar-faq" type="button" role="tab">
-                                                <i class="fas fa-cog me-1"></i> Gerenciar FAQs
-                                            </button>
-                                        </li>
-                                    </ul>
-                                    
-                                    <div class="tab-content" id="faqTabContent">
-                                        <!-- Tab: Gerar FAQ -->
-                                        <div class="tab-pane fade show active" id="gerar-faq" role="tabpanel">
-                                            <div class="mb-3">
-                                                <label for="tema-faq" class="form-label">Tema:</label>
-                                                <select class="form-select" id="tema-faq">
-                                                    <option value="">Carregando temas...</option>
-                                                </select>
-                                            </div>
-                                            <button class="btn btn-warning" onclick="gerarFAQ()">
-                                                <i class="fas fa-question me-2"></i>
-                                                Gerar Resposta FAQ
-                                            </button>
-                                            <div id="faq-resultado" class="mt-4" style="display: none;">
-                                                <h6>Resposta FAQ:</h6>
-                                                <div class="response-box">
-                                                    <div id="faq-content"></div>
-                                                    <button class="btn btn-outline-warning btn-sm mt-2" onclick="copiarResposta('faq-content')">
-                                                        <i class="fas fa-copy me-1"></i>
-                                                        Copiar Resposta
-                                                    </button>
-                                                </div>
-                                            </div>
+                                    <div class="alert alert-light border relatorio-dica mb-4" role="status">
+                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                            <span class="badge bg-primary relatorio-passo-badge">1</span>
+                                            <strong class="me-1">Cole os dados</strong>
+                                            <span class="text-muted small">— uma linha por reclamação, na mesma ordem nas três colunas</span>
                                         </div>
-                                        
-                                        <!-- Tab: Gerenciar FAQs -->
-                                        <div class="tab-pane fade" id="gerenciar-faq" role="tabpanel">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="mb-0">Gerenciar FAQs</h6>
-                                                <div>
-                                                    <button class="btn btn-info btn-sm me-2" onclick="migrarFAQs()" title="Importar FAQs do sistema anterior">
-                                                        <i class="fas fa-download me-1"></i> Importar FAQs Antigas
-                                                    </button>
-                                                    <button class="btn btn-success btn-sm" onclick="abrirModalFAQ()">
-                                                        <i class="fas fa-plus me-1"></i> Novo FAQ
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div id="faqs-list" class="list-group">
-                                                <div class="text-center p-3">
-                                                    <div class="spinner-border text-primary" role="status">
-                                                        <span class="visually-hidden">Carregando...</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <div class="relatorio-alinhamento-hint small text-muted">
+                                            <span class="relatorio-linha-exemplo"><span class="linha-num">1</span> horário</span>
+                                            <i class="fas fa-arrows-alt-h mx-1 opacity-50"></i>
+                                            <span class="relatorio-linha-exemplo"><span class="linha-num">1</span> produto</span>
+                                            <i class="fas fa-arrows-alt-h mx-1 opacity-50"></i>
+                                            <span class="relatorio-linha-exemplo"><span class="linha-num">1</span> motivo</span>
+                                            <span class="mx-2">·</span>
+                                            <span class="relatorio-linha-exemplo"><span class="linha-num">2</span> horário</span>
+                                            <i class="fas fa-arrows-alt-h mx-1 opacity-50"></i>
+                                            <span class="relatorio-linha-exemplo"><span class="linha-num">2</span> produto …</span>
                                         </div>
+                                        <p class="mb-0 mt-2 small text-muted">
+                                            <i class="fas fa-infinity me-1"></i> Sem limite de quantidade de linhas — cole todas as reclamações do período.
+                                        </p>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Modal para Criar/Editar FAQ -->
-                        <div class="modal fade" id="modalFAQ" tabindex="-1" aria-labelledby="modalFAQLabel" aria-hidden="true">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="modalFAQLabel">Novo FAQ</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <div id="relatorio-status-contagem" class="relatorio-status-bar mb-3" aria-live="polite">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <span class="relatorio-contagem-chip" id="relatorio-chip-horarios" title="Linhas em Horários">
+                                                <i class="fas fa-clock me-1"></i> Horários: <strong id="relatorio-count-horarios">0</strong>
+                                            </span>
+                                            <span class="relatorio-contagem-chip" id="relatorio-chip-produtos" title="Linhas em Produtos">
+                                                <i class="fas fa-box me-1"></i> Produtos: <strong id="relatorio-count-produtos">0</strong>
+                                            </span>
+                                            <span class="relatorio-contagem-chip" id="relatorio-chip-motivos" title="Linhas em Motivos">
+                                                <i class="fas fa-tag me-1"></i> Motivos: <strong id="relatorio-count-motivos">0</strong>
+                                            </span>
+                                        </div>
+                                        <p id="relatorio-status-mensagem" class="relatorio-status-mensagem mb-0 mt-2 small">
+                                            Cole os dados nas três colunas para ver a contagem.
+                                        </p>
                                     </div>
-                                    <div class="modal-body">
-                                        <form id="formFAQ">
-                                            <input type="hidden" id="faq-id" value="">
-                                            <div class="mb-3">
-                                                <label for="faq-titulo" class="form-label">Título (Pergunta):</label>
-                                                <input type="text" class="form-control" id="faq-titulo" required placeholder="Ex: Quais são os serviços oferecidos pelo Velotax?">
+
+                                    <div class="row g-3 relatorio-colunas-grid">
+                                        <div class="col-lg-4">
+                                            <div class="relatorio-coluna-card h-100">
+                                                <label for="relatorio-horarios" class="form-label fw-semibold mb-2">
+                                                    <i class="fas fa-clock text-primary me-1"></i> Horários
+                                                </label>
+                                                <textarea class="form-control font-monospace relatorio-coluna-input" id="relatorio-horarios" placeholder="01/06/2026 13:03:00&#10;01/06/2026 14:38:00&#10;01/06/2026 15:00:00" spellcheck="false"></textarea>
+                                                <small class="form-text text-muted">Formato: DD/MM/AAAA HH:MM:SS</small>
                                             </div>
-                                            <div class="mb-3">
-                                                <label for="faq-tema" class="form-label">Tema (Código/Slug):</label>
-                                                <input type="text" class="form-control" id="faq-tema" required placeholder="Ex: servicos-velotax" pattern="[a-z0-9-]+" title="Apenas letras minúsculas, números e hífens">
-                                                <small class="form-text text-muted">Use apenas letras minúsculas, números e hífens (sem espaços)</small>
+                                        </div>
+                                        <div class="col-lg-4">
+                                            <div class="relatorio-coluna-card h-100">
+                                                <label for="relatorio-produtos" class="form-label fw-semibold mb-2">
+                                                    <i class="fas fa-box text-primary me-1"></i> Produto
+                                                </label>
+                                                <textarea class="form-control relatorio-coluna-input" id="relatorio-produtos" placeholder="Antecipação 2026&#10;Antecipação&#10;Empréstimo Pessoal"></textarea>
                                             </div>
-                                            <div class="mb-3">
-                                                <label for="faq-explicacao" class="form-label">Explicação (Resposta):</label>
-                                                <textarea class="form-control" id="faq-explicacao" rows="15" required placeholder="Digite a resposta... Você pode usar HTML, emojis, links, etc."></textarea>
-                                                <small class="form-text text-muted">
-                                                    Você pode usar texto simples, HTML (tags como &lt;p&gt;, &lt;strong&gt;, &lt;ul&gt;, &lt;a href&gt;, etc.), emojis 📱💙🚀, e links.
-                                                </small>
+                                        </div>
+                                        <div class="col-lg-4">
+                                            <div class="relatorio-coluna-card h-100">
+                                                <label for="relatorio-motivos" class="form-label fw-semibold mb-2">
+                                                    <i class="fas fa-tag text-primary me-1"></i> Motivo Reduzido
+                                                </label>
+                                                <textarea class="form-control relatorio-coluna-input" id="relatorio-motivos" placeholder="Portabilidade Pix&#10;Liberação chave Pix&#10;Não elegível a crédito"></textarea>
                                             </div>
-                                        </form>
+                                        </div>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                        <button type="button" class="btn btn-primary" onclick="salvarFAQ()">
-                                            <i class="fas fa-save me-1"></i> Salvar FAQ
+
+                                    <div class="mt-4 relatorio-secao-passo">
+                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                            <span class="badge bg-primary relatorio-passo-badge">2</span>
+                                            <label for="relatorio-observacoes" class="form-label fw-semibold mb-0">Observações operacionais</label>
+                                            <span class="text-muted small">(opcional)</span>
+                                        </div>
+                                        <textarea class="form-control" id="relatorio-observacoes" rows="4" placeholder="Ex.: Hoje encerramos 12 reclamações. Temos 17 em aberto. Casos de CCB em análise..."></textarea>
+                                        <small class="form-text text-muted">A IA incorpora estas informações ao texto de forma natural (não copia literalmente).</small>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
+                                        <button type="button" class="btn btn-primary" id="btn-gerar-relatorio-reclamacoes" onclick="gerarRelatorioReclamacoes()" disabled>
+                                            <i class="fas fa-file-alt me-2"></i>
+                                            Gerar Relatório
+                                        </button>
+                                        <span id="relatorio-gerar-hint" class="text-muted small">Alinhe as três colunas para habilitar a geração.</span>
+                                    </div>
+
+                                    <div id="relatorio-reclamacoes-resultado" class="mt-4" style="display: none;">
+                                        <h6 class="fw-semibold"><i class="fas fa-check-circle text-success me-1"></i> Relatório gerado</h6>
+                                        <div class="response-box">
+                                            <pre id="relatorio-reclamacoes-content" class="relatorio-texto-saida mb-0"></pre>
+                                            <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="copiarRelatorioReclamacoes()">
+                                                <i class="fas fa-copy me-1"></i>
+                                                Copiar Relatório
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <div class="relatorio-secao-passo relatorio-secao-correcoes">
+                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                            <span class="badge bg-secondary relatorio-passo-badge">3</span>
+                                            <label for="relatorio-correcoes" class="form-label fw-semibold mb-0">Correções / Ajustes</label>
+                                        </div>
+                                        <textarea class="form-control" id="relatorio-correcoes" rows="3" placeholder="Ex.: destacar Portabilidade Pix; informar 15 encerradas; tornar mais formal; remover frase final..."></textarea>
+                                        <small class="form-text text-muted">Edita apenas o último relatório desta sessão, sem recalcular os dados.</small>
+                                        <button type="button" class="btn btn-outline-secondary mt-2" id="btn-corrigir-relatorio-reclamacoes" onclick="aplicarCorrecoesRelatorioReclamacoes()" disabled>
+                                            <i class="fas fa-edit me-2"></i>
+                                            Aplicar Correções
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
 
                         <!-- Moderação de Notas Tool -->
                     </div>
@@ -823,7 +831,7 @@
     </script>
     
         <script src="auth.js?v=20250117dd"></script>
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=8"></script>
     
     <!-- Sistema de ajuste automático do nome da interface -->
     <script>
