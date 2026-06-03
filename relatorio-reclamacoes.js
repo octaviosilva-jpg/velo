@@ -28,14 +28,24 @@ Regras obrigatórias:
 - Quando existirem reclamações fora do expediente, criar uma seção específica.
 - Utilizar emojis apenas para melhorar a leitura.
 - Não exagerar no uso de emojis.
+- Formatação em linhas separadas (obrigatório): cada item em sua própria linha, nunca vários na mesma linha.
+- Na distribuição por motivo, um motivo por linha, no formato: "XX% – Nome do motivo (quantidade)".
+- Em "Fora do expediente", uma reclamação por linha: "DD/MM/AA – HH:MM – Motivo".
+- No detalhamento cronológico, uma reclamação por linha: "DD/MM/AA às HH:MM – Motivo".
 
 Padrão de referência (estrutura e tom, não copie números se os dados forem outros):
 Bom dia, pessoal!
 Ontem recebemos X reclamações, sendo Y fora do horário de expediente.
-🌙 Fora do expediente: (lista com data/hora e motivo)
+🌙 Fora do expediente:
+02/06/26 – 19:58 – Liberação chave Pix
+02/06/26 – 22:51 – Liberação chave Pix
 📌 Hoje, até o momento, recebemos N reclamações, distribuídas da seguinte forma:
-percentuais por motivo
-Detalhamento: (cronológico, com emojis de horário quando fizer sentido)
+60% – Vencimento antecipado da CCB (3)
+20% – Suspeita de fraude (1)
+20% – Portabilidade Pix (1)
+Detalhamento:
+🕡 03/06/26 às 06:43 – Vencimento antecipado da CCB
+🕖 03/06/26 às 06:54 – Portabilidade Pix
 📌 Observações: (incorporadas naturalmente)
 Tenham um excelente dia!
 

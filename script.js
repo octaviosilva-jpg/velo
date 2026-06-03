@@ -3001,8 +3001,10 @@ function atualizarContagemRelatorioReclamacoes() {
             msg.classList.add('status-erro');
             msg.innerHTML =
                 '<i class="fas fa-exclamation-triangle me-1"></i>' +
-                'As colunas Horários, Produtos e Motivos devem possuir a mesma quantidade de registros ' +
-                `(atual: ${horarios.length} / ${produtos.length} / ${motivos.length}).`;
+                'As colunas Horários, Produtos e Motivos devem possuir a mesma quantidade de registros:<br>' +
+                `Horários: ${horarios.length}<br>` +
+                `Produtos: ${produtos.length}<br>` +
+                `Motivos: ${motivos.length}`;
         }
     }
 
@@ -3042,13 +3044,29 @@ function validarColunasRelatorioReclamacoes() {
 function exibirRelatorioReclamacoes(texto) {
     const pre = document.getElementById('relatorio-reclamacoes-content');
     const resultado = document.getElementById('relatorio-reclamacoes-resultado');
-    const btnCorrigir = document.getElementById('btn-corrigir-relatorio-reclamacoes');
+    const refCorrecao = document.getElementById('relatorio-atual-correcao');
 
     if (pre) pre.textContent = texto;
+    if (refCorrecao) refCorrecao.textContent = texto;
     if (resultado) resultado.style.display = 'block';
-    if (btnCorrigir) btnCorrigir.disabled = false;
 
     ultimoRelatorioReclamacoes = texto;
+}
+
+function abrirModalCorrecaoRelatorio() {
+    if (!ultimoRelatorioReclamacoes) {
+        showErrorMessage('Gere o relatório antes de aplicar correções.');
+        return;
+    }
+
+    const refCorrecao = document.getElementById('relatorio-atual-correcao');
+    const campoCorrecoes = document.getElementById('relatorio-correcoes');
+
+    if (refCorrecao) refCorrecao.textContent = ultimoRelatorioReclamacoes;
+    if (campoCorrecoes) campoCorrecoes.value = '';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalCorrecaoRelatorio'));
+    modal.show();
 }
 
 async function gerarRelatorioReclamacoes() {
@@ -3105,15 +3123,15 @@ async function aplicarCorrecoesRelatorioReclamacoes() {
 
     const correcoes = document.getElementById('relatorio-correcoes')?.value?.trim();
     if (!correcoes) {
-        showErrorMessage('Informe as correções ou ajustes desejados.');
+        showErrorMessage('Informe as instruções de correção desejadas.');
         return;
     }
 
-    const btn = document.getElementById('btn-corrigir-relatorio-reclamacoes');
+    const btn = document.getElementById('btn-aplicar-correcao-relatorio');
     const btnOriginal = btn?.innerHTML;
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando correções...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aplicando...';
     }
 
     try {
@@ -3133,14 +3151,21 @@ async function aplicarCorrecoesRelatorioReclamacoes() {
         }
 
         exibirRelatorioReclamacoes(data.relatorio);
-        document.getElementById('relatorio-correcoes').value = '';
+
+        const campoCorrecoes = document.getElementById('relatorio-correcoes');
+        if (campoCorrecoes) campoCorrecoes.value = '';
+
+        const modalEl = document.getElementById('modalCorrecaoRelatorio');
+        const modalInstance = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (modalInstance) modalInstance.hide();
+
         showSuccessMessage('Correções aplicadas com sucesso!');
     } catch (error) {
         console.error('Erro ao corrigir relatório:', error);
         showErrorMessage(error.message || 'Erro ao aplicar correções. Tente novamente.');
     } finally {
         if (btn) {
-            btn.disabled = !ultimoRelatorioReclamacoes;
+            btn.disabled = false;
             btn.innerHTML = btnOriginal;
         }
     }

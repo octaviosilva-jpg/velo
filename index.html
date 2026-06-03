@@ -723,7 +723,7 @@
                                     </div>
 
                                     <div id="relatorio-status-contagem" class="relatorio-status-bar mb-3" aria-live="polite">
-                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <div class="relatorio-contagem-lista d-flex flex-column gap-2">
                                             <span class="relatorio-contagem-chip" id="relatorio-chip-horarios" title="Linhas em Horários">
                                                 <i class="fas fa-clock me-1"></i> Horários: <strong id="relatorio-count-horarios">0</strong>
                                             </span>
@@ -739,31 +739,27 @@
                                         </p>
                                     </div>
 
-                                    <div class="row g-3 relatorio-colunas-grid">
-                                        <div class="col-lg-4">
-                                            <div class="relatorio-coluna-card h-100">
-                                                <label for="relatorio-horarios" class="form-label fw-semibold mb-2">
-                                                    <i class="fas fa-clock text-primary me-1"></i> Horários
-                                                </label>
-                                                <textarea class="form-control font-monospace relatorio-coluna-input" id="relatorio-horarios" placeholder="01/06/2026 13:03:00&#10;01/06/2026 14:38:00&#10;01/06/2026 15:00:00" spellcheck="false"></textarea>
-                                                <small class="form-text text-muted">Formato: DD/MM/AAAA HH:MM:SS</small>
-                                            </div>
+                                    <div class="relatorio-colunas-grid d-flex flex-column gap-3">
+                                        <div class="relatorio-coluna-card">
+                                            <label for="relatorio-horarios" class="form-label fw-semibold mb-2">
+                                                <i class="fas fa-clock text-primary me-1"></i> Horários
+                                            </label>
+                                            <textarea class="form-control font-monospace relatorio-coluna-input" id="relatorio-horarios" placeholder="01/06/2026 13:03:00&#10;01/06/2026 14:38:00&#10;01/06/2026 15:00:00" spellcheck="false"></textarea>
+                                            <small class="form-text text-muted">Formato: DD/MM/AAAA HH:MM:SS — uma linha por reclamação</small>
                                         </div>
-                                        <div class="col-lg-4">
-                                            <div class="relatorio-coluna-card h-100">
-                                                <label for="relatorio-produtos" class="form-label fw-semibold mb-2">
-                                                    <i class="fas fa-box text-primary me-1"></i> Produto
-                                                </label>
-                                                <textarea class="form-control relatorio-coluna-input" id="relatorio-produtos" placeholder="Antecipação 2026&#10;Antecipação&#10;Empréstimo Pessoal"></textarea>
-                                            </div>
+                                        <div class="relatorio-coluna-card">
+                                            <label for="relatorio-produtos" class="form-label fw-semibold mb-2">
+                                                <i class="fas fa-box text-primary me-1"></i> Produto
+                                            </label>
+                                            <textarea class="form-control relatorio-coluna-input" id="relatorio-produtos" placeholder="Antecipação 2026&#10;Antecipação&#10;Empréstimo Pessoal"></textarea>
+                                            <small class="form-text text-muted">Uma linha por reclamação (mesma ordem dos horários)</small>
                                         </div>
-                                        <div class="col-lg-4">
-                                            <div class="relatorio-coluna-card h-100">
-                                                <label for="relatorio-motivos" class="form-label fw-semibold mb-2">
-                                                    <i class="fas fa-tag text-primary me-1"></i> Motivo Reduzido
-                                                </label>
-                                                <textarea class="form-control relatorio-coluna-input" id="relatorio-motivos" placeholder="Portabilidade Pix&#10;Liberação chave Pix&#10;Não elegível a crédito"></textarea>
-                                            </div>
+                                        <div class="relatorio-coluna-card">
+                                            <label for="relatorio-motivos" class="form-label fw-semibold mb-2">
+                                                <i class="fas fa-tag text-primary me-1"></i> Motivo Reduzido
+                                            </label>
+                                            <textarea class="form-control relatorio-coluna-input" id="relatorio-motivos" placeholder="Portabilidade Pix&#10;Liberação chave Pix&#10;Não elegível a crédito"></textarea>
+                                            <small class="form-text text-muted">Uma linha por reclamação (mesma ordem dos horários)</small>
                                         </div>
                                     </div>
 
@@ -789,26 +785,17 @@
                                         <h6 class="fw-semibold"><i class="fas fa-check-circle text-success me-1"></i> Relatório gerado</h6>
                                         <div class="response-box">
                                             <pre id="relatorio-reclamacoes-content" class="relatorio-texto-saida mb-0"></pre>
-                                            <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="copiarRelatorioReclamacoes()">
-                                                <i class="fas fa-copy me-1"></i>
-                                                Copiar Relatório
-                                            </button>
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="copiarRelatorioReclamacoes()">
+                                                    <i class="fas fa-copy me-1"></i>
+                                                    Copiar Relatório
+                                                </button>
+                                                <button type="button" class="btn btn-outline-warning btn-sm" id="btn-abrir-correcao-relatorio" onclick="abrirModalCorrecaoRelatorio()">
+                                                    <i class="fas fa-edit me-1"></i>
+                                                    Correção
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    <hr class="my-4">
-
-                                    <div class="relatorio-secao-passo relatorio-secao-correcoes">
-                                        <div class="d-flex align-items-center gap-2 mb-2">
-                                            <span class="badge bg-secondary relatorio-passo-badge">3</span>
-                                            <label for="relatorio-correcoes" class="form-label fw-semibold mb-0">Correções / Ajustes</label>
-                                        </div>
-                                        <textarea class="form-control" id="relatorio-correcoes" rows="3" placeholder="Ex.: destacar Portabilidade Pix; informar 15 encerradas; tornar mais formal; remover frase final..."></textarea>
-                                        <small class="form-text text-muted">Edita apenas o último relatório desta sessão, sem recalcular os dados.</small>
-                                        <button type="button" class="btn btn-outline-secondary mt-2" id="btn-corrigir-relatorio-reclamacoes" onclick="aplicarCorrecoesRelatorioReclamacoes()" disabled>
-                                            <i class="fas fa-edit me-2"></i>
-                                            Aplicar Correções
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -831,7 +818,7 @@
     </script>
     
         <script src="auth.js?v=20250117dd"></script>
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=10"></script>
     
     <!-- Sistema de ajuste automático do nome da interface -->
     <script>
@@ -1021,6 +1008,43 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalCorrecaoRelatorio" tabindex="-1" aria-labelledby="modalCorrecaoRelatorioLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="modalCorrecaoRelatorioLabel">
+                        <i class="fas fa-edit me-2"></i>
+                        Correção do Relatório
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Instrução:</strong> Descreva os ajustes desejados no texto do relatório.
+                        <br><small>Ex.: destacar Portabilidade Pix; informar 15 encerradas; tornar mais formal; remover frase final...</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="relatorio-correcoes" class="form-label">Instruções de correção:</label>
+                        <textarea class="form-control" id="relatorio-correcoes" rows="4" placeholder="Descreva o que deve ser alterado no relatório..."></textarea>
+                        <small class="form-text text-muted">Edita apenas o último relatório desta sessão, sem recalcular os dados.</small>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Relatório atual (referência):</label>
+                        <div class="alert alert-light border relatorio-texto-saida" id="relatorio-atual-correcao" style="max-height: 220px; overflow-y: auto; font-size: 0.9rem; white-space: pre-wrap;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" id="btn-aplicar-correcao-relatorio" onclick="aplicarCorrecoesRelatorioReclamacoes()">
+                        <i class="fas fa-check me-2"></i>
+                        Aplicar Correção
+                    </button>
                 </div>
             </div>
         </div>
