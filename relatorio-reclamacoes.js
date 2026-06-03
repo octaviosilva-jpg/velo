@@ -16,6 +16,77 @@ function obterHoraBrasilia(data = new Date()) {
     return hourPart ? parseInt(hourPart.value, 10) : data.getHours();
 }
 
+/** Datas de referência em America/Sao_Paulo (hoje e ontem no calendário local). */
+function obterReferenciasDatasBrasilia(dataRef = new Date()) {
+    const hojeISO = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(dataRef);
+
+    const [y, m, d] = hojeISO.split('-').map((n) => parseInt(n, 10));
+    const ontemUtc = new Date(Date.UTC(y, m - 1, d - 1));
+    const ontemISO = `${ontemUtc.getUTCFullYear()}-${String(ontemUtc.getUTCMonth() + 1).padStart(2, '0')}-${String(ontemUtc.getUTCDate()).padStart(2, '0')}`;
+
+    return {
+        dataReferenciaGeracao: hojeISO,
+        dataReferenciaOntem: ontemISO
+    };
+}
+
+function formatarDataCurtaFromISO(iso) {
+    const [ano, mes, dia] = iso.split('-');
+    return `${dia}/${mes}/${ano.slice(-2)}`;
+}
+
+function agruparPorMotivo(lista) {
+    const total = lista.length;
+    const porMotivoMap = new Map();
+    for (const r of lista) {
+        porMotivoMap.set(r.motivo, (porMotivoMap.get(r.motivo) || 0) + 1);
+    }
+    return Array.from(porMotivoMap.entries())
+        .map(([motivo, quantidade]) => ({
+            motivo,
+            quantidade,
+            percentual: total > 0 ? Math.round((quantidade / total) * 100) : 0
+        }))
+        .sort((a, b) => b.quantidade - a.quantidade);
+}
+
+function mapearReclamacaoResumo(r) {
+    return {
+        horario: r.horario,
+        produto: r.produto,
+        motivo: r.motivo,
+        dataChave: r.dataChave,
+        foraExpediente: r.foraExpediente,
+        dataHoraCurta: r.dataHoraCurta,
+        dataHoraDetalhe: r.dataHoraDetalhe
+    };
+}
+
+function montarBlocoPeriodo(lista) {
+    const foraLista = lista.filter((r) => r.foraExpediente);
+    return {
+        totalReclamacoes: lista.length,
+        quantidadeForaExpediente: foraLista.length,
+        agrupamentoPorMotivo: agruparPorMotivo(lista),
+        foraExpediente: foraLista.map((r) => ({
+            dataHoraCurta: r.dataHoraCurta,
+            motivo: r.motivo,
+            produto: r.produto
+        })),
+        detalhamentoCronologico: lista.map((r) => ({
+            dataHoraDetalhe: r.dataHoraDetalhe,
+            motivo: r.motivo,
+            produto: r.produto,
+            foraExpediente: r.foraExpediente
+        }))
+    };
+}
+
 function obterSaudacaoRelatorio(data = new Date()) {
     const hora = obterHoraBrasilia(data);
     let periodo;
@@ -48,8 +119,16 @@ Regras obrigatórias:
 - Não inventar dados.
 - Utilizar apenas informações recebidas.
 - Utilizar os percentuais e totais já calculados nos dados fornecidos (não recalcule).
+- A data de geração do relatório é dataReferenciaGeracao (fuso Brasília). Classifique cada reclamação pela data do horário informado.
+- Na frase "Ontem recebemos X reclamações", use EXATAMENTE ontem.totalReclamacoes e ontem.quantidadeForaExpediente (somente reclamações de ontem.data).
+- Se ontem.totalReclamacoes for 0, informe naturalmente que ontem não houve reclamações (sem inventar números).
+- Na frase "Hoje, até o momento, recebemos N reclamações", use EXATAMENTE hoje.totalReclamacoes (somente reclamações de hoje.data / dataReferenciaGeracao).
+- Os percentuais após "distribuídas da seguinte forma" devem vir APENAS de hoje.agrupamentoPorMotivo (reclamações de hoje).
+- A seção "Detalhamento" deve listar APENAS hoje.detalhamentoCronologico, uma linha por item, em ordem cronológica.
+- A lista 🌙 Fora do expediente após o trecho de ontem deve usar APENAS ontem.foraExpediente (reclamações de ontem fora do expediente).
+- Se hoje.totalReclamacoes for 0, informe naturalmente que ainda não há reclamações hoje (percentuais e detalhamento de hoje não se aplicam).
 - Destacar reclamações fora do expediente quando existirem.
-- Organizar o detalhamento em ordem cronológica (do mais antigo ao mais recente).
+- Organizar o detalhamento de hoje em ordem cronológica (do mais antigo ao mais recente).
 - Incorporar observações operacionais de forma natural (não copie literalmente; integre ao texto).
 - Não repetir informações desnecessariamente.
 - Adaptar a estrutura conforme o volume de reclamações.
@@ -60,8 +139,8 @@ Regras obrigatórias:
 - Utilizar emojis apenas para melhorar a leitura.
 - Não exagerar no uso de emojis.
 - Formatação do TEXTO DO RELATÓRIO (obrigatório): cada reclamação em sua própria linha; NUNCA agrupe várias reclamações na mesma linha, separadas por vírgula, ponto e vírgula ou "e".
-- Se totalReclamacoes for 9, o detalhamento cronológico deve ter exatamente 9 linhas (uma por entrada em detalhamentoCronologico), na ordem do JSON.
-- Use o array detalhamentoCronologico: uma linha de saída para cada objeto, sem omitir nem fundir registros.
+- Se hoje.totalReclamacoes for 9, o detalhamento de hoje deve ter exatamente 9 linhas (uma por entrada em hoje.detalhamentoCronologico), na ordem do JSON.
+- Use hoje.detalhamentoCronologico para o Detalhamento: uma linha de saída para cada objeto, sem omitir nem fundir registros.
 - Na distribuição por motivo, um motivo por linha, no formato: "XX% – Nome do motivo (quantidade)".
 - Em "Fora do expediente", uma reclamação por linha: "DD/MM/AA – HH:MM – Motivo" (uma linha por item em foraExpediente).
 - No detalhamento cronológico, uma reclamação por linha: "DD/MM/AA às HH:MM – Motivo" (pode incluir emoji de horário quando fizer sentido).
@@ -132,7 +211,8 @@ function parseHorario(str) {
     if (Number.isNaN(data.getTime())) {
         return { valido: false, original: trimmed, erro: `Data inválida: "${trimmed}"` };
     }
-    return { valido: true, original: trimmed, data };
+    const dataChave = `${ano}-${mes}-${dia}`;
+    return { valido: true, original: trimmed, data, dataChave };
 }
 
 function isForaExpediente(data) {
@@ -211,6 +291,7 @@ function validarEProcessar({ horarios, produtos, motivos }) {
             motivo: linhasMotivos[i],
             timestamp: parsed.data.getTime(),
             dataObj: parsed.data,
+            dataChave: parsed.dataChave,
             foraExpediente,
             dataCurta: formatarDataCurta(parsed.data),
             horaCurta: formatarHora(parsed.data),
@@ -230,51 +311,48 @@ function validarEProcessar({ horarios, produtos, motivos }) {
     reclamacoes.sort((a, b) => a.timestamp - b.timestamp);
 
     const total = reclamacoes.length;
-    const foraExpedienteLista = reclamacoes.filter((r) => r.foraExpediente);
-    const quantidadeForaExpediente = foraExpedienteLista.length;
-
-    const porMotivoMap = new Map();
-    for (const r of reclamacoes) {
-        porMotivoMap.set(r.motivo, (porMotivoMap.get(r.motivo) || 0) + 1);
-    }
-
-    const agrupamentoPorMotivo = Array.from(porMotivoMap.entries())
-        .map(([motivo, quantidade]) => ({
-            motivo,
-            quantidade,
-            percentual: total > 0 ? Math.round((quantidade / total) * 100) : 0
-        }))
-        .sort((a, b) => b.quantidade - a.quantidade);
-
     const { saudacaoAbertura, despedida, periodo, horaBrasilia } = obterSaudacaoRelatorio();
+    const { dataReferenciaGeracao, dataReferenciaOntem } = obterReferenciasDatasBrasilia();
+
+    const ontemLista = reclamacoes.filter((r) => r.dataChave === dataReferenciaOntem);
+    const hojeLista = reclamacoes.filter((r) => r.dataChave === dataReferenciaGeracao);
+    const outrasLista = reclamacoes.filter(
+        (r) => r.dataChave !== dataReferenciaGeracao && r.dataChave !== dataReferenciaOntem
+    );
+
+    const ontem = {
+        data: dataReferenciaOntem,
+        dataLabel: formatarDataCurtaFromISO(dataReferenciaOntem),
+        ...montarBlocoPeriodo(ontemLista)
+    };
+    const hoje = {
+        data: dataReferenciaGeracao,
+        dataLabel: formatarDataCurtaFromISO(dataReferenciaGeracao),
+        ...montarBlocoPeriodo(hojeLista)
+    };
+
+    const datasOutros = [...new Set(outrasLista.map((r) => r.dataChave))].sort();
 
     const dadosParaIA = {
         totalReclamacoes: total,
-        quantidadeForaExpediente,
+        dataReferenciaGeracao,
+        dataReferenciaOntem,
         saudacaoAbertura,
         despedida,
         periodoSaudacao: periodo,
         horaGeracaoBrasilia: horaBrasilia,
-        agrupamentoPorMotivo,
-        reclamacoes: reclamacoes.map((r) => ({
-            horario: r.horario,
-            produto: r.produto,
-            motivo: r.motivo,
-            foraExpediente: r.foraExpediente,
-            dataHoraCurta: r.dataHoraCurta,
-            dataHoraDetalhe: r.dataHoraDetalhe
-        })),
-        foraExpediente: foraExpedienteLista.map((r) => ({
-            dataHoraCurta: r.dataHoraCurta,
-            motivo: r.motivo,
-            produto: r.produto
-        })),
-        detalhamentoCronologico: reclamacoes.map((r) => ({
-            dataHoraDetalhe: r.dataHoraDetalhe,
-            motivo: r.motivo,
-            produto: r.produto,
-            foraExpediente: r.foraExpediente
-        }))
+        ontem,
+        hoje,
+        outrosDias: {
+            totalReclamacoes: outrasLista.length,
+            datas: datasOutros.map((iso) => ({
+                data: iso,
+                dataLabel: formatarDataCurtaFromISO(iso),
+                quantidade: outrasLista.filter((r) => r.dataChave === iso).length
+            })),
+            reclamacoes: outrasLista.map(mapearReclamacaoResumo)
+        },
+        reclamacoes: reclamacoes.map(mapearReclamacaoResumo)
     };
 
     return {
@@ -306,13 +384,21 @@ function normalizarSaudacaoRelatorio(texto, data = new Date()) {
 
 function montarPromptGeracao(dadosProcessados, observacoes) {
     const obs = observacoes && observacoes.trim() ? observacoes.trim() : '(nenhuma)';
-    const total = dadosProcessados.totalReclamacoes || 0;
     const saudacao = dadosProcessados.saudacaoAbertura || obterSaudacaoRelatorio().saudacaoAbertura;
+    const ontemTotal = dadosProcessados.ontem?.totalReclamacoes ?? 0;
+    const hojeTotal = dadosProcessados.hoje?.totalReclamacoes ?? 0;
+    const ontemFora = dadosProcessados.ontem?.quantidadeForaExpediente ?? 0;
+    const outrosTotal = dadosProcessados.outrosDias?.totalReclamacoes ?? 0;
+    let instrucaoDatas = `ONTEM (${dadosProcessados.ontem?.dataLabel || 'dia anterior'}): use total ${ontemTotal} e fora do expediente ${ontemFora} na abertura; lista 🌙 somente de ontem.foraExpediente.`;
+    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; percentuais só de hoje.agrupamentoPorMotivo; Detalhamento com exatamente ${hojeTotal} linha(s) de hoje.detalhamentoCronologico.`;
+    if (outrosTotal > 0) {
+        instrucaoDatas += ` Há ${outrosTotal} reclamação(ões) em outras datas (outrosDias) — não inclua em ontem nem em hoje; mencione brevemente se relevante.`;
+    }
     return `Gere o relatório operacional com base EXCLUSIVAMENTE nos dados JSON abaixo.
 
 SAUDAÇÃO OBRIGATÓRIA (primeira linha, copie exatamente): ${saudacao}
 
-IMPORTANTE: Existem ${total} reclamação(ões). No detalhamento cronológico e em listas de reclamações, inclua exatamente ${total} linhas — uma linha por item em detalhamentoCronologico, sem agrupar na mesma linha.
+CLASSIFICAÇÃO POR DATA (obrigatório, não recalcule): ${instrucaoDatas}
 
 DADOS ESTRUTURADOS:
 ${JSON.stringify(dadosProcessados, null, 2)}
@@ -342,6 +428,7 @@ module.exports = {
     PROMPT_SISTEMA_GERACAO,
     PROMPT_SISTEMA_CORRECAO,
     parseLinhas,
+    obterReferenciasDatasBrasilia,
     obterSaudacaoRelatorio,
     normalizarSaudacaoRelatorio,
     validarEProcessar,

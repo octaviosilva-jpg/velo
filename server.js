@@ -13371,8 +13371,16 @@ app.post('/api/relatorio-reclamacoes/gerar', rateLimitMiddleware, async (req, re
             relatorio,
             resumo: {
                 totalReclamacoes: processado.dados.totalReclamacoes,
-                quantidadeForaExpediente: processado.dados.quantidadeForaExpediente,
-                agrupamentoPorMotivo: processado.dados.agrupamentoPorMotivo
+                dataReferenciaGeracao: processado.dados.dataReferenciaGeracao,
+                ontem: {
+                    totalReclamacoes: processado.dados.ontem.totalReclamacoes,
+                    quantidadeForaExpediente: processado.dados.ontem.quantidadeForaExpediente
+                },
+                hoje: {
+                    totalReclamacoes: processado.dados.hoje.totalReclamacoes,
+                    quantidadeForaExpediente: processado.dados.hoje.quantidadeForaExpediente,
+                    agrupamentoPorMotivo: processado.dados.hoje.agrupamentoPorMotivo
+                }
             }
         });
     } catch (error) {
