@@ -5,6 +5,37 @@
 const ERRO_LINHAS_DIFERENTES =
     'As colunas Horários, Produtos e Motivos devem possuir a mesma quantidade de registros.';
 
+/** Horário de Brasília para saudação (Bom dia 5h–11h59, Boa tarde 12h–17h59, Boa noite 18h–4h59). */
+function obterHoraBrasilia(data = new Date()) {
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: 'numeric',
+        hour12: false
+    }).formatToParts(data);
+    const hourPart = parts.find((p) => p.type === 'hour');
+    return hourPart ? parseInt(hourPart.value, 10) : data.getHours();
+}
+
+function obterSaudacaoRelatorio(data = new Date()) {
+    const hora = obterHoraBrasilia(data);
+    let periodo;
+    if (hora >= 5 && hora < 12) {
+        periodo = 'Bom dia';
+    } else if (hora >= 12 && hora < 18) {
+        periodo = 'Boa tarde';
+    } else {
+        periodo = 'Boa noite';
+    }
+    const saudacaoAbertura = `${periodo}, pessoal!`;
+    const despedida =
+        periodo === 'Bom dia'
+            ? 'Tenham um excelente dia!'
+            : periodo === 'Boa tarde'
+              ? 'Tenham uma excelente tarde!'
+              : 'Tenham uma excelente noite!';
+    return { periodo, horaBrasilia: hora, saudacaoAbertura, despedida };
+}
+
 const PROMPT_SISTEMA_GERACAO = `Você é responsável por gerar relatórios operacionais de reclamações do Reclame Aqui.
 
 Objetivo:
@@ -34,9 +65,11 @@ Regras obrigatórias:
 - Na distribuição por motivo, um motivo por linha, no formato: "XX% – Nome do motivo (quantidade)".
 - Em "Fora do expediente", uma reclamação por linha: "DD/MM/AA – HH:MM – Motivo" (uma linha por item em foraExpediente).
 - No detalhamento cronológico, uma reclamação por linha: "DD/MM/AA às HH:MM – Motivo" (pode incluir emoji de horário quando fizer sentido).
+- A primeira linha do relatório DEVE ser exatamente o valor de saudacaoAbertura nos dados JSON (horário de geração em Brasília: Bom dia, Boa tarde ou Boa noite).
+- A despedida final deve usar o tom de despedida coerente com o período (campo despedida nos dados, se fornecido).
 
 Padrão de referência (estrutura e tom, não copie números se os dados forem outros):
-Bom dia, pessoal!
+{Bom dia|Boa tarde|Boa noite}, pessoal!
 Ontem recebemos X reclamações, sendo Y fora do horário de expediente.
 🌙 Fora do expediente:
 02/06/26 – 19:58 – Liberação chave Pix
@@ -213,9 +246,15 @@ function validarEProcessar({ horarios, produtos, motivos }) {
         }))
         .sort((a, b) => b.quantidade - a.quantidade);
 
+    const { saudacaoAbertura, despedida, periodo, horaBrasilia } = obterSaudacaoRelatorio();
+
     const dadosParaIA = {
         totalReclamacoes: total,
         quantidadeForaExpediente,
+        saudacaoAbertura,
+        despedida,
+        periodoSaudacao: periodo,
+        horaGeracaoBrasilia: horaBrasilia,
         agrupamentoPorMotivo,
         reclamacoes: reclamacoes.map((r) => ({
             horario: r.horario,
@@ -245,10 +284,33 @@ function validarEProcessar({ horarios, produtos, motivos }) {
     };
 }
 
+function normalizarSaudacaoRelatorio(texto, data = new Date()) {
+    const { saudacaoAbertura, despedida } = obterSaudacaoRelatorio(data);
+    const linhas = String(texto || '').trim().split(/\r?\n/);
+    if (linhas.length === 0) return saudacaoAbertura;
+
+    const primeira = linhas[0].trim();
+    if (/^(Bom dia|Boa tarde|Boa noite)\b/i.test(primeira)) {
+        linhas[0] = saudacaoAbertura;
+    } else {
+        linhas.unshift(saudacaoAbertura);
+    }
+
+    const ultimaIdx = linhas.length - 1;
+    if (/^Tenham um[a]?\s+excelente\s+(dia|tarde|noite)!?\s*$/i.test(linhas[ultimaIdx].trim())) {
+        linhas[ultimaIdx] = despedida;
+    }
+
+    return linhas.join('\n');
+}
+
 function montarPromptGeracao(dadosProcessados, observacoes) {
     const obs = observacoes && observacoes.trim() ? observacoes.trim() : '(nenhuma)';
     const total = dadosProcessados.totalReclamacoes || 0;
+    const saudacao = dadosProcessados.saudacaoAbertura || obterSaudacaoRelatorio().saudacaoAbertura;
     return `Gere o relatório operacional com base EXCLUSIVAMENTE nos dados JSON abaixo.
+
+SAUDAÇÃO OBRIGATÓRIA (primeira linha, copie exatamente): ${saudacao}
 
 IMPORTANTE: Existem ${total} reclamação(ões). No detalhamento cronológico e em listas de reclamações, inclua exatamente ${total} linhas — uma linha por item em detalhamentoCronologico, sem agrupar na mesma linha.
 
@@ -280,6 +342,8 @@ module.exports = {
     PROMPT_SISTEMA_GERACAO,
     PROMPT_SISTEMA_CORRECAO,
     parseLinhas,
+    obterSaudacaoRelatorio,
+    normalizarSaudacaoRelatorio,
     validarEProcessar,
     montarPromptGeracao,
     montarPromptCorrecao,

@@ -13357,13 +13357,14 @@ app.post('/api/relatorio-reclamacoes/gerar', rateLimitMiddleware, async (req, re
         console.log(
             `📊 Gerando relatório de reclamações via OpenAI (${processado.dados.totalReclamacoes} registro(s), max_tokens: ${maxTokens})...`
         );
-        const relatorio = await chamarOpenAIRelatorioReclamacoes(
+        const relatorioBruto = await chamarOpenAIRelatorioReclamacoes(
             apiKey,
             envVars,
             relatorioReclamacoes.PROMPT_SISTEMA_GERACAO,
             userPrompt,
             maxTokens
         );
+        const relatorio = relatorioReclamacoes.normalizarSaudacaoRelatorio(relatorioBruto);
 
         res.json({
             success: true,
