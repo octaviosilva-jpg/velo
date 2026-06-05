@@ -45,36 +45,22 @@ function formatarDataCurtaFromISO(iso) {
     return `${dia}/${mes}/${ano.slice(-2)}`;
 }
 
-/**
- * Percentual com base em listaPercentual (ex.: só hoje); quantidade entre parênteses
- * usa listaQuantidadeTotal (ex.: todas as datas coladas).
- */
-function agruparPorMotivo(
-    listaPercentual,
-    listaQuantidadeTotal = listaPercentual,
-    limite = TOP_MOTIVOS_EXECUTIVO
-) {
-    const totalPercentual = listaPercentual.length;
-    const porMotivoPercentual = new Map();
-    for (const r of listaPercentual) {
-        porMotivoPercentual.set(r.motivo, (porMotivoPercentual.get(r.motivo) || 0) + 1);
+function agruparPorMotivo(lista, limite = TOP_MOTIVOS_EXECUTIVO) {
+    const total = lista.length;
+    const porMotivoMap = new Map();
+    for (const r of lista) {
+        porMotivoMap.set(r.motivo, (porMotivoMap.get(r.motivo) || 0) + 1);
     }
-    const porMotivoQuantidade = new Map();
-    for (const r of listaQuantidadeTotal) {
-        porMotivoQuantidade.set(r.motivo, (porMotivoQuantidade.get(r.motivo) || 0) + 1);
-    }
-    const ordenado = Array.from(porMotivoPercentual.entries())
-        .map(([motivo, quantidadeHoje]) => ({
+    const ordenado = Array.from(porMotivoMap.entries())
+        .map(([motivo, quantidade]) => ({
             motivo,
-            quantidadeHoje,
-            quantidade: porMotivoQuantidade.get(motivo) ?? quantidadeHoje,
-            percentual:
-                totalPercentual > 0 ? Math.round((quantidadeHoje / totalPercentual) * 100) : 0
+            quantidade,
+            percentual: total > 0 ? Math.round((quantidade / total) * 100) : 0
         }))
         .sort(
             (a, b) =>
                 b.percentual - a.percentual ||
-                b.quantidadeHoje - a.quantidadeHoje ||
+                b.quantidade - a.quantidade ||
                 a.motivo.localeCompare(b.motivo, 'pt-BR')
         );
     const top = limite > 0 ? ordenado.slice(0, limite) : ordenado;
@@ -107,12 +93,12 @@ function montarDetalhamentoCronologico(lista) {
     }));
 }
 
-function montarBlocoPeriodo(lista, listaQuantidadeMotivos = lista) {
+function montarBlocoPeriodo(lista) {
     const foraLista = lista.filter((r) => r.foraExpediente);
     return {
         totalReclamacoes: lista.length,
         quantidadeForaExpediente: foraLista.length,
-        agrupamentoPorMotivo: agruparPorMotivo(lista, listaQuantidadeMotivos),
+        agrupamentoPorMotivo: agruparPorMotivo(lista),
         foraExpediente: foraLista.map((r) => ({
             dataHoraCurta: r.dataHoraCurta,
             motivo: r.motivo,
@@ -162,7 +148,7 @@ Regras obrigatórias:
 - Se ontem.totalReclamacoes for 0, informe naturalmente que ontem não houve reclamações (sem inventar números).
 - Na frase "Hoje, até o momento, recebemos N reclamações", use EXATAMENTE hoje.totalReclamacoes (somente reclamações de hoje.data / dataReferenciaGeracao).
 - Os percentuais após "distribuídas da seguinte forma" devem listar APENAS os itens de hoje.agrupamentoPorMotivo (no máximo 3, já são os maiores temas do dia). Não liste outros motivos nem recalcule.
-- O percentual (XX%) de cada linha reflete só a distribuição do dia atual (campo percentual / quantidadeHoje). O número entre parênteses (quantidade) pode incluir reclamações de outras datas — use o campo quantidade já calculado, sem recalcular.
+- O percentual (XX%) e a quantidade entre parênteses de cada linha devem refletir APENAS reclamações de hoje (campo quantidade / hoje.totalReclamacoes). A soma das quantidades do top 3 deve bater com o total de hoje.
 - NÃO inclua seção "Detalhamento" nem liste reclamações uma a uma no relatório executivo. O detalhamento cronológico é gerado separadamente pelo sistema.
 - A lista 🌙 Fora do expediente após o trecho de ontem deve usar APENAS ontem.foraExpediente (reclamações de ontem fora do expediente).
 - Se hoje.totalReclamacoes for 0, informe naturalmente que ainda não há reclamações hoje (percentuais de hoje não se aplicam).
@@ -359,13 +345,12 @@ function validarEProcessar({ horarios, produtos, motivos }) {
         ...montarBlocoPeriodo(ontemLista)
     };
 
-    const detalhamentoLista = reclamacoes.filter((r) => r.dataChave !== dataReferenciaOntem);
-    const detalhamentoCronologico = montarDetalhamentoCronologico(detalhamentoLista);
+    const detalhamentoCronologico = montarDetalhamentoCronologico(reclamacoes);
     const hoje = {
         data: dataReferenciaGeracao,
         dataLabel: formatarDataCurtaFromISO(dataReferenciaGeracao),
-        ...montarBlocoPeriodo(hojeLista, reclamacoes),
-        totalReclamacoesDetalhamento: detalhamentoLista.length,
+        ...montarBlocoPeriodo(hojeLista),
+        totalReclamacoesDetalhamento: reclamacoes.length,
         detalhamentoCronologico
     };
 
@@ -392,7 +377,7 @@ function validarEProcessar({ horarios, produtos, motivos }) {
         },
         reclamacoes: reclamacoes.map(mapearReclamacaoResumo),
         detalhamentoCronologico,
-        totalReclamacoesDetalhamento: detalhamentoLista.length
+        totalReclamacoesDetalhamento: reclamacoes.length
     };
 
     return {
@@ -464,9 +449,9 @@ function montarPromptGeracao(dadosProcessados, observacoes) {
     const outrosTotal = dadosProcessados.outrosDias?.totalReclamacoes ?? 0;
     let instrucaoDatas = `ONTEM (${dadosProcessados.ontem?.dataLabel || 'dia anterior'}): use total ${ontemTotal} e fora do expediente ${ontemFora} na abertura; lista 🌙 somente de ontem.foraExpediente.`;
     const qtdMotivosTop = dadosProcessados.hoje?.agrupamentoPorMotivo?.length ?? 0;
-    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; liste só as ${qtdMotivosTop} linha(s) de hoje.agrupamentoPorMotivo (top 3 executivo), copiando linhaFormatada — percentual só do dia atual, quantidade entre parênteses pode incluir outras datas; separador " - " (não vírgula). NÃO inclua detalhamento cronológico no texto.`;
+    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; liste só as ${qtdMotivosTop} linha(s) de hoje.agrupamentoPorMotivo (top 3 executivo), copiando linhaFormatada — percentual e quantidade entre parênteses só do dia atual; separador " - " (não vírgula). NÃO inclua detalhamento cronológico no texto.`;
     if (outrosTotal > 0) {
-        instrucaoDatas += ` Há ${outrosTotal} reclamação(ões) em outras datas (outrosDias) — reflita na quantidade entre parênteses dos motivos; não some em ontem nem no total "Hoje, até o momento".`;
+        instrucaoDatas += ` Há ${outrosTotal} reclamação(ões) em outras datas (outrosDias) — não inclua em ontem, no total "Hoje, até o momento" nem nos percentuais/quantidades de hoje.`;
     }
     return `Gere o relatório operacional com base EXCLUSIVAMENTE nos dados JSON abaixo.
 
@@ -500,11 +485,11 @@ function calcularMaxTokensGeracao(totalReclamacoes) {
     return Math.min(4000, Math.max(1200, 900 + total * 15));
 }
 
-/** Detalhamento cronológico formatado (hoje + outras datas, exceto ontem). */
+/** Detalhamento cronológico formatado (todas as datas coladas). */
 function formatarDetalhamento(dadosProcessados) {
     const itens = dadosProcessados?.detalhamentoCronologico || [];
     if (itens.length === 0) {
-        return 'Nenhuma reclamação para detalhar (exceto ontem, se houver).';
+        return 'Nenhuma reclamação para detalhar.';
     }
     const linhas = ['Detalhamento cronológico:', ''];
     for (const item of itens) {
