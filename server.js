@@ -13410,10 +13410,12 @@ app.post('/api/relatorio-reclamacoes/gerar', rateLimitMiddleware, async (req, re
         const relatorio = relatorioReclamacoes.normalizarSaudacaoRelatorio(
             relatorioReclamacoes.normalizarFormatacaoRelatorio(relatorioBruto)
         );
+        const detalhamento = relatorioReclamacoes.formatarDetalhamento(processado.dados);
 
         res.json({
             success: true,
             relatorio,
+            detalhamento,
             resumo: {
                 totalReclamacoes: processado.dados.totalReclamacoes,
                 dataReferenciaGeracao: processado.dados.dataReferenciaGeracao,
@@ -13433,6 +13435,42 @@ app.post('/api/relatorio-reclamacoes/gerar', rateLimitMiddleware, async (req, re
         res.status(500).json({
             success: false,
             error: error.message || 'Erro ao gerar relatório de reclamações'
+        });
+    }
+});
+
+app.post('/api/relatorio-reclamacoes/detalhamento', rateLimitMiddleware, async (req, res) => {
+    try {
+        const { horarios, produtos, motivos } = req.body;
+        const processado = relatorioReclamacoes.validarEProcessar({
+            horarios: horarios || '',
+            produtos: produtos || '',
+            motivos: motivos || ''
+        });
+
+        if (!processado.success) {
+            return res.status(400).json({
+                success: false,
+                error: processado.error,
+                contagens: processado.contagens,
+                detalhes: processado.detalhes
+            });
+        }
+
+        const detalhamento = relatorioReclamacoes.formatarDetalhamento(processado.dados);
+
+        res.json({
+            success: true,
+            detalhamento,
+            resumo: {
+                totalReclamacoesDetalhamento: processado.dados.totalReclamacoesDetalhamento
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erro ao gerar detalhamento de reclamações:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao gerar detalhamento de reclamações'
         });
     }
 });

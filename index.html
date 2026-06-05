@@ -719,7 +719,7 @@
                                         </div>
                                         <p class="mb-0 mt-2 small text-muted">
                                             <i class="fas fa-infinity me-1"></i> Sem limite de quantidade de linhas — cole todas as reclamações do período.
-                                            No <strong>relatório gerado</strong>, cada reclamação de <strong>hoje</strong> aparece em uma linha no detalhamento; <strong>ontem</strong> e <strong>hoje</strong> são contados pelas datas da coluna Horários (fuso Brasília).
+                                            No <strong>relatório executivo</strong>, o <strong>percentual</strong> por motivo considera só reclamações de <strong>hoje</strong>; a <strong>quantidade entre parênteses</strong> pode incluir outras datas. O <strong>detalhamento cronológico</strong> é gerado à parte, quando necessário. Datas pela coluna Horários (fuso Brasília).
                                         </p>
                                     </div>
 
@@ -783,13 +783,17 @@
                                     <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
                                         <button type="button" class="btn btn-primary" id="btn-gerar-relatorio-reclamacoes" onclick="gerarRelatorioReclamacoes()" disabled>
                                             <i class="fas fa-file-alt me-2"></i>
-                                            Gerar Relatório
+                                            Gerar Relatório Executivo
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="btn-gerar-detalhamento-reclamacoes" onclick="gerarDetalhamentoReclamacoes()" disabled>
+                                            <i class="fas fa-list-ul me-2"></i>
+                                            Gerar Detalhamento
                                         </button>
                                         <span id="relatorio-gerar-hint" class="text-muted small">Alinhe as três colunas para habilitar a geração.</span>
                                     </div>
 
                                     <div id="relatorio-reclamacoes-resultado" class="mt-4" style="display: none;">
-                                        <h6 class="fw-semibold"><i class="fas fa-check-circle text-success me-1"></i> Relatório gerado</h6>
+                                        <h6 class="fw-semibold"><i class="fas fa-check-circle text-success me-1"></i> Relatório executivo</h6>
                                         <div class="response-box">
                                             <pre id="relatorio-reclamacoes-content" class="relatorio-texto-saida mb-0"></pre>
                                             <div class="d-flex flex-wrap gap-2 mt-2">
@@ -800,6 +804,20 @@
                                                 <button type="button" class="btn btn-outline-warning btn-sm" id="btn-abrir-correcao-relatorio" onclick="abrirModalCorrecaoRelatorio()">
                                                     <i class="fas fa-edit me-1"></i>
                                                     Correção
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="relatorio-detalhamento-resultado" class="mt-4" style="display: none;">
+                                        <h6 class="fw-semibold"><i class="fas fa-list-ol text-secondary me-1"></i> Detalhamento cronológico</h6>
+                                        <p class="text-muted small mb-2">Lista completa das reclamações (hoje e outras datas, exceto ontem), em ordem cronológica.</p>
+                                        <div class="response-box">
+                                            <pre id="relatorio-detalhamento-content" class="relatorio-texto-saida mb-0"></pre>
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="copiarDetalhamentoReclamacoes()">
+                                                    <i class="fas fa-copy me-1"></i>
+                                                    Copiar Detalhamento
                                                 </button>
                                             </div>
                                         </div>

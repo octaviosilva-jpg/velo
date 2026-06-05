@@ -45,22 +45,36 @@ function formatarDataCurtaFromISO(iso) {
     return `${dia}/${mes}/${ano.slice(-2)}`;
 }
 
-function agruparPorMotivo(lista, limite = TOP_MOTIVOS_EXECUTIVO) {
-    const total = lista.length;
-    const porMotivoMap = new Map();
-    for (const r of lista) {
-        porMotivoMap.set(r.motivo, (porMotivoMap.get(r.motivo) || 0) + 1);
+/**
+ * Percentual com base em listaPercentual (ex.: só hoje); quantidade entre parênteses
+ * usa listaQuantidadeTotal (ex.: todas as datas coladas).
+ */
+function agruparPorMotivo(
+    listaPercentual,
+    listaQuantidadeTotal = listaPercentual,
+    limite = TOP_MOTIVOS_EXECUTIVO
+) {
+    const totalPercentual = listaPercentual.length;
+    const porMotivoPercentual = new Map();
+    for (const r of listaPercentual) {
+        porMotivoPercentual.set(r.motivo, (porMotivoPercentual.get(r.motivo) || 0) + 1);
     }
-    const ordenado = Array.from(porMotivoMap.entries())
-        .map(([motivo, quantidade]) => ({
+    const porMotivoQuantidade = new Map();
+    for (const r of listaQuantidadeTotal) {
+        porMotivoQuantidade.set(r.motivo, (porMotivoQuantidade.get(r.motivo) || 0) + 1);
+    }
+    const ordenado = Array.from(porMotivoPercentual.entries())
+        .map(([motivo, quantidadeHoje]) => ({
             motivo,
-            quantidade,
-            percentual: total > 0 ? Math.round((quantidade / total) * 100) : 0
+            quantidadeHoje,
+            quantidade: porMotivoQuantidade.get(motivo) ?? quantidadeHoje,
+            percentual:
+                totalPercentual > 0 ? Math.round((quantidadeHoje / totalPercentual) * 100) : 0
         }))
         .sort(
             (a, b) =>
                 b.percentual - a.percentual ||
-                b.quantidade - a.quantidade ||
+                b.quantidadeHoje - a.quantidadeHoje ||
                 a.motivo.localeCompare(b.motivo, 'pt-BR')
         );
     const top = limite > 0 ? ordenado.slice(0, limite) : ordenado;
@@ -82,25 +96,30 @@ function mapearReclamacaoResumo(r) {
     };
 }
 
-function montarBlocoPeriodo(lista) {
+function montarDetalhamentoCronologico(lista) {
+    return lista.map((r) => ({
+        dataHoraDetalhe: r.dataHoraDetalhe,
+        motivo: r.motivo,
+        produto: r.produto,
+        foraExpediente: r.foraExpediente,
+        dataChave: r.dataChave,
+        linhaDetalhe: `${r.dataHoraDetalhe}${SEPARADOR_CAMPO}${r.motivo}`
+    }));
+}
+
+function montarBlocoPeriodo(lista, listaQuantidadeMotivos = lista) {
     const foraLista = lista.filter((r) => r.foraExpediente);
     return {
         totalReclamacoes: lista.length,
         quantidadeForaExpediente: foraLista.length,
-        agrupamentoPorMotivo: agruparPorMotivo(lista),
+        agrupamentoPorMotivo: agruparPorMotivo(lista, listaQuantidadeMotivos),
         foraExpediente: foraLista.map((r) => ({
             dataHoraCurta: r.dataHoraCurta,
             motivo: r.motivo,
             produto: r.produto,
             linhaFormatada: `${r.dataHoraCurta}${SEPARADOR_CAMPO}${r.motivo}`
         })),
-        detalhamentoCronologico: lista.map((r) => ({
-            dataHoraDetalhe: r.dataHoraDetalhe,
-            motivo: r.motivo,
-            produto: r.produto,
-            foraExpediente: r.foraExpediente,
-            linhaDetalhe: `${r.dataHoraDetalhe}${SEPARADOR_CAMPO}${r.motivo}`
-        }))
+        detalhamentoCronologico: montarDetalhamentoCronologico(lista)
     };
 }
 
@@ -115,12 +134,14 @@ function obterSaudacaoRelatorio(data = new Date()) {
         periodo = 'Boa noite';
     }
     const saudacaoAbertura = `${periodo}, pessoal!`;
-    const despedida =
-        periodo === 'Bom dia'
-            ? 'Tenham um excelente dia!'
-            : periodo === 'Boa tarde'
-              ? 'Tenham uma excelente tarde!'
-              : 'Tenham uma excelente noite!';
+    let despedida;
+    if (periodo === 'Bom dia') {
+        despedida = 'Bom dia a todos!\nÓtimo trabalho!';
+    } else if (periodo === 'Boa tarde') {
+        despedida = 'Boa tarde!';
+    } else {
+        despedida = 'Boa noite a todos!\nBom descanso!';
+    }
     return { periodo, horaBrasilia: hora, saudacaoAbertura, despedida };
 }
 
@@ -141,29 +162,23 @@ Regras obrigatórias:
 - Se ontem.totalReclamacoes for 0, informe naturalmente que ontem não houve reclamações (sem inventar números).
 - Na frase "Hoje, até o momento, recebemos N reclamações", use EXATAMENTE hoje.totalReclamacoes (somente reclamações de hoje.data / dataReferenciaGeracao).
 - Os percentuais após "distribuídas da seguinte forma" devem listar APENAS os itens de hoje.agrupamentoPorMotivo (no máximo 3, já são os maiores temas do dia). Não liste outros motivos nem recalcule.
-- A seção "Detalhamento" deve listar APENAS hoje.detalhamentoCronologico, uma linha por item, em ordem cronológica.
+- O percentual (XX%) de cada linha reflete só a distribuição do dia atual (campo percentual / quantidadeHoje). O número entre parênteses (quantidade) pode incluir reclamações de outras datas — use o campo quantidade já calculado, sem recalcular.
+- NÃO inclua seção "Detalhamento" nem liste reclamações uma a uma no relatório executivo. O detalhamento cronológico é gerado separadamente pelo sistema.
 - A lista 🌙 Fora do expediente após o trecho de ontem deve usar APENAS ontem.foraExpediente (reclamações de ontem fora do expediente).
-- Se hoje.totalReclamacoes for 0, informe naturalmente que ainda não há reclamações hoje (percentuais e detalhamento de hoje não se aplicam).
-- Destacar reclamações fora do expediente quando existirem.
-- Organizar o detalhamento de hoje em ordem cronológica (do mais antigo ao mais recente).
-- Incorporar observações operacionais de forma natural (não copie literalmente; integre ao texto).
+- Se hoje.totalReclamacoes for 0, informe naturalmente que ainda não há reclamações hoje (percentuais de hoje não se aplicam).
+- Relatório EXECUTIVO: seja breve, só informações principais, sem excesso de texto.
+- Incorporar observações operacionais de forma natural e concisa (não copie literalmente; integre ao texto).
 - Não repetir informações desnecessariamente.
-- Adaptar a estrutura conforme o volume de reclamações.
 - Quando houver poucas reclamações, utilizar um texto mais enxuto.
-- Quando houver muitas reclamações, priorizar organização e legibilidade.
 - Quando não houver reclamações no dia atual, informar isso naturalmente.
-- Quando existirem reclamações fora do expediente, criar uma seção específica.
+- Quando existirem reclamações fora do expediente de ontem, criar a seção 🌙 (somente ontem).
 - Utilizar emojis apenas para melhorar a leitura.
 - Não exagerar no uso de emojis.
-- Formatação do TEXTO DO RELATÓRIO (obrigatório): cada reclamação em sua própria linha; NUNCA agrupe várias reclamações na mesma linha, separadas por vírgula, ponto e vírgula ou "e".
-- Se hoje.totalReclamacoes for 9, o detalhamento de hoje deve ter exatamente 9 linhas (uma por entrada em hoje.detalhamentoCronologico), na ordem do JSON.
-- Use hoje.detalhamentoCronologico para o Detalhamento: uma linha de saída para cada objeto, sem omitir nem fundir registros.
-- Separador entre horário/data e motivo: hífen com espaços " - " (NUNCA vírgula). Ex.: "03/06/26 às 06:43 - Portabilidade Pix".
+- Separador entre horário/data e motivo: hífen com espaços " - " (NUNCA vírgula).
 - Na distribuição por motivo (máx. 3 linhas), use linhaFormatada quando existir ou: "XX% - Nome do motivo (quantidade)".
 - Em "Fora do expediente", use linhaFormatada de ontem.foraExpediente ou "DD/MM/AA - HH:MM - Motivo".
-- No detalhamento, use linhaDetalhe de hoje.detalhamentoCronologico (pode prefixar emoji de horário); mantenha " - " antes do motivo.
 - A primeira linha do relatório DEVE ser exatamente o valor de saudacaoAbertura nos dados JSON (horário de geração em Brasília: Bom dia, Boa tarde ou Boa noite).
-- A despedida final deve usar o tom de despedida coerente com o período (campo despedida nos dados, se fornecido).
+- A despedida final DEVE ser exatamente o valor de despedida nos dados JSON (pode ter uma ou duas linhas). Bom dia: "Bom dia a todos!" + "Ótimo trabalho!"; Boa tarde: só "Boa tarde!"; após 18h (Boa noite): "Boa noite a todos!" + "Bom descanso!".
 
 Padrão de referência (estrutura e tom, não copie números se os dados forem outros):
 {Bom dia|Boa tarde|Boa noite}, pessoal!
@@ -175,11 +190,9 @@ Ontem recebemos X reclamações, sendo Y fora do horário de expediente.
 60% - Vencimento antecipado da CCB (3)
 20% - Suspeita de fraude (1)
 20% - Portabilidade Pix (1)
-Detalhamento:
-🕡 03/06/26 às 06:43 - Vencimento antecipado da CCB
-🕖 03/06/26 às 06:54 - Portabilidade Pix
-📌 Observações: (incorporadas naturalmente)
-Tenham um excelente dia!
+📌 Observações: (incorporadas naturalmente, de forma breve)
+Bom dia a todos!
+Ótimo trabalho!
 
 Retorne APENAS o texto do relatório, pronto para copiar e enviar (sem markdown code blocks, sem explicações meta).`;
 
@@ -193,7 +206,8 @@ REGRAS OBRIGATÓRIAS:
 - Aplique APENAS os ajustes descritos nas instruções de correção.
 - Todo o restante do texto deve permanecer intacto, salvo o que for necessário para o ajuste pedido.
 - Mantenha português brasileiro, tom corporativo e leve.
-- Mantenha a regra de uma reclamação por linha no detalhamento e listas (nunca várias na mesma linha).
+- Mantenha a regra de uma reclamação por linha em listas (nunca várias na mesma linha).
+- O relatório executivo NÃO deve conter seção "Detalhamento".
 - Use hífen " - " entre horário e motivo (não vírgula). Percentuais: no máximo 3 maiores temas, formato "XX% - motivo (qtd)".
 - Retorne o relatório completo atualizado (texto integral), pronto para envio.
 - Sem markdown code blocks, sem explicações meta.`;
@@ -344,10 +358,15 @@ function validarEProcessar({ horarios, produtos, motivos }) {
         dataLabel: formatarDataCurtaFromISO(dataReferenciaOntem),
         ...montarBlocoPeriodo(ontemLista)
     };
+
+    const detalhamentoLista = reclamacoes.filter((r) => r.dataChave !== dataReferenciaOntem);
+    const detalhamentoCronologico = montarDetalhamentoCronologico(detalhamentoLista);
     const hoje = {
         data: dataReferenciaGeracao,
         dataLabel: formatarDataCurtaFromISO(dataReferenciaGeracao),
-        ...montarBlocoPeriodo(hojeLista)
+        ...montarBlocoPeriodo(hojeLista, reclamacoes),
+        totalReclamacoesDetalhamento: detalhamentoLista.length,
+        detalhamentoCronologico
     };
 
     const datasOutros = [...new Set(outrasLista.map((r) => r.dataChave))].sort();
@@ -371,7 +390,9 @@ function validarEProcessar({ horarios, produtos, motivos }) {
             })),
             reclamacoes: outrasLista.map(mapearReclamacaoResumo)
         },
-        reclamacoes: reclamacoes.map(mapearReclamacaoResumo)
+        reclamacoes: reclamacoes.map(mapearReclamacaoResumo),
+        detalhamentoCronologico,
+        totalReclamacoesDetalhamento: detalhamentoLista.length
     };
 
     return {
@@ -396,7 +417,9 @@ function normalizarFormatacaoRelatorio(texto) {
 function normalizarSaudacaoRelatorio(texto, data = new Date()) {
     const { saudacaoAbertura, despedida } = obterSaudacaoRelatorio(data);
     const linhas = String(texto || '').trim().split(/\r?\n/);
-    if (linhas.length === 0) return saudacaoAbertura;
+    if (linhas.length === 0) {
+        return [saudacaoAbertura, ...despedida.split('\n')].join('\n');
+    }
 
     const primeira = linhas[0].trim();
     if (/^(Bom dia|Boa tarde|Boa noite)\b/i.test(primeira)) {
@@ -405,30 +428,52 @@ function normalizarSaudacaoRelatorio(texto, data = new Date()) {
         linhas.unshift(saudacaoAbertura);
     }
 
-    const ultimaIdx = linhas.length - 1;
-    if (/^Tenham um[a]?\s+excelente\s+(dia|tarde|noite)!?\s*$/i.test(linhas[ultimaIdx].trim())) {
-        linhas[ultimaIdx] = despedida;
+    const padroesDespedidaAntiga = [
+        /^Tenham um[a]?\s+excelente\s+(dia|tarde|noite)!?\s*$/i,
+        /^Bom dia a todos!?\s*$/i,
+        /^Ótimo trabalho!?\s*$/i,
+        /^Boa tarde!?\s*$/i,
+        /^Boa noite\b.*$/i,
+        /^Bom descanso!?\s*$/i
+    ];
+
+    while (linhas.length > 0) {
+        const ultima = linhas[linhas.length - 1].trim();
+        if (!ultima) {
+            linhas.pop();
+            continue;
+        }
+        if (padroesDespedidaAntiga.some((re) => re.test(ultima))) {
+            linhas.pop();
+            continue;
+        }
+        break;
     }
 
+    linhas.push(...despedida.split('\n'));
     return linhas.join('\n');
 }
 
 function montarPromptGeracao(dadosProcessados, observacoes) {
     const obs = observacoes && observacoes.trim() ? observacoes.trim() : '(nenhuma)';
     const saudacao = dadosProcessados.saudacaoAbertura || obterSaudacaoRelatorio().saudacaoAbertura;
+    const despedida = dadosProcessados.despedida || obterSaudacaoRelatorio().despedida;
     const ontemTotal = dadosProcessados.ontem?.totalReclamacoes ?? 0;
     const hojeTotal = dadosProcessados.hoje?.totalReclamacoes ?? 0;
     const ontemFora = dadosProcessados.ontem?.quantidadeForaExpediente ?? 0;
     const outrosTotal = dadosProcessados.outrosDias?.totalReclamacoes ?? 0;
     let instrucaoDatas = `ONTEM (${dadosProcessados.ontem?.dataLabel || 'dia anterior'}): use total ${ontemTotal} e fora do expediente ${ontemFora} na abertura; lista 🌙 somente de ontem.foraExpediente.`;
     const qtdMotivosTop = dadosProcessados.hoje?.agrupamentoPorMotivo?.length ?? 0;
-    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; liste só as ${qtdMotivosTop} linha(s) de hoje.agrupamentoPorMotivo (top 3 executivo), copiando linhaFormatada; separador " - " (não vírgula); Detalhamento com ${hojeTotal} linha(s) usando linhaDetalhe.`;
+    instrucaoDatas += ` HOJE (${dadosProcessados.hoje?.dataLabel || 'hoje'}): use total ${hojeTotal} em "Hoje, até o momento..."; liste só as ${qtdMotivosTop} linha(s) de hoje.agrupamentoPorMotivo (top 3 executivo), copiando linhaFormatada — percentual só do dia atual, quantidade entre parênteses pode incluir outras datas; separador " - " (não vírgula). NÃO inclua detalhamento cronológico no texto.`;
     if (outrosTotal > 0) {
-        instrucaoDatas += ` Há ${outrosTotal} reclamação(ões) em outras datas (outrosDias) — não inclua em ontem nem em hoje; mencione brevemente se relevante.`;
+        instrucaoDatas += ` Há ${outrosTotal} reclamação(ões) em outras datas (outrosDias) — reflita na quantidade entre parênteses dos motivos; não some em ontem nem no total "Hoje, até o momento".`;
     }
     return `Gere o relatório operacional com base EXCLUSIVAMENTE nos dados JSON abaixo.
 
 SAUDAÇÃO OBRIGATÓRIA (primeira linha, copie exatamente): ${saudacao}
+
+DESPEDIDA OBRIGATÓRIA (última(s) linha(s), copie exatamente — respeite quebras de linha):
+${despedida}
 
 CLASSIFICAÇÃO POR DATA (obrigatório, não recalcule): ${instrucaoDatas}
 
@@ -449,10 +494,23 @@ INSTRUÇÕES DE CORREÇÃO (aplique somente estes ajustes):
 ${correcoes.trim()}`;
 }
 
-/** Tokens de saída da OpenAI conforme volume (sem limite de linhas no cadastro). */
+/** Tokens de saída da OpenAI — relatório executivo (sem detalhamento). */
 function calcularMaxTokensGeracao(totalReclamacoes) {
     const total = Math.max(0, Number(totalReclamacoes) || 0);
-    return Math.min(8000, Math.max(2500, 1800 + total * 90));
+    return Math.min(4000, Math.max(1200, 900 + total * 15));
+}
+
+/** Detalhamento cronológico formatado (hoje + outras datas, exceto ontem). */
+function formatarDetalhamento(dadosProcessados) {
+    const itens = dadosProcessados?.detalhamentoCronologico || [];
+    if (itens.length === 0) {
+        return 'Nenhuma reclamação para detalhar (exceto ontem, se houver).';
+    }
+    const linhas = ['Detalhamento cronológico:', ''];
+    for (const item of itens) {
+        linhas.push(item.linhaDetalhe);
+    }
+    return linhas.join('\n');
 }
 
 module.exports = {
@@ -466,6 +524,7 @@ module.exports = {
     normalizarSaudacaoRelatorio,
     TOP_MOTIVOS_EXECUTIVO,
     validarEProcessar,
+    formatarDetalhamento,
     montarPromptGeracao,
     montarPromptCorrecao,
     calcularMaxTokensGeracao

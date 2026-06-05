@@ -2939,6 +2939,7 @@ async function gerarEmail() {
 // ===== RELATÓRIO DE RECLAMAÇÕES (RECLAME AQUI) =====
 
 let ultimoRelatorioReclamacoes = null;
+let ultimoDetalhamentoReclamacoes = null;
 
 function inicializarRelatorioReclamacoesUI() {
     const ids = ['relatorio-horarios', 'relatorio-produtos', 'relatorio-motivos'];
@@ -2971,6 +2972,7 @@ function atualizarContagemRelatorioReclamacoes() {
     const chipMot = document.getElementById('relatorio-chip-motivos');
     const msg = document.getElementById('relatorio-status-mensagem');
     const btnGerar = document.getElementById('btn-gerar-relatorio-reclamacoes');
+    const btnDetalhamento = document.getElementById('btn-gerar-detalhamento-reclamacoes');
     const hint = document.getElementById('relatorio-gerar-hint');
 
     const total = horarios.length;
@@ -3009,9 +3011,10 @@ function atualizarContagemRelatorioReclamacoes() {
     }
 
     if (btnGerar) btnGerar.disabled = !alinhado;
+    if (btnDetalhamento) btnDetalhamento.disabled = !alinhado;
     if (hint) {
         hint.textContent = alinhado
-            ? 'Clique para gerar o relatório completo.'
+            ? 'Relatório executivo (IA) ou detalhamento cronológico (instantâneo).'
             : temAlgumDado
               ? 'Ajuste as colunas até as contagens ficarem iguais.'
               : 'Alinhe as três colunas para habilitar a geração.';
@@ -3053,6 +3056,24 @@ function exibirRelatorioReclamacoes(texto) {
     ultimoRelatorioReclamacoes = texto;
 }
 
+function exibirDetalhamentoReclamacoes(texto) {
+    const pre = document.getElementById('relatorio-detalhamento-content');
+    const resultado = document.getElementById('relatorio-detalhamento-resultado');
+
+    if (pre) pre.textContent = texto;
+    if (resultado) resultado.style.display = 'block';
+
+    ultimoDetalhamentoReclamacoes = texto;
+}
+
+function obterPayloadRelatorioReclamacoes() {
+    return {
+        horarios: document.getElementById('relatorio-horarios').value,
+        produtos: document.getElementById('relatorio-produtos').value,
+        motivos: document.getElementById('relatorio-motivos').value
+    };
+}
+
 function abrirModalCorrecaoRelatorio() {
     if (!ultimoRelatorioReclamacoes) {
         showErrorMessage('Gere o relatório antes de aplicar correções.');
@@ -3085,9 +3106,7 @@ async function gerarRelatorioReclamacoes() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                horarios: document.getElementById('relatorio-horarios').value,
-                produtos: document.getElementById('relatorio-produtos').value,
-                motivos: document.getElementById('relatorio-motivos').value,
+                ...obterPayloadRelatorioReclamacoes(),
                 observacoes: document.getElementById('relatorio-observacoes')?.value || ''
             })
         });
@@ -3103,10 +3122,54 @@ async function gerarRelatorioReclamacoes() {
         }
 
         exibirRelatorioReclamacoes(data.relatorio);
-        showSuccessMessage('Relatório gerado com sucesso!');
+        if (data.detalhamento) {
+            exibirDetalhamentoReclamacoes(data.detalhamento);
+        }
+        showSuccessMessage('Relatório executivo gerado com sucesso!');
     } catch (error) {
         console.error('Erro ao gerar relatório de reclamações:', error);
         showErrorMessage(error.message || 'Erro ao gerar relatório. Tente novamente.');
+    } finally {
+        if (btn) {
+            btn.innerHTML = btnOriginal;
+        }
+        atualizarContagemRelatorioReclamacoes();
+    }
+}
+
+async function gerarDetalhamentoReclamacoes() {
+    const validacao = validarColunasRelatorioReclamacoes();
+    if (!validacao) return;
+
+    const btn = document.getElementById('btn-gerar-detalhamento-reclamacoes');
+    const btnOriginal = btn?.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Gerando...';
+    }
+
+    try {
+        const response = await fetch('/api/relatorio-reclamacoes/detalhamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(obterPayloadRelatorioReclamacoes())
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            const msg = data.error || 'Erro ao gerar detalhamento';
+            if (data.detalhes && Array.isArray(data.detalhes)) {
+                throw new Error(msg + '\n' + data.detalhes.join('\n'));
+            }
+            throw new Error(msg);
+        }
+
+        exibirDetalhamentoReclamacoes(data.detalhamento);
+        showSuccessMessage('Detalhamento gerado com sucesso!');
+    } catch (error) {
+        console.error('Erro ao gerar detalhamento de reclamações:', error);
+        showErrorMessage(error.message || 'Erro ao gerar detalhamento. Tente novamente.');
     } finally {
         if (btn) {
             btn.innerHTML = btnOriginal;
@@ -3181,6 +3244,19 @@ function copiarRelatorioReclamacoes() {
         showSuccessMessage('Relatório copiado para a área de transferência!');
     }).catch(() => {
         showErrorMessage('Erro ao copiar relatório.');
+    });
+}
+
+function copiarDetalhamentoReclamacoes() {
+    const texto = document.getElementById('relatorio-detalhamento-content')?.textContent || ultimoDetalhamentoReclamacoes;
+    if (!texto) {
+        showErrorMessage('Nenhum detalhamento para copiar.');
+        return;
+    }
+    navigator.clipboard.writeText(texto).then(() => {
+        showSuccessMessage('Detalhamento copiado para a área de transferência!');
+    }).catch(() => {
+        showErrorMessage('Erro ao copiar detalhamento.');
     });
 }
 
