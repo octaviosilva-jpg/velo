@@ -78,18 +78,34 @@ function mapearReclamacaoResumo(r) {
         dataChave: r.dataChave,
         foraExpediente: r.foraExpediente,
         dataHoraCurta: r.dataHoraCurta,
-        dataHoraDetalhe: r.dataHoraDetalhe
+        dataHoraDetalhe: r.dataHoraDetalhe,
+        dataHoraLinha: r.dataHoraLinha,
+        linhaComProduto: r.linhaComProduto
     };
+}
+
+function formatarDataHoraLinha(data) {
+    const dia = String(data.getDate()).padStart(2, '0');
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const ano = String(data.getFullYear());
+    const h = String(data.getHours()).padStart(2, '0');
+    const m = String(data.getMinutes()).padStart(2, '0');
+    return `${dia}/${mes}/${ano}, ${h}:${m}`;
+}
+
+function formatarLinhaReclamacaoComProduto(r) {
+    const dataHora = r.dataHoraLinha || formatarDataHoraLinha(r.dataObj);
+    return `${dataHora}${SEPARADOR_CAMPO}${r.produto}${SEPARADOR_CAMPO}${r.motivo}`;
 }
 
 function montarDetalhamentoCronologico(lista) {
     return lista.map((r) => ({
-        dataHoraDetalhe: r.dataHoraDetalhe,
+        dataHoraLinha: r.dataHoraLinha,
         motivo: r.motivo,
         produto: r.produto,
         foraExpediente: r.foraExpediente,
         dataChave: r.dataChave,
-        linhaDetalhe: `${r.dataHoraDetalhe}${SEPARADOR_CAMPO}${r.motivo}`
+        linhaDetalhe: r.linhaComProduto || formatarLinhaReclamacaoComProduto(r)
     }));
 }
 
@@ -100,10 +116,10 @@ function montarBlocoPeriodo(lista) {
         quantidadeForaExpediente: foraLista.length,
         agrupamentoPorMotivo: agruparPorMotivo(lista),
         foraExpediente: foraLista.map((r) => ({
-            dataHoraCurta: r.dataHoraCurta,
+            dataHoraLinha: r.dataHoraLinha,
             motivo: r.motivo,
             produto: r.produto,
-            linhaFormatada: `${r.dataHoraCurta}${SEPARADOR_CAMPO}${r.motivo}`
+            linhaFormatada: r.linhaComProduto || formatarLinhaReclamacaoComProduto(r)
         })),
         detalhamentoCronologico: montarDetalhamentoCronologico(lista)
     };
@@ -160,9 +176,9 @@ Regras obrigatórias:
 - Quando existirem reclamações fora do expediente de ontem, criar a seção 🌙 (somente ontem).
 - Utilizar emojis apenas para melhorar a leitura.
 - Não exagerar no uso de emojis.
-- Separador entre horário/data e motivo: hífen com espaços " - " (NUNCA vírgula).
+- Separador entre campos: hífen com espaços " - " (NUNCA vírgula entre produto e motivo).
 - Na distribuição por motivo (máx. 3 linhas), use linhaFormatada quando existir ou: "XX% - Nome do motivo (quantidade)".
-- Em "Fora do expediente", use linhaFormatada de ontem.foraExpediente ou "DD/MM/AA - HH:MM - Motivo".
+- Em "Fora do expediente", use linhaFormatada de ontem.foraExpediente (copie exatamente) no formato "DD/MM/AAAA, HH:MM - Produto - Motivo".
 - A primeira linha do relatório DEVE ser exatamente o valor de saudacaoAbertura nos dados JSON (horário de geração em Brasília: Bom dia, Boa tarde ou Boa noite).
 - A despedida final DEVE ser exatamente o valor de despedida nos dados JSON (pode ter uma ou duas linhas). Bom dia: "Bom dia a todos!" + "Ótimo trabalho!"; Boa tarde: só "Boa tarde!"; após 18h (Boa noite): "Boa noite a todos!" + "Bom descanso!".
 
@@ -170,8 +186,8 @@ Padrão de referência (estrutura e tom, não copie números se os dados forem o
 {Bom dia|Boa tarde|Boa noite}, pessoal!
 Ontem recebemos X reclamações, sendo Y fora do horário de expediente.
 🌙 Fora do expediente:
-02/06/26 - 19:58 - Liberação chave Pix
-02/06/26 - 22:51 - Liberação chave Pix
+04/06/2026, 21:30 - Antecipação 2026 - Juros abusivos
+04/06/2026, 22:51 - Empréstimo Pessoal - Liberação chave Pix
 📌 Hoje, até o momento, recebemos N reclamações, distribuídas da seguinte forma:
 60% - Vencimento antecipado da CCB (3)
 20% - Suspeita de fraude (1)
@@ -194,7 +210,7 @@ REGRAS OBRIGATÓRIAS:
 - Mantenha português brasileiro, tom corporativo e leve.
 - Mantenha a regra de uma reclamação por linha em listas (nunca várias na mesma linha).
 - O relatório executivo NÃO deve conter seção "Detalhamento".
-- Use hífen " - " entre horário e motivo (não vírgula). Percentuais: no máximo 3 maiores temas, formato "XX% - motivo (qtd)".
+- Use hífen " - " entre produto e motivo. Fora do expediente: "DD/MM/AAAA, HH:MM - Produto - Motivo". Percentuais: no máximo 3 maiores temas, formato "XX% - motivo (qtd)".
 - Retorne o relatório completo atualizado (texto integral), pronto para envio.
 - Sem markdown code blocks, sem explicações meta.`;
 
@@ -304,7 +320,8 @@ function validarEProcessar({ horarios, produtos, motivos }) {
             continue;
         }
         const foraExpediente = isForaExpediente(parsed.data);
-        reclamacoes.push({
+        const dataHoraLinha = formatarDataHoraLinha(parsed.data);
+        const registro = {
             horario: linhasHorarios[i],
             produto: linhasProdutos[i],
             motivo: linhasMotivos[i],
@@ -315,8 +332,11 @@ function validarEProcessar({ horarios, produtos, motivos }) {
             dataCurta: formatarDataCurta(parsed.data),
             horaCurta: formatarHora(parsed.data),
             dataHoraCurta: formatarDataHoraCurta(parsed.data),
-            dataHoraDetalhe: formatarDataHoraDetalhe(parsed.data)
-        });
+            dataHoraDetalhe: formatarDataHoraDetalhe(parsed.data),
+            dataHoraLinha
+        };
+        registro.linhaComProduto = formatarLinhaReclamacaoComProduto(registro);
+        reclamacoes.push(registro);
     }
 
     if (errosHorario.length > 0) {
