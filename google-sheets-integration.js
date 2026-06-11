@@ -17,7 +17,8 @@ class GoogleSheetsIntegration {
     /**
      * Inicializa a integração com Google Sheets usando sistema de fallback
      */
-    async initialize(envVars = null) {
+    async initialize(envVars = null, options = {}) {
+        const skipEnsureSheets = options.skipEnsureSheets === true;
         try {
             console.log('🔧 Inicializando integração com Google Sheets (sistema de fallback)...');
             
@@ -36,7 +37,11 @@ class GoogleSheetsIntegration {
                     
                     if (this.initialized) {
                         console.log('✅ Integração com Google Sheets inicializada com sucesso via fallback');
-                        await this.ensureSheetsExist();
+                        if (!skipEnsureSheets) {
+                            await this.ensureSheetsExist();
+                        } else {
+                            console.log('📖 Modo somente leitura — ensureSheetsExist ignorado');
+                        }
                         this.startCacheCleanup();
                         return true;
                     }
@@ -88,7 +93,11 @@ class GoogleSheetsIntegration {
                 
                 if (this.initialized) {
                     console.log('✅ Integração com Google Sheets (Service Account) inicializada com sucesso');
-                    await this.ensureSheetsExist();
+                    if (!skipEnsureSheets) {
+                        await this.ensureSheetsExist();
+                    } else {
+                        console.log('📖 Modo somente leitura — ensureSheetsExist ignorado');
+                    }
                     this.startCacheCleanup(); // Iniciar limpeza periódica de cache
                 } else {
                     console.log('⚠️ Integração com Google Sheets (Service Account) não pôde ser inicializada');
@@ -125,7 +134,11 @@ class GoogleSheetsIntegration {
             
             if (this.initialized) {
                 console.log('✅ Integração com Google Sheets inicializada com sucesso');
-                await this.ensureSheetsExist();
+                if (!skipEnsureSheets) {
+                    await this.ensureSheetsExist();
+                } else {
+                    console.log('📖 Modo somente leitura — ensureSheetsExist ignorado');
+                }
             } else {
                 console.log('⚠️ Integração com Google Sheets não pôde ser inicializada');
             }
@@ -367,7 +380,7 @@ class GoogleSheetsIntegration {
                 'Feedback',
                 'Resposta Reformulada',
                 'Tipo Solicitação',
-                'Motivo Solicitação',
+                'ID da Reclamação',
                 'Solução Implementada',
                 'Histórico Atendimento',
                 'Nome do solicitante'

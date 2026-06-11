@@ -1005,6 +1005,152 @@ function humanizarPontuacaoGerada(texto) {
     return t;
 }
 
+/** Verifica se a resposta reflete a solução implementada (não exige cópia literal). */
+function respostaRefleteSolucaoImplementada(resposta, solucaoImplementada) {
+    if (!solucaoImplementada || !String(solucaoImplementada).trim()) return true;
+    if (!resposta || typeof resposta !== 'string') return false;
+
+    const sol = String(solucaoImplementada).toLowerCase().trim();
+    const resp = resposta.toLowerCase();
+
+    const trechoDireto = sol.length <= 50 ? sol : sol.substring(0, 50);
+    if (resp.includes(trechoDireto)) return true;
+
+    const stopwords = new Set([
+        'para', 'como', 'sobre', 'apos', 'após', 'desde', 'pela', 'pelo', 'pelas', 'pelos',
+        'com', 'sem', 'que', 'uma', 'uns', 'uma', 'uns', 'das', 'dos', 'nos', 'nas', 'foi',
+        'ser', 'esta', 'está', 'este', 'essa', 'esse', 'isso', 'caso', 'cliente', 'velotax'
+    ]);
+    const palavras = sol
+        .split(/\s+/)
+        .map(p => p.replace(/[^a-záàâãéêíóôõúç0-9]/gi, ''))
+        .filter(p => p.length >= 4 && !stopwords.has(p));
+
+    if (palavras.length === 0) {
+        return resp.includes(sol.substring(0, Math.min(25, sol.length)));
+    }
+
+    const correspondencias = palavras.filter(p => resp.includes(p)).length;
+    const minimo = Math.max(2, Math.ceil(palavras.length * 0.35));
+    return correspondencias >= minimo;
+}
+
+function normalizarTextoTipo(t) {
+    return String(t || '').toLowerCase().trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Configuração da janela de aprendizado (planilha) — janela móvel, sem corte fixo por padrão. */
+function obterConfigAprendizado() {
+    const env = loadEnvFile();
+    const janelaDias = parseInt(env.APRENDIZADO_JANELA_DIAS, 10) || 90;
+    const dataMinimaStr = (env.APRENDIZADO_DATA_MINIMA || '').trim();
+    const filtroQualidade = env.APRENDIZADO_FILTRO_QUALIDADE !== 'false';
+    let dataMinima = null;
+    if (dataMinimaStr && dataMinimaStr.toLowerCase() !== 'none' && dataMinimaStr.toLowerCase() !== 'off') {
+        const m = dataMinimaStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) {
+            dataMinima = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+        }
+    }
+    return { janelaDias, dataMinima, filtroQualidade };
+}
+
+function parseDataRegistroPlanilha(registro) {
+    const raw = registro['Data/Hora'] || registro['Data do Registro'] || registro.timestamp || registro[0] || '';
+    if (!raw) return null;
+    const s = String(raw).trim();
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) {
+        const d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const iso = new Date(s);
+    return isNaN(iso.getTime()) ? null : iso;
+}
+
+function registroDentroJanelaAprendizado(registro, config) {
+    const data = parseDataRegistroPlanilha(registro);
+    if (!data) return false;
+    const hoje = new Date();
+    hoje.setHours(23, 59, 59, 999);
+    if (config.dataMinima && data < config.dataMinima) return false;
+    const limite = new Date(hoje);
+    limite.setDate(limite.getDate() - config.janelaDias);
+    limite.setHours(0, 0, 0, 0);
+    return data >= limite && data <= hoje;
+}
+
+function textoTemTomAntigoAprendizado(texto) {
+    if (!texto || typeof texto !== 'string') return false;
+    const t = texto.toLowerCase();
+    return [
+        'agradecemos', 'agradeço', 'lamentamos', 'sentimos muito', 'pedimos desculpas',
+        'recebemos sua manifestação', 'agradecemos a oportunidade', 'compreendemos o transtorno'
+    ].some(p => t.includes(p));
+}
+
+function textoCitaLegalSemSolucao(resposta, solucao) {
+    if (!resposta) return false;
+    const r = resposta.toLowerCase();
+    const termos = ['lgpd', 'ccb', 'código de defesa', 'codigo de defesa', 'cdc', 'cláusula', 'clausula'];
+    if (!termos.some(term => r.includes(term))) return false;
+    const s = (solucao || '').toLowerCase();
+    return !termos.some(term => s.includes(term));
+}
+
+function registroQualidadeAprendizado(registro, tipo) {
+    const solucao = registro['Solução Implementada'] || registro.solucao_implementada
+        || registro.dadosFormulario?.solucao_implementada || '';
+    const texto = tipo === 'feedback'
+        ? (registro['Resposta Reformulada'] || registro.respostaReformulada || '')
+        : (registro['Resposta Aprovada'] || registro.respostaAprovada || '');
+    if (textoTemTomAntigoAprendizado(texto)) return false;
+    if (textoCitaLegalSemSolucao(texto, solucao)) return false;
+    if (solucao && respostaRefleteSolucaoImplementada(texto, solucao) === false) return false;
+    return true;
+}
+
+function filtrarRegistrosAprendizado(registros, tipo) {
+    const config = obterConfigAprendizado();
+    const antes = registros.length;
+    let filtrados = registros.filter(r => registroDentroJanelaAprendizado(r, config));
+    const aposJanela = filtrados.length;
+    if (config.filtroQualidade) {
+        filtrados = filtrados.filter(r => registroQualidadeAprendizado(r, tipo));
+    }
+    if (antes > filtrados.length) {
+        const corteExtra = config.dataMinima ? `, mínimo ${config.dataMinima.toLocaleDateString('pt-BR')}` : '';
+        console.log(`📅 Aprendizado [${tipo}]: ${antes} → ${filtrados.length} (janela móvel ${config.janelaDias}d${corteExtra}, qualidade=${config.filtroQualidade})`);
+    }
+    return filtrados;
+}
+
+function montarTextoFallbackRespostaRA(dadosFormulario) {
+    const solucao = dadosFormulario.solucao_implementada;
+    const historico = dadosFormulario.historico_atendimento;
+    const observacoes = dadosFormulario.observacoes_internas;
+    const partes = [];
+
+    if (solucao) {
+        partes.push(`Conforme registrado, ${solucao.endsWith('.') ? solucao : solucao + '.'}`);
+    }
+
+    if (historico && historico !== 'Nenhum') {
+        partes.push(`Histórico de atendimento: ${historico.endsWith('.') ? historico : historico + '.'}`);
+    }
+
+    if (observacoes && observacoes !== 'Nenhuma') {
+        partes.push(`${observacoes.endsWith('.') ? observacoes : observacoes + '.'}`);
+    }
+
+    if (partes.length === 0) {
+        partes.push('A solicitação foi analisada e a solução registrada foi implementada conforme os procedimentos do Velotax.');
+    }
+
+    return partes.join('\n\n');
+}
+
 function normalizarNomeVelotax(texto) {
     if (!texto || typeof texto !== 'string') return texto;
     const urls = [];
@@ -1105,6 +1251,32 @@ function extrairNomesDaRespostaPublica(respostaPublica) {
     return out;
 }
 
+/** Remove saudação, apresentação, contatos e assinatura — retorna só o miolo para aprendizado/cópia. */
+function extrairMioloRespostaRA(respostaTexto) {
+    if (!respostaTexto || typeof respostaTexto !== 'string') return respostaTexto || '';
+
+    let textoLimpo = humanizarPontuacaoGerada(respostaTexto).trim();
+
+    textoLimpo = textoLimpo.replace(/^(Olá|Oi|Prezado\(a\)?\s+cliente|Prezado\s+cliente|Prezada\s+cliente)[^!\n]*[!.,]\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Sou\s+(?:(?:o|a)\s+)?[^,]+,\s+(?:especialista|analista)[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^[^,]+,\s+(?:especialista|analista)\s+de\s+atendimento[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*Recebemos[^.]*\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^Espero\s+que\s+esteja\s+bem[.!]?\s*/i, '');
+    textoLimpo = textoLimpo.replace(/^[^.]*recebemos\s+sua\s+manifestação[^.]*\.\s*/i, '');
+
+    textoLimpo = reduzirAgradecimentosExcessivos(textoLimpo);
+
+    textoLimpo = textoLimpo.replace(/\n*Permanecemos\s+à\s+disposição[^.]*\.\s*/gi, '');
+    textoLimpo = textoLimpo.replace(/\n*📞\s*3003-7293[^\n]*\n*/g, '');
+    textoLimpo = textoLimpo.replace(/\n*📞\s*0800-800-0049[^\n]*\n*/g, '');
+    textoLimpo = textoLimpo.replace(/\n*🌐\s*www\.velotax\.com\.br\s*/g, '');
+    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*[^\n]*\s*\n*Equipe\s+de\s+Atendimento[^\n]*$/i, '');
+    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*Equipe\s+Velotax\s*$/i, '');
+
+    return normalizarNomeVelotax(textoLimpo.replace(/\n{3,}/g, '\n\n').trim());
+}
+
 // Função para formatar resposta RA com a estrutura solicitada
 function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
     if (!respostaTexto || typeof respostaTexto !== 'string') {
@@ -1153,40 +1325,9 @@ function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
         }
         // Se tem estrutura mas está incompleta, remover e refazer
     }
-    
-    // Limpar qualquer estrutura antiga ou incompleta
-    let textoLimpo = respostaTexto.trim();
-    
-    // Remover saudações antigas
-    textoLimpo = textoLimpo.replace(/^(Olá|Oi|Prezado\(a\)?\s+cliente|Prezado\s+cliente|Prezada\s+cliente)[^!]*[!.,]\s*/i, '');
-    
-    // Remover apresentações antigas (com ou sem artigo; ou frase sem nome próprio)
-    textoLimpo = textoLimpo.replace(/^Sou\s+(?:(?:o|a)\s+)?[^,]+,\s+(?:especialista|analista)[^.]*\.\s*/i, '');
-    textoLimpo = textoLimpo.replace(/^[^,]+,\s+(?:especialista|analista)\s+de\s+atendimento[^.]*\.\s*/i, '');
-    textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*Recebemos[^.]*\.\s*/i, '');
-    textoLimpo = textoLimpo.replace(/^Sou analista de atendimento do Velotax\.\s*/i, '');
-    
-    // Remover "Espero que esteja bem" se estiver sozinho
-    textoLimpo = textoLimpo.replace(/^Espero\s+que\s+esteja\s+bem[.!]?\s*/i, '');
-    
-    // Remover "recebemos sua manifestação" se estiver no início
-    textoLimpo = textoLimpo.replace(/^[^.]*recebemos\s+sua\s+manifestação[^.]*\.\s*/i, '');
-    
-    textoLimpo = reduzirAgradecimentosExcessivos(textoLimpo);
-    
-    // Remover informações de contato antigas
-    textoLimpo = textoLimpo.replace(/\n*Permanecemos\s+à\s+disposição[^.]*\.\s*/gi, '');
-    textoLimpo = textoLimpo.replace(/\n*📞\s*3003-7293[^\n]*\n*/g, '');
-    textoLimpo = textoLimpo.replace(/\n*📞\s*0800-800-0049[^\n]*\n*/g, '');
-    textoLimpo = textoLimpo.replace(/\n*🌐\s*www\.velotax\.com\.br\s*/g, '');
-    
-    // Remover assinaturas antigas
-    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*[^\n]*\s*\n*Equipe\s+de\s+Atendimento[^\n]*$/i, '');
-    textoLimpo = textoLimpo.replace(/\n*Atenciosamente,?\s*\n*Equipe\s+Velotax\s*$/i, '');
-    
-    // Limpar espaços extras e linhas vazias no início e fim
-    textoLimpo = textoLimpo.trim();
-    
+
+    const textoLimpo = extrairMioloRespostaRA(respostaTexto);
+
     // Usar nome do cliente se disponível, senão usar "cliente"
     const saudacaoCliente = nomeCliente && nomeCliente.trim() !== '' ? nomeCliente : 'cliente';
     
@@ -1228,6 +1369,13 @@ DADOS ESPECÍFICOS DO CASO:
 - Texto do cliente: ${dadosFormulario.texto_cliente}
 - Histórico de atendimento: ${dadosFormulario.historico_atendimento}
 - Nome do solicitante (usar na saudação "Olá, [nome]!"): ${dadosFormulario.nome_solicitante || 'não informado'}
+
+🔒 FONTE DE VERDADE (PRIORIDADE ABSOLUTA):
+A "Solução implementada" acima é a única fonte autorizada para fatos, datas, valores, status, prazos e conclusões.
+- NÃO invente, suponha nem complete lacunas com conhecimento genérico ou de outros casos
+- NÃO copie fatos de modelos da base de aprendizado se divergirem desta solução implementada
+- Os modelos aprovados servem apenas para tom, estrutura e estilo de redação
+- Se a solução implementada não mencionar LGPD, CCB, CDC ou cláusulas, NÃO as inclua
 
 🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
@@ -1314,52 +1462,103 @@ Gere APENAS o conteúdo explicativo do meio da resposta.`;
 
 // Função auxiliar para gerar contexto específico por tipo de solicitação
 function gerarContextoEspecifico(tipoSolicitacao) {
+    const chave = String(tipoSolicitacao || '').toLowerCase().trim();
     const contextos = {
-        'exclusao-cadastro': `
-🔹 EXCLUSÃO DE CADASTRO:
-- Descreva exclusão e remoção de dados conforme a solução implementada (prazos e status só se constarem nela)
-- Remoção de dados e fim de comunicações conforme registrado
-- Não cite LGPD nem artigos da lei salvo se estiverem na solução implementada ou forem indispensáveis ao relato do que foi feito`,
-
-        'liberacao-chave-pix': `
-🔹 LIBERAÇÃO DE CHAVE PIX:
-- Desvinculação/liberação da chave Pix conforme a solução implementada
-- Verificação de quitação ou status da operação quando constar nos dados
-- Liberação para uso em outras instituições se for o caso registrado
-- Prazos apenas se estiverem na solução implementada ou histórico`,
-
-        'antecipacao-restituicao': `
+        'antecipacao': `
 🔹 ANTECIPAÇÃO DE RESTITUIÇÃO:
 - Descreva a operação e etapas com base na solução implementada
 - Análise de elegibilidade e processamento apenas conforme registrado
 - Custos e prazos com transparência factual, sem valores ou prazos inventados`,
 
-        'quitação-antecipada': `
-🔹 QUITAÇÃO ANTECIPADA:
-- Liquidação ou quitação conforme a solução implementada
-- Valores e encargos apenas se constarem nos dados fornecidos
-- Evite citar cláusulas da CCB salvo se estiverem na solução implementada`,
+        'antecipacao-2026': `
+🔹 ANTECIPAÇÃO 2026:
+- Descreva a operação e etapas com base na solução implementada
+- Análise de elegibilidade e processamento apenas conforme registrado
+- Custos e prazos com transparência factual, sem valores ou prazos inventados`,
+
+        'aplicativo': `
+🔹 APLICATIVO:
+- Esclareça o que foi feito no app conforme a solução implementada
+- Status de cadastro, operação ou funcionalidade apenas se constarem nos dados`,
+
+        'conta-celcoin': `
+🔹 CONTA CELCOIN:
+- Descreva status da conta, movimentações ou bloqueios conforme a solução implementada
+- Prazos e valores apenas se constarem nos dados fornecidos`,
+
+        'credito-ao-trabalhador': `
+🔹 CRÉDITO AO TRABALHADOR:
+- Explique o que foi feito no consignado/crédito conforme a solução implementada
+- Desconto em folha, contrato ou status apenas conforme registrado`,
+
+        'clube-velotax': `
+🔹 CLUBE VELOTAX:
+- Descreva adesão, benefícios ou cancelamento conforme a solução implementada
+- Créditos, cupons ou Vibe apenas se constarem nos dados`,
+
+        'emprestimo-pessoal': `
+🔹 EMPRÉSTIMO PESSOAL:
+- Explique contrato, parcelas ou quitação conforme a solução implementada
+- Valores, prazos e status apenas conforme registrado`,
+
+        'seguros': `
+🔹 SEGUROS:
+- Descreva apólice, cobertura, cancelamento ou sinistro conforme a solução implementada
+- Seguradora e prazos apenas se constarem nos dados`,
+
+        'incoerente': `
+🔹 RECLAMAÇÃO INCOERENTE:
+- Esclareça os fatos reais conforme a solução implementada
+- Confronte objetivamente o relato do cliente com o que foi registrado`,
+
+        'em-cobranca': `
+🔹 EM COBRANÇA:
+- Descreva status de cobrança, quitação ou acordo conforme a solução implementada
+- Valores e prazos apenas se constarem nos dados`,
+
+        'veloprime': `
+🔹 VELOPRIME:
+- Explique adesão, benefícios ou cancelamento conforme a solução implementada`,
+
+        'divida-prescrita': `
+🔹 DÍVIDA PRESCRITA:
+- Esclareça status da dívida conforme a solução implementada
+- Não invente fundamentação jurídica além do registrado`,
+
+        'juros-abusivos': `
+🔹 JUROS ABUSIVOS:
+- Explique cálculo, contrato ou quitação conforme a solução implementada
+- Valores e encargos apenas se constarem nos dados`,
+
+        'exclusao-cadastro': `
+🔹 EXCLUSÃO DE CADASTRO:
+- Descreva exclusão e remoção de dados conforme a solução implementada (prazos e status só se constarem nela)
+- Remoção de dados e fim de comunicações conforme registrado
+- Não cite LGPD nem artigos da lei salvo se estiverem na solução implementada`,
+
+        'liberacao-chave-pix': `
+🔹 LIBERAÇÃO DE CHAVE PIX:
+- Desvinculação/liberação da chave Pix conforme a solução implementada
+- Verificação de quitação ou status da operação quando constar nos dados
+- Prazos apenas se estiverem na solução implementada ou histórico`,
 
         'esclarecimento': `
 🔹 ESCLARECIMENTO:
-- Esclarecimento completo sobre a operação
-- Transparência nos processos e prazos
-- Explicação técnica da antecipação de restituição
-- Conformidade com regulamentação aplicável
-- Compromisso com a clareza e transparência`
+- Esclarecimento completo sobre a operação conforme a solução implementada
+- Transparência nos processos e prazos apenas quando constarem nos dados`
     };
 
-    return contextos[tipoSolicitacao] || `
-🔹 SOLICITAÇÃO GERAL:
-- Análise específica do caso apresentado
-- Aplicação das melhores práticas do Velotax
-- Conformidade com regulamentação aplicável
-- Transparência e compromisso com a satisfação
-- Especialização em antecipação de restituição`;
+    if (contextos[chave]) return contextos[chave];
+
+    return `
+🔹 SOLICITAÇÃO (${tipoSolicitacao || 'geral'}):
+- Análise específica do caso apresentado com base na solução implementada
+- Descreva apenas fatos, prazos e status registrados nos dados fornecidos
+- Não complete lacunas com informações genéricas ou de outros casos`;
 }
 
 // Reformular script com conhecimento da planilha
-function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario) {
+function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario, conhecimentoExtra = '') {
     let promptFinal = scriptPadrao;
     
     // Filtrar modelos com resposta válida primeiro
@@ -1393,12 +1592,11 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario)
                 promptFinal += `\n`;
             });
             
-            promptFinal += '\n🎯 INSTRUÇÃO: Analise cuidadosamente estas respostas aprovadas. Observe:\n';
-            promptFinal += '   - A estrutura e organização do texto\n';
-            promptFinal += '   - O tom profissional e objetivo usado (sem excesso de agradecimentos)\n';
-            promptFinal += '   - Como integram a solução implementada com o problema do cliente\n';
-            promptFinal += '   - Referências a LGPD, CCB ou CDC somente quando coerentes com a solução implementada deste caso (não por hábito)\n';
-            promptFinal += '   - A personalização para cada caso específico\n\n';
+            promptFinal += '\n🎯 INSTRUÇÃO: Use estes modelos APENAS para tom, estrutura e estilo de redação:\n';
+            promptFinal += '   - NÃO copie fatos, datas, valores ou conclusões de modelos de outros casos\n';
+            promptFinal += '   - Os fatos devem vir EXCLUSIVAMENTE da solução implementada deste caso\n';
+            promptFinal += '   - Observe estrutura, tom objetivo e integração entre problema e solução\n';
+            promptFinal += '   - Referências a LGPD, CCB ou CDC somente se constarem na solução implementada deste caso\n\n';
         }
         
         // Adicionar feedbacks relevantes COMPLETOS
@@ -1423,13 +1621,18 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario)
         
         promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
         promptFinal += '\n🎯 INSTRUÇÃO CRÍTICA FINAL:\n';
-        promptFinal += 'Use TODA a base de conhecimento acima para gerar uma resposta de ALTA QUALIDADE desde o início.\n';
-        promptFinal += 'Siga os padrões das respostas aprovadas e evite os erros dos feedbacks.\n';
-        promptFinal += 'Sua resposta deve ser TÃO BOA QUANTO as respostas aprovadas mostradas acima.\n';
-        promptFinal += 'Não gere uma resposta genérica - use os dados específicos fornecidos e o conhecimento da base.\n\n';
+        promptFinal += 'Prioridade 1: fidelidade total à solução implementada deste caso (fonte de verdade).\n';
+        promptFinal += 'Prioridade 2: tom e estrutura dos modelos aprovados (sem copiar fatos de outros casos).\n';
+        promptFinal += 'Prioridade 3: evitar erros listados nos feedbacks.\n';
+        promptFinal += 'Não gere resposta genérica nem invente informação além dos dados fornecidos.\n\n';
     } else {
         console.log('⚠️ AVISO: Nenhum conhecimento da base de aprendizado disponível');
-        promptFinal += '\n\n⚠️ AVISO: Gerando resposta sem base de aprendizado. Siga rigorosamente o script padrão.\n\n';
+        promptFinal += '\n\n⚠️ AVISO: Gerando resposta sem base de aprendizado. Siga rigorosamente o script padrão e a solução implementada.\n\n';
+    }
+
+    if (conhecimentoExtra && conhecimentoExtra.trim()) {
+        promptFinal += conhecimentoExtra;
+        promptFinal += '\n🎯 INSTRUÇÃO: O conhecimento de produto acima complementa o contexto, mas NÃO substitui nem contradiz a solução implementada deste caso.\n\n';
     }
     
     return promptFinal;
@@ -1551,15 +1754,18 @@ async function carregarModelosCoerentesDaPlanilha(tipoSolicitacao) {
         }
         
         // Filtrar modelos relevantes para o tipo de solicitação E que tenham resposta aprovada
-        const modelos = todosModelos.filter(modelo => {
-            const tipoSituacao = modelo['Tipo Solicitação'] || modelo.tipo_situacao || '';
+        let modelos = todosModelos.filter(modelo => {
+            const tipoSituacao = normalizarTextoTipo(modelo['Tipo Solicitação'] || modelo.tipo_situacao || '');
+            const tipoBusca = normalizarTextoTipo(tipoSolicitacao);
             const temResposta = !!(modelo['Resposta Aprovada'] || modelo.respostaAprovada);
             const respostaValida = (modelo['Resposta Aprovada'] || modelo.respostaAprovada || '').trim().length > 0;
-            
-            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase()) && temResposta && respostaValida;
+            const tipoCompativel = tipoSituacao.includes(tipoBusca) || tipoBusca.includes(tipoSituacao);
+            return tipoCompativel && temResposta && respostaValida;
         });
-        
-        console.log(`✅ Carregados ${modelos.length} modelos coerentes da planilha (com resposta válida)`);
+
+        modelos = filtrarRegistrosAprendizado(modelos, 'coerente');
+
+        console.log(`✅ Carregados ${modelos.length} modelos coerentes da planilha (com resposta válida, janela aplicada)`);
         return modelos;
         
     } catch (error) {
@@ -1586,8 +1792,10 @@ async function carregarModeracoesCoerentesDaPlanilha() {
             return [];
         }
         
-        console.log(`📋 ${todasModeracoes.length} moderações coerentes carregadas da planilha`);
-        return todasModeracoes;
+        let moderacoes = todasModeracoes.filter(m => registroDentroJanelaAprendizado(m, obterConfigAprendizado()));
+
+        console.log(`📋 ${moderacoes.length} moderações coerentes carregadas da planilha (janela aplicada, de ${todasModeracoes.length})`);
+        return moderacoes;
         
     } catch (error) {
         console.error('❌ Erro ao carregar moderações coerentes da planilha:', error.message);
@@ -1613,8 +1821,10 @@ async function carregarFeedbacksModeracoesDaPlanilha() {
             return [];
         }
         
-        console.log(`📋 ${todosFeedbacks.length} feedbacks de moderação carregados da planilha`);
-        return todosFeedbacks;
+        let feedbacks = todosFeedbacks.filter(m => registroDentroJanelaAprendizado(m, obterConfigAprendizado()));
+
+        console.log(`📋 ${feedbacks.length} feedbacks de moderação carregados da planilha (janela aplicada, de ${todosFeedbacks.length})`);
+        return feedbacks;
         
     } catch (error) {
         console.error('❌ Erro ao carregar feedbacks de moderação da planilha:', error.message);
@@ -1641,12 +1851,15 @@ async function carregarFeedbacksRelevantesDaPlanilha(tipoSolicitacao) {
         }
         
         // Filtrar feedbacks relevantes para o tipo de solicitação
-        const feedbacks = todosFeedbacks.filter(feedback => {
-            const tipoSituacao = feedback['Tipo Solicitação'] || feedback.tipoSituacao || '';
-            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase());
+        let feedbacks = todosFeedbacks.filter(feedback => {
+            const tipoSituacao = normalizarTextoTipo(feedback['Tipo Solicitação'] || feedback.tipoSituacao || '');
+            const tipoBusca = normalizarTextoTipo(tipoSolicitacao);
+            return tipoSituacao.includes(tipoBusca) || tipoBusca.includes(tipoSituacao);
         });
-        
-        console.log(`✅ Carregados ${feedbacks.length} feedbacks relevantes da planilha`);
+
+        feedbacks = filtrarRegistrosAprendizado(feedbacks, 'feedback');
+
+        console.log(`✅ Carregados ${feedbacks.length} feedbacks relevantes da planilha (janela aplicada)`);
         return feedbacks;
         
     } catch (error) {
@@ -1861,13 +2074,17 @@ async function saveModelosRespostas(modelos) {
 // Adicionar modelo de resposta aprovada
 async function addModeloResposta(dadosFormulario, respostaAprovada, userData = null) {
     console.log('🚀 FUNÇÃO addModeloResposta INICIADA!');
+    const respostaMiolo = extrairMioloRespostaRA(respostaAprovada);
+    if (respostaMiolo.length < respostaAprovada.length) {
+        console.log(`✂️ Resposta coerente normalizada para miolo: ${respostaAprovada.length} → ${respostaMiolo.length} chars`);
+    }
     console.log('📝 Dados recebidos:', {
         tipo_solicitacao: dadosFormulario.tipo_solicitacao,
         id_reclamacao: dadosFormulario.id_reclamacao,
-        resposta_length: respostaAprovada ? respostaAprovada.length : 0,
+        resposta_length: respostaMiolo ? respostaMiolo.length : 0,
         userData: userData ? `${userData.nome} (${userData.email})` : 'N/A'
     });
-    
+
     const modelos = await loadModelosRespostas();
     console.log('📚 Modelos carregados:', modelos.modelos ? modelos.modelos.length : 0);
     
@@ -1877,7 +2094,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
         tipo_situacao: dadosFormulario.tipo_solicitacao,
         id_reclamacao: dadosFormulario.id_reclamacao,
         dadosFormulario: dadosFormulario,
-        respostaAprovada: respostaAprovada,
+        respostaAprovada: respostaMiolo,
         userData: userData, // Incluir dados do usuário
         contexto: {
             tipoSituacao: dadosFormulario.tipo_solicitacao,
@@ -1918,7 +2135,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     
     // Também adicionar ao aprendizado direto do script
     console.log('🧠 Adicionando ao aprendizado do script...');
-    await addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.id_reclamacao, respostaAprovada, dadosFormulario, userData);
+    await addRespostaCoerenteAprendizado(dadosFormulario.tipo_solicitacao, dadosFormulario.id_reclamacao, respostaMiolo, dadosFormulario, userData);
     console.log('✅ Aprendizado do script concluído');
     
     // IMPORTANTE: Se houve feedback anterior, salvar também no aprendizado
@@ -1927,8 +2144,8 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
         await addFeedbackAprendizado(
             dadosFormulario.tipo_solicitacao,
             dadosFormulario.feedback_anterior,
-            respostaAprovada,
-            dadosFormulario.resposta_anterior,
+            respostaMiolo,
+            extrairMioloRespostaRA(dadosFormulario.resposta_anterior),
             userData
         );
         console.log('✅ Feedback anterior salvo no aprendizado');
@@ -2857,15 +3074,17 @@ function loadFeedbacks() {
 // Adicionar feedback de resposta (APENAS para aba Respostas RA)
 async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, respostaReformulada, userData = null) {
     const feedbacks = loadFeedbacksRespostas();
-    
+    const respostaAnteriorMiolo = extrairMioloRespostaRA(respostaAnterior);
+    const respostaReformuladaMiolo = extrairMioloRespostaRA(respostaReformulada);
+
     const novoFeedback = {
         id: Date.now(),
         timestamp: obterTimestampBrasil(),
         tipo: 'resposta',
         dadosFormulario: dadosFormulario,
-        respostaAnterior: respostaAnterior,
+        respostaAnterior: respostaAnteriorMiolo,
         feedback: feedback,
-        respostaReformulada: respostaReformulada,
+        respostaReformulada: respostaReformuladaMiolo,
         userData: userData,
         contexto: {
             tipoSituacao: dadosFormulario.tipo_solicitacao || dadosFormulario.tipoSituacao,
@@ -2882,7 +3101,7 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
     await saveFeedbacksRespostas(feedbacksCopy);
     
     // Também adicionar ao aprendizado direto do script
-    await addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformulada, respostaAnterior, userData);
+    await addFeedbackAprendizado(dadosFormulario.tipo_solicitacao, feedback, respostaReformuladaMiolo, respostaAnteriorMiolo, userData);
     
     // Registrar no Google Sheets usando fila robusta se disponível
     if (googleSheetsQueueRobust && googleSheetsIntegration && googleSheetsIntegration.isActive()) {
@@ -2893,9 +3112,9 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
                 data: {
                     tipo: 'resposta',
                     dadosFormulario: dadosFormulario,
-                    respostaAnterior: respostaAnterior,
+                    respostaAnterior: respostaAnteriorMiolo,
                     feedback: feedback,
-                    respostaReformulada: respostaReformulada,
+                    respostaReformulada: respostaReformuladaMiolo,
                     userData: userData,
                     timestamp: novoFeedback.timestamp
                 },
@@ -2913,9 +3132,9 @@ async function addRespostaFeedback(dadosFormulario, respostaAnterior, feedback, 
                 await googleSheetsIntegration.registrarFeedback({
                     tipo: 'resposta',
                     dadosFormulario: dadosFormulario,
-                    respostaAnterior: respostaAnterior,
+                    respostaAnterior: respostaAnteriorMiolo,
                     feedback: feedback,
-                    respostaReformulada: respostaReformulada,
+                    respostaReformulada: respostaReformuladaMiolo,
                     userData: userData,
                     timestamp: novoFeedback.timestamp
                 });
@@ -5425,98 +5644,12 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             nome_solicitante: dadosFormulario.nome_solicitante || 'não informado'
         });
         
-        // SISTEMA DE APRENDIZADO SIMPLES E DIRETO
-        let conhecimentoFeedback = '';
-        let modelosCoerentes = [];
-        let feedbacksRelevantes = [];
-        
-        console.log('🧠 SISTEMA DE APRENDIZADO SIMPLES: Iniciando consulta direta à planilha...');
-        
-        // Verificar se Google Sheets está ativo
-        if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
-            try {
-                console.log('📚 CONSULTANDO PLANILHA DIRETAMENTE...');
-                
-                // Carregar modelos coerentes da planilha
-                modelosCoerentes = await carregarModelosCoerentesDaPlanilha(dadosFormulario.tipo_solicitacao);
-                console.log(`✅ MODELOS ENCONTRADOS: ${modelosCoerentes.length} modelos coerentes na planilha`);
-                
-                // Carregar feedbacks da planilha
-                feedbacksRelevantes = await carregarFeedbacksRelevantesDaPlanilha(dadosFormulario.tipo_solicitacao);
-                console.log(`✅ FEEDBACKS ENCONTRADOS: ${feedbacksRelevantes.length} feedbacks relevantes na planilha`);
-                
-                // APLICAR MODELOS COERENTES
-                if (modelosCoerentes.length > 0) {
-                    console.log('🎯 APLICANDO MODELOS COERENTES DA PLANILHA!');
-                    conhecimentoFeedback += '\n\n🧠 MODELOS COERENTES DA PLANILHA (SEGUIR ESTE PADRÃO):\n';
-                    conhecimentoFeedback += `Baseado em ${modelosCoerentes.length} respostas aprovadas como "coerentes" para situações similares:\n\n`;
-                    
-                    modelosCoerentes.forEach((modelo, index) => {
-                        const resposta = modelo['Resposta Aprovada'] || modelo.respostaAprovada || '';
-                        // Pular modelos sem resposta válida
-                        if (!resposta || resposta.trim().length === 0) {
-                            return;
-                        }
-                        
-                        conhecimentoFeedback += `📋 MODELO ${index + 1} (${modelo.tipo_situacao || modelo.dadosFormulario?.tipo_solicitacao || modelo['Tipo Solicitação'] || 'N/A'}):\n`;
-                        conhecimentoFeedback += `   📅 Data: ${modelo.timestamp || 'N/A'}\n`;
-                        conhecimentoFeedback += `   🎯 Motivo: ${modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao || modelo['Motivo Solicitação'] || 'N/A'}\n`;
-                        conhecimentoFeedback += `   🔧 Solução: ${modelo.solucao_implementada || modelo.dadosFormulario?.solucao_implementada || modelo['Solução Implementada'] || 'N/A'}\n`;
-                        conhecimentoFeedback += `   📝 Resposta aprovada: "${resposta.substring(0, 400)}${resposta.length > 400 ? '...' : ''}"\n\n`;
-                    });
-                    
-                    conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use estes modelos como base para sua resposta. Mantenha a mesma estrutura, tom e abordagem dos modelos aprovados.\n';
-                } else {
-                    console.log('⚠️ NENHUM MODELO COERENTE ENCONTRADO na planilha para esta solicitação');
-                }
-                
-                // APLICAR FEEDBACKS RELEVANTES
-                if (feedbacksRelevantes.length > 0) {
-                    console.log('🎯 APLICANDO FEEDBACKS DA PLANILHA!');
-                    conhecimentoFeedback += '\n\n⚠️ FEEDBACKS DA PLANILHA (EVITAR ESTES ERROS):\n';
-                    conhecimentoFeedback += `Baseado em ${feedbacksRelevantes.length} feedbacks de situações similares:\n\n`;
-                    
-                    feedbacksRelevantes.forEach((fb, index) => {
-                        conhecimentoFeedback += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
-                        conhecimentoFeedback += `   📝 Resposta original: "${fb.respostaAnterior?.substring(0, 150) || 'N/A'}..."\n`;
-                        conhecimentoFeedback += `   ✅ Resposta corrigida: "${fb.respostaReformulada?.substring(0, 150) || 'N/A'}..."\n\n`;
-                    });
-                    
-                    conhecimentoFeedback += '🎯 INSTRUÇÃO: Use este conhecimento para evitar erros similares.\n';
-                } else {
-                    console.log('⚠️ NENHUM FEEDBACK RELEVANTE ENCONTRADO na planilha para esta solicitação');
-                }
-                
-            } catch (error) {
-                console.error('❌ ERRO ao consultar planilha:', error.message);
-                console.log('🔄 Continuando sem aprendizado da planilha...');
-            }
-        } else {
-            console.log('⚠️ GOOGLE SHEETS INATIVO - Continuando sem aprendizado da planilha');
-        }
-        
-        // ADICIONAR CONHECIMENTO DE PRODUTOS SE MENCIONADOS
+        // Carregar base de aprendizado e conhecimento de produtos para o prompt
         const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
         if (conhecimentoProdutos) {
-            conhecimentoFeedback += conhecimentoProdutos;
-            console.log('✅ CONHECIMENTO DE PRODUTOS INCLUÍDO NO PROMPT');
-        }
-        
-        // Verificar se o conhecimento foi construído
-        if (conhecimentoFeedback && conhecimentoFeedback.length > 100) {
-            console.log('✅ CONHECIMENTO DA PLANILHA INCLUÍDO NO PROMPT');
-            console.log('📊 Estatísticas do conhecimento:');
-            console.log(`   - Tamanho: ${conhecimentoFeedback.length} caracteres`);
-            console.log(`   - Contém modelos: ${conhecimentoFeedback.includes('MODELOS COERENTES')}`);
-            console.log(`   - Contém feedbacks: ${conhecimentoFeedback.includes('FEEDBACKS DA PLANILHA')}`);
-            console.log(`   - Contém produtos: ${conhecimentoFeedback.includes('CONHECIMENTO DO PRODUTO')}`);
-        } else {
-            console.log('⚠️ NENHUM CONHECIMENTO DA PLANILHA DISPONÍVEL');
-            console.log('📝 Tamanho do conhecimento:', conhecimentoFeedback?.length || 0);
+            console.log('✅ CONHECIMENTO DE PRODUTOS DETECTADO — será incluído como complemento (sem substituir solução implementada)');
         }
 
-        // USAR O NOVO FLUXO: Script Padrão → Consultar Planilha → Reformular
-        // Primeiro, tentar carregar dados da planilha
         let dadosPlanilha = null;
         try {
             console.log('🔍 [DEBUG] Tentando carregar dados da planilha para:', dadosFormulario.tipo_solicitacao);
@@ -5526,30 +5659,20 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 feedbacks: dadosPlanilha?.feedbacksRelevantes?.length || 0,
                 fonte: dadosPlanilha?.fonte || 'desconhecida'
             });
-            
-            // Log detalhado dos modelos carregados
-            if (dadosPlanilha?.modelosCoerentes?.length > 0) {
-                console.log('📋 [DEBUG] Primeiros modelos carregados:');
-                dadosPlanilha.modelosCoerentes.slice(0, 2).forEach((modelo, index) => {
-                    console.log(`   Modelo ${index + 1}:`, {
-                        tipo: modelo['Tipo Solicitação'] || modelo.dadosFormulario?.tipo_solicitacao,
-                        temResposta: !!(modelo['Resposta Aprovada'] || modelo.respostaAprovada),
-                        tamanhoResposta: (modelo['Resposta Aprovada'] || modelo.respostaAprovada || '').length
-                    });
-                });
-            } else {
-                console.log('⚠️ [DEBUG] NENHUM MODELO COERENTE ENCONTRADO!');
-            }
         } catch (error) {
             console.log('⚠️ Erro ao carregar dados da planilha:', error.message);
             console.log('🔄 Continuando com script padrão...');
         }
-        
+
         const prompt = reformularComConhecimento(
-            gerarScriptPadraoResposta(dadosFormulario), 
-            dadosPlanilha, 
-            dadosFormulario
+            gerarScriptPadraoResposta(dadosFormulario),
+            dadosPlanilha,
+            dadosFormulario,
+            conhecimentoProdutos
         );
+
+        const systemPromptRA = 'Você é um assistente do Velotax para respostas ao Reclame Aqui. A solução implementada é a fonte de verdade: explique apenas o que consta nela e nos demais campos do caso, sem inventar fatos. Modelos da base de aprendizado servem só para tom e estrutura, nunca para copiar fatos de outros casos. Cite LGPD, CCB, CDC ou cláusulas só se constarem na solução implementada. Não agradece pelo contato, pela preocupação ou pela confiança. Sempre escreva "Velotax" com V maiúsculo e no masculino (o Velotax, ao Velotax, do Velotax). A saudação com nome é aplicada pelo sistema após o texto.';
+        const temperatureRA = Math.min(parseFloat(envVars.OPENAI_TEMPERATURE) || 0.5, 0.5);
 
         // Configurar timeout de 30 segundos
         const controller = new AbortController();
@@ -5568,141 +5691,91 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um assistente do Velotax para respostas ao Reclame Aqui. Use reclamação do cliente, solução implementada, histórico e observações como fonte: explique de forma clara e completa o que foi feito, sem inventar fatos. Cite LGPD, CCB, CDC ou cláusulas só se constarem na solução implementada ou forem estritamente necessários ao que foi executado. Evite parágrafos demasiadamente justificativos ou tom de desculpa indireta. Não agradeça pelo contato, pela preocupação ou pela confiança; vá direto ao esclarecimento. Sempre escreva "Velotax" com V maiúsculo e no masculino (o Velotax, ao Velotax, do Velotax). A saudação com nome é aplicada pelo sistema após o texto.'
+                        content: systemPromptRA
                     },
                     {
                         role: 'user',
                         content: prompt
                     }
                 ],
-                temperature: parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7,
+                temperature: temperatureRA,
                 max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
             })
         });
         
         if (response.ok) {
             const data = await response.json();
-            let resposta = data.choices[0].message.content;
-            
-            // Nome do cliente: priorizar "Nome do solicitante" do formulário, depois extrair do texto
+            let conteudoMiolo = data.choices[0].message.content;
+
             const nomeAgente = obterPrimeiroNomeUsuario(userData);
-            const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim()) 
-                ? String(dadosFormulario.nome_solicitante).trim() 
+            const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim())
+                ? String(dadosFormulario.nome_solicitante).trim()
                 : extrairNomeCliente(dadosFormulario.texto_cliente);
-            
-            // Aplicar formatação da resposta RA com a estrutura solicitada (Olá, {nome do solicitante}!)
-            resposta = formatarRespostaRA(resposta, nomeCliente, nomeAgente, userData);
-            
-            // Validação pós-processamento mais rigorosa e específica
+
             const palavrasGenericas = [
-                'situação atual', 'detalhes específicos não foram compartilhados', 
+                'situação atual', 'detalhes específicos não foram compartilhados',
                 'nossa equipe está comprometida', 'analisar todas as solicitações',
                 'embora os detalhes específicos', 'gostaríamos de assegurar',
                 'caso a sua solicitação envolva', 'estamos aqui para esclarecer',
                 'sua situação atual necessitou', 'detalhes específicos do seu caso'
             ];
-            
-            const temGenericas = palavrasGenericas.some(palavra => 
-                resposta.toLowerCase().includes(palavra)
-            );
-            
-            // Verificar se a resposta menciona especificamente a solução implementada
-            const mencionaSolucao = dadosFormulario.solucao_implementada && 
-                resposta.toLowerCase().includes(dadosFormulario.solucao_implementada.toLowerCase().substring(0, 30));
-            
-            // Verificar se a resposta é muito curta (menos de 300 caracteres)
-            const muitoCurta = resposta.length < 300;
-            
-            // Verificar se menciona o tipo de solicitação específico
-            const mencionaTipoSolicitacao = dadosFormulario.tipo_solicitacao && 
-                resposta.toLowerCase().includes(dadosFormulario.tipo_solicitacao.toLowerCase());
-            
-            // Verificar se tem palavras conclusivas
-            const palavrasConclusivas = ['confirmamos', 'concluído', 'finalizado', 'realizado', 'processado', 'implementado', 'resolvido', 'atendido', 'excluído', 'liberado', 'removido', 'cancelado'];
-            const temConclusao = palavrasConclusivas.some(palavra => 
-                resposta.toLowerCase().includes(palavra)
-            );
-            
-            // Verificar se integra o histórico de atendimento
-            const integraHistorico = dadosFormulario.historico_atendimento && 
-                dadosFormulario.historico_atendimento !== 'Nenhum' &&
-                resposta.toLowerCase().includes(dadosFormulario.historico_atendimento.toLowerCase().substring(0, 20));
-            
-            // Verificar se integra as observações internas
-            const integraObservacoes = dadosFormulario.observacoes_internas && 
-                dadosFormulario.observacoes_internas !== 'Nenhuma' &&
-                resposta.toLowerCase().includes(dadosFormulario.observacoes_internas.toLowerCase().substring(0, 20));
-            
-            // Verificar se a resposta foi gerada com aprendizado (contém conhecimentoFeedback)
-            const temAprendizado = conhecimentoFeedback && conhecimentoFeedback.length > 100;
-            
-            if (temAprendizado) {
-                console.log('✅ Resposta gerada com aprendizado aplicado - mantendo resposta da IA');
-            } else {
-                console.log('⚠️ Resposta genérica detectada - NUNCA usar resposta genérica para RA/Moderações');
-                console.log('📝 Formulando resposta específica baseada nos dados fornecidos pelo usuário...');
-                
-                // Extrair informações específicas dos dados
-                const tipoSituacao = dadosFormulario.tipo_solicitacao;
-                const solucao = dadosFormulario.solucao_implementada;
-                const motivo = dadosFormulario.motivo_solicitacao;
-                const historico = dadosFormulario.historico_atendimento;
-                const observacoes = dadosFormulario.observacoes_internas; // compatibilidade com dados antigos
-                
-                // Nome do cliente: priorizar nome do solicitante do formulário
-                const nomeAgente = obterPrimeiroNomeUsuario(userData);
-                const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim()) 
-                    ? String(dadosFormulario.nome_solicitante).trim() 
-                    : extrairNomeCliente(dadosFormulario.texto_cliente);
-                
-                // Criar resposta mais específica e completa baseada nos dados fornecidos
-                const textoResposta = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
 
-${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação e implementamos a solução adequada.'}
+            const respostaValida = (texto) => {
+                if (!texto || texto.length < 120) return false;
+                if (palavrasGenericas.some(p => texto.toLowerCase().includes(p))) return false;
+                return respostaRefleteSolucaoImplementada(texto, dadosFormulario.solucao_implementada);
+            };
 
-${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
+            if (!respostaValida(conteudoMiolo)) {
+                console.log('⚠️ Resposta não reflete a solução implementada — tentando nova geração com instrução reforçada...');
+                const promptRetry = `${prompt}
 
-O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                
-                let respostaEspecifica = formatarRespostaRA(textoResposta, nomeCliente, nomeAgente, userData);
-                
-                // Adicionar contexto específico baseado no tipo de situação
-                if (tipoSituacao.toLowerCase().includes('exclusão') || tipoSituacao.toLowerCase().includes('exclusao')) {
-                    const textoRespostaExclusao = `Agradecemos seu contato e reconhecemos sua solicitação de exclusão de cadastro${motivo ? ' - ' + motivo : ''}.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CORREÇÃO OBRIGATÓRIA (TENTATIVA ANTERIOR REJEITADA)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A resposta anterior não incorporou corretamente a solução implementada.
+Reescreva o miolo da resposta incorporando os fatos abaixo de forma clara e objetiva, sem inventar informação adicional:
 
-${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de exclusão e implementamos a solução adequada.'}
+SOLUÇÃO IMPLEMENTADA (incorporar na resposta):
+${dadosFormulario.solucao_implementada}`;
 
-${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
+                const responseRetry = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        model: envVars.OPENAI_MODEL || 'gpt-4o',
+                        messages: [
+                            { role: 'system', content: systemPromptRA },
+                            { role: 'user', content: promptRetry }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
+                    })
+                });
 
-O processo foi concluído conforme solicitado. Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                    respostaEspecifica = formatarRespostaRA(textoRespostaExclusao, nomeCliente, nomeAgente, userData);
-                } else if (tipoSituacao.toLowerCase().includes('pix') || tipoSituacao.toLowerCase().includes('portabilidade')) {
-                    const textoRespostaPix = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
-
-${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de portabilidade e implementamos a solução adequada.'}
-
-${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
-
-As informações acima correspondem ao que foi registrado na solução implementada para o seu caso.
-
-Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                    respostaEspecifica = formatarRespostaRA(textoRespostaPix, nomeCliente, nomeAgente, userData);
-                } else if (tipoSituacao.toLowerCase().includes('quitação') || tipoSituacao.toLowerCase().includes('liquidação')) {
-                    const textoRespostaQuitacao = `Agradecemos seu contato e reconhecemos sua solicitação de ${tipoSituacao}${motivo ? ' - ' + motivo : ''}.
-
-${solucao ? 'Confirmamos que ' + solucao + '.' : 'Analisamos sua solicitação de quitação e implementamos a solução adequada.'}
-
-${historico && historico !== 'Nenhum' ? 'Considerando o histórico de atendimento: ' + historico + '. ' : ''}${observacoes && observacoes !== 'Nenhuma' ? 'Observamos que: ' + observacoes + '. ' : ''}
-
-Os dados acima refletem o que foi registrado na solução implementada para o seu pedido.
-
-Caso tenha dúvidas, nossa equipe está disponível para esclarecimentos.`;
-                    respostaEspecifica = formatarRespostaRA(textoRespostaQuitacao, nomeCliente, nomeAgente, userData);
+                if (responseRetry.ok) {
+                    const dataRetry = await responseRetry.json();
+                    const conteudoRetry = dataRetry.choices[0].message.content;
+                    if (respostaValida(conteudoRetry)) {
+                        conteudoMiolo = conteudoRetry;
+                        console.log('✅ Retry bem-sucedido — resposta alinhada à solução implementada');
+                    } else {
+                        console.log('⚠️ Retry ainda insuficiente — usando fallback baseado na solução implementada');
+                        conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
+                    }
+                } else {
+                    console.log('⚠️ Falha no retry — usando fallback baseado na solução implementada');
+                    conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
                 }
-                
-                resposta = respostaEspecifica;
+            } else {
+                console.log('✅ Resposta validada — reflete a solução implementada');
             }
-            
+
+            let resposta = formatarRespostaRA(conteudoMiolo, nomeCliente, nomeAgente, userData);
             // Incrementar estatística global
             await incrementarEstatisticaGlobal('respostas_geradas');
             
