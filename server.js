@@ -1040,6 +1040,197 @@ function normalizarTextoTipo(t) {
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+/** Similaridade Jaccard entre duas solicitações (palavras significativas, sem acento). 0 a 1. */
+function calcularSimilaridadeSolicitacao(textoA, textoB) {
+    const stopwords = new Set([
+        'para', 'como', 'sobre', 'apos', 'desde', 'pela', 'pelo', 'pelas', 'pelos', 'com', 'sem',
+        'que', 'uma', 'uns', 'das', 'dos', 'nos', 'nas', 'foi', 'ser', 'esta', 'este', 'essa',
+        'esse', 'isso', 'caso', 'velotax', 'meu', 'minha', 'mas', 'por', 'dia', 'fiz', 'sou'
+    ]);
+    const tokenizar = (t) => new Set(
+        normalizarTextoTipo(t)
+            .split(/\s+/)
+            .map(p => p.replace(/[^a-z0-9]/gi, ''))
+            .filter(p => p.length >= 4 && !stopwords.has(p))
+    );
+    const a = tokenizar(textoA);
+    const b = tokenizar(textoB);
+    if (a.size === 0 || b.size === 0) return 0;
+    let inter = 0;
+    for (const w of a) if (b.has(w)) inter++;
+    const union = a.size + b.size - inter;
+    return union === 0 ? 0 : inter / union;
+}
+
+/** Ordena modelos coerentes pela semelhança do texto do cliente com o caso atual (mais parecido primeiro). */
+function ordenarModelosPorSimilaridade(modelos, dadosFormulario) {
+    const textoAtual = dadosFormulario?.texto_cliente || '';
+    return (modelos || [])
+        .map(m => ({
+            modelo: m,
+            similaridade: calcularSimilaridadeSolicitacao(
+                m['Texto Cliente'] || m.dadosFormulario?.texto_cliente || '',
+                textoAtual
+            )
+        }))
+        .sort((x, y) => y.similaridade - x.similaridade);
+}
+
+// ===== MANUAIS DE MODERAÇÃO DO RECLAME AQUI (base normativa) =====
+const MANUAIS_MODERACAO_FILE = path.join(__dirname, 'manuais-reclame-aqui', 'manuais-moderacao.json');
+let _manuaisModeracaoCache; // undefined = não lido ainda; null = inexistente/vazio; objeto = carregado
+
+/** Carrega a base normativa estruturada dos manuais (cache em memória). Retorna null se vazia/ausente. */
+function carregarManuaisModeracao() {
+    if (_manuaisModeracaoCache !== undefined) return _manuaisModeracaoCache;
+    try {
+        if (!fs.existsSync(MANUAIS_MODERACAO_FILE)) {
+            _manuaisModeracaoCache = null;
+            return null;
+        }
+        const data = JSON.parse(fs.readFileSync(MANUAIS_MODERACAO_FILE, 'utf8'));
+        const manuais = Array.isArray(data?.manuais) ? data.manuais : [];
+        const totalHipoteses = manuais.reduce((n, m) => n + (m.hipoteses?.length || 0), 0);
+        const totalRegras = Array.isArray(data?.regrasAENV) ? data.regrasAENV.length : 0;
+        _manuaisModeracaoCache = (totalHipoteses > 0 || totalRegras > 0) ? data : null;
+        if (_manuaisModeracaoCache) {
+            console.log(`📚 Manuais de moderação carregados: ${manuais.length} manuais, ${totalHipoteses} temas, ${totalRegras} regras AENV`);
+        } else {
+            console.log('📚 manuais-moderacao.json presente, porém sem conteúdo preenchido — base normativa inativa');
+        }
+        return _manuaisModeracaoCache;
+    } catch (e) {
+        console.error('❌ Erro ao carregar manuais de moderação:', e.message);
+        _manuaisModeracaoCache = null;
+        return null;
+    }
+}
+
+/** Seleciona hipóteses de manual relevantes ao caso (por palavras-chave/motivo). */
+function selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA = false, limite = 6 } = {}) {
+    const base = carregarManuaisModeracao();
+    if (!base) return [];
+    const alvo = normalizarTextoTipo(`${textoCaso || ''} ${motivo || ''}`);
+    const motivoNorm = normalizarTextoTipo(motivo || '');
+    const resultados = [];
+    for (const manual of base.manuais || []) {
+        for (const hip of manual.hipoteses || []) {
+            if (paraRespostaRA && hip.aplicaRespostaRA !== true) continue;
+            const chaves = (hip.palavrasChave || []).map(normalizarTextoTipo);
+            let score = 0;
+            for (const ch of chaves) {
+                if (ch && alvo.includes(ch)) score += 2;
+            }
+            if (motivoNorm && normalizarTextoTipo(hip.id || '').includes(motivoNorm)) score += 3;
+            if (score > 0 || paraRespostaRA) {
+                resultados.push({ manual: manual.nome, manualId: manual.id, hip, score });
+            }
+        }
+    }
+    resultados.sort((a, b) => b.score - a.score);
+    return resultados.slice(0, limite);
+}
+
+/** Bloco de fundamentação normativa para prompts de MODERAÇÃO. Vazio se base inativa. */
+function montarBlocoManuaisModeracao(textoCaso, motivo) {
+    const regras = selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA: false, limite: 6 });
+    if (regras.length === 0) return '';
+    let bloco = '\n📚 BASE NORMATIVA — MANUAIS DO RA (hipóteses aplicáveis a este caso):\n';
+    bloco += 'Use estas hipóteses REAIS como fundamento. Só cite uma hipótese se os fatos do caso a sustentarem.\n\n';
+    regras.forEach((r, i) => {
+        bloco += `${i + 1}. [${r.manual}] ${r.hip.titulo}\n`;
+        if (r.hip.quandoSeAplica) bloco += `   Quando se aplica: ${r.hip.quandoSeAplica}\n`;
+        if (Array.isArray(r.hip.criterios) && r.hip.criterios.length) {
+            bloco += `   Critérios: ${r.hip.criterios.join('; ')}\n`;
+        }
+        if (r.hip.comoCitar) bloco += `   Como citar: "${r.hip.comoCitar}"\n`;
+        bloco += '\n';
+    });
+    const { regras: regrasAENV } = obterRegrasAENV();
+    if (regrasAENV.length > 0) {
+        bloco += '⚠️ REGRAS QUE O RA USA PARA NEGAR (garanta que o pedido NÃO esbarre nelas):\n';
+        regrasAENV.forEach((r) => { bloco += `- ${r.titulo}: ${r.reprovaQuando}\n`; });
+        bloco += '\n';
+    }
+    bloco += '🎯 Fundamente a moderação em UMA hipótese acima que os fatos sustentem; cite o manual exatamente como indicado, sem inventar regra.\n';
+    return bloco;
+}
+
+/** Retorna as regras da categoria AENV (bloqueadores de moderação) e requisitos. */
+function obterRegrasAENV() {
+    const base = carregarManuaisModeracao();
+    if (!base) return { regras: [], requisitos: [] };
+    return {
+        regras: Array.isArray(base.regrasAENV) ? base.regrasAENV : [],
+        requisitos: Array.isArray(base.requisitosAENV) ? base.requisitosAENV : []
+    };
+}
+
+/** Checklist de conformidade para prompts de RESPOSTA RA. Vazio se base inativa. */
+function montarChecklistConformidadeRA(textoCaso, motivo) {
+    const { regras } = obterRegrasAENV();
+    const temas = selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA: false, limite: 3 });
+    if (regras.length === 0 && temas.length === 0) return '';
+
+    let bloco = '\n✅ CONFORMIDADE COM OS MANUAIS DO RA (a resposta pública deve respeitar, mantendo a solução implementada):\n';
+    regras.forEach((r) => {
+        if (r.regraRespostaRA) bloco += `- ${r.regraRespostaRA}\n`;
+    });
+    if (temas.length > 0) {
+        bloco += 'Temas do RA possivelmente relacionados a este caso (use só se os fatos sustentarem):\n';
+        temas.forEach((t) => {
+            bloco += `- ${t.hip.titulo}: ${t.hip.quandoSeAplica}\n`;
+        });
+    }
+    bloco += 'Mantenha o tom e a estrutura habituais da resposta; apenas garanta que ela não viole as regras acima nem contradiga a solução implementada.\n\n';
+    return bloco;
+}
+
+/** Bloco de base normativa para a ANÁLISE DE CHANCE de moderação (temas + regras AENV + requisitos). */
+function montarBlocoChanceModeracao(textoCaso, motivo) {
+    const base = carregarManuaisModeracao();
+    if (!base) return '';
+    const { regras, requisitos } = obterRegrasAENV();
+    const temas = selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA: false, limite: 6 });
+
+    let bloco = '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    bloco += '📚 BASE NORMATIVA REAL DOS MANUAIS DO RA (use para calcular a chance real, não suposições):\n';
+    bloco += 'Categoria principal da Velotax: "A empresa não violou o direito do consumidor" (AENV).\n\n';
+
+    if (requisitos.length > 0) {
+        bloco += 'REQUISITOS DA CATEGORIA AENV (se faltar algum, a moderação tende a não ocorrer):\n';
+        requisitos.forEach((r) => { bloco += `- ${r}\n`; });
+        bloco += '\n';
+    }
+
+    if (regras.length > 0) {
+        bloco += '6 REGRAS QUE BLOQUEIAM A MODERAÇÃO (cada regra reprovada REDUZ a chance de aceite — penalização gradual, não zera automaticamente):\n';
+        regras.forEach((r, i) => {
+            bloco += `${i + 1}. ${r.titulo} — reprova quando: ${r.reprovaQuando}\n`;
+        });
+        bloco += '\n';
+    }
+
+    if (temas.length > 0) {
+        bloco += 'TEMAS PASSÍVEIS possivelmente relacionados a este caso (havendo tema aplicável, a chance sobe; sem tema, a chance cai):\n';
+        temas.forEach((t) => {
+            bloco += `- ${t.hip.titulo}: ${t.hip.quandoSeAplica}`;
+            if (Array.isArray(t.hip.criterios) && t.hip.criterios.length) {
+                bloco += ` (critérios: ${t.hip.criterios.join('; ')})`;
+            }
+            bloco += `\n  Como citar: "${t.hip.comoCitar}"\n`;
+        });
+        bloco += '\n';
+    }
+
+    bloco += 'COMO CALCULAR A CHANCE REAL (combine com as faixas da ETAPA 9):\n';
+    bloco += '- Há tema passível aplicável + reclamação avaliada e no prazo? → base da chance.\n';
+    bloco += '- Para cada regra AENV reprovada (falha de atendimento, divergência, mérito, cláusula, resposta genérica), reduza a chance proporcionalmente à gravidade.\n';
+    bloco += '- A chance final deve refletir a probabilidade REAL de o RA aceitar, não o risco reputacional.\n';
+    bloco += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    return bloco;
+}
+
 /** Configuração da janela de aprendizado (planilha) — janela móvel, sem corte fixo por padrão. */
 function obterConfigAprendizado() {
     const env = loadEnvFile();
@@ -1127,26 +1318,31 @@ function filtrarRegistrosAprendizado(registros, tipo) {
 }
 
 function montarTextoFallbackRespostaRA(dadosFormulario) {
-    const solucao = dadosFormulario.solucao_implementada;
-    const historico = dadosFormulario.historico_atendimento;
-    const observacoes = dadosFormulario.observacoes_internas;
+    const solucao = (dadosFormulario.solucao_implementada || '').trim();
+    const historico = (dadosFormulario.historico_atendimento || '').trim();
+    const observacoes = (dadosFormulario.observacoes_internas || '').trim();
     const partes = [];
 
+    const minuscularInicio = (t) => t ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+    const garantirPonto = (t) => t.endsWith('.') || t.endsWith('!') || t.endsWith('?') ? t : t + '.';
+
     if (solucao) {
-        partes.push(`Conforme registrado, ${solucao.endsWith('.') ? solucao : solucao + '.'}`);
+        partes.push(`Sobre a sua solicitação, esclarecemos que ${garantirPonto(minuscularInicio(solucao))}`);
     }
 
-    if (historico && historico !== 'Nenhum') {
-        partes.push(`Histórico de atendimento: ${historico.endsWith('.') ? historico : historico + '.'}`);
+    if (historico && historico.toLowerCase() !== 'nenhum') {
+        partes.push(`Considerando o histórico do atendimento, ${garantirPonto(minuscularInicio(historico))}`);
     }
 
-    if (observacoes && observacoes !== 'Nenhuma') {
-        partes.push(`${observacoes.endsWith('.') ? observacoes : observacoes + '.'}`);
+    if (observacoes && observacoes.toLowerCase() !== 'nenhuma') {
+        partes.push(garantirPonto(observacoes));
     }
 
     if (partes.length === 0) {
-        partes.push('A solicitação foi analisada e a solução registrada foi implementada conforme os procedimentos do Velotax.');
+        partes.push('A sua solicitação foi analisada e a solução registrada foi implementada conforme os procedimentos do Velotax.');
     }
+
+    partes.push('Permanecemos à disposição para qualquer esclarecimento adicional sobre o caso.');
 
     return partes.join('\n\n');
 }
@@ -1443,7 +1639,13 @@ A estrutura completa (saudação com nome do cliente, apresentação do agente, 
 Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
 - Responder diretamente à solicitação do cliente
 - Explicar a solução implementada
-- Ser específico e detalhado
+- DESENVOLVER a resposta em parágrafos completos (normalmente de 3 a 5 parágrafos), nesta ordem:
+  1) Contextualize a situação relatada pelo cliente, com base no texto dele e no histórico
+  2) Explique o que foi efetivamente feito (a solução implementada), de forma técnica e clara
+  3) Mostre COMO essa solução resolve ou responde ao ponto levantado pelo cliente
+  4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
+- Cada parágrafo deve agregar informação nova: não repita a mesma ideia com outras palavras e não use frases de enchimento
+- Ser específico e detalhado, sem ser raso ou telegráfico (evite responder em 1 ou 2 frases soltas)
 - Demonstrar expertise técnica, transparência e compromisso com a satisfação do cliente
 - Estar sempre contextualizado para o Velotax e o tipo de solicitação específica
 - NUNCA incluir pedidos de desculpas ou expressões como "lamentamos", "sentimos muito", "nos desculpamos"
@@ -1572,30 +1774,34 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
         promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
         
         if (modelosComResposta.length > 0) {
-            promptFinal += '\n✅ MODELOS DE RESPOSTAS APROVADAS (siga estes padrões):\n\n';
-            promptFinal += `📊 Total de ${modelosComResposta.length} modelos aprovados para referência:\n\n`;
-            
-            modelosComResposta.slice(0, 5).forEach((modelo, index) => {
+            const ranqueados = ordenarModelosPorSimilaridade(modelosComResposta, dadosFormulario);
+            const selecionados = ranqueados.slice(0, 3);
+
+            promptFinal += '\n✅ MODELOS DE RESPOSTAS APROVADAS (referência de TOM e ESTRUTURA):\n\n';
+            promptFinal += `📊 ${selecionados.length} modelo(s) com a solicitação mais semelhante à atual (de ${modelosComResposta.length} disponíveis):\n\n`;
+
+            selecionados.forEach((item, index) => {
+                const modelo = item.modelo;
                 const resposta = modelo['Resposta Aprovada'] || modelo.respostaAprovada || '';
                 if (!resposta || resposta.trim().length === 0) {
                     return; // Pular modelos sem resposta
                 }
-                
-                promptFinal += `━━━ MODELO ${index + 1} ━━━\n`;
+                const pct = Math.round(item.similaridade * 100);
+
+                promptFinal += `━━━ MODELO ${index + 1} (similaridade da solicitação: ${pct}%) ━━━\n`;
                 promptFinal += `📋 Tipo: ${modelo['Tipo Solicitação'] || modelo.dadosFormulario?.tipo_solicitacao || 'N/A'}\n`;
-                promptFinal += `🎯 Motivo: ${modelo['Motivo Solicitação'] || modelo.dadosFormulario?.motivo_solicitacao || 'N/A'}\n`;
-                promptFinal += `📝 Texto do Cliente: ${modelo['Texto Cliente'] || modelo.dadosFormulario?.texto_cliente || 'N/A'}\n`;
-                promptFinal += `\n✅ RESPOSTA APROVADA (use como referência de qualidade):\n`;
+                promptFinal += `📝 Solicitação do cliente (caso anterior): ${modelo['Texto Cliente'] || modelo.dadosFormulario?.texto_cliente || 'N/A'}\n`;
+                promptFinal += `\n✅ RESPOSTA APROVADA (referência de redação e abordagem):\n`;
                 promptFinal += `${resposta}\n`;
-                promptFinal += `\n💡 Solução Implementada: ${modelo['Solução Implementada'] || modelo.dadosFormulario?.solucao_implementada || 'N/A'}\n`;
-                promptFinal += `📜 Histórico: ${modelo['Histórico Atendimento'] || modelo.dadosFormulario?.historico_atendimento || 'N/A'}\n`;
+                promptFinal += `\n💡 Solução do caso anterior (NÃO reaproveitar fatos): ${modelo['Solução Implementada'] || modelo.dadosFormulario?.solucao_implementada || 'N/A'}\n`;
                 promptFinal += `\n`;
             });
-            
-            promptFinal += '\n🎯 INSTRUÇÃO: Use estes modelos APENAS para tom, estrutura e estilo de redação:\n';
-            promptFinal += '   - NÃO copie fatos, datas, valores ou conclusões de modelos de outros casos\n';
-            promptFinal += '   - Os fatos devem vir EXCLUSIVAMENTE da solução implementada deste caso\n';
-            promptFinal += '   - Observe estrutura, tom objetivo e integração entre problema e solução\n';
+
+            promptFinal += '\n🎯 COMO USAR OS MODELOS ACIMA:\n';
+            promptFinal += '   - Quanto maior a similaridade da solicitação, mais útil é a abordagem/estrutura do modelo para o caso atual\n';
+            promptFinal += '   - Compare a solicitação do cliente do modelo com a solicitação ATUAL e aproveite a forma de explicar nos pontos em que as situações se assemelham\n';
+            promptFinal += '   - Reaproveite APENAS os trechos e abordagens que TAMBÉM se aplicam à solução implementada DESTE caso\n';
+            promptFinal += '   - NÃO copie fatos, datas, valores ou conclusões dos casos anteriores; os fatos vêm EXCLUSIVAMENTE da solução implementada deste caso\n';
             promptFinal += '   - Referências a LGPD, CCB ou CDC somente se constarem na solução implementada deste caso\n\n';
         }
         
@@ -1634,7 +1840,15 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
         promptFinal += conhecimentoExtra;
         promptFinal += '\n🎯 INSTRUÇÃO: O conhecimento de produto acima complementa o contexto, mas NÃO substitui nem contradiz a solução implementada deste caso.\n\n';
     }
-    
+
+    const checklistRA = montarChecklistConformidadeRA(
+        dadosFormulario?.texto_cliente,
+        dadosFormulario?.motivo_solicitacao || dadosFormulario?.tipo_solicitacao
+    );
+    if (checklistRA) {
+        promptFinal += checklistRA;
+    }
+
     return promptFinal;
 }
 
@@ -4708,6 +4922,11 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
             conhecimentoFeedback += '🎯 INSTRUÇÃO CRÍTICA: Use este conhecimento para evitar erros similares e aplicar as correções identificadas. Analise os padrões de erro e garanta que sua moderação não repita os mesmos problemas.\n';
         }
         
+        const baseNormativaManuais = montarBlocoManuaisModeracao(
+            `${dadosModeracao.solicitacaoCliente || ''} ${dadosModeracao.respostaEmpresa || ''} ${dadosModeracao.consideracaoFinal || ''}`,
+            dadosModeracao.motivoModeracao
+        );
+
         const prompt = `
 📌 SCRIPT ESTRUTURADO PARA FORMULAÇÃO DE MODERAÇÃO RA
 
@@ -4729,10 +4948,10 @@ ${conhecimentoFeedback || ''}
 - Analise a CONSIDERAÇÃO FINAL DO CONSUMIDOR: verifique se o cliente aceitou a solução, se insistiu no problema, se trouxe novas alegações, se omitiu informações
 
 2. CONSULTA E VALIDAÇÃO NORMATIVA (etapa obrigatória):
-Com base no conteúdo analisado, verifique os 3 manuais oficiais do RA:
+Com base no conteúdo analisado, verifique os manuais oficiais do RA aplicáveis:
 - Manual Geral de Moderação
-- Manual de Moderação RA Reviews  
 - Manual de Moderação – Bancos, Instituições Financeiras e Meios
+${baseNormativaManuais}
 
 Identifique violações específicas:
 - Há informações incorretas ou que não condizem com os registros internos no conteúdo?
@@ -4790,7 +5009,6 @@ A resposta deve conter EXATAMENTE dois blocos:
 
 1. CONSULTE SEMPRE OS MANUAIS DO RA:
 - Manual Geral de Moderação → regras universais (informação falsa, ofensas, duplicidade)
-- Manual RA Reviews → foco em avaliações e comentários de reputação
 - Manual de Bancos, Instituições Financeiras e Meios → regras específicas para operações financeiras, contratos, CCB, termos aceitos
 ⚠️ NÃO PULE ESSA PARTE: o RA pode negar a moderação se o pedido não se apoiar nas regras deles
 
@@ -5757,19 +5975,70 @@ ${dadosFormulario.solucao_implementada}`;
                     })
                 });
 
+                let conteudoRetry = null;
                 if (responseRetry.ok) {
                     const dataRetry = await responseRetry.json();
-                    const conteudoRetry = dataRetry.choices[0].message.content;
-                    if (respostaValida(conteudoRetry)) {
-                        conteudoMiolo = conteudoRetry;
-                        console.log('✅ Retry bem-sucedido — resposta alinhada à solução implementada');
+                    conteudoRetry = dataRetry.choices[0].message.content;
+                }
+
+                if (conteudoRetry && respostaValida(conteudoRetry)) {
+                    conteudoMiolo = conteudoRetry;
+                    console.log('✅ Retry bem-sucedido — resposta alinhada à solução implementada');
+                } else {
+                    // 3ª tentativa: exigir desenvolvimento completo em parágrafos, ancorado na solução implementada
+                    console.log('⚠️ Retry insuficiente — 3ª tentativa pedindo desenvolvimento completo...');
+                    const promptDesenvolvido = `${prompt}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DESENVOLVIMENTO OBRIGATÓRIO (TENTATIVAS ANTERIORES CURTAS OU DESALINHADAS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Escreva o miolo da resposta em 3 a 5 parágrafos completos, incorporando explicitamente os elementos da solução implementada abaixo. NÃO invente dados além dela e NÃO copie fatos de outros casos.
+Estrutura obrigatória:
+1) Contextualize a solicitação do cliente (com base no texto dele e no histórico)
+2) Explique de forma técnica e clara o que foi efetivamente feito (solução implementada)
+3) Mostre como essa solução resolve ou responde ao ponto levantado pelo cliente
+4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
+
+SOLUÇÃO IMPLEMENTADA (incorpore literalmente os elementos factuais):
+${dadosFormulario.solucao_implementada || 'N/A'}
+
+TEXTO DO CLIENTE (para contextualizar):
+${dadosFormulario.texto_cliente || 'N/A'}`;
+
+                    let conteudoDesenvolvido = null;
+                    try {
+                        const responseDev = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${apiKey}`,
+                                'Content-Type': 'application/json'
+                            },
+                            signal: controller.signal,
+                            body: JSON.stringify({
+                                model: envVars.OPENAI_MODEL || 'gpt-4o',
+                                messages: [
+                                    { role: 'system', content: systemPromptRA },
+                                    { role: 'user', content: promptDesenvolvido }
+                                ],
+                                temperature: 0.4,
+                                max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
+                            })
+                        });
+                        if (responseDev.ok) {
+                            const dataDev = await responseDev.json();
+                            conteudoDesenvolvido = dataDev.choices[0].message.content;
+                        }
+                    } catch (devError) {
+                        console.log('⚠️ Erro na 3ª tentativa (desenvolvimento):', devError.message);
+                    }
+
+                    if (conteudoDesenvolvido && respostaValida(conteudoDesenvolvido)) {
+                        conteudoMiolo = conteudoDesenvolvido;
+                        console.log('✅ 3ª tentativa bem-sucedida — resposta desenvolvida e alinhada');
                     } else {
-                        console.log('⚠️ Retry ainda insuficiente — usando fallback baseado na solução implementada');
+                        console.log('⚠️ 3ª tentativa insuficiente — usando fallback baseado na solução implementada');
                         conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
                     }
-                } else {
-                    console.log('⚠️ Falha no retry — usando fallback baseado na solução implementada');
-                    conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
                 }
             } else {
                 console.log('✅ Resposta validada — reflete a solução implementada');
@@ -5882,9 +6151,8 @@ ${conhecimentoFeedback || ''}
 - Identifique os pontos problemáticos na análise anterior
 
 2. CONSULTA AOS MANUAIS:
-Sempre verificar os 3 manuais oficiais do RA:
+Sempre verificar os manuais oficiais do RA aplicáveis:
 - Manual Geral de Moderação
-- Manual de Moderação RA Reviews  
 - Manual de Moderação – Bancos, Instituições Financeiras e Meios
 
 3. REFORMULAÇÃO ESTRUTURADA:
@@ -5924,7 +6192,6 @@ Forneça APENAS o texto reformulado seguindo EXATAMENTE o modelo fixo de 3 pará
 
 1. CONSULTE SEMPRE OS MANUAIS DO RA:
 - Manual Geral de Moderação → regras universais (informação falsa, ofensas, duplicidade)
-- Manual RA Reviews → foco em avaliações e comentários de reputação
 - Manual de Bancos, Instituições Financeiras e Meios → regras específicas para operações financeiras, contratos, CCB, termos aceitos
 ⚠️ NÃO PULE ESSA PARTE: o RA pode negar a moderação se o pedido não se apoiar nas regras deles
 
@@ -7654,6 +7921,12 @@ app.post('/api/chance-moderacao', async (req, res) => {
             });
         }
         
+        // Base normativa real dos manuais (temas + regras AENV) para ancorar a chance
+        const baseNormativaChance = montarBlocoChanceModeracao(
+            `${reclamacaoCompleta || ''} ${respostaPublica || ''} ${consideracaoFinal || ''}`,
+            ''
+        );
+
         // Construir prompt completo — PROMPT DEFINITIVO VELOTAX V7 MASTER
         const prompt = `PROMPT DEFINITIVO VELOTAX V7 MASTER
 SISTEMA COMPLETO DE ANÁLISE ESTRATÉGICA DE MODERAÇÃO DO RECLAME AQUI
@@ -7689,6 +7962,7 @@ Toda análise deve ser fundamentada obrigatoriamente em:
 Os manuais devem ser tratados como referência obrigatória para identificar critérios de moderação.
 
 Entretanto, a análise deve considerar como essas regras são aplicadas na prática, e não apenas sua interpretação literal.
+${baseNormativaChance}
 
 4. PRINCÍPIO FUNDAMENTAL DO RECLAME AQUI
 
@@ -7875,6 +8149,19 @@ O objetivo da reformulação não é resumir a resposta, mas sim:
 • tornar mais explícita a inconsistência da reclamação
 
 • reforçar os fatos relevantes para moderação.
+
+OBJETIVO DA REVISÃO (CONFORMIDADE COM OS MANUAIS — AUMENTAR A CHANCE REAL):
+A resposta revisada deve ser ajustada para AUMENTAR a chance de moderação, sem trair os fatos. Para isso, obrigatoriamente:
+
+• MANTER a solução implementada e o assunto real da resposta original (não inventar fatos novos, datas ou ações que não ocorreram)
+
+• CONTINUAR respondendo de forma clara à reclamação do cliente (a resposta segue sendo uma resposta pública ao consumidor, não um texto interno)
+
+• ENQUADRAR o caso em um TEMA PASSÍVEL aplicável da BASE NORMATIVA acima, quando os fatos sustentarem, citando o manual como indicado
+
+• CUMPRIR as 6 REGRAS AENV: deixar a resposta condizente e objetiva (datas e ações concretas), NÃO admitir falha de atendimento, NÃO deixar pontos que gerem divergência sem prova, NÃO depender de juízo de mérito, NÃO se apoiar só em cláusula contratual, e NÃO usar "já resolvemos" como único argumento
+
+• Pode REESTRUTURAR a narrativa e evidenciar a inconsistência/omissão do cliente, desde que cada fato continue verdadeiro e ancorado na solução implementada
 
 A resposta reformulada deve manter a maior parte do conteúdo factual da resposta original, preservando sempre que possível:
 
@@ -9478,10 +9765,9 @@ DADOS DA MODERAÇÃO NEGADA:
 
 ⚙️ ANÁLISE OBRIGATÓRIA (baseada nos manuais do RA):
 
-Consulte os 3 manuais oficiais do Reclame Aqui:
+Consulte os manuais oficiais do Reclame Aqui aplicáveis:
 1. Manual Geral de Moderação
-2. Manual de Moderação RA Reviews
-3. Manual de Moderação – Bancos, Instituições Financeiras e Meios
+2. Manual de Moderação – Bancos, Instituições Financeiras e Meios
 
 Verifique especificamente:
 - Presença de debate de mérito

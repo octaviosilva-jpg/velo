@@ -1,0 +1,243 @@
+{
+  "versao": "1.0",
+  "atualizadoEm": "2026-06-17",
+  "_schema": {
+    "descricao": "Base normativa estruturada dos manuais de moderacao do Reclame Aqui. Enquanto 'hipoteses' e 'regrasAENV' estiverem vazios, a base fica INATIVA e nada e injetado nos prompts.",
+    "manual": "id, nome, aplicacao, hipoteses[]",
+    "hipotese": "id, titulo, quandoSeAplica, criterios[], comoCitar, palavrasChave[], aplicaRespostaRA, regraRespostaRA",
+    "regraAENV": "id, titulo, oQueVerifica, reprovaQuando, aplicaRespostaRA, regraRespostaRA"
+  },
+  "categoriaPrincipal": "A empresa nao violou o direito do consumidor (AENV)",
+  "requisitosAENV": [
+    "A reclamacao precisa estar AVALIADA pelo cliente (categoria so atua sobre avaliacao).",
+    "O pedido deve ser feito em ate 30 dias corridos da avaliacao.",
+    "So e analisado o CONTEUDO PUBLICO (reclamacao, resposta, replicas, avaliacao). A Consideracao Final da empresa NAO e analisada.",
+    "Reclamacao avaliada SEM resposta publica nao e passivel de moderacao."
+  ],
+  "regrasAENV": [
+    {
+      "id": "resposta-condizente",
+      "titulo": "Resposta publica condiz com o pedido de moderacao",
+      "oQueVerifica": "A resposta da empresa deve ser clara e objetiva sobre o problema, com elementos concretos (datas, acoes realizadas, contexto da contratacao/servico).",
+      "reprovaQuando": "A resposta e generica e nao esclarece o caso (ex.: 'encaminhamos um e-mail', 'realizamos os retornos necessarios', 'entraremos em contato em breve').",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "A resposta deve esclarecer o caso de forma objetiva, com datas e acoes concretas; nunca ser generica ou apenas prometer contato futuro."
+    },
+    {
+      "id": "sem-falha-atendimento",
+      "titulo": "Nao pode haver falha no atendimento",
+      "oQueVerifica": "Se o conteudo publico indica que a empresa falhou no atendimento.",
+      "reprovaQuando": "O cliente menciona dificuldade de contato, falta de retorno dos canais oficiais, ou informacao passada incorretamente pela empresa.",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "Nao admitir nem sugerir falha de atendimento, demora ou informacao incorreta dada pelos canais; demonstrar que a empresa atuou corretamente."
+    },
+    {
+      "id": "sem-divergencia",
+      "titulo": "Nao pode haver divergencia de informacoes",
+      "oQueVerifica": "Se ha posicionamentos conflitantes entre cliente e empresa sobre um mesmo fato.",
+      "reprovaQuando": "Empresa afirma algo (ex.: tentou contato, realizou procedimento) e o cliente nega; o RA nao decide quem tem razao e nega.",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "Sustentar a resposta em fatos verificaveis e registros proprios, evitando afirmacoes que o cliente possa contradizer sem prova no conteudo publico."
+    },
+    {
+      "id": "sem-analise-merito",
+      "titulo": "Nao exigir analise de merito",
+      "oQueVerifica": "Se a situacao esta clara e objetiva no conteudo publico, sem precisar o RA julgar quem tem razao.",
+      "reprovaQuando": "A definicao do caso dependeria de o RA julgar versoes/provas (ex.: preco que mudou no carrinho, fato nao demonstravel publicamente).",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "Deixar o fato objetivo e autoevidente no proprio texto, sem depender de julgamento de versoes."
+    },
+    {
+      "id": "sem-clausula-contratual",
+      "titulo": "Nao se apoiar em interpretacao de clausula/termos",
+      "oQueVerifica": "O RA nao analisa clausulas contratuais nem termos de uso da empresa.",
+      "reprovaQuando": "A fundamentacao se apoia apenas em 'o cliente assinou o contrato/termo' ou na interpretacao de clausula.",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "Explicar a operacao por fatos e regulamentacao aplicavel (ex.: norma do Bacen), nao apenas citando que ha clausula contratual aceita."
+    },
+    {
+      "id": "problema-resolvido-nao-qualifica",
+      "titulo": "Ter resolvido o problema nao e, por si, motivo de moderacao",
+      "oQueVerifica": "Resolver a reclamacao nao descaracteriza o que a motivou.",
+      "reprovaQuando": "A tese central do pedido e 'ja resolvemos', sem apontar inconsistencia/omissao do conteudo do cliente.",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "Alem de informar a solucao, evidenciar a inconsistencia ou o contexto que o cliente omitiu; nao usar 'resolvemos' como unico argumento."
+    }
+  ],
+  "manuais": [
+    {
+      "id": "geral",
+      "nome": "Manual Geral de Moderacao",
+      "aplicacao": "Regras universais e situacoes aceitas na categoria AENV",
+      "hipoteses": [
+        {
+          "id": "cliente-nega-atendimento",
+          "titulo": "Cliente se nega a ser atendido ou a prosseguir com a solucao",
+          "quandoSeAplica": "Conteudo publico mostra que o cliente recusa o processo proposto pela empresa ou se nega a enviar informacao/acao necessaria para a solucao.",
+          "criterios": ["A recusa deve estar clara no conteudo publico", "Nao se aplica quando a empresa apenas nao conseguiu contato com o cliente"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria 'A empresa nao violou o direito do cliente' (cliente se nega a ser atendido)",
+          "palavrasChave": ["nao vou passar", "me recuso", "nao quero", "nao vou enviar", "nao aceito", "nao vou fazer"]
+        },
+        {
+          "id": "nao-comprova-relacao-consumo",
+          "titulo": "Cliente nao comprova relacao de consumo ou prestacao de servico",
+          "quandoSeAplica": "A empresa precisa de documento/produto para a tratativa e o cliente informa publicamente que nao possui mais (nota fiscal, produto, comprovante).",
+          "criterios": ["A ausencia do comprovante/produto deve estar exposta publicamente pelo cliente"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria AENV (impossibilidade de comprovar a relacao de consumo)",
+          "palavrasChave": ["nao tenho mais", "joguei fora", "descartei", "perdi a nota", "nao tenho a nota"]
+        },
+        {
+          "id": "sem-dano-objetivo",
+          "titulo": "Reclamacao sem dano ou prejuizo objetivo",
+          "quandoSeAplica": "Conteudo apenas demonstra insatisfacao/opiniao sem prejuizo concreto ao cliente.",
+          "criterios": ["Deve estar claro no conteudo publico que nao houve prejuizo, inclusive solidario"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria AENV (ausencia de dano objetivo)",
+          "palavrasChave": ["propaganda", "opiniao", "nao gostei", "achei ruim", "comercial"]
+        },
+        {
+          "id": "recuperacao-judicial",
+          "titulo": "Definicoes apos Recuperacao Judicial",
+          "quandoSeAplica": "Cliente questiona ou pede que a empresa atue de forma contraria ao definido no processo de Recuperacao Judicial.",
+          "criterios": ["Recomendavel indicar o link da decisao judicial (nao obrigatorio)"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria AENV (definicoes apos Recuperacao Judicial)",
+          "palavrasChave": ["recuperacao judicial", "credores", "plano de pagamento"]
+        },
+        {
+          "id": "inadimplencia-renegociacao",
+          "titulo": "Cliente inadimplente / renegociacao",
+          "quandoSeAplica": "O problema foi originado por inadimplencia do proprio cliente e a negociacao cabe a empresa (parcelas, faturas em aberto).",
+          "criterios": ["O conteudo publico deve indicar a inadimplencia do cliente"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria AENV (inadimplencia/renegociacao)",
+          "palavrasChave": ["inadimplente", "fatura em aberto", "atrasado", "parcelamento", "renegociacao", "divida"]
+        },
+        {
+          "id": "analise-credito",
+          "titulo": "Analise de credito negada",
+          "quandoSeAplica": "Cliente reclama por nao conseguir contratar/aumentar servico que depende de analise de credito (limite, financiamento).",
+          "criterios": ["A aprovacao depende exclusivamente do perfil/habitos financeiros do cliente"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria AENV (analise de credito)",
+          "palavrasChave": ["analise de credito", "limite negado", "credito negado", "aumento de limite", "financiamento negado", "score"]
+        },
+        {
+          "id": "acao-terceiros-nome-marca",
+          "titulo": "Acao de terceiros em nome da marca (golpe)",
+          "quandoSeAplica": "Cliente relata golpe/fraude praticado por terceiros usando o nome da empresa, fora do dominio dela.",
+          "criterios": ["Responder detalhando o golpe", "Aguardar a avaliacao para anular a nota (AENV) ou usar Conteudo Improprio para desativar quando o cliente explicita ter sido vitima de golpe"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, situacao aceita na categoria AENV (acao de terceiros em nome da marca)",
+          "palavrasChave": ["golpe", "link falso", "site falso", "se passaram", "fraudador", "phishing", "whatsapp falso"]
+        },
+        {
+          "id": "conteudo-improprio-dados",
+          "titulo": "Conteudo improprio (dados pessoais / baixo calao)",
+          "quandoSeAplica": "Exposicao de dados pessoais (CPF, RG, telefone, cartao, endereco) ou termos pejorativos/imputacao de crime.",
+          "criterios": ["Informar exatamente o termo/dado a ser editado", "Acao: edicao do conteudo (nao desativa por regra)"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, categoria 'Conteudo Improprio'",
+          "palavrasChave": ["cpf", "rg", "telefone", "cartao", "endereco", "palavrao", "ladrao", "estelionatario"]
+        },
+        {
+          "id": "duplicidade",
+          "titulo": "Reclamacao em duplicidade",
+          "quandoSeAplica": "Mesmo cliente, mesmo assunto, em mais de uma reclamacao.",
+          "criterios": ["Solicitar na reclamacao mais recente", "Informar o ID RA (origem) da original e de todas as duplicadas", "Mesmo assunto, nao recorrencia de problema diferente"],
+          "comoCitar": "conforme o Manual Geral de Moderacao, categoria 'Reclamacao em Duplicidade'",
+          "palavrasChave": ["duplicidade", "duplicada", "mesma reclamacao", "ja reclamei"]
+        }
+      ]
+    },
+    {
+      "id": "bancos",
+      "nome": "Manual de Moderacao - Bancos, Instituicoes Financeiras e Meios de Pagamento",
+      "aplicacao": "Temas passiveis na categoria AENV especificos do setor financeiro",
+      "hipoteses": [
+        {
+          "id": "inadimplencia-juros",
+          "titulo": "Cliente inadimplente que questiona juros",
+          "quandoSeAplica": "Cliente em atraso questiona os juros aplicados sobre parcelas pagas com atraso.",
+          "criterios": ["Explicar que os juros decorrem do atraso e nao sao arbitrarios", "NAO se aplica se o cliente alegar que os juros divergem do que foi previamente acordado"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: cliente inadimplente que menciona juros)",
+          "palavrasChave": ["juros", "inadimplente", "atraso", "parcela atrasada", "encargos", "juros abusivos"]
+        },
+        {
+          "id": "anuidade",
+          "titulo": "Anuidade (cobranca regular)",
+          "quandoSeAplica": "Cliente questiona a existencia da cobranca de anuidade (conta/cartao).",
+          "criterios": ["A pratica e regulamentada pelo Bacen", "NAO se aplica a cobranca indevida, mudanca de condicoes ou discordancia de valor"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: anuidade)",
+          "palavrasChave": ["anuidade", "tarifa anual", "cobranca anual", "cartao de credito"]
+        },
+        {
+          "id": "prazo-limite-pix",
+          "titulo": "Prazo para alteracao de limite de PIX (48h)",
+          "quandoSeAplica": "Cliente questiona a alteracao do limite de PIX dentro do prazo de ate 48 horas.",
+          "criterios": ["A empresa deve ter informado o prazo estimado de forma clara", "Prazo de 48h para conclusao da analise"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: prazo para alteracao de limite de PIX)",
+          "palavrasChave": ["limite pix", "alteracao de limite", "aumentar limite pix", "48 horas"]
+        },
+        {
+          "id": "limite-noturno-pix",
+          "titulo": "Limite maximo noturno de PIX",
+          "quandoSeAplica": "Cliente questiona o limite de PIX no periodo noturno.",
+          "criterios": ["Politica de seguranca do Bacen e do banco conforme perfil do cliente"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: limite maximo noturno de PIX)",
+          "palavrasChave": ["limite noturno", "pix a noite", "madrugada", "limite de seguranca"]
+        },
+        {
+          "id": "med-reembolso-pix",
+          "titulo": "Negativa do MED / reembolso de PIX",
+          "quandoSeAplica": "Cliente questiona reembolso de PIX negado (MED).",
+          "criterios": ["A resposta deve deixar claro o motivo da recusa", "Nao ha garantia legal de devolucao em todos os casos (chave errada, sem fraude comprovada)"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: negativa do MED / reembolso de PIX)",
+          "palavrasChave": ["med", "reembolso pix", "devolucao pix", "estorno pix", "chave errada"]
+        },
+        {
+          "id": "desacordo-comercial",
+          "titulo": "Desacordo comercial",
+          "quandoSeAplica": "Cliente quer cancelar compra/contestar transacao junto ao banco/meio de pagamento.",
+          "criterios": ["O cancelamento cabe ao estabelecimento, nao a instituicao financeira", "NAO se aplica a fraude, golpe ou falencia do estabelecimento"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: desacordo comercial)",
+          "palavrasChave": ["desacordo comercial", "cancelar compra", "estorno", "contestacao", "chargeback", "nao reconheco a compra"]
+        },
+        {
+          "id": "registrato",
+          "titulo": "Falta de atualizacao no Registrato (60 dias)",
+          "quandoSeAplica": "Cliente pede atualizacao de informacoes no Registrato.",
+          "criterios": ["Moderavel se o pedido for dentro de 60 dias da alteracao feita pela empresa", "Acima de 60 dias, nao se aplica"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: falta de atualizacao no Registrato)",
+          "palavrasChave": ["registrato", "bacen", "atualizacao de dados", "60 dias"]
+        },
+        {
+          "id": "scr",
+          "titulo": "Sistema de Informacoes de Creditos (SCR)",
+          "quandoSeAplica": "Cliente contesta dados registrados no SCR.",
+          "criterios": ["O registro e exigencia regulamentar do Bacen, nao decisao unilateral da empresa"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: SCR)",
+          "palavrasChave": ["scr", "sistema de informacoes de credito", "registro de credito", "bacen"]
+        },
+        {
+          "id": "bloqueio-judicial",
+          "titulo": "Bloqueio judicial de conta",
+          "quandoSeAplica": "Cliente contesta bloqueio de conta/valores determinado por ordem judicial.",
+          "criterios": ["A instituicao apenas cumpre a ordem judicial, sem autonomia para questionar"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: bloqueio judicial de conta)",
+          "palavrasChave": ["bloqueio judicial", "ordem judicial", "conta bloqueada", "penhora", "judicial"]
+        },
+        {
+          "id": "fraudador-meio-pagamento",
+          "titulo": "Clientes fraudadores que usam o meio de pagamento para golpes",
+          "quandoSeAplica": "Vitima de fraude por terceiros que usaram o meio de pagamento da empresa para aplicar golpes.",
+          "criterios": ["A resposta deve informar que o sistema foi usado irregularmente por fraudadores", "Indicar medidas de investigacao/prevencao e orientacao ao consumidor"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: uso do meio de pagamento por fraudadores)",
+          "palavrasChave": ["golpe", "fraude", "meio de pagamento", "fraudador", "maquininha", "transacao fraudulenta"]
+        },
+        {
+          "id": "impossibilidade-credenciamento",
+          "titulo": "Impossibilidade de credenciamento",
+          "quandoSeAplica": "Cliente teve credenciamento negado por analise de perfil ou ramo de atuacao.",
+          "criterios": ["A resposta deve fundamentar a negativa de forma clara e objetiva"],
+          "comoCitar": "conforme o Manual de Moderacao de Bancos (tema: impossibilidade de credenciamento)",
+          "palavrasChave": ["credenciamento", "negado credenciamento", "ramo de atuacao", "analise de perfil"]
+        }
+      ]
+    }
+  ]
+}
