@@ -1172,17 +1172,24 @@ function montarChecklistConformidadeRA(textoCaso, motivo) {
     const temas = selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA: false, limite: 3 });
     if (regras.length === 0 && temas.length === 0) return '';
 
-    let bloco = '\n✅ CONFORMIDADE COM OS MANUAIS DO RA (a resposta pública deve respeitar, mantendo a solução implementada):\n';
+    let bloco = '\n✅ PADRÃO DE CONFORMIDADE COM OS MANUAIS DO RA (escreva a resposta JÁ favorável a uma eventual moderação, sem trair os fatos):\n';
+    bloco += 'A resposta responde ao cliente E, ao mesmo tempo, deve nascer dentro do padrão que o Reclame Aqui aceita para moderar uma avaliação negativa. Para isso:\n';
     regras.forEach((r) => {
         if (r.regraRespostaRA) bloco += `- ${r.regraRespostaRA}\n`;
     });
     if (temas.length > 0) {
-        bloco += 'Temas do RA possivelmente relacionados a este caso (use só se os fatos sustentarem):\n';
+        bloco += 'Temas do RA possivelmente relacionados a este caso (enquadre quando os fatos da solução implementada sustentarem; não force):\n';
         temas.forEach((t) => {
             bloco += `- ${t.hip.titulo}: ${t.hip.quandoSeAplica}\n`;
         });
     }
-    bloco += 'Mantenha o tom e a estrutura habituais da resposta; apenas garanta que ela não viole as regras acima nem contradiga a solução implementada.\n\n';
+    bloco += 'DIRETRIZES DE ESCRITA FAVORÁVEL À MODERAÇÃO (sem inventar nada além da solução implementada):\n';
+    bloco += '- Seja concreto e objetivo: cite as datas, ações e procedimentos REAIS que constam na solução implementada (nada genérico como "entraremos em contato" ou "realizamos os retornos necessários").\n';
+    bloco += '- Deixe o fato autoevidente no próprio texto, de modo que a inconsistência ou a omissão do cliente fique clara para o moderador SEM precisar julgar versões.\n';
+    bloco += '- Quando a solução implementada sustentar, evidencie de forma factual o ponto em que o relato do cliente está incorreto, incompleto ou já foi atendido, sem redescrever a dor dele e sem acusá-lo.\n';
+    bloco += '- Não admita falha de atendimento, demora ou informação incorreta da empresa; demonstre que o Velotax atuou corretamente.\n';
+    bloco += '- Não se apoie apenas em "cláusula contratual aceita" nem em "já resolvemos": fundamente pela operação/fatos e pela regulamentação aplicável quando constar na solução.\n';
+    bloco += 'Mantenha o tom natural, humano e a estrutura habitual da resposta; estas diretrizes ajustam a forma de redigir, não contradizem nem substituem a solução implementada.\n\n';
     return bloco;
 }
 
@@ -8147,6 +8154,12 @@ CALIBRAGEM DA % (cruze os dois eixos, sem travar em 40–60):
 • Tema duvidoso, inconsistência só de experiência, ou ≥2 regras AENV reprovadas → 15–40%
 • Sem tema passível aplicável, ou reclamação procedente (a empresa realmente falhou) → 5–20%
 
+PESO DA QUALIDADE DA RESPOSTA DA EMPRESA (DRIVER QUE MOVE A %):
+A força da inconsistência (Eixo 2) define a FAIXA possível do caso; a clareza e a conformidade da RESPOSTA da empresa (Eixo 1) definem ONDE dentro dessa faixa o caso cai e se ele chega ao topo. Isso significa:
+• Uma resposta concreta, objetiva, que evidencia a inconsistência/omissão e cumpre as 6 regras AENV deve levar o caso ao TOPO da faixa possível (e pode subir uma faixa quando torna a inconsistência inequívoca).
+• Uma resposta genérica, evasiva ou que esbarra em alguma regra AENV mantém o caso no PISO da faixa.
+• Portanto, ao reanalisar uma resposta REFORMULADA/mais conforme que a original, a probabilidade DEVE ser MAIOR do que a da resposta original menos clara — a melhora na resposta é um motivo legítimo e esperado para elevar a %. Nunca devolva o mesmo percentual para uma resposta visivelmente mais conforme.
+
 Não use "tema financeiro" ou "tema sensível" como atalho para subir a faixa: só conformidade efetiva com os manuais e evidência de inconsistência qualificável os justificam.
 
 ETAPA 10 — REFORMULAÇÃO ESTRATÉGICA DA RESPOSTA (VERSÃO EXPANDIDA)
@@ -8286,9 +8299,12 @@ Após aplicar essa reformulação, a resposta estratégica deverá:
 
 ETAPA 11 — REAVALIAÇÃO DA PROBABILIDADE
 
-Após reformular a resposta, reavaliar a probabilidade REAL. A revisão estratégica normalmente eleva a conformidade (deixa a inconsistência mais explícita, alinha o texto ao tema passível e neutraliza as regras AENV que bloqueariam o aceite), então a estimativa pós-revisão tende a ser MAIOR que a inicial. Não aumente % por impacto reputacional ou sensibilidade do tema.
+Após reformular a resposta, reavaliar a probabilidade REAL. A revisão estratégica eleva a conformidade (deixa a inconsistência mais explícita, alinha o texto ao tema passível e neutraliza as regras AENV que bloqueariam o aceite), então a estimativa pós-revisão DEVE ser MAIOR que a inicial. Não aumente % por impacto reputacional ou sensibilidade do tema.
 
-Recalcule pelos dois eixos da ETAPA 9 (conformidade + força da inconsistência) e informe a nova probabilidade real, sem trava em 40–60%.
+Recalcule pelos dois eixos da ETAPA 9 (conformidade + força da inconsistência) e informe DOIS números, sem trava em 40–60%:
+• Chance com a resposta ORIGINAL (a que foi enviada para análise)
+• Chance com a resposta REFORMULADA da ETAPA 10 (deve ser maior, pois a resposta ficou mais conforme)
+A resposta reformulada da ETAPA 10 deve ser autossuficiente: se ela fosse reenviada sozinha para uma nova análise pela ETAPA 9, teria de alcançar a chance pós-revisão aqui informada (a melhora não pode depender do texto original). No bloco 📈 Impacto da revisão, declare o percentual antes, o depois e o ganho obtido.
 
 ETAPA 12 — VALIDAÇÃO INTERNA
 
