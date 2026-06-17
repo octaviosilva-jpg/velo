@@ -1573,6 +1573,11 @@ A "Solução implementada" acima é a única fonte autorizada para fatos, datas,
 - Os modelos aprovados servem apenas para tom, estrutura e estilo de redação
 - Se a solução implementada não mencionar LGPD, CCB, CDC ou cláusulas, NÃO as inclua
 
+🧱 FUNDAMENTAÇÃO OBRIGATÓRIA (NÃO ENXUGAR A SOLUÇÃO):
+- INCLUA na resposta TODOS os pontos de fundamentação que constarem na solução implementada: bases normativas (LGPD, CCB, CDC, resoluções, Banco Central), número/cláusulas de contrato (CCB), leis citadas, datas, prazos, valores, números de protocolo e demais dados.
+- Esses elementos são a justificativa central da resposta e NÃO podem ser omitidos, generalizados nem resumidos a ponto de se perderem. Se a solução cita uma data, valor, cláusula ou norma, ela DEVE aparecer na resposta.
+- A resposta deve refletir a profundidade da solução implementada: se a solução é detalhada, a resposta também precisa desenvolver cada fundamento, não entregar uma versão enxuta.
+
 🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
 1. CONTEXTUALIZAÇÃO DA VELOTAX:
@@ -1586,11 +1591,11 @@ ${gerarContextoEspecifico(dadosFormulario.tipo_solicitacao)}
 
 3. ESTRUTURA INTELIGENTE DA RESPOSTA:
 
-a) RECONHECIMENTO PERSONALIZADO:
-- Reconheça a solicitação do cliente de forma direta, sem agradecer pelo contato, pela preocupação ou pela confiança
-- NÃO use "agradecemos", "obrigado por", "agradecemos a oportunidade", "agradecemos sua manifestação" nem variações
-- A apresentação do agente já registra o recebimento; o miolo da resposta NÃO deve repetir agradecimentos
-- Demonstre compreensão da situação específica (sem pedir desculpas)
+a) RESPOSTA DIRETA AO PONTO (SEM REDESCREVER A DOR):
+- Vá direto ao ponto reclamado pelo cliente, respondendo-o POR MEIO da solução implementada
+- NÃO redescreva, reconte nem reformule a reclamação/dor do cliente; o que ele reclama já está respondido dentro da solução. Não gaste parágrafos relatando o problema dele
+- Não agradeça pelo contato, pela preocupação ou pela confiança. NÃO use "agradecemos", "obrigado por", "agradecemos a oportunidade", "agradecemos sua manifestação" nem variações
+- A apresentação do agente já registra o recebimento; o miolo da resposta NÃO deve repetir agradecimentos nem pedir desculpas
 
 b) ESCLARECIMENTO TÉCNICO:
 - Explique o que foi feito de forma clara e técnica
@@ -1637,13 +1642,14 @@ IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudaç
 A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
 
 Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
-- Responder diretamente à solicitação do cliente
-- Explicar a solução implementada
+- Responder diretamente ao ponto do cliente por meio da solução, SEM redescrever a dor/reclamação dele
+- Explicar a solução implementada incluindo TODA a sua fundamentação (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
 - DESENVOLVER a resposta em parágrafos completos (normalmente de 3 a 5 parágrafos), nesta ordem:
-  1) Contextualize a situação relatada pelo cliente, com base no texto dele e no histórico
-  2) Explique o que foi efetivamente feito (a solução implementada), de forma técnica e clara
-  3) Mostre COMO essa solução resolve ou responde ao ponto levantado pelo cliente
+  1) Responda diretamente ao ponto do cliente já pela solução implementada (NÃO redescreva a dor/reclamação dele)
+  2) Explique o que foi efetivamente feito (a solução implementada), de forma técnica e clara, INCLUINDO todas as fundamentações que constam nela (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
+  3) Mostre COMO essa solução, com essa fundamentação, resolve o ponto levantado
   4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
+- NÃO omita nem resuma os fundamentos da solução implementada: cada base normativa, cláusula, data, valor ou dado citado na solução deve aparecer na resposta como justificativa
 - Cada parágrafo deve agregar informação nova: não repita a mesma ideia com outras palavras e não use frases de enchimento
 - Ser específico e detalhado, sem ser raso ou telegráfico (evite responder em 1 ou 2 frases soltas)
 - Demonstrar expertise técnica, transparência e compromisso com a satisfação do cliente
@@ -5992,14 +5998,15 @@ ${dadosFormulario.solucao_implementada}`;
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DESENVOLVIMENTO OBRIGATÓRIO (TENTATIVAS ANTERIORES CURTAS OU DESALINHADAS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Escreva o miolo da resposta em 3 a 5 parágrafos completos, incorporando explicitamente os elementos da solução implementada abaixo. NÃO invente dados além dela e NÃO copie fatos de outros casos.
+Escreva o miolo da resposta em 3 a 5 parágrafos completos, incorporando explicitamente TODOS os elementos da solução implementada abaixo. NÃO invente dados além dela e NÃO copie fatos de outros casos.
 Estrutura obrigatória:
-1) Contextualize a solicitação do cliente (com base no texto dele e no histórico)
-2) Explique de forma técnica e clara o que foi efetivamente feito (solução implementada)
-3) Mostre como essa solução resolve ou responde ao ponto levantado pelo cliente
+1) Responda diretamente ao ponto do cliente já pela solução implementada (NÃO redescreva a dor/reclamação dele)
+2) Explique de forma técnica e clara o que foi efetivamente feito, INCLUINDO todas as fundamentações da solução (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
+3) Mostre como essa solução, com essa fundamentação, resolve o ponto levantado
 4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
+NÃO omita nem resuma os fundamentos: cada base normativa, cláusula, data, valor ou dado citado na solução deve aparecer na resposta.
 
-SOLUÇÃO IMPLEMENTADA (incorpore literalmente os elementos factuais):
+SOLUÇÃO IMPLEMENTADA (incorpore literalmente os elementos factuais e toda a fundamentação):
 ${dadosFormulario.solucao_implementada || 'N/A'}
 
 TEXTO DO CLIENTE (para contextualizar):
@@ -8115,28 +8122,32 @@ Indicadores que costumam elevar o risco de imagem (lista não exaustiva):
 
 Observação: presença desses temas na reclamação não significa, por si só, maior chance de o RA aceitar moderação; relate-as aqui como risco reputacional, sem transportar esse juízo para a ETAPA 9.
 
-ETAPA 9 — CÁLCULO DE PROBABILIDADE (APENAS CRITÉRIOS DE MODERAÇÃO DO RA)
+ETAPA 9 — CÁLCULO DE PROBABILIDADE REAL (CONFORMIDADE COM OS MANUAIS DO RA)
 
-Estime a probabilidade de aceite EXCLUSIVAMENTE com base no tipo e na força da inconsistência moderável face aos manuais do RA, na objetividade da contradição entre reclamação e resposta, e na facilidade de o moderador ou o fluxo automatizado identificarem o descompasso factual. Ignore reputação, visibilidade do tema ou "peso" midiático.
+NÃO existe faixa "padrão" nem teto artificial. NÃO ancore a estimativa em 40–60% por precaução: use TODA a escala de 5% a 95% conforme a conformidade real do caso com os manuais do RA. Ignore reputação, visibilidade ou "peso" midiático (isso é a ETAPA 8). A % deve refletir a probabilidade REAL de o RA aceitar a moderação, podendo ser alta quando estamos efetivamente em conformidade.
 
-Utilize as faixas:
+Combine dois eixos objetivos:
 
-20–40%
-reclamação de experiência.
+EIXO 1 — CONFORMIDADE COM OS MANUAIS (use a BASE NORMATIVA REAL acima):
+• Existe um TEMA PASSÍVEL de moderação aplicável ao caso? Sem tema aplicável, a chance cai.
+• A reclamação foi avaliada/respondida e está dentro do prazo de moderação?
+• A resposta da empresa é condizente, comprova os fatos e NÃO incorre em nenhuma das 6 regras que bloqueiam a moderação (falha de atendimento, divergência de informação, discussão de mérito, cláusula abusiva, resposta genérica/evasiva)? Para CADA regra reprovada, reduza a probabilidade proporcionalmente à gravidade (penalização gradual, não zera automaticamente).
 
-40–60%
-interpretação equivocada.
+EIXO 2 — FORÇA DA INCONSISTÊNCIA MODERÁVEL:
+• reclamação de experiência/insatisfação subjetiva, sem inconsistência factual → fraca
+• interpretação equivocada do cliente → moderada
+• omissão de fato essencial pelo cliente → forte
+• informação incorreta clara → muito forte
+• acusação comprovadamente falsa → conclusiva
 
-60–75%
-omissão de fato essencial.
+CALIBRAGEM DA % (cruze os dois eixos, sem travar em 40–60):
+• Conformidade total (tema aplicável + nenhuma regra AENV reprovada + prova clara na resposta) com inconsistência forte/conclusiva → 80–95%
+• Conformidade boa com inconsistência moderada/forte → 60–80%
+• Conformidade parcial (1 regra AENV reprovada ou prova incompleta) → 40–60%
+• Tema duvidoso, inconsistência só de experiência, ou ≥2 regras AENV reprovadas → 15–40%
+• Sem tema passível aplicável, ou reclamação procedente (a empresa realmente falhou) → 5–20%
 
-75–85%
-informação incorreta clara.
-
-85–95%
-acusação comprovadamente falsa.
-
-Não use "tema financeiro" ou "tema sensível" como atalho para subir a faixa: só evidência de inconsistência qualificável segundo os manuais do RA.
+Não use "tema financeiro" ou "tema sensível" como atalho para subir a faixa: só conformidade efetiva com os manuais e evidência de inconsistência qualificável os justificam.
 
 ETAPA 10 — REFORMULAÇÃO ESTRATÉGICA DA RESPOSTA (VERSÃO EXPANDIDA)
 
@@ -8275,9 +8286,9 @@ Após aplicar essa reformulação, a resposta estratégica deverá:
 
 ETAPA 11 — REAVALIAÇÃO DA PROBABILIDADE
 
-Após reformular a resposta, reavaliar a probabilidade somente se a revisão deixar mais clara, para os critérios do RA, a inconsistência entre reclamação e fatos (não aumentar % por impacto reputacional ou sensibilidade do tema).
+Após reformular a resposta, reavaliar a probabilidade REAL. A revisão estratégica normalmente eleva a conformidade (deixa a inconsistência mais explícita, alinha o texto ao tema passível e neutraliza as regras AENV que bloqueariam o aceite), então a estimativa pós-revisão tende a ser MAIOR que a inicial. Não aumente % por impacto reputacional ou sensibilidade do tema.
 
-Se a inconsistência ficar mais evidente para moderação, ajuste a estimativa em conformidade com as faixas da ETAPA 9.
+Recalcule pelos dois eixos da ETAPA 9 (conformidade + força da inconsistência) e informe a nova probabilidade real, sem trava em 40–60%.
 
 ETAPA 12 — VALIDAÇÃO INTERNA
 
