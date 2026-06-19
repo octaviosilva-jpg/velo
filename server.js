@@ -5971,13 +5971,6 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             });
         }
         
-        if (!dadosFormulario.nome_solicitante || !String(dadosFormulario.nome_solicitante).trim()) {
-            return res.status(400).json({
-                success: false,
-                error: 'Nome do solicitante é obrigatório'
-            });
-        }
-        
         console.log('📋 Dados recebidos do formulário:', {
             tipo_solicitacao: dadosFormulario.tipo_solicitacao,
             motivo_solicitacao: dadosFormulario.motivo_solicitacao,
