@@ -1641,7 +1641,7 @@ function montarBlocoFallbackCoerentes(dadosFormulario) {
     } else if (nivel === 'parcial') {
         bloco += 'SITUAÇÃO DETECTADA: Solução implementada PARCIAL/incompleta. PRESERVE integralmente todas as informações específicas informadas pelo analista (datas, valores, ações, status). COMPLEMENTE a redação usando os PADRÕES de estrutura e argumentação dos modelos semelhantes da base "Respostas Coerentes" abaixo. NÃO afirme como fato deste caso nada que não esteja na solução implementada nem na reclamação.\n';
     } else {
-        bloco += 'SITUAÇÃO DETECTADA: Solução implementada VAZIA. NÃO bloqueie a geração. Construa a resposta a partir da RECLAMAÇÃO atual e dos PADRÕES de argumentação/estrutura de casos semelhantes da base "Respostas Coerentes" abaixo, gerando uma SUGESTÃO de resposta adequada ao tipo de caso. Sem fatos específicos informados, NÃO afirme ações, datas, valores ou resultados concretos que não foram informados: mantenha a resposta no plano do posicionamento e da orientação do Velotax para esse tipo de situação. Esta é uma exceção controlada à Fonte de Verdade (que pressupõe a solução preenchida).\n';
+        bloco += 'SITUAÇÃO DETECTADA: Solução implementada VAZIA. NÃO bloqueie a geração. Construa a resposta a partir da RECLAMAÇÃO atual e do modo como casos semelhantes foram efetivamente RESOLVIDOS na base "Respostas Coerentes" abaixo, gerando uma resposta que SOLUCIONE/encaminhe o problema do cliente como o Velotax costuma resolver esse tipo de caso. NÃO empurre o cliente para a central/suporte. Sem fatos específicos informados, NÃO afirme ações, datas, valores ou protocolos concretos que não foram informados, mas ainda assim entregue uma solução/encaminhamento real para o caso. Esta é uma exceção controlada à Fonte de Verdade (que pressupõe a solução preenchida).\n';
     }
     bloco += 'REGRAS DE SEGURANÇA AO USAR A BASE (todos os cenários): a base serve para identificar PADRÕES de resposta, NUNCA para replicar conteúdo. NÃO copie respostas integralmente; NÃO reutilize dados, nomes, datas, valores ou informações específicas de outro cliente/caso.\n';
     return bloco;
@@ -1697,6 +1697,13 @@ A "Solução implementada" acima é a única fonte autorizada para fatos, datas,
 - Esses elementos são a justificativa central da resposta e NÃO podem ser omitidos, generalizados nem resumidos a ponto de se perderem. Se a solução cita uma data, valor, cláusula ou norma, ela DEVE aparecer na resposta.
 - A resposta deve refletir a profundidade da solução implementada: se a solução é detalhada, a resposta também precisa desenvolver cada fundamento, não entregar uma versão enxuta.
 ${montarBlocoFallbackCoerentes(dadosFormulario)}
+🎯 RESPOSTA RESOLUTIVA (OBRIGATÓRIO):
+- A resposta DEVE resolver o problema do cliente ou trazer o encaminhamento concreto da solução, respondendo diretamente à reclamação. O Reclame Aqui é o canal para resolver o que a central não resolveu, então NUNCA empurre o cliente de volta para a central/suporte.
+- É PROIBIDO usar saídas evasivas como "entre em contato com nosso suporte", "procure nossos canais de atendimento para resolver", "caso não seja resolvido, entre em contato", "estamos à disposição para resolver" sem efetivamente trazer a solução. Isso não resolve, passa imagem de descaso e ainda configura resposta genérica/evasiva.
+- Quando houver solução implementada: gere a resposta a partir dela, usando as respostas marcadas como coerentes apenas como referência de abordagem para apresentar a solução.
+- Quando a solução implementada estiver vazia/incompleta: use os PADRÕES das respostas coerentes para construir uma resposta que efetivamente solucione/encaminhe o caso do cliente, sem inventar dados específicos não informados.
+- O rodapé institucional com canais oficiais (aplicado pelo sistema) é apenas formal e NÃO conta como solução; a solução tem que estar no corpo da resposta.
+
 🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
 1. CONTEXTUALIZAÇÃO DA VELOTAX:
@@ -1728,8 +1735,8 @@ c) SOLUÇÃO IMPLEMENTADA:
 
 d) COMPROMISSO E TRANSPARÊNCIA:
 - Reafirme o compromisso com a satisfação
-- Ofereça canais de comunicação direta
 - Demonstre transparência nos processos
+- NÃO encerre empurrando o cliente para a central/suporte: a resposta já deve trazer a solução ou o encaminhamento concreto
 
 4. DIRETRIZES ESPECÍFICAS DA VELOTAX:
 
@@ -1751,7 +1758,7 @@ d) COMPROMISSO E TRANSPARÊNCIA:
 
 - Posicione o Velotax de forma objetiva quando couber ao caso
 - Demonstre conhecimento técnico apenas sobre o que foi feito e registrado
-- Ofereça canais de contato direto (o sistema já inclui rodapé; não repita telefone e site no miolo se não for necessário ao caso)
+- NÃO repita telefone/site no miolo nem direcione o cliente para os canais como forma de "resolver" (o rodapé institucional já existe); a solução tem que estar no corpo da resposta
 - Transparência factual, sem prolixidade
 
 ⚠️ FORMATO DE SAÍDA OBRIGATÓRIO:
