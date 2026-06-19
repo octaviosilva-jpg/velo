@@ -1654,6 +1654,8 @@ function montarBlocoFallbackCoerentes(dadosFormulario) {
 
 // Gerar script padrão "cru" para geração de respostas
 function gerarScriptPadraoResposta(dadosFormulario) {
+    const nivelSolucao = avaliarDisponibilidadeSolucao(dadosFormulario.solucao_implementada);
+    const semSolucao = nivelSolucao === 'vazia';
     return `📌 SCRIPT INTELIGENTE PARA GERAÇÃO DE RESPOSTA RA - VELOTAX
 
 Você é um analista de atendimento ao cliente do Velotax, empresa de antecipação de restituição do Imposto de Renda. Sua função é gerar respostas personalizadas e inteligentes para o Reclame Aqui.
@@ -1661,12 +1663,27 @@ Você é um analista de atendimento ao cliente do Velotax, empresa de antecipaç
 DADOS ESPECÍFICOS DO CASO:
 - Tipo de solicitação: ${dadosFormulario.tipo_solicitacao}
 - ID da Reclamação: ${dadosFormulario.id_reclamacao}
-- Solução implementada: ${dadosFormulario.solucao_implementada}
+- Solução implementada: ${semSolucao ? '(NÃO INFORMADA — construa a solução a partir do PADRÃO das respostas coerentes do mesmo tema, conforme a ETAPA 0)' : dadosFormulario.solucao_implementada}
 - Texto do cliente: ${dadosFormulario.texto_cliente}
 - Histórico de atendimento: ${dadosFormulario.historico_atendimento}
 - Nome do solicitante (usar na saudação "Olá, [nome]!"): ${dadosFormulario.nome_solicitante || 'não informado'}
 
-🧭 ETAPA 0 — ANÁLISE DA SOLUÇÃO IMPLEMENTADA (FAÇA ANTES DE QUALQUER COISA):
+${semSolucao ? `🧭 ETAPA 0 — MODO BASE COERENTE (NÃO HÁ SOLUÇÃO IMPLEMENTADA PREENCHIDA):
+Como o campo "Solução implementada" está vazio, a base "RESPOSTAS COERENTES APROVADAS" (abaixo) é a SUA FONTE PRINCIPAL para construir a resposta. Faça ANTES de escrever:
+1. Reúna entre as respostas coerentes abaixo TODAS as que tratam da MESMA reclamação/motivo do caso atual.
+2. Extraia o PADRÃO RECORRENTE DE SOLUÇÃO entre elas: a causa típica do problema, a explicação técnica usada, a orientação concreta dada ao cliente e o encaminhamento/resolução que efetivamente fecha o caso.
+3. Construa UMA resposta completa que RESOLVA a reclamação atual aplicando esse padrão e reaproveitando os TRECHOS resolutivos e a fundamentação recorrente (bases normativas, prazos, procedimentos) que aparecem nessas respostas para este tema.
+
+🔒 FONTE DE VERDADE NESTE CASO (SEM SOLUÇÃO IMPLEMENTADA):
+- A reclamação do cliente + o PADRÃO de solução das respostas coerentes do mesmo tema são a fonte autorizada para construir a resposta.
+- REAPROVEITE a fundamentação que se repete nas respostas coerentes do mesmo tema (explicação da causa, base normativa, procedimento, orientação), pois ela faz parte de como esse tipo de caso é resolvido.
+- NÃO copie dados pessoais de outro cliente (nomes, e-mails, CPF) nem números específicos de outro caso (datas exatas, valores, protocolos) como se fossem deste cliente.
+- Cite LGPD, CCB, CDC, resoluções ou cláusulas quando esse tipo de fundamentação aparecer recorrentemente nas respostas coerentes deste mesmo tema (é parte da solução padrão), sem inventar números/cláusulas específicos não informados.
+
+🧱 PROFUNDIDADE OBRIGATÓRIA (PROIBIDO RESPOSTA ENXUTA):
+- A resposta deve ter o MESMO nível de detalhe, explicação e desenvolvimento das respostas coerentes registradas para este tema. Se elas explicam a causa, detalham o que é feito, fundamentam e orientam o próximo passo, a sua resposta TAMBÉM deve fazer tudo isso.
+- É PROIBIDO entregar uma resposta curta, seca ou telegráfica (1 a 2 frases). Desenvolva em parágrafos completos.
+- A resposta DEVE apresentar de forma explícita a SOLUÇÃO/encaminhamento para a reclamação, espelhando como os casos coerentes semelhantes foram resolvidos. Nunca entregue só contexto/explicação deixando o cliente sem solução.` : `🧭 ETAPA 0 — ANÁLISE DA SOLUÇÃO IMPLEMENTADA (FAÇA ANTES DE QUALQUER COISA):
 Antes de gerar a resposta, analise o conteúdo do campo "Solução implementada". O objetivo NÃO é medir o tamanho do texto, e sim o NÍVEL DE ADERÊNCIA do conteúdo à reclamação atual. Classifique em um dos níveis e siga a ação correspondente:
 
 NÍVEL 1 — INFORMAÇÕES OPERACIONAIS
@@ -1700,7 +1717,7 @@ A "Solução implementada" acima é a única fonte autorizada para fatos, datas,
 🧱 FUNDAMENTAÇÃO OBRIGATÓRIA (NÃO ENXUGAR A SOLUÇÃO):
 - INCLUA na resposta TODOS os pontos de fundamentação que constarem na solução implementada: bases normativas (LGPD, CCB, CDC, resoluções, Banco Central), número/cláusulas de contrato (CCB), leis citadas, datas, prazos, valores, números de protocolo e demais dados.
 - Esses elementos são a justificativa central da resposta e NÃO podem ser omitidos, generalizados nem resumidos a ponto de se perderem. Se a solução cita uma data, valor, cláusula ou norma, ela DEVE aparecer na resposta.
-- A resposta deve refletir a profundidade da solução implementada: se a solução é detalhada, a resposta também precisa desenvolver cada fundamento, não entregar uma versão enxuta.
+- A resposta deve refletir a profundidade da solução implementada: se a solução é detalhada, a resposta também precisa desenvolver cada fundamento, não entregar uma versão enxuta.`}
 ${montarBlocoFallbackCoerentes(dadosFormulario)}
 🎯 RESPOSTA RESOLUTIVA (OBRIGATÓRIO):
 - A resposta DEVE resolver o problema do cliente ou trazer o encaminhamento concreto da solução, respondendo diretamente à reclamação. O Reclame Aqui é o canal para resolver o que a central não resolveu, então NUNCA empurre o cliente de volta para a central/suporte.
@@ -1773,21 +1790,28 @@ IMPORTANTE: Você deve gerar APENAS o conteúdo do meio da resposta, SEM saudaç
 A estrutura completa (saudação com nome do cliente, apresentação do agente, informações de contato e assinatura) será aplicada automaticamente pelo sistema.
 
 Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
-- Responder diretamente ao ponto do cliente por meio da solução, SEM redescrever a dor/reclamação dele
+${semSolucao ? `- COMPRIMENTO OBRIGATÓRIO: produza uma resposta COMPLETA, desenvolvida em 4 a 6 parágrafos (mínimo de ~900 caracteres). É PROIBIDO entregar resposta curta, enxuta ou telegráfica.
+- APRESENTAR OBRIGATORIAMENTE A SOLUÇÃO: como não há solução implementada informada, construa a solução a partir do PADRÃO das respostas coerentes do mesmo tema e apresente-a explicitamente, resolvendo a reclamação. Nunca entregue só explicação/contexto sem solução.
+- ESPELHAR A PROFUNDIDADE da base coerente: a resposta deve ter o mesmo nível de detalhe, explicação técnica e fundamentação que as respostas coerentes registradas para este tema, na seguinte ordem:
+  1) Responda diretamente ao ponto do cliente (NÃO redescreva a dor/reclamação dele)
+  2) Explique de forma técnica e clara a causa/funcionamento e o que o Velotax faz nesse tipo de caso, reaproveitando a fundamentação recorrente das respostas coerentes (bases normativas, procedimentos, prazos típicos)
+  3) Apresente a SOLUÇÃO/encaminhamento concreto, espelhando como os casos coerentes semelhantes foram resolvidos
+  4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
+- REAPROVEITE os trechos resolutivos e a fundamentação que se repetem nas respostas coerentes do mesmo tema, SEM copiar dados pessoais nem números específicos de outro cliente/caso (nomes, datas exatas, valores, protocolos)` : `- Responder diretamente ao ponto do cliente por meio da solução, SEM redescrever a dor/reclamação dele
 - Explicar a solução implementada incluindo TODA a sua fundamentação (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
 - DESENVOLVER a solução com a MESMA riqueza e profundidade das respostas coerentes registradas para este tema (não entregue um texto mais curto/seco que elas); quando a base for detalhada, desenvolva a resposta em parágrafos completos (de 3 a 6 parágrafos), nesta ordem:
   1) Responda diretamente ao ponto do cliente já pela solução implementada (NÃO redescreva a dor/reclamação dele)
   2) Explique o que foi efetivamente feito (a solução implementada), de forma técnica e clara, INCLUINDO todas as fundamentações que constam nela (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
   3) Mostre COMO essa solução, com essa fundamentação, resolve o ponto levantado
   4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
-- NÃO omita nem resuma os fundamentos da solução implementada: cada base normativa, cláusula, data, valor ou dado citado na solução deve aparecer na resposta como justificativa
+- NÃO omita nem resuma os fundamentos da solução implementada: cada base normativa, cláusula, data, valor ou dado citado na solução deve aparecer na resposta como justificativa`}
 - Cada parágrafo deve agregar informação nova: não repita a mesma ideia com outras palavras e não use frases de enchimento
 - Ser específico e detalhado, sem ser raso ou telegráfico (evite responder em 1 ou 2 frases soltas)
 - Demonstrar expertise técnica, transparência e compromisso com a satisfação do cliente
 - Estar sempre contextualizado para o Velotax e o tipo de solicitação específica
 - NUNCA incluir pedidos de desculpas ou expressões como "lamentamos", "sentimos muito", "nos desculpamos"
 - Ser firme e objetivo, sem excesso de tom acolhedor ou friendly
-- Evite agradecimentos no miolo; vá direto ao esclarecimento da solução implementada
+- Evite agradecimentos no miolo; vá direto ao esclarecimento da solução
 
 NÃO inclua:
 - "Olá, [nome]" ou qualquer saudação
@@ -6092,15 +6116,26 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                 'sua situação atual necessitou', 'detalhes específicos do seu caso'
             ];
 
+            const semSolucaoImpl = avaliarDisponibilidadeSolucao(dadosFormulario.solucao_implementada) === 'vazia';
+            // Sem solução implementada, a resposta precisa ser completa e resolutiva (construída a
+            // partir da base coerente), então o piso de comprimento é maior para barrar respostas enxutas.
+            const comprimentoMinimo = semSolucaoImpl ? 700 : 120;
+
             const respostaValida = (texto) => {
-                if (!texto || texto.length < 120) return false;
+                if (!texto || texto.length < comprimentoMinimo) return false;
                 if (palavrasGenericas.some(p => texto.toLowerCase().includes(p))) return false;
                 return respostaRefleteSolucaoImplementada(texto, dadosFormulario.solucao_implementada);
             };
 
             if (!respostaValida(conteudoMiolo)) {
-                console.log('⚠️ Resposta não reflete a solução implementada — tentando nova geração com instrução reforçada...');
-                const promptRetry = `${prompt}
+                console.log(`⚠️ Resposta rejeitada (${semSolucaoImpl ? 'curta/sem solução resolutiva' : 'não reflete a solução implementada'}) — tentando nova geração reforçada...`);
+                const promptRetry = semSolucaoImpl ? `${prompt}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CORREÇÃO OBRIGATÓRIA (TENTATIVA ANTERIOR CURTA OU SEM SOLUÇÃO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A resposta anterior ficou enxuta e/ou não apresentou a solução para a reclamação.
+NÃO há solução implementada informada: construa a solução a partir do PADRÃO das respostas coerentes do mesmo tema (acima) e reescreva o miolo em 4 a 6 parágrafos completos, com o mesmo nível de detalhe e fundamentação dessas respostas. APRESENTE explicitamente a solução/encaminhamento que resolve a reclamação. NÃO copie dados pessoais nem números específicos de outro cliente.` : `${prompt}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CORREÇÃO OBRIGATÓRIA (TENTATIVA ANTERIOR REJEITADA)
@@ -6141,7 +6176,21 @@ ${dadosFormulario.solucao_implementada}`;
                 } else {
                     // 3ª tentativa: exigir desenvolvimento completo em parágrafos, ancorado na solução implementada
                     console.log('⚠️ Retry insuficiente — 3ª tentativa pedindo desenvolvimento completo...');
-                    const promptDesenvolvido = `${prompt}
+                    const promptDesenvolvido = semSolucaoImpl ? `${prompt}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DESENVOLVIMENTO OBRIGATÓRIO (TENTATIVAS ANTERIORES CURTAS OU SEM SOLUÇÃO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NÃO há solução implementada informada. Construa a solução a partir do PADRÃO das respostas coerentes do mesmo tema (listadas acima) e escreva o miolo em 4 a 6 parágrafos completos, espelhando o nível de detalhe e fundamentação dessas respostas.
+Estrutura obrigatória:
+1) Responda diretamente ao ponto do cliente (NÃO redescreva a dor/reclamação dele)
+2) Explique de forma técnica e clara a causa/funcionamento e o que o Velotax faz nesse tipo de caso, reaproveitando a fundamentação recorrente das respostas coerentes (bases normativas, procedimentos, prazos típicos do tema)
+3) APRESENTE a solução/encaminhamento concreto que resolve a reclamação, espelhando como os casos coerentes semelhantes foram resolvidos
+4) Encerre com o posicionamento e o compromisso do Velotax pertinentes ao caso
+NÃO copie dados pessoais nem números específicos de outro cliente/caso (nomes, datas exatas, valores, protocolos). NUNCA empurre o cliente para a central/suporte: a solução tem que estar no corpo da resposta.
+
+TEXTO DO CLIENTE (para contextualizar):
+${dadosFormulario.texto_cliente || 'N/A'}` : `${prompt}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DESENVOLVIMENTO OBRIGATÓRIO (TENTATIVAS ANTERIORES CURTAS OU DESALINHADAS)
@@ -6190,6 +6239,21 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
                     if (conteudoDesenvolvido && respostaValida(conteudoDesenvolvido)) {
                         conteudoMiolo = conteudoDesenvolvido;
                         console.log('✅ 3ª tentativa bem-sucedida — resposta desenvolvida e alinhada');
+                    } else if (semSolucaoImpl) {
+                        // Sem solução implementada não usamos o fallback genérico enxuto (deixaria o
+                        // cliente sem solução). Preferimos a tentativa mais desenvolvida gerada a partir
+                        // da base coerente, escolhendo a de maior conteúdo entre as candidatas.
+                        const candidatas = [conteudoDesenvolvido, conteudoRetry, conteudoMiolo]
+                            .filter(t => t && typeof t === 'string'
+                                && !palavrasGenericas.some(p => t.toLowerCase().includes(p)));
+                        const melhor = candidatas.sort((a, b) => b.length - a.length)[0];
+                        if (melhor && melhor.length >= 200) {
+                            conteudoMiolo = melhor;
+                            console.log('⚠️ Sem solução implementada — usando a tentativa mais desenvolvida baseada na base coerente');
+                        } else {
+                            console.log('⚠️ Tentativas insuficientes — usando fallback');
+                            conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
+                        }
                     } else {
                         console.log('⚠️ 3ª tentativa insuficiente — usando fallback baseado na solução implementada');
                         conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
