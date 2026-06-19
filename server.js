@@ -9381,7 +9381,51 @@ async function _audLerAba(nome) {
     }
 }
 
-async function gerarRelatorioAuditoria(janelaDias) {
+const AUDITORIA_CFG_PADRAO = {
+    fatorResp: 0.25, respMin: 3, respMax: 12,
+    fatorAceitas: 0.15, aceitasMin: 5, aceitasMax: 40,
+    fatorNegadas: 0.08, negadasMin: 3, negadasMax: 20,
+    pesoResp: 0.5, pesoAceitas: 0.3, pesoNegadas: 0.2
+};
+
+function normalizarCfgAuditoria(cfg = {}) {
+    const num = (v, def) => {
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : def;
+    };
+    const out = {
+        fatorResp: Math.min(Math.max(num(cfg.fatorResp, AUDITORIA_CFG_PADRAO.fatorResp), 0.05), 1),
+        respMin: Math.round(Math.min(Math.max(num(cfg.respMin, AUDITORIA_CFG_PADRAO.respMin), 1), 50)),
+        respMax: Math.round(Math.min(Math.max(num(cfg.respMax, AUDITORIA_CFG_PADRAO.respMax), 1), 100)),
+        fatorAceitas: Math.min(Math.max(num(cfg.fatorAceitas, AUDITORIA_CFG_PADRAO.fatorAceitas), 0.01), 1),
+        aceitasMin: Math.round(Math.min(Math.max(num(cfg.aceitasMin, AUDITORIA_CFG_PADRAO.aceitasMin), 1), 200)),
+        aceitasMax: Math.round(Math.min(Math.max(num(cfg.aceitasMax, AUDITORIA_CFG_PADRAO.aceitasMax), 1), 500)),
+        fatorNegadas: Math.min(Math.max(num(cfg.fatorNegadas, AUDITORIA_CFG_PADRAO.fatorNegadas), 0.01), 1),
+        negadasMin: Math.round(Math.min(Math.max(num(cfg.negadasMin, AUDITORIA_CFG_PADRAO.negadasMin), 1), 200)),
+        negadasMax: Math.round(Math.min(Math.max(num(cfg.negadasMax, AUDITORIA_CFG_PADRAO.negadasMax), 1), 500)),
+        pesoResp: Math.min(Math.max(num(cfg.pesoResp, AUDITORIA_CFG_PADRAO.pesoResp), 0), 1),
+        pesoAceitas: Math.min(Math.max(num(cfg.pesoAceitas, AUDITORIA_CFG_PADRAO.pesoAceitas), 0), 1),
+        pesoNegadas: Math.min(Math.max(num(cfg.pesoNegadas, AUDITORIA_CFG_PADRAO.pesoNegadas), 0), 1)
+    };
+    if (out.respMax < out.respMin) out.respMax = out.respMin;
+    if (out.aceitasMax < out.aceitasMin) out.aceitasMax = out.aceitasMin;
+    if (out.negadasMax < out.negadasMin) out.negadasMax = out.negadasMin;
+    // Normaliza os pesos para somarem 1 (evita índice fora de escala)
+    const somaPesos = out.pesoResp + out.pesoAceitas + out.pesoNegadas;
+    if (somaPesos > 0) {
+        out.pesoResp /= somaPesos;
+        out.pesoAceitas /= somaPesos;
+        out.pesoNegadas /= somaPesos;
+    } else {
+        out.pesoResp = AUDITORIA_CFG_PADRAO.pesoResp;
+        out.pesoAceitas = AUDITORIA_CFG_PADRAO.pesoAceitas;
+        out.pesoNegadas = AUDITORIA_CFG_PADRAO.pesoNegadas;
+    }
+    return out;
+}
+
+async function gerarRelatorioAuditoria(janelaDias, cfgEntrada = {}) {
+    const cfg = normalizarCfgAuditoria(cfgEntrada);
     const hoje = new Date();
     const inicio = new Date(hoje);
     inicio.setDate(inicio.getDate() - janelaDias);
@@ -9483,15 +9527,17 @@ async function gerarRelatorioAuditoria(janelaDias) {
     }
 
     // ===== ÍNDICE DE MATURIDADE + ONDE FOCAR (lacunas) + PROJEÇÃO DE GANHO =====
-    // Metas-base configuráveis. A meta de respostas por tipo é CALIBRADA pela demanda
-    // (quanto mais o tipo é atendido na janela, mais exemplos de qualidade ele exige),
-    // com piso e teto. Moderações aceitas/negadas usam metas globais.
-    const META_RESP_MIN = 3;            // piso de respostas de qualidade por tipo
-    const META_RESP_MAX = 12;           // teto de respostas de qualidade por tipo
-    const FATOR_DEMANDA = 0.25;         // ~25% dos casos atendidos do tipo viram exemplos curados
-    const META_ACEITAS = 20;            // alvo de moderações aceitas (aprendizado positivo)
-    const META_NEGADAS = 10;            // alvo de moderações negadas com análise (aprendizado negativo)
-    const PESO_RESP = 0.5, PESO_ACEITAS = 0.3, PESO_NEGADAS = 0.2;
+    // Parâmetros vindos da configuração (com defaults). A meta de respostas por tipo e as
+    // metas de moderação (aceitas/negadas) são CALIBRADAS pela demanda, com piso e teto.
+    const META_RESP_MIN = cfg.respMin;
+    const META_RESP_MAX = cfg.respMax;
+    const FATOR_DEMANDA = cfg.fatorResp;   // fração dos casos atendidos do tipo que viram exemplos curados
+    const PESO_RESP = cfg.pesoResp, PESO_ACEITAS = cfg.pesoAceitas, PESO_NEGADAS = cfg.pesoNegadas;
+
+    // Metas de moderação calibradas pelo VOLUME de moderações na janela
+    const demandaModeracao = relModeracoes.total;
+    const META_ACEITAS = Math.min(cfg.aceitasMax, Math.max(cfg.aceitasMin, Math.ceil(demandaModeracao * cfg.fatorAceitas)));
+    const META_NEGADAS = Math.min(cfg.negadasMax, Math.max(cfg.negadasMin, Math.ceil(demandaModeracao * cfg.fatorNegadas)));
 
     // Bons por tipo (apenas coerentes de qualidade contam para a maturidade)
     const bonsPorTipo = {};
@@ -9595,6 +9641,8 @@ async function gerarRelatorioAuditoria(janelaDias) {
         negadasFaltam: Math.max(META_NEGADAS - negadas.length, 0),
         metaAceitas: META_ACEITAS,
         metaNegadas: META_NEGADAS,
+        metasModeracaoCalibradas: true,
+        demandaModeracao,
         projecoes
     };
 
@@ -9653,6 +9701,7 @@ async function gerarRelatorioAuditoria(janelaDias) {
             moderacoesAceitas: aceitas.length,
             moderacoesNegadas: negadas.length
         },
+        config: cfg,
         maturidade,
         oportunidades,
         curvaSemanal,
@@ -9680,7 +9729,15 @@ app.get('/api/auditoria', async (req, res) => {
         if (!Number.isFinite(janelaDias) || janelaDias <= 0) janelaDias = 90;
         janelaDias = Math.min(janelaDias, 365);
 
-        const cache = _cacheAuditoria[janelaDias];
+        const cfg = normalizarCfgAuditoria({
+            fatorResp: req.query.fatorResp, respMin: req.query.respMin, respMax: req.query.respMax,
+            fatorAceitas: req.query.fatorAceitas, aceitasMin: req.query.aceitasMin, aceitasMax: req.query.aceitasMax,
+            fatorNegadas: req.query.fatorNegadas, negadasMin: req.query.negadasMin, negadasMax: req.query.negadasMax,
+            pesoResp: req.query.pesoResp, pesoAceitas: req.query.pesoAceitas, pesoNegadas: req.query.pesoNegadas
+        });
+
+        const chaveCache = `${janelaDias}::${JSON.stringify(cfg)}`;
+        const cache = _cacheAuditoria[chaveCache];
         if (cache && (Date.now() - cache.timestamp) < CACHE_AUDITORIA_TTL_MS) {
             return res.json({ success: true, fromCache: true, relatorio: cache.data });
         }
@@ -9689,8 +9746,8 @@ app.get('/api/auditoria', async (req, res) => {
             return res.json({ success: false, error: 'Planilha do Google Sheets indisponível no momento.', sheetsOk: false });
         }
 
-        const relatorio = await gerarRelatorioAuditoria(janelaDias);
-        _cacheAuditoria[janelaDias] = { data: relatorio, timestamp: Date.now() };
+        const relatorio = await gerarRelatorioAuditoria(janelaDias, cfg);
+        _cacheAuditoria[chaveCache] = { data: relatorio, timestamp: Date.now() };
         res.json({ success: true, fromCache: false, relatorio });
     } catch (error) {
         console.error('❌ Erro ao gerar auditoria:', error);

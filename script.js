@@ -4813,6 +4813,22 @@ async function processarReformulacaoAposNegativa() {
 }
 
 // ===== AUDITORIA EXECUTIVA =====
+const AUDITORIA_CFG_PADRAO = {
+    fatorResp: 0.25, respMin: 3, respMax: 12,
+    fatorAceitas: 0.15, aceitasMin: 5, aceitasMax: 40,
+    fatorNegadas: 0.08, negadasMin: 3, negadasMax: 20,
+    pesoResp: 0.5, pesoAceitas: 0.3, pesoNegadas: 0.2
+};
+
+function getConfigAuditoria() {
+    try {
+        const salvo = JSON.parse(localStorage.getItem('auditoriaConfig') || '{}');
+        return { ...AUDITORIA_CFG_PADRAO, ...salvo };
+    } catch (e) {
+        return { ...AUDITORIA_CFG_PADRAO };
+    }
+}
+
 async function carregarAuditoria(force = false) {
     const janelaSel = document.getElementById('auditoria-janela');
     const janela = janelaSel ? janelaSel.value : 90;
@@ -4827,7 +4843,11 @@ async function carregarAuditoria(force = false) {
     if (force) conteudo.innerHTML = '';
 
     try {
-        const url = `/api/auditoria?janela=${encodeURIComponent(janela)}${force ? '&_=' + Date.now() : ''}`;
+        const cfg = getConfigAuditoria();
+        const params = new URLSearchParams({ janela: String(janela) });
+        Object.keys(cfg).forEach(k => params.set(k, String(cfg[k])));
+        if (force) params.set('_', String(Date.now()));
+        const url = `/api/auditoria?${params.toString()}`;
         const resp = await fetch(url);
         const data = await resp.json();
         if (!data.success || !data.relatorio) {
@@ -4849,6 +4869,61 @@ function escAud(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function preencherCamposConfigAuditoria() {
+    const cfg = getConfigAuditoria();
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    set('cfg-fatorResp', Math.round(cfg.fatorResp * 100));
+    set('cfg-respMin', cfg.respMin);
+    set('cfg-respMax', cfg.respMax);
+    set('cfg-fatorAceitas', Math.round(cfg.fatorAceitas * 100));
+    set('cfg-aceitasMin', cfg.aceitasMin);
+    set('cfg-aceitasMax', cfg.aceitasMax);
+    set('cfg-fatorNegadas', Math.round(cfg.fatorNegadas * 100));
+    set('cfg-negadasMin', cfg.negadasMin);
+    set('cfg-negadasMax', cfg.negadasMax);
+    set('cfg-pesoResp', Math.round(cfg.pesoResp * 100));
+    set('cfg-pesoAceitas', Math.round(cfg.pesoAceitas * 100));
+    set('cfg-pesoNegadas', Math.round(cfg.pesoNegadas * 100));
+}
+
+function toggleConfigAuditoria() {
+    const painel = document.getElementById('auditoria-config');
+    if (!painel) return;
+    const visivel = painel.style.display !== 'none';
+    if (!visivel) preencherCamposConfigAuditoria();
+    painel.style.display = visivel ? 'none' : 'block';
+}
+
+function aplicarConfigAuditoria() {
+    const num = (id, def) => {
+        const el = document.getElementById(id);
+        const n = el ? parseFloat(el.value) : NaN;
+        return Number.isFinite(n) ? n : def;
+    };
+    const cfg = {
+        fatorResp: num('cfg-fatorResp', 25) / 100,
+        respMin: Math.round(num('cfg-respMin', 3)),
+        respMax: Math.round(num('cfg-respMax', 12)),
+        fatorAceitas: num('cfg-fatorAceitas', 15) / 100,
+        aceitasMin: Math.round(num('cfg-aceitasMin', 5)),
+        aceitasMax: Math.round(num('cfg-aceitasMax', 40)),
+        fatorNegadas: num('cfg-fatorNegadas', 8) / 100,
+        negadasMin: Math.round(num('cfg-negadasMin', 3)),
+        negadasMax: Math.round(num('cfg-negadasMax', 20)),
+        pesoResp: num('cfg-pesoResp', 50) / 100,
+        pesoAceitas: num('cfg-pesoAceitas', 30) / 100,
+        pesoNegadas: num('cfg-pesoNegadas', 20) / 100
+    };
+    try { localStorage.setItem('auditoriaConfig', JSON.stringify(cfg)); } catch (e) {}
+    carregarAuditoria(true);
+}
+
+function restaurarConfigAuditoria() {
+    try { localStorage.removeItem('auditoriaConfig'); } catch (e) {}
+    preencherCamposConfigAuditoria();
+    carregarAuditoria(true);
 }
 
 function corPct(pct) {
@@ -4990,6 +5065,7 @@ function renderAuditoria(r, fromCache) {
                             <div class="small text-muted">
                                 Moderações aceitas: faltam <strong>${op.aceitasFaltam}</strong> p/ meta de ${op.metaAceitas ?? 20} ·
                                 negadas com análise: faltam <strong>${op.negadasFaltam}</strong> p/ meta de ${op.metaNegadas ?? 10}.
+                                ${op.metasModeracaoCalibradas ? `<br><span style="font-size:.85em;">Metas de moderação calibradas pelo volume (${op.demandaModeracao ?? 0} moderações na janela).</span>` : ''}
                             </div>
                         </div>
                     </div>
