@@ -1775,7 +1775,7 @@ A estrutura completa (saudação com nome do cliente, apresentação do agente, 
 Gere APENAS o texto explicativo que vai entre a apresentação do agente e as informações de contato. Este texto deve:
 - Responder diretamente ao ponto do cliente por meio da solução, SEM redescrever a dor/reclamação dele
 - Explicar a solução implementada incluindo TODA a sua fundamentação (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
-- DESENVOLVER a resposta em parágrafos completos (normalmente de 3 a 5 parágrafos), nesta ordem:
+- DESENVOLVER a solução com a MESMA riqueza e profundidade das respostas coerentes registradas para este tema (não entregue um texto mais curto/seco que elas); quando a base for detalhada, desenvolva a resposta em parágrafos completos (de 3 a 6 parágrafos), nesta ordem:
   1) Responda diretamente ao ponto do cliente já pela solução implementada (NÃO redescreva a dor/reclamação dele)
   2) Explique o que foi efetivamente feito (a solução implementada), de forma técnica e clara, INCLUINDO todas as fundamentações que constam nela (bases normativas, CCB, cláusulas, leis, datas, prazos, valores e dados)
   3) Mostre COMO essa solução, com essa fundamentação, resolve o ponto levantado
@@ -1914,11 +1914,11 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
             const ranqueados = ordenarModelosPorSimilaridade(modelosComResposta, dadosFormulario);
             // Busca aprofundada: reúne VÁRIOS casos do mesmo contexto/motivo (não só o top 3),
             // para que a IA identifique o PADRÃO recorrente de solução entre eles.
-            const SIMILARIDADE_MINIMA = 0.12; // mesmo contexto de reclamação
+            const SIMILARIDADE_MINIMA = 0.08; // piso baixo para reunir mais casos do mesmo contexto
             const relevantes = ranqueados.filter(item => item.similaridade >= SIMILARIDADE_MINIMA);
             // Garante um mínimo de exemplos mesmo quando a similaridade textual é baixa.
-            const base = relevantes.length >= 3 ? relevantes : ranqueados.slice(0, 3);
-            const selecionados = base.slice(0, 6);
+            const base = relevantes.length >= 4 ? relevantes : ranqueados.slice(0, 4);
+            const selecionados = base.slice(0, 8);
 
             promptFinal += '\n✅ RESPOSTAS COERENTES APROVADAS (mesmo contexto/motivo — referência de TOM, ESTRUTURA e SOLUÇÃO):\n\n';
             promptFinal += `📊 ${selecionados.length} resposta(s) com a reclamação/motivo mais semelhantes à atual (de ${modelosComResposta.length} disponíveis). Use o CONJUNTO para extrair o padrão de solução, priorizando as de maior similaridade:\n\n`;
@@ -1942,12 +1942,14 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
                 promptFinal += `\n`;
             });
 
-            promptFinal += '\n🎯 COMO USAR AS RESPOSTAS COERENTES ACIMA (BUSCA APROFUNDADA):\n';
+            promptFinal += '\n🎯 COMO USAR AS RESPOSTAS COERENTES ACIMA (BUSCA APROFUNDADA + COERÊNCIA):\n';
             promptFinal += '   1. Identifique entre as respostas acima as que tratam da MESMA reclamação/motivo do caso atual.\n';
             promptFinal += '   2. Extraia o PADRÃO RECORRENTE de solução: o que essas respostas têm em comum na forma de RESOLVER o problema (explicação da causa, orientação concreta, encaminhamento dado ao cliente).\n';
             promptFinal += '   3. Construa UMA resposta completa que de fato RESOLVA a reclamação atual aplicando esse padrão e reaproveitando os TRECHOS resolutivos aplicáveis — não entregue apenas contexto/explicação que deixe o cliente sem solução.\n';
-            promptFinal += '   - Quando houver solução implementada: ela é a Fonte de Verdade dos fatos; use as respostas coerentes para a forma de redigir/resolver, mas os fatos vêm DELA.\n';
-            promptFinal += '   - Quando a solução implementada estiver VAZIA/incompleta: a solução do caso atual deve ser a MAIS PARECIDA POSSÍVEL com o padrão das respostas coerentes acima (a orientação/solução concreta), adaptada à reclamação atual.\n';
+            promptFinal += '   4. ESPELHE A PROFUNDIDADE das respostas coerentes: a resposta gerada deve ter o MESMO nível de detalhe, explicação e desenvolvimento da solução que essas respostas registradas, não um texto mais curto/seco. Se as coerentes explicam a causa, detalham o que foi feito e orientam o próximo passo, a sua resposta também deve fazer isso.\n';
+            promptFinal += '   5. MANTENHA A COERÊNCIA DE LINGUAGEM E ABORDAGEM com a base: use as mesmas expressões, a mesma forma de explicar e a mesma estrutura argumentativa que aparecem repetidamente nas respostas coerentes do mesmo tema (sem copiar dados pessoais).\n';
+            promptFinal += '   - Quando houver solução implementada: ela é a Fonte de Verdade dos fatos; use as respostas coerentes para a forma de redigir/resolver e para o nível de profundidade, mas os fatos vêm DELA.\n';
+            promptFinal += '   - Quando a solução implementada estiver VAZIA/incompleta: a solução do caso atual deve ser a MAIS PARECIDA POSSÍVEL com o padrão das respostas coerentes acima (a orientação/solução concreta e completa), adaptada à reclamação atual.\n';
             promptFinal += '   - NUNCA copie dados pessoais, nomes, datas, valores ou protocolos específicos de outro cliente/caso.\n';
             promptFinal += '   - Referências a LGPD, CCB ou CDC somente se constarem na solução implementada deste caso.\n\n';
         }
