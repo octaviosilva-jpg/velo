@@ -1622,6 +1622,31 @@ Equipe de Atendimento Velotax`;
     return normalizarNomeVelotax(humanizarPontuacaoGerada(respostaFormatada));
 }
 
+/** Classifica a disponibilidade da Solução Implementada para a camada de fallback. */
+function avaliarDisponibilidadeSolucao(solucao) {
+    const s = String(solucao || '').trim();
+    if (s.length === 0) return 'vazia';
+    const palavras = s.split(/\s+/).filter(p => p.replace(/[^a-zA-Z0-9á-úÁ-Ú]/g, '').length >= 3);
+    if (palavras.length < 6 || s.length < 40) return 'parcial';
+    return 'completa';
+}
+
+/** Camada de fallback: define como usar a base "Respostas Coerentes" conforme a disponibilidade da Solução Implementada. */
+function montarBlocoFallbackCoerentes(dadosFormulario) {
+    const nivel = avaliarDisponibilidadeSolucao(dadosFormulario?.solucao_implementada);
+    let bloco = '\n🔁 CAMADA DE FALLBACK — USO DA BASE "RESPOSTAS COERENTES" CONFORME A SOLUÇÃO IMPLEMENTADA:\n';
+    bloco += 'PRIORIDADE DAS FONTES (sempre nesta ordem): 1) Reclamação do consumidor; 2) Solução implementada; 3) base "Respostas Coerentes" (apoio).\n';
+    if (nivel === 'completa') {
+        bloco += 'SITUAÇÃO DETECTADA: Solução implementada COMPLETA. Siga o fluxo padrão e a ETAPA 0; os fatos vêm da solução implementada. Use os modelos da base "Respostas Coerentes" abaixo APENAS como apoio secundário de tom e estrutura.\n';
+    } else if (nivel === 'parcial') {
+        bloco += 'SITUAÇÃO DETECTADA: Solução implementada PARCIAL/incompleta. PRESERVE integralmente todas as informações específicas informadas pelo analista (datas, valores, ações, status). COMPLEMENTE a redação usando os PADRÕES de estrutura e argumentação dos modelos semelhantes da base "Respostas Coerentes" abaixo. NÃO afirme como fato deste caso nada que não esteja na solução implementada nem na reclamação.\n';
+    } else {
+        bloco += 'SITUAÇÃO DETECTADA: Solução implementada VAZIA. NÃO bloqueie a geração. Construa a resposta a partir da RECLAMAÇÃO atual e dos PADRÕES de argumentação/estrutura de casos semelhantes da base "Respostas Coerentes" abaixo, gerando uma SUGESTÃO de resposta adequada ao tipo de caso. Sem fatos específicos informados, NÃO afirme ações, datas, valores ou resultados concretos que não foram informados: mantenha a resposta no plano do posicionamento e da orientação do Velotax para esse tipo de situação. Esta é uma exceção controlada à Fonte de Verdade (que pressupõe a solução preenchida).\n';
+    }
+    bloco += 'REGRAS DE SEGURANÇA AO USAR A BASE (todos os cenários): a base serve para identificar PADRÕES de resposta, NUNCA para replicar conteúdo. NÃO copie respostas integralmente; NÃO reutilize dados, nomes, datas, valores ou informações específicas de outro cliente/caso.\n';
+    return bloco;
+}
+
 // Gerar script padrão "cru" para geração de respostas
 function gerarScriptPadraoResposta(dadosFormulario) {
     return `📌 SCRIPT INTELIGENTE PARA GERAÇÃO DE RESPOSTA RA - VELOTAX
@@ -1671,7 +1696,7 @@ A "Solução implementada" acima é a única fonte autorizada para fatos, datas,
 - INCLUA na resposta TODOS os pontos de fundamentação que constarem na solução implementada: bases normativas (LGPD, CCB, CDC, resoluções, Banco Central), número/cláusulas de contrato (CCB), leis citadas, datas, prazos, valores, números de protocolo e demais dados.
 - Esses elementos são a justificativa central da resposta e NÃO podem ser omitidos, generalizados nem resumidos a ponto de se perderem. Se a solução cita uma data, valor, cláusula ou norma, ela DEVE aparecer na resposta.
 - A resposta deve refletir a profundidade da solução implementada: se a solução é detalhada, a resposta também precisa desenvolver cada fundamento, não entregar uma versão enxuta.
-
+${montarBlocoFallbackCoerentes(dadosFormulario)}
 🧠 ANÁLISE INTELIGENTE OBRIGATÓRIA:
 
 1. CONTEXTUALIZAÇÃO DA VELOTAX:
@@ -1901,7 +1926,7 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
             promptFinal += '   - Quanto maior a similaridade da solicitação, mais útil é a abordagem/estrutura do modelo para o caso atual\n';
             promptFinal += '   - Compare a solicitação do cliente do modelo com a solicitação ATUAL e aproveite a forma de explicar nos pontos em que as situações se assemelham\n';
             promptFinal += '   - Reaproveite APENAS os trechos e abordagens que TAMBÉM se aplicam à solução implementada DESTE caso\n';
-            promptFinal += '   - NÃO copie fatos, datas, valores ou conclusões dos casos anteriores; os fatos vêm EXCLUSIVAMENTE da solução implementada deste caso\n';
+            promptFinal += '   - NÃO copie fatos, datas, valores ou conclusões dos casos anteriores; quando a solução implementada estiver preenchida, os fatos vêm DELA; quando estiver vazia/incompleta, use os modelos apenas como PADRÃO de estrutura e argumentação (camada de fallback), sem importar dados específicos de outro caso\n';
             promptFinal += '   - Referências a LGPD, CCB ou CDC somente se constarem na solução implementada deste caso\n\n';
         }
         

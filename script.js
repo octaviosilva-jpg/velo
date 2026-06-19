@@ -222,7 +222,7 @@ async function gerarRespostaOpenAI() {
         nomeSolicitante: nomeSolicitanteEl ? 'OK' : 'NÃO ENCONTRADO'
     });
     
-    if (!tipoSituacao || !idReclamacao || !reclamacao || !solucao || !nomeSolicitanteEl) {
+    if (!tipoSituacao || !idReclamacao || !reclamacao) {
         console.error('❌ Elementos obrigatórios não encontrados!');
         showErrorMessage('Erro: Elementos do formulário não encontrados. Verifique se a página carregou corretamente.');
         return;
@@ -231,8 +231,8 @@ async function gerarRespostaOpenAI() {
     const tipoSituacaoValue = tipoSituacao.value;
     const idReclamacaoValue = idReclamacao.value.trim();
     const reclamacaoValue = reclamacao.value;
-    const solucaoValue = solucao.value;
-    const historicoValue = historico.value;
+    const solucaoValue = solucao ? solucao.value : '';
+    const historicoValue = historico ? historico.value : '';
     const nomeSolicitanteValue = nomeSolicitanteEl ? nomeSolicitanteEl.value.trim() : '';
     
     console.log('Dados coletados:', {
@@ -242,10 +242,10 @@ async function gerarRespostaOpenAI() {
         solucao: solucaoValue.substring(0, 50) + '...'
     });
     
-    // Validação dos campos obrigatórios
-    if (!tipoSituacaoValue || !idReclamacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim()) || !solucaoValue || (typeof solucaoValue === 'string' && !solucaoValue.trim()) || !nomeSolicitanteValue) {
+    // Validação dos campos obrigatórios (Solução Implementada e Nome do solicitante deixaram de ser obrigatórios)
+    if (!tipoSituacaoValue || !idReclamacaoValue || !reclamacaoValue || (typeof reclamacaoValue === 'string' && !reclamacaoValue.trim())) {
         console.log('Validação falhou - campos obrigatórios não preenchidos');
-        showErrorMessage('Por favor, preencha todos os campos obrigatórios (*), incluindo Nome do solicitante.');
+        showErrorMessage('Por favor, preencha os campos obrigatórios (*): Tipo de Situação, ID da Reclamação e Reclamação do Cliente.');
         return;
     }
     
@@ -472,9 +472,9 @@ async function avaliarResposta(tipoAvaliacao) {
         tipo_solicitacao: document.getElementById('tipo-situacao').value,
         id_reclamacao: document.getElementById('id-reclamacao').value.trim(),
         texto_cliente: document.getElementById('reclamacao-text').value,
-        solucao_implementada: document.getElementById('solucao-implementada').value,
-        historico_atendimento: document.getElementById('historico-atendimento').value,
-        nome_solicitante: document.getElementById('nome-solicitante').value.trim(),
+        solucao_implementada: document.getElementById('solucao-implementada')?.value || '',
+        historico_atendimento: document.getElementById('historico-atendimento')?.value || '',
+        nome_solicitante: document.getElementById('nome-solicitante')?.value.trim() || '',
         timestamp: new Date().toISOString()
     };
     
@@ -982,9 +982,12 @@ function carregarDoHistorico(index) {
         document.getElementById('tipo-situacao').value = item.dados.tipo_solicitacao;
         document.getElementById('id-reclamacao').value = item.dados.id_reclamacao || '';
         document.getElementById('reclamacao-text').value = item.dados.texto_cliente;
-        document.getElementById('solucao-implementada').value = item.dados.solucao_implementada;
-        document.getElementById('historico-atendimento').value = item.dados.historico_atendimento;
-        document.getElementById('nome-solicitante').value = item.dados.nome_solicitante || item.dados.observacoes_internas || '';
+        const solucaoEl = document.getElementById('solucao-implementada');
+        if (solucaoEl) solucaoEl.value = item.dados.solucao_implementada || '';
+        const historicoEl = document.getElementById('historico-atendimento');
+        if (historicoEl) historicoEl.value = item.dados.historico_atendimento || '';
+        const nomeSolEl = document.getElementById('nome-solicitante');
+        if (nomeSolEl) nomeSolEl.value = item.dados.nome_solicitante || item.dados.observacoes_internas || '';
         
         // Carregar resposta
         document.getElementById('texto-resposta-gpt5').value = item.resposta;
@@ -1005,9 +1008,9 @@ function salvarRascunho() {
         tipo_situacao: document.getElementById('tipo-situacao').value,
         id_reclamacao: document.getElementById('id-reclamacao').value.trim(),
         reclamacao: document.getElementById('reclamacao-text').value,
-        solucao: document.getElementById('solucao-implementada').value,
-        historico: document.getElementById('historico-atendimento').value,
-        nome_solicitante: document.getElementById('nome-solicitante').value.trim(),
+        solucao: document.getElementById('solucao-implementada')?.value || '',
+        historico: document.getElementById('historico-atendimento')?.value || '',
+        nome_solicitante: document.getElementById('nome-solicitante')?.value.trim() || '',
         timestamp: new Date().toISOString()
     };
     
@@ -1033,9 +1036,12 @@ function carregarRascunho() {
     document.getElementById('tipo-situacao').value = rascunho.tipo_situacao;
     document.getElementById('id-reclamacao').value = rascunho.id_reclamacao || '';
     document.getElementById('reclamacao-text').value = rascunho.reclamacao;
-    document.getElementById('solucao-implementada').value = rascunho.solucao;
-    document.getElementById('historico-atendimento').value = rascunho.historico;
-    document.getElementById('nome-solicitante').value = rascunho.nome_solicitante || rascunho.observacoes || '';
+    const solucaoRascEl = document.getElementById('solucao-implementada');
+    if (solucaoRascEl) solucaoRascEl.value = rascunho.solucao || '';
+    const historicoRascEl = document.getElementById('historico-atendimento');
+    if (historicoRascEl) historicoRascEl.value = rascunho.historico || '';
+    const nomeRascEl = document.getElementById('nome-solicitante');
+    if (nomeRascEl) nomeRascEl.value = rascunho.nome_solicitante || rascunho.observacoes || '';
     
     showSuccessMessage('Rascunho carregado com sucesso!');
 }
@@ -1172,9 +1178,7 @@ function testarFuncao() {
             'tipo-situacao': document.getElementById('tipo-situacao'),
             'id-reclamacao': document.getElementById('id-reclamacao'),
             'reclamacao-text': document.getElementById('reclamacao-text'),
-            'solucao-implementada': document.getElementById('solucao-implementada'),
-            'historico-atendimento': document.getElementById('historico-atendimento'),
-            'nome-solicitante': document.getElementById('nome-solicitante')
+            'solucao-implementada': document.getElementById('solucao-implementada')
         };
         
     console.log('Elementos encontrados:');
@@ -1206,8 +1210,10 @@ function testarFuncao() {
         elementos['id-reclamacao'].value = exemplo.idReclamacao || '';
         elementos['reclamacao-text'].value = exemplo.reclamacaoCliente;
         elementos['solucao-implementada'].value = exemplo.solucaoImplementada;
-        elementos['historico-atendimento'].value = exemplo.historicoAtendimento;
-        elementos['nome-solicitante'].value = exemplo.nomeSolicitante || '';
+        const exHistoricoEl = document.getElementById('historico-atendimento');
+        if (exHistoricoEl) exHistoricoEl.value = exemplo.historicoAtendimento || '';
+        const exNomeEl = document.getElementById('nome-solicitante');
+        if (exNomeEl) exNomeEl.value = exemplo.nomeSolicitante || '';
         
         // Verificar se os valores foram definidos
         console.log('Valores definidos:');
