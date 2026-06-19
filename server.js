@@ -1912,16 +1912,28 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
         
         if (modelosComResposta.length > 0) {
             const ranqueados = ordenarModelosPorSimilaridade(modelosComResposta, dadosFormulario);
-            // Busca aprofundada: reúne VÁRIOS casos do mesmo contexto/motivo (não só o top 3),
-            // para que a IA identifique o PADRÃO recorrente de solução entre eles.
-            const SIMILARIDADE_MINIMA = 0.08; // piso baixo para reunir mais casos do mesmo contexto
+            // Busca aprofundada: analisa TODAS as respostas que têm coerência com o caso
+            // (acima do piso de similaridade), sem teto fixo de quantidade, para que a IA
+            // identifique o PADRÃO recorrente de solução no maior conjunto possível.
+            const SIMILARIDADE_MINIMA = 0.08; // piso baixo para reunir todos os casos do mesmo contexto
             const relevantes = ranqueados.filter(item => item.similaridade >= SIMILARIDADE_MINIMA);
             // Garante um mínimo de exemplos mesmo quando a similaridade textual é baixa.
             const base = relevantes.length >= 4 ? relevantes : ranqueados.slice(0, 4);
-            const selecionados = base.slice(0, 8);
+            // Proteção apenas por TAMANHO (limite de tokens da API), não por quantidade:
+            // inclui o máximo de respostas coerentes possível, das mais parecidas para as menos.
+            const ORCAMENTO_CARACTERES = 60000;
+            const selecionados = [];
+            let totalChars = 0;
+            for (const item of base) {
+                const respostaItem = item.modelo['Resposta Aprovada'] || item.modelo.respostaAprovada || '';
+                if (!respostaItem || respostaItem.trim().length === 0) continue;
+                totalChars += respostaItem.length + 400; // resposta + metadados aproximados
+                if (selecionados.length >= 4 && totalChars > ORCAMENTO_CARACTERES) break;
+                selecionados.push(item);
+            }
 
             promptFinal += '\n✅ RESPOSTAS COERENTES APROVADAS (mesmo contexto/motivo — referência de TOM, ESTRUTURA e SOLUÇÃO):\n\n';
-            promptFinal += `📊 ${selecionados.length} resposta(s) com a reclamação/motivo mais semelhantes à atual (de ${modelosComResposta.length} disponíveis). Use o CONJUNTO para extrair o padrão de solução, priorizando as de maior similaridade:\n\n`;
+            promptFinal += `📊 ${selecionados.length} resposta(s) coerente(s) analisada(s) (de ${modelosComResposta.length} disponíveis), ordenadas da mais semelhante para a menos. Analise o CONJUNTO INTEIRO para extrair o padrão de solução, priorizando as de maior similaridade:\n\n`;
 
             selecionados.forEach((item, index) => {
                 const modelo = item.modelo;
