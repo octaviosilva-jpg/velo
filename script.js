@@ -4916,6 +4916,118 @@ function renderAuditoria(r, fromCache) {
             ${kpiCard(res.moderacoesNegadas ?? 0, 'Moderações negadas (RA)', 'fa-times-circle', 'danger')}
         </div>`;
 
+    // Índice de maturidade do aprendizado
+    const mat = r.maturidade;
+    if (mat) {
+        const cor = corPct(mat.indice);
+        const comps = (mat.componentes || []).map(c => `
+            <div class="mb-2">
+                <div class="d-flex justify-content-between small">
+                    <span>${escAud(c.nome)} <span class="text-muted">(peso ${c.peso}%${c.detalhe ? ' · ' + escAud(c.detalhe) : ''})</span></span>
+                    <span class="fw-bold">${c.valor}%</span>
+                </div>
+                <div class="progress" style="height:6px;">
+                    <div class="progress-bar bg-${corPct(c.valor)}" style="width:${c.valor}%"></div>
+                </div>
+            </div>`).join('');
+        html += `
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 text-center border-end">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-gauge-high me-1"></i> Maturidade do aprendizado</h6>
+                            <div class="text-${cor}" style="font-size:3rem; font-weight:700; line-height:1;">${mat.indice}%</div>
+                            <div class="progress mt-2" style="height:10px;">
+                                <div class="progress-bar bg-${cor}" style="width:${mat.indice}%"></div>
+                            </div>
+                            <div class="small text-muted mt-1">0% = base vazia · 100% = base ideal</div>
+                        </div>
+                        <div class="col-md-8 mt-3 mt-md-0">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-2">Composição do índice</h6>
+                            ${comps}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    // Onde focar: lacunas + projeção de ganho
+    const op = r.oportunidades;
+    if (op) {
+        const proj = (op.projecoes || []).map(p => {
+            const corG = p.ganhoPts > 0 ? 'success' : 'secondary';
+            return `
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <span class="small">${escAud(p.acao)}</span>
+                    <span class="badge bg-${corG}">${p.ganhoPts > 0 ? '+' + p.ganhoPts + ' pts' : 'sem ganho'}</span>
+                </div>`;
+        }).join('');
+        const lacunas = (op.tiposComLacuna || []).map(t => `
+            <tr>
+                <td class="text-truncate" style="max-width:180px;" title="${escAud(t.tipo)}">${escAud(t.tipo)}</td>
+                <td class="text-center">${t.bons}/${t.meta}</td>
+                <td class="text-center"><span class="badge bg-warning text-dark">faltam ${t.faltam}</span></td>
+            </tr>`).join('');
+        html += `
+            <div class="row">
+                <div class="col-lg-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-bullseye me-1"></i> Projeção de ganho (quanto a maturidade sobe)</h6>
+                            <p class="small text-muted mb-2">Estimativa de quantos pontos o índice de maturidade ganharia ao registrar mais exemplos:</p>
+                            ${proj || '<div class="text-muted small">Base já no nível ideal — sem ganhos relevantes a projetar.</div>'}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-list-check me-1"></i> Onde faltam registros (meta: ${op.metaCoerentesPorTipo} por tipo)</h6>
+                            ${lacunas ? `<div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead class="table-light"><tr><th>Tipo</th><th class="text-center">Qualidade</th><th class="text-center">Lacuna</th></tr></thead><tbody>${lacunas}</tbody></table></div>` : '<div class="text-success small mb-2"><i class="fas fa-check-circle me-1"></i> Todos os tipos ativos atingiram a meta de respostas de qualidade.</div>'}
+                            <div class="small text-muted">
+                                Moderações aceitas: faltam <strong>${op.aceitasFaltam}</strong> para a meta ·
+                                negadas com análise: faltam <strong>${op.negadasFaltam}</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    // Curva de aprendizado semanal (12 semanas)
+    const curva = r.curvaSemanal || [];
+    if (curva.length) {
+        const maxVol = Math.max(1, ...curva.map(s => s.coerentes + s.feedbacks));
+        const barras = curva.map(s => {
+            const hC = Math.round((s.coerentes / maxVol) * 100);
+            const hF = Math.round((s.feedbacks / maxVol) * 100);
+            return `
+                <div class="text-center" style="flex:1; min-width:0;">
+                    <div class="d-flex justify-content-center align-items-end gap-1" style="height:120px;">
+                        <div class="bg-success rounded-top" style="width:8px; height:${hC}%; min-height:2px;" title="${s.coerentes} coerentes"></div>
+                        <div class="bg-warning rounded-top" style="width:8px; height:${hF}%; min-height:2px;" title="${s.feedbacks} feedbacks"></div>
+                    </div>
+                    <div class="small"><span class="badge bg-${corPct(s.pctBons)}" style="font-size:.6rem;">${s.pctBons}%</span></div>
+                    <div class="text-muted" style="font-size:.65rem;">${escAud(s.semana)}</div>
+                </div>`;
+        }).join('');
+        html += `
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+                        <h6 class="text-muted text-uppercase small fw-bold mb-0"><i class="fas fa-wave-square me-1"></i> Curva de aprendizado — últimas 12 semanas</h6>
+                        <span class="small">
+                            <span class="badge bg-success">coerentes</span>
+                            <span class="badge bg-warning text-dark">feedbacks</span>
+                            <span class="badge bg-info">% no padrão</span>
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-end gap-1">${barras}</div>
+                    <p class="small text-muted mt-2 mb-0">A auditoria é recalculada a cada abertura (cache de 5 min) a partir da planilha, então a curva reflete sempre os dados mais recentes — uma leitura por semana já mostra a evolução da coerência.</p>
+                </div>
+            </div>`;
+    }
+
     // Evolução por mês
     const meses = apr.porMes || [];
     if (meses.length) {

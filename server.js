@@ -9482,6 +9482,127 @@ async function gerarRelatorioAuditoria(janelaDias) {
         recomendacao = 'Quase nenhum coerente no padrão atual — geração usa o script padrão até a curadoria de novos exemplos.';
     }
 
+    // ===== ÍNDICE DE MATURIDADE + ONDE FOCAR (lacunas) + PROJEÇÃO DE GANHO =====
+    const META_COERENTES_POR_TIPO = 5; // alvo de respostas de qualidade por tipo ativo
+    const META_ACEITAS = 20;           // alvo de moderações aceitas (aprendizado positivo)
+    const META_NEGADAS = 10;           // alvo de moderações negadas com análise (aprendizado negativo)
+    const PESO_RESP = 0.5, PESO_ACEITAS = 0.3, PESO_NEGADAS = 0.2;
+
+    // Bons por tipo (apenas coerentes de qualidade contam para a maturidade)
+    const bonsPorTipo = {};
+    for (const r of coerentes) {
+        const tipo = r['Tipo Solicitação'] || r['Tipo de Situação'] || '(vazio)';
+        if (!bonsPorTipo[tipo]) bonsPorTipo[tipo] = 0;
+        if (_audCoerenteBom(r)) bonsPorTipo[tipo]++;
+    }
+    // Tipos ativos = aparecem em coerentes OU em feedbacks (temas que o sistema precisa atender)
+    const tiposAtivos = new Set([
+        ...Object.keys(relCoerentes.porTipo || {}),
+        ...Object.keys(relFeedbacks.porTipo || {})
+    ]);
+    tiposAtivos.delete('(vazio)');
+    const listaTipos = Array.from(tiposAtivos);
+    const numTipos = listaTipos.length || 1;
+
+    const subResp = listaTipos.length
+        ? listaTipos.reduce((s, t) => s + Math.min((bonsPorTipo[t] || 0) / META_COERENTES_POR_TIPO, 1), 0) / numTipos
+        : 0;
+    const subAceitas = Math.min(aceitas.length / META_ACEITAS, 1);
+    const subNegadas = Math.min(negadas.length / META_NEGADAS, 1);
+    const indiceMaturidade = Math.round((subResp * PESO_RESP + subAceitas * PESO_ACEITAS + subNegadas * PESO_NEGADAS) * 100);
+
+    // Deficit total de respostas (quantas respostas de qualidade faltam para todos os tipos atingirem a meta)
+    const deficitPorTipo = listaTipos
+        .map(t => ({ tipo: t, bons: bonsPorTipo[t] || 0, meta: META_COERENTES_POR_TIPO, faltam: Math.max(META_COERENTES_POR_TIPO - (bonsPorTipo[t] || 0), 0) }))
+        .filter(x => x.faltam > 0)
+        .sort((a, b) => b.faltam - a.faltam);
+    const deficitTotalResp = deficitPorTipo.reduce((s, x) => s + x.faltam, 0);
+
+    // Projeção: quanto o índice sobe ao adicionar N registros (alocados de forma ótima nas lacunas)
+    const ganhoCoerentes = (n) => {
+        const aproveitaveis = Math.min(n, deficitTotalResp);
+        const novoSubResp = subResp + aproveitaveis / (META_COERENTES_POR_TIPO * numTipos);
+        const novo = Math.round((novoSubResp * PESO_RESP + subAceitas * PESO_ACEITAS + subNegadas * PESO_NEGADAS) * 100);
+        return Math.max(novo - indiceMaturidade, 0);
+    };
+    const ganhoAceitas = (n) => {
+        const novoSub = Math.min((aceitas.length + n) / META_ACEITAS, 1);
+        const novo = Math.round((subResp * PESO_RESP + novoSub * PESO_ACEITAS + subNegadas * PESO_NEGADAS) * 100);
+        return Math.max(novo - indiceMaturidade, 0);
+    };
+    const ganhoNegadas = (n) => {
+        const novoSub = Math.min((negadas.length + n) / META_NEGADAS, 1);
+        const novo = Math.round((subResp * PESO_RESP + subAceitas * PESO_ACEITAS + novoSub * PESO_NEGADAS) * 100);
+        return Math.max(novo - indiceMaturidade, 0);
+    };
+
+    const projecoes = [
+        { acao: '+3 respostas coerentes de qualidade (nos tipos com lacuna)', tipoAcao: 'coerentes', quantidade: 3, ganhoPts: ganhoCoerentes(3) },
+        { acao: '+5 respostas coerentes de qualidade (nos tipos com lacuna)', tipoAcao: 'coerentes', quantidade: 5, ganhoPts: ganhoCoerentes(5) },
+        { acao: '+10 respostas coerentes de qualidade (nos tipos com lacuna)', tipoAcao: 'coerentes', quantidade: 10, ganhoPts: ganhoCoerentes(10) },
+        { acao: '+5 moderações aceitas registradas', tipoAcao: 'aceitas', quantidade: 5, ganhoPts: ganhoAceitas(5) },
+        { acao: '+3 moderações negadas com análise (onde errou / como corrigir)', tipoAcao: 'negadas', quantidade: 3, ganhoPts: ganhoNegadas(3) }
+    ].sort((a, b) => b.ganhoPts - a.ganhoPts);
+
+    const maturidade = {
+        indice: indiceMaturidade,
+        meta: 100,
+        componentes: [
+            { nome: 'Cobertura de respostas por tipo', valor: Math.round(subResp * 100), peso: Math.round(PESO_RESP * 100) },
+            { nome: 'Moderações aceitas (positivo)', valor: Math.round(subAceitas * 100), peso: Math.round(PESO_ACEITAS * 100), detalhe: `${aceitas.length}/${META_ACEITAS}` },
+            { nome: 'Moderações negadas com análise (negativo)', valor: Math.round(subNegadas * 100), peso: Math.round(PESO_NEGADAS * 100), detalhe: `${negadas.length}/${META_NEGADAS}` }
+        ]
+    };
+
+    const oportunidades = {
+        metaCoerentesPorTipo: META_COERENTES_POR_TIPO,
+        deficitTotalResp,
+        tiposComLacuna: deficitPorTipo.slice(0, 12),
+        aceitasFaltam: Math.max(META_ACEITAS - aceitas.length, 0),
+        negadasFaltam: Math.max(META_NEGADAS - negadas.length, 0),
+        projecoes
+    };
+
+    // ===== CURVA DE APRENDIZADO SEMANAL (últimas 12 semanas, da fonte de verdade) =====
+    const inicioSemana = (d) => {
+        const x = new Date(d);
+        const dow = (x.getDay() + 6) % 7; // segunda = 0
+        x.setDate(x.getDate() - dow);
+        x.setHours(0, 0, 0, 0);
+        return x;
+    };
+    const semanaAtual = inicioSemana(hoje);
+    const N_SEMANAS = 12;
+    const buckets = [];
+    for (let i = N_SEMANAS - 1; i >= 0; i--) {
+        const ini = new Date(semanaAtual); ini.setDate(ini.getDate() - i * 7);
+        const fimS = new Date(ini); fimS.setDate(fimS.getDate() + 6); fimS.setHours(23, 59, 59, 999);
+        buckets.push({ ini, fimS,
+            label: ini.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            coerentes: 0, coerentesBons: 0, feedbacks: 0, moderacoes: 0, aceitas: 0, negadas: 0 });
+    }
+    const indiceBucket = (data) => {
+        if (!data) return -1;
+        const diff = Math.floor((semanaAtual - inicioSemana(data)) / (7 * 24 * 60 * 60 * 1000));
+        const idx = (N_SEMANAS - 1) - diff;
+        return (idx >= 0 && idx < N_SEMANAS) ? idx : -1;
+    };
+    for (const r of coerentesAll) { const i = indiceBucket(r._data); if (i >= 0) { buckets[i].coerentes++; if (_audCoerenteBom(r)) buckets[i].coerentesBons++; } }
+    for (const r of feedbacksAll) { const i = indiceBucket(r._data); if (i >= 0) buckets[i].feedbacks++; }
+    for (const r of modAll) { const i = indiceBucket(r._data); if (i >= 0) buckets[i].moderacoes++; }
+    for (const r of aceitasAll) { const i = indiceBucket(r._data); if (i >= 0) buckets[i].aceitas++; }
+    for (const r of negadasAll) { const i = indiceBucket(r._data); if (i >= 0) buckets[i].negadas++; }
+    const curvaSemanal = buckets.map(b => ({
+        semana: b.label,
+        coerentes: b.coerentes,
+        coerentesBons: b.coerentesBons,
+        pctBons: b.coerentes ? Math.round((b.coerentesBons / b.coerentes) * 100) : 0,
+        feedbacks: b.feedbacks,
+        moderacoes: b.moderacoes,
+        aceitas: b.aceitas,
+        negadas: b.negadas
+    }));
+
     return {
         janelaDias,
         periodo: { de: inicio.toLocaleDateString('pt-BR'), ate: hoje.toLocaleDateString('pt-BR') },
@@ -9497,6 +9618,9 @@ async function gerarRelatorioAuditoria(janelaDias) {
             moderacoesAceitas: aceitas.length,
             moderacoesNegadas: negadas.length
         },
+        maturidade,
+        oportunidades,
+        curvaSemanal,
         aprendizado: { coerentes: relCoerentes, feedbacks: relFeedbacks, janelas, porMes, recomendacao },
         moderacoes: {
             totaisPlanilha: { moderacoes: modAll.length, aceitas: aceitasAll.length, negadas: negadasAll.length },
