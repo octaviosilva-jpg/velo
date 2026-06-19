@@ -9188,6 +9188,260 @@ let cacheEstatisticasHoje = { data: null, dataISO: null, timestamp: 0 };
 const CACHE_ESTATISTICAS_TTL_MS = 90 * 1000;
 
 // Endpoint para buscar estatísticas do dia atual (contagem nas abas: Respostas Coerentes, Moderações, Moderações Aceitas, Moderações Negadas)
+// ===== AUDITORIA EXECUTIVA (aprendizado + moderações) =====
+let _cacheAuditoria = {}; // { [janela]: { data, timestamp } }
+const CACHE_AUDITORIA_TTL_MS = 5 * 60 * 1000;
+
+function _audParseDataBR(str) {
+    if (!str) return null;
+    const s = String(str).trim();
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) {
+        const d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const iso = new Date(s);
+    return isNaN(iso.getTime()) ? null : iso;
+}
+
+function _audRowsToObjects(data) {
+    if (!data || data.length <= 1) return [];
+    const headers = data[0].map(h => String(h || '').trim());
+    const rows = [];
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row || !row.some(c => c !== undefined && c !== '')) continue;
+        const obj = { _linha: i + 1 };
+        headers.forEach((h, idx) => { if (h) obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+        obj._dataRaw = row[0] || obj['Data/Hora'] || obj['Data do Registro'] || '';
+        obj._data = _audParseDataBR(String(obj._dataRaw));
+        rows.push(obj);
+    }
+    return rows;
+}
+
+const _AUD_TIPOS_NOVOS = new Set([
+    'antecipacao', 'antecipacao-2026', 'aplicativo', 'conta-celcoin',
+    'credito-ao-trabalhador', 'clube-velotax', 'emprestimo-pessoal', 'seguros',
+    'incoerente', 'em-cobranca', 'veloprime', 'divida-prescrita', 'juros-abusivos'
+]);
+const _AUD_TIPOS_ANTIGOS = new Set([
+    'exclusao-cadastro', 'exclusao-chave-pix-cpf', 'liberacao-chave-pix',
+    'antecipacao-restituicao', 'quitação-antecipada', 'esclarecimento', 'teste-escrita'
+]);
+function _audNormTipo(t) {
+    return String(t || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function _audClassificarTipo(tipo) {
+    const n = _audNormTipo(tipo);
+    if (!n) return 'vazio';
+    for (const t of _AUD_TIPOS_NOVOS) if (n.includes(t) || t.includes(n)) return 'novo';
+    for (const t of _AUD_TIPOS_ANTIGOS) if (n.includes(t.replace(/-/g, '')) || n.includes(t)) return 'antigo';
+    return 'outro';
+}
+function _audTemTomAntigo(texto) {
+    if (!texto) return false;
+    const t = texto.toLowerCase();
+    return ['agradecemos', 'agradeço', 'lamentamos', 'sentimos muito', 'pedimos desculpas',
+        'compreendemos o transtorno', 'infelizmente', 'prezado(a) cliente'].some(p => t.includes(p));
+}
+function _audCitaLegalSemSolucao(resposta, solucao) {
+    if (!resposta) return false;
+    const r = resposta.toLowerCase();
+    const termos = ['lgpd', 'ccb', 'código de defesa', 'codigo de defesa', 'cdc', 'banco central', 'cláusula', 'clausula'];
+    if (!termos.some(term => r.includes(term))) return false;
+    const s = (solucao || '').toLowerCase();
+    return !termos.some(term => s.includes(term));
+}
+function _audRefleteSolucao(resposta, solucao) {
+    if (!solucao || !String(solucao).trim()) return null;
+    if (!resposta) return false;
+    const sol = String(solucao).toLowerCase().trim();
+    const resp = resposta.toLowerCase();
+    if (resp.includes(sol.substring(0, Math.min(50, sol.length)))) return true;
+    const palavras = sol.split(/\s+/).map(p => p.replace(/[^a-záàâãéêíóôõúç0-9]/gi, '')).filter(p => p.length >= 4);
+    if (palavras.length === 0) return resp.includes(sol.substring(0, 20));
+    const match = palavras.filter(p => resp.includes(p)).length;
+    return match >= Math.max(2, Math.ceil(palavras.length * 0.35));
+}
+function _audContarPor(arr, fn) {
+    const m = {};
+    for (const x of arr) { const k = fn(x); m[k] = (m[k] || 0) + 1; }
+    return m;
+}
+function _audCoerenteBom(r) {
+    const resp = r['Resposta Aprovada'] || '';
+    const sol = r['Solução Implementada'] || '';
+    return !_audTemTomAntigo(resp) && !_audCitaLegalSemSolucao(resp, sol) && _audRefleteSolucao(resp, sol) !== false;
+}
+
+async function _audLerAba(nome) {
+    try {
+        return _audRowsToObjects(await googleSheetsConfig.readData(`${nome}!A1:Z5000`));
+    } catch (e) {
+        console.warn(`⚠️ Auditoria: erro ao ler "${nome}":`, e.message);
+        return [];
+    }
+}
+
+async function gerarRelatorioAuditoria(janelaDias) {
+    const hoje = new Date();
+    const inicio = new Date(hoje);
+    inicio.setDate(inicio.getDate() - janelaDias);
+    inicio.setHours(0, 0, 0, 0);
+    const fim = new Date(hoje);
+    fim.setHours(23, 59, 59, 999);
+
+    const dentro = (rows) => rows.filter(r => r._data && r._data >= inicio && r._data <= fim);
+
+    const [coerentesAll, feedbacksAll, modAll, aceitasAll, negadasAll] = await Promise.all([
+        _audLerAba('Respostas Coerentes'),
+        _audLerAba('Feedbacks'),
+        _audLerAba('Moderações'),
+        _audLerAba('Moderações Aceitas'),
+        _audLerAba('Moderações Negadas')
+    ]);
+
+    const coerentes = dentro(coerentesAll);
+    const feedbacks = dentro(feedbacksAll);
+    const mod = dentro(modAll);
+    const aceitas = dentro(aceitasAll);
+    const negadas = dentro(negadasAll);
+
+    // ----- Aprendizado: coerentes -----
+    const coerentesBons = coerentes.filter(_audCoerenteBom).length;
+    const relCoerentes = {
+        total: coerentes.length,
+        bons: coerentesBons,
+        pctBons: coerentes.length ? Math.round((coerentesBons / coerentes.length) * 100) : 0,
+        tomAntigo: coerentes.filter(r => _audTemTomAntigo(r['Resposta Aprovada'] || '')).length,
+        legalSemSolucao: coerentes.filter(r => _audCitaLegalSemSolucao(r['Resposta Aprovada'] || '', r['Solução Implementada'] || '')).length,
+        naoRefleteSolucao: coerentes.filter(r => _audRefleteSolucao(r['Resposta Aprovada'] || '', r['Solução Implementada'] || '') === false).length,
+        porTipo: _audContarPor(coerentes, r => r['Tipo Solicitação'] || r['Tipo de Situação'] || '(vazio)'),
+        porClassificacaoTipo: _audContarPor(coerentes, r => _audClassificarTipo(r['Tipo Solicitação'] || r['Tipo de Situação']))
+    };
+
+    // ----- Aprendizado: feedbacks -----
+    const relFeedbacks = {
+        total: feedbacks.length,
+        tomAntigoReform: feedbacks.filter(r => _audTemTomAntigo(r['Resposta Reformulada'] || '')).length,
+        legalSemSolucao: feedbacks.filter(r => _audCitaLegalSemSolucao(r['Resposta Reformulada'] || '', r['Solução Implementada'] || '')).length,
+        naoRefleteSolucao: feedbacks.filter(r => _audRefleteSolucao(r['Resposta Reformulada'] || '', r['Solução Implementada'] || '') === false).length,
+        porTipo: _audContarPor(feedbacks, r => r['Tipo Solicitação'] || '(vazio)'),
+        porClassificacaoTipo: _audContarPor(feedbacks, r => _audClassificarTipo(r['Tipo Solicitação']))
+    };
+
+    // ----- Evolução: janelas 60/90/120 + por mês (últimos 6 meses) -----
+    const janelas = [60, 90, 120].map(dias => {
+        const desde = new Date(hoje); desde.setDate(desde.getDate() - dias);
+        const cJanela = coerentesAll.filter(r => r._data && r._data >= desde);
+        const fJanela = feedbacksAll.filter(r => r._data && r._data >= desde);
+        const cBons = cJanela.filter(_audCoerenteBom).length;
+        return {
+            dias,
+            coerentesTotal: cJanela.length,
+            coerentesPadraoAtual: cBons,
+            coerentesForaPadrao: cJanela.length - cBons,
+            feedbacksTotal: fJanela.length,
+            pctBons: cJanela.length ? Math.round((cBons / cJanela.length) * 100) : 0
+        };
+    });
+
+    const porMes = [];
+    for (let i = 5; i >= 0; i--) {
+        const ref = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const proximo = new Date(hoje.getFullYear(), hoje.getMonth() - i + 1, 1);
+        const cMes = coerentesAll.filter(r => r._data && r._data >= ref && r._data < proximo);
+        const fMes = feedbacksAll.filter(r => r._data && r._data >= ref && r._data < proximo);
+        const cBons = cMes.filter(_audCoerenteBom).length;
+        porMes.push({
+            mes: ref.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+            coerentes: cMes.length,
+            coerentesBons: cBons,
+            pctBons: cMes.length ? Math.round((cBons / cMes.length) * 100) : 0,
+            feedbacks: fMes.length
+        });
+    }
+
+    // ----- Moderações -----
+    const statusDe = (r) => String(r['Status Aprovação'] || '').trim().toLowerCase();
+    const relModeracoes = {
+        total: mod.length,
+        aprovadas: mod.filter(r => statusDe(r).includes('aprov')).length,
+        pendentes: mod.filter(r => statusDe(r).includes('pend')).length,
+        comFeedback: mod.filter(r => String(r['Feedback'] || '').trim()).length,
+        coerentesUtilizaveis: mod.filter(r => statusDe(r) === 'aprovada' && !String(r['Feedback'] || '').trim()).length,
+        porStatus: _audContarPor(mod, r => statusDe(r) || '(vazio)'),
+        porMotivo: _audContarPor(mod, r => r['Motivo Moderação'] || '(vazio)')
+    };
+
+    const j90 = janelas.find(j => j.dias === 90) || janelas[0];
+    let recomendacao;
+    if (j90 && j90.coerentesPadraoAtual >= 5 && j90.pctBons >= 40) {
+        recomendacao = 'Base de aprendizado saudável: janela de 90 dias + filtro de qualidade. Bom volume de respostas coerentes no padrão atual.';
+    } else if (j90 && j90.coerentesPadraoAtual >= 2) {
+        recomendacao = `Janela de 90 dias + filtro de qualidade ativo. Poucos coerentes no padrão atual (${j90.coerentesPadraoAtual}) — aprendizado complementar; priorizar script + solução implementada.`;
+    } else {
+        recomendacao = 'Quase nenhum coerente no padrão atual — geração usa o script padrão até a curadoria de novos exemplos.';
+    }
+
+    return {
+        janelaDias,
+        periodo: { de: inicio.toLocaleDateString('pt-BR'), ate: hoje.toLocaleDateString('pt-BR') },
+        geradoEm: hoje.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+        sheetsOk: true,
+        resumo: {
+            coerentesPeriodo: relCoerentes.total,
+            coerentesBons: relCoerentes.bons,
+            pctBons: relCoerentes.pctBons,
+            feedbacksPeriodo: relFeedbacks.total,
+            moderacoesPeriodo: relModeracoes.total,
+            moderacoesAprovadas: relModeracoes.aprovadas,
+            moderacoesAceitas: aceitas.length,
+            moderacoesNegadas: negadas.length
+        },
+        aprendizado: { coerentes: relCoerentes, feedbacks: relFeedbacks, janelas, porMes, recomendacao },
+        moderacoes: {
+            totaisPlanilha: { moderacoes: modAll.length, aceitas: aceitasAll.length, negadas: negadasAll.length },
+            noPeriodo: { moderacoes: mod.length, aceitas: aceitas.length, negadas: negadas.length },
+            abaModeracoes: relModeracoes,
+            abaAceitas: { total: aceitas.length, porTema: _audContarPor(aceitas, r => r['Tema'] || r['Motivo Utilizado'] || '(vazio)') },
+            abaNegadas: { total: negadas.length, porMotivo: _audContarPor(negadas, r => r['Motivo da Negativa'] || r['Motivo Negativa'] || '(vazio)') }
+        },
+        totaisGerais: {
+            coerentesPlanilha: coerentesAll.length,
+            feedbacksPlanilha: feedbacksAll.length,
+            coerentesAntesPeriodo: coerentesAll.filter(r => r._data && r._data < inicio).length,
+            feedbacksAntesPeriodo: feedbacksAll.filter(r => r._data && r._data < inicio).length
+        }
+    };
+}
+
+app.get('/api/auditoria', async (req, res) => {
+    console.log('🎯 Endpoint /api/auditoria chamado');
+    try {
+        let janelaDias = parseInt(req.query.janela, 10);
+        if (!Number.isFinite(janelaDias) || janelaDias <= 0) janelaDias = 90;
+        janelaDias = Math.min(janelaDias, 365);
+
+        const cache = _cacheAuditoria[janelaDias];
+        if (cache && (Date.now() - cache.timestamp) < CACHE_AUDITORIA_TTL_MS) {
+            return res.json({ success: true, fromCache: true, relatorio: cache.data });
+        }
+
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.json({ success: false, error: 'Planilha do Google Sheets indisponível no momento.', sheetsOk: false });
+        }
+
+        const relatorio = await gerarRelatorioAuditoria(janelaDias);
+        _cacheAuditoria[janelaDias] = { data: relatorio, timestamp: Date.now() };
+        res.json({ success: true, fromCache: false, relatorio });
+    } catch (error) {
+        console.error('❌ Erro ao gerar auditoria:', error);
+        res.status(500).json({ success: false, error: 'Erro ao gerar auditoria: ' + error.message });
+    }
+});
+
 app.get('/api/estatisticas-hoje', async (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
     try {

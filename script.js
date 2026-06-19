@@ -198,6 +198,11 @@ function switchTool(toolName) {
     // Adiciona active ao link e painel selecionado
     document.querySelector(`[data-tool="${toolName}"]`).classList.add('active');
     document.getElementById(`${toolName}-tool`).classList.add('active');
+
+    // Carrega a auditoria sob demanda na primeira abertura da aba
+    if (toolName === 'auditoria' && !window._auditoriaCarregada) {
+        carregarAuditoria();
+    }
 }
 
 // ===== FUNÇÕES DO RECLAME AQUI COM IA OPENAI =====
@@ -4805,6 +4810,245 @@ async function processarReformulacaoAposNegativa() {
         console.error('Erro ao reformular moderação:', error);
         showErrorMessage('Erro ao conectar com o servidor. Verifique sua conexão.');
     }
+}
+
+// ===== AUDITORIA EXECUTIVA =====
+async function carregarAuditoria(force = false) {
+    const janelaSel = document.getElementById('auditoria-janela');
+    const janela = janelaSel ? janelaSel.value : 90;
+    const loading = document.getElementById('auditoria-loading');
+    const erro = document.getElementById('auditoria-erro');
+    const conteudo = document.getElementById('auditoria-conteudo');
+    if (!conteudo) return;
+
+    window._auditoriaCarregada = true;
+    if (loading) loading.style.display = 'block';
+    if (erro) erro.style.display = 'none';
+    if (force) conteudo.innerHTML = '';
+
+    try {
+        const url = `/api/auditoria?janela=${encodeURIComponent(janela)}${force ? '&_=' + Date.now() : ''}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (!data.success || !data.relatorio) {
+            throw new Error(data.error || 'Não foi possível gerar a auditoria.');
+        }
+        conteudo.innerHTML = renderAuditoria(data.relatorio, data.fromCache);
+    } catch (e) {
+        console.error('Erro ao carregar auditoria:', e);
+        if (erro) {
+            erro.style.display = 'block';
+            erro.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${escAud(e.message || 'Erro ao carregar auditoria.')}`;
+        }
+    } finally {
+        if (loading) loading.style.display = 'none';
+    }
+}
+
+function escAud(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function corPct(pct) {
+    if (pct >= 60) return 'success';
+    if (pct >= 35) return 'warning';
+    return 'danger';
+}
+
+function kpiCard(valor, label, icon, cor) {
+    return `
+        <div class="col-6 col-md-3 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center py-3">
+                    <div class="text-${cor}" style="font-size:1.6rem;"><i class="fas ${icon}"></i></div>
+                    <div class="fw-bold" style="font-size:1.8rem; line-height:1.1;">${valor}</div>
+                    <div class="text-muted small">${label}</div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function tabelaDistribuicao(obj, titulo, max = 10) {
+    const itens = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, max);
+    if (itens.length === 0) return '';
+    const total = Object.values(obj).reduce((a, b) => a + b, 0) || 1;
+    const linhas = itens.map(([k, v]) => {
+        const p = Math.round((v / total) * 100);
+        return `
+            <div class="mb-2">
+                <div class="d-flex justify-content-between small">
+                    <span class="text-truncate me-2" title="${escAud(k)}">${escAud(k)}</span>
+                    <span class="text-muted">${v} (${p}%)</span>
+                </div>
+                <div class="progress" style="height:6px;">
+                    <div class="progress-bar bg-info" style="width:${p}%"></div>
+                </div>
+            </div>`;
+    }).join('');
+    return `<div class="mb-3"><h6 class="text-muted text-uppercase small fw-bold mb-2">${escAud(titulo)}</h6>${linhas}</div>`;
+}
+
+function renderAuditoria(r, fromCache) {
+    const res = r.resumo || {};
+    const apr = r.aprendizado || {};
+    const mod = r.moderacoes || {};
+
+    // KPIs principais
+    let html = `
+        <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+            <div class="text-muted small">
+                <i class="fas fa-calendar-alt me-1"></i> Período: <strong>${escAud(r.periodo?.de)}</strong> a <strong>${escAud(r.periodo?.ate)}</strong>
+                &nbsp;·&nbsp; Gerado em ${escAud(r.geradoEm)} ${fromCache ? '<span class="badge bg-secondary">cache</span>' : ''}
+            </div>
+        </div>
+        <div class="row">
+            ${kpiCard(res.coerentesPeriodo ?? 0, 'Respostas coerentes', 'fa-check-circle', 'success')}
+            ${kpiCard(res.feedbacksPeriodo ?? 0, 'Feedbacks (correções)', 'fa-comment-dots', 'warning')}
+            ${kpiCard(res.moderacoesPeriodo ?? 0, 'Moderações registradas', 'fa-shield-alt', 'primary')}
+            ${kpiCard(res.moderacoesAprovadas ?? 0, 'Moderações aprovadas', 'fa-thumbs-up', 'info')}
+        </div>
+        <div class="row">
+            ${kpiCard((res.pctBons ?? 0) + '%', 'Coerentes no padrão atual', 'fa-star', corPct(res.pctBons ?? 0))}
+            ${kpiCard(res.coerentesBons ?? 0, 'Coerentes de qualidade', 'fa-award', 'success')}
+            ${kpiCard(res.moderacoesAceitas ?? 0, 'Moderações aceitas (RA)', 'fa-check-double', 'success')}
+            ${kpiCard(res.moderacoesNegadas ?? 0, 'Moderações negadas (RA)', 'fa-times-circle', 'danger')}
+        </div>`;
+
+    // Evolução por mês
+    const meses = apr.porMes || [];
+    if (meses.length) {
+        const maxCoerentes = Math.max(1, ...meses.map(m => m.coerentes));
+        const barras = meses.map(m => {
+            const altura = Math.round((m.coerentes / maxCoerentes) * 100);
+            return `
+                <div class="text-center" style="flex:1;">
+                    <div class="d-flex flex-column justify-content-end align-items-center" style="height:140px;">
+                        <span class="small fw-bold text-info">${m.coerentes}</span>
+                        <div class="bg-info rounded-top" style="width:60%; height:${altura}%; min-height:2px;" title="${m.coerentes} coerentes"></div>
+                    </div>
+                    <div class="small text-muted mt-1">${escAud(m.mes)}</div>
+                    <div class="small"><span class="badge bg-${corPct(m.pctBons)}">${m.pctBons}%</span></div>
+                </div>`;
+        }).join('');
+        html += `
+            <div class="card border-0 shadow-sm mb-3 mt-2">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase small fw-bold mb-3"><i class="fas fa-chart-line me-1"></i> Evolução do aprendizado (coerentes por mês · % no padrão atual)</h6>
+                    <div class="d-flex align-items-end gap-2">${barras}</div>
+                </div>
+            </div>`;
+    }
+
+    // Qualidade da base + janelas
+    const janelas = apr.janelas || [];
+    const linhasJanela = janelas.map(j => `
+        <tr>
+            <td>${j.dias} dias</td>
+            <td>${j.coerentesTotal}</td>
+            <td class="text-success">${j.coerentesPadraoAtual}</td>
+            <td class="text-danger">${j.coerentesForaPadrao}</td>
+            <td>${j.feedbacksTotal}</td>
+            <td><span class="badge bg-${corPct(j.pctBons)}">${j.pctBons}%</span></td>
+        </tr>`).join('');
+    const c = apr.coerentes || {};
+    html += `
+        <div class="row">
+            <div class="col-lg-7 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small fw-bold mb-3"><i class="fas fa-layer-group me-1"></i> Saúde da base por janela</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Janela</th><th>Coerentes</th><th>No padrão</th><th>Fora</th><th>Feedbacks</th><th>% bons</th></tr>
+                                </thead>
+                                <tbody>${linhasJanela}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase small fw-bold mb-3"><i class="fas fa-triangle-exclamation me-1"></i> Pontos de atenção (coerentes do período)</h6>
+                        ${linhaAtencao('Tom antigo (agradecimentos/desculpas)', c.tomAntigo, c.total)}
+                        ${linhaAtencao('Cita norma sem constar na solução', c.legalSemSolucao, c.total)}
+                        ${linhaAtencao('Não reflete a solução implementada', c.naoRefleteSolucao, c.total)}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Distribuições
+    html += `
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                    ${tabelaDistribuicao(c.porTipo, 'Coerentes por tipo de solicitação')}
+                </div></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                    ${tabelaDistribuicao((apr.feedbacks || {}).porTipo, 'Feedbacks (correções) por tipo')}
+                </div></div>
+            </div>
+        </div>`;
+
+    // Moderações
+    const am = mod.abaModeracoes || {};
+    html += `
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3"><i class="fas fa-shield-alt me-1"></i> Moderações no período</h6>
+                <div class="row">
+                    ${kpiCard(am.total ?? 0, 'Total', 'fa-list', 'primary')}
+                    ${kpiCard(am.aprovadas ?? 0, 'Aprovadas', 'fa-check', 'success')}
+                    ${kpiCard(am.pendentes ?? 0, 'Pendentes', 'fa-hourglass-half', 'warning')}
+                    ${kpiCard(am.coerentesUtilizaveis ?? 0, 'Usáveis p/ aprendizado', 'fa-brain', 'info')}
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">${tabelaDistribuicao(am.porStatus, 'Por status')}</div>
+                    <div class="col-md-6">${tabelaDistribuicao((mod.abaAceitas || {}).porTema, 'Aceitas por tema')}</div>
+                </div>
+            </div>
+        </div>`;
+
+    // Recomendação
+    if (apr.recomendacao) {
+        html += `
+            <div class="alert alert-info d-flex align-items-start">
+                <i class="fas fa-lightbulb me-2 mt-1"></i>
+                <div><strong>Diagnóstico do sistema de aprendizado:</strong><br>${escAud(apr.recomendacao)}</div>
+            </div>`;
+    }
+
+    const tg = r.totaisGerais || {};
+    html += `
+        <div class="text-muted small mt-2">
+            Base total na planilha: ${tg.coerentesPlanilha ?? 0} respostas coerentes e ${tg.feedbacksPlanilha ?? 0} feedbacks
+            (${tg.coerentesAntesPeriodo ?? 0} coerentes anteriores ao período).
+        </div>`;
+
+    return html;
+}
+
+function linhaAtencao(label, valor, total) {
+    valor = valor || 0;
+    const p = total ? Math.round((valor / total) * 100) : 0;
+    const cor = p >= 50 ? 'danger' : (p >= 20 ? 'warning' : 'success');
+    return `
+        <div class="mb-2">
+            <div class="d-flex justify-content-between small">
+                <span>${escAud(label)}</span>
+                <span class="text-${cor} fw-bold">${valor} (${p}%)</span>
+            </div>
+            <div class="progress" style="height:6px;">
+                <div class="progress-bar bg-${cor}" style="width:${p}%"></div>
+            </div>
+        </div>`;
 }
 
 // Log de inicialização
