@@ -1062,17 +1062,22 @@ function calcularSimilaridadeSolicitacao(textoA, textoB) {
     return union === 0 ? 0 : inter / union;
 }
 
-/** Ordena modelos coerentes pela semelhança do texto do cliente com o caso atual (mais parecido primeiro). */
+/** Ordena modelos coerentes pela semelhança com o caso atual (mais parecido primeiro).
+ *  Combina a semelhança da RECLAMAÇÃO (peso alto) com o MOTIVO da solicitação (peso médio),
+ *  para localizar casos com o mesmo CONTEXTO e os mesmos MOTIVOS, não apenas palavras iguais. */
 function ordenarModelosPorSimilaridade(modelos, dadosFormulario) {
     const textoAtual = dadosFormulario?.texto_cliente || '';
+    const motivoAtual = dadosFormulario?.motivo_solicitacao || dadosFormulario?.motivoSolicitacao || '';
     return (modelos || [])
-        .map(m => ({
-            modelo: m,
-            similaridade: calcularSimilaridadeSolicitacao(
-                m['Texto Cliente'] || m.dadosFormulario?.texto_cliente || '',
-                textoAtual
-            )
-        }))
+        .map(m => {
+            const textoModelo = m['Texto Cliente'] || m.dadosFormulario?.texto_cliente || '';
+            const motivoModelo = m['Motivo Solicitação'] || m.motivo_solicitacao || m.dadosFormulario?.motivo_solicitacao || '';
+            const simTexto = calcularSimilaridadeSolicitacao(textoModelo, textoAtual);
+            const simMotivo = motivoAtual ? calcularSimilaridadeSolicitacao(motivoModelo, motivoAtual) : 0;
+            // Reclamação = peso alto (0.7); motivo = peso médio (0.3). Se não houver motivo, usa só a reclamação.
+            const similaridade = motivoAtual ? (simTexto * 0.7 + simMotivo * 0.3) : simTexto;
+            return { modelo: m, similaridade, simTexto, simMotivo };
+        })
         .sort((x, y) => y.similaridade - x.similaridade);
 }
 
@@ -1641,7 +1646,7 @@ function montarBlocoFallbackCoerentes(dadosFormulario) {
     } else if (nivel === 'parcial') {
         bloco += 'SITUAÇÃO DETECTADA: Solução implementada PARCIAL/incompleta. PRESERVE integralmente todas as informações específicas informadas pelo analista (datas, valores, ações, status). COMPLEMENTE a redação usando os PADRÕES de estrutura e argumentação dos modelos semelhantes da base "Respostas Coerentes" abaixo. NÃO afirme como fato deste caso nada que não esteja na solução implementada nem na reclamação.\n';
     } else {
-        bloco += 'SITUAÇÃO DETECTADA: Solução implementada VAZIA. NÃO bloqueie a geração e NÃO entregue só contexto/explicação deixando o cliente sem solução. PASSO A PASSO: (1) identifique na base "Respostas Coerentes" abaixo a reclamação MAIS PARECIDA com a atual; (2) use a SOLUÇÃO daquela resposta coerente como base principal, trazendo a resolução o MAIS PRÓXIMO POSSÍVEL do caso atual; (3) aplique a orientação/solução concreta daquele caso (o que efetivamente resolve esse tipo de problema), adaptando à reclamação atual. NÃO empurre o cliente para a central/suporte. Sem fatos específicos informados, NÃO afirme datas, valores ou protocolos que não foram informados, mas ENTREGUE a solução/encaminhamento real (a mesma que resolveu o caso semelhante). Esta é uma exceção controlada à Fonte de Verdade (que pressupõe a solução preenchida).\n';
+        bloco += 'SITUAÇÃO DETECTADA: Solução implementada VAZIA. NÃO bloqueie a geração e NÃO entregue só contexto/explicação deixando o cliente sem solução. PASSO A PASSO: (1) reúna na base "Respostas Coerentes" abaixo VÁRIAS respostas com o MESMO contexto de reclamação e os MESMOS motivos do caso atual; (2) identifique o PADRÃO RECORRENTE de solução entre elas (a forma como esse tipo de problema é efetivamente resolvido: causa, orientação concreta e encaminhamento); (3) construa UMA resposta completa que RESOLVA a reclamação atual aplicando esse padrão e reaproveitando os TRECHOS resolutivos aplicáveis, trazendo a resolução o MAIS PRÓXIMO POSSÍVEL dos casos semelhantes. NÃO empurre o cliente para a central/suporte. Sem fatos específicos informados, NÃO afirme datas, valores ou protocolos que não foram informados, mas ENTREGUE a solução/encaminhamento real (a mesma que resolveu os casos semelhantes). Esta é uma exceção controlada à Fonte de Verdade (que pressupõe a solução preenchida).\n';
     }
     bloco += 'REGRAS DE SEGURANÇA AO USAR A BASE (todos os cenários): reaproveite o PADRÃO de SOLUÇÃO e a forma de resolver dos casos semelhantes (não apenas tom/estrutura), mas NUNCA copie respostas integralmente nem reutilize dados pessoais, nomes, datas, valores ou protocolos específicos de outro cliente/caso.\n';
     return bloco;
@@ -1907,10 +1912,16 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
         
         if (modelosComResposta.length > 0) {
             const ranqueados = ordenarModelosPorSimilaridade(modelosComResposta, dadosFormulario);
-            const selecionados = ranqueados.slice(0, 3);
+            // Busca aprofundada: reúne VÁRIOS casos do mesmo contexto/motivo (não só o top 3),
+            // para que a IA identifique o PADRÃO recorrente de solução entre eles.
+            const SIMILARIDADE_MINIMA = 0.12; // mesmo contexto de reclamação
+            const relevantes = ranqueados.filter(item => item.similaridade >= SIMILARIDADE_MINIMA);
+            // Garante um mínimo de exemplos mesmo quando a similaridade textual é baixa.
+            const base = relevantes.length >= 3 ? relevantes : ranqueados.slice(0, 3);
+            const selecionados = base.slice(0, 6);
 
-            promptFinal += '\n✅ MODELOS DE RESPOSTAS APROVADAS (referência de TOM e ESTRUTURA):\n\n';
-            promptFinal += `📊 ${selecionados.length} modelo(s) com a solicitação mais semelhante à atual (de ${modelosComResposta.length} disponíveis):\n\n`;
+            promptFinal += '\n✅ RESPOSTAS COERENTES APROVADAS (mesmo contexto/motivo — referência de TOM, ESTRUTURA e SOLUÇÃO):\n\n';
+            promptFinal += `📊 ${selecionados.length} resposta(s) com a reclamação/motivo mais semelhantes à atual (de ${modelosComResposta.length} disponíveis). Use o CONJUNTO para extrair o padrão de solução, priorizando as de maior similaridade:\n\n`;
 
             selecionados.forEach((item, index) => {
                 const modelo = item.modelo;
@@ -1919,23 +1930,26 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
                     return; // Pular modelos sem resposta
                 }
                 const pct = Math.round(item.similaridade * 100);
+                const motivoModelo = modelo['Motivo Solicitação'] || modelo.motivo_solicitacao || modelo.dadosFormulario?.motivo_solicitacao || 'N/A';
 
-                promptFinal += `━━━ MODELO ${index + 1} (similaridade da solicitação: ${pct}%) ━━━\n`;
+                promptFinal += `━━━ RESPOSTA COERENTE ${index + 1} (similaridade: ${pct}%) ━━━\n`;
                 promptFinal += `📋 Tipo: ${modelo['Tipo Solicitação'] || modelo.dadosFormulario?.tipo_solicitacao || 'N/A'}\n`;
-                promptFinal += `📝 Solicitação do cliente (caso anterior): ${modelo['Texto Cliente'] || modelo.dadosFormulario?.texto_cliente || 'N/A'}\n`;
-                promptFinal += `\n✅ RESPOSTA APROVADA (referência de redação e abordagem):\n`;
+                promptFinal += `🎯 Motivo: ${motivoModelo}\n`;
+                promptFinal += `📝 Reclamação do cliente (caso anterior): ${modelo['Texto Cliente'] || modelo.dadosFormulario?.texto_cliente || 'N/A'}\n`;
+                promptFinal += `\n✅ RESPOSTA APROVADA (reaproveite a forma de RESOLVER e os trechos aplicáveis):\n`;
                 promptFinal += `${resposta}\n`;
-                promptFinal += `\n💡 Solução do caso anterior (use como referência de COMO resolver, sem copiar dados pessoais): ${modelo['Solução Implementada'] || modelo.dadosFormulario?.solucao_implementada || 'N/A'}\n`;
+                promptFinal += `\n💡 Solução do caso anterior (referência de COMO resolver, sem copiar dados pessoais): ${modelo['Solução Implementada'] || modelo.dadosFormulario?.solucao_implementada || 'N/A'}\n`;
                 promptFinal += `\n`;
             });
 
-            promptFinal += '\n🎯 COMO USAR OS MODELOS ACIMA:\n';
-            promptFinal += '   - Quanto maior a similaridade da solicitação, mais útil é a abordagem/estrutura do modelo para o caso atual\n';
-            promptFinal += '   - Compare a solicitação do cliente do modelo com a solicitação ATUAL e aproveite a forma de explicar nos pontos em que as situações se assemelham\n';
-            promptFinal += '   - Quando houver solução implementada: reaproveite apenas os trechos/abordagens que TAMBÉM se aplicam a ela; os fatos vêm DELA\n';
-            promptFinal += '   - Quando a solução implementada estiver VAZIA/incompleta: identifique a solicitação mais parecida e reaproveite a SOLUÇÃO daquele caso coerente como base para resolver o atual (a orientação/solução concreta), adaptando à reclamação atual; não entregue só contexto\n';
-            promptFinal += '   - Em qualquer caso, NUNCA copie dados pessoais, nomes, datas, valores ou protocolos específicos de outro cliente/caso\n';
-            promptFinal += '   - Referências a LGPD, CCB ou CDC somente se constarem na solução implementada deste caso\n\n';
+            promptFinal += '\n🎯 COMO USAR AS RESPOSTAS COERENTES ACIMA (BUSCA APROFUNDADA):\n';
+            promptFinal += '   1. Identifique entre as respostas acima as que tratam da MESMA reclamação/motivo do caso atual.\n';
+            promptFinal += '   2. Extraia o PADRÃO RECORRENTE de solução: o que essas respostas têm em comum na forma de RESOLVER o problema (explicação da causa, orientação concreta, encaminhamento dado ao cliente).\n';
+            promptFinal += '   3. Construa UMA resposta completa que de fato RESOLVA a reclamação atual aplicando esse padrão e reaproveitando os TRECHOS resolutivos aplicáveis — não entregue apenas contexto/explicação que deixe o cliente sem solução.\n';
+            promptFinal += '   - Quando houver solução implementada: ela é a Fonte de Verdade dos fatos; use as respostas coerentes para a forma de redigir/resolver, mas os fatos vêm DELA.\n';
+            promptFinal += '   - Quando a solução implementada estiver VAZIA/incompleta: a solução do caso atual deve ser a MAIS PARECIDA POSSÍVEL com o padrão das respostas coerentes acima (a orientação/solução concreta), adaptada à reclamação atual.\n';
+            promptFinal += '   - NUNCA copie dados pessoais, nomes, datas, valores ou protocolos específicos de outro cliente/caso.\n';
+            promptFinal += '   - Referências a LGPD, CCB ou CDC somente se constarem na solução implementada deste caso.\n\n';
         }
         
         // Adicionar feedbacks relevantes COMPLETOS
