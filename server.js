@@ -9483,9 +9483,14 @@ async function gerarRelatorioAuditoria(janelaDias) {
     }
 
     // ===== ÍNDICE DE MATURIDADE + ONDE FOCAR (lacunas) + PROJEÇÃO DE GANHO =====
-    const META_COERENTES_POR_TIPO = 5; // alvo de respostas de qualidade por tipo ativo
-    const META_ACEITAS = 20;           // alvo de moderações aceitas (aprendizado positivo)
-    const META_NEGADAS = 10;           // alvo de moderações negadas com análise (aprendizado negativo)
+    // Metas-base configuráveis. A meta de respostas por tipo é CALIBRADA pela demanda
+    // (quanto mais o tipo é atendido na janela, mais exemplos de qualidade ele exige),
+    // com piso e teto. Moderações aceitas/negadas usam metas globais.
+    const META_RESP_MIN = 3;            // piso de respostas de qualidade por tipo
+    const META_RESP_MAX = 12;           // teto de respostas de qualidade por tipo
+    const FATOR_DEMANDA = 0.25;         // ~25% dos casos atendidos do tipo viram exemplos curados
+    const META_ACEITAS = 20;            // alvo de moderações aceitas (aprendizado positivo)
+    const META_NEGADAS = 10;            // alvo de moderações negadas com análise (aprendizado negativo)
     const PESO_RESP = 0.5, PESO_ACEITAS = 0.3, PESO_NEGADAS = 0.2;
 
     // Bons por tipo (apenas coerentes de qualidade contam para a maturidade)
@@ -9504,25 +9509,49 @@ async function gerarRelatorioAuditoria(janelaDias) {
     const listaTipos = Array.from(tiposAtivos);
     const numTipos = listaTipos.length || 1;
 
+    // Demanda do tipo na janela = casos atendidos (coerentes registrados + correções/feedbacks)
+    const demandaPorTipo = {};
+    for (const t of listaTipos) {
+        demandaPorTipo[t] = (relCoerentes.porTipo?.[t] || 0) + (relFeedbacks.porTipo?.[t] || 0);
+    }
+    // Meta calibrada por tipo, limitada por piso/teto
+    const metaPorTipo = {};
+    for (const t of listaTipos) {
+        const calc = Math.ceil(demandaPorTipo[t] * FATOR_DEMANDA);
+        metaPorTipo[t] = Math.min(META_RESP_MAX, Math.max(META_RESP_MIN, calc));
+    }
+
     const subResp = listaTipos.length
-        ? listaTipos.reduce((s, t) => s + Math.min((bonsPorTipo[t] || 0) / META_COERENTES_POR_TIPO, 1), 0) / numTipos
+        ? listaTipos.reduce((s, t) => s + Math.min((bonsPorTipo[t] || 0) / metaPorTipo[t], 1), 0) / numTipos
         : 0;
     const subAceitas = Math.min(aceitas.length / META_ACEITAS, 1);
     const subNegadas = Math.min(negadas.length / META_NEGADAS, 1);
     const indiceMaturidade = Math.round((subResp * PESO_RESP + subAceitas * PESO_ACEITAS + subNegadas * PESO_NEGADAS) * 100);
 
-    // Deficit total de respostas (quantas respostas de qualidade faltam para todos os tipos atingirem a meta)
+    // Deficit por tipo (quantas respostas de qualidade faltam para atingir a meta calibrada do tipo)
     const deficitPorTipo = listaTipos
-        .map(t => ({ tipo: t, bons: bonsPorTipo[t] || 0, meta: META_COERENTES_POR_TIPO, faltam: Math.max(META_COERENTES_POR_TIPO - (bonsPorTipo[t] || 0), 0) }))
+        .map(t => ({
+            tipo: t,
+            bons: bonsPorTipo[t] || 0,
+            meta: metaPorTipo[t],
+            demanda: demandaPorTipo[t],
+            faltam: Math.max(metaPorTipo[t] - (bonsPorTipo[t] || 0), 0)
+        }))
         .filter(x => x.faltam > 0)
         .sort((a, b) => b.faltam - a.faltam);
     const deficitTotalResp = deficitPorTipo.reduce((s, x) => s + x.faltam, 0);
 
-    // Projeção: quanto o índice sobe ao adicionar N registros (alocados de forma ótima nas lacunas)
+    // Projeção: aloca cada novo registro na "vaga" de maior ganho marginal (meta menor rende mais por unidade)
+    const vagas = [];
+    for (const x of deficitPorTipo) {
+        const ganhoUnit = (1 / x.meta) / numTipos; // contribuição de 1 exemplo desse tipo no subResp
+        for (let k = 0; k < x.faltam; k++) vagas.push(ganhoUnit);
+    }
+    vagas.sort((a, b) => b - a);
     const ganhoCoerentes = (n) => {
-        const aproveitaveis = Math.min(n, deficitTotalResp);
-        const novoSubResp = subResp + aproveitaveis / (META_COERENTES_POR_TIPO * numTipos);
-        const novo = Math.round((novoSubResp * PESO_RESP + subAceitas * PESO_ACEITAS + subNegadas * PESO_NEGADAS) * 100);
+        let add = 0;
+        for (let i = 0; i < Math.min(n, vagas.length); i++) add += vagas[i];
+        const novo = Math.round(((subResp + add) * PESO_RESP + subAceitas * PESO_ACEITAS + subNegadas * PESO_NEGADAS) * 100);
         return Math.max(novo - indiceMaturidade, 0);
     };
     const ganhoAceitas = (n) => {
@@ -9555,11 +9584,17 @@ async function gerarRelatorioAuditoria(janelaDias) {
     };
 
     const oportunidades = {
-        metaCoerentesPorTipo: META_COERENTES_POR_TIPO,
+        janelaDias,
+        metaCalibrada: true,
+        metaRespMin: META_RESP_MIN,
+        metaRespMax: META_RESP_MAX,
+        fatorDemanda: FATOR_DEMANDA,
         deficitTotalResp,
         tiposComLacuna: deficitPorTipo.slice(0, 12),
         aceitasFaltam: Math.max(META_ACEITAS - aceitas.length, 0),
         negadasFaltam: Math.max(META_NEGADAS - negadas.length, 0),
+        metaAceitas: META_ACEITAS,
+        metaNegadas: META_NEGADAS,
         projecoes
     };
 

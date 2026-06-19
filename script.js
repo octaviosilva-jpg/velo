@@ -4964,17 +4964,19 @@ function renderAuditoria(r, fromCache) {
         }).join('');
         const lacunas = (op.tiposComLacuna || []).map(t => `
             <tr>
-                <td class="text-truncate" style="max-width:180px;" title="${escAud(t.tipo)}">${escAud(t.tipo)}</td>
+                <td class="text-truncate" style="max-width:160px;" title="${escAud(t.tipo)}">${escAud(t.tipo)}</td>
+                <td class="text-center">${t.demanda ?? '-'}</td>
                 <td class="text-center">${t.bons}/${t.meta}</td>
                 <td class="text-center"><span class="badge bg-warning text-dark">faltam ${t.faltam}</span></td>
             </tr>`).join('');
+        const janelaTxt = op.janelaDias ? `últimos ${op.janelaDias} dias` : 'período';
         html += `
             <div class="row">
                 <div class="col-lg-6 mb-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
                             <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-bullseye me-1"></i> Projeção de ganho (quanto a maturidade sobe)</h6>
-                            <p class="small text-muted mb-2">Estimativa de quantos pontos o índice de maturidade ganharia ao registrar mais exemplos:</p>
+                            <p class="small text-muted mb-2">Estimativa de quantos pontos o índice de maturidade ganharia ao registrar mais exemplos (na janela: ${janelaTxt}):</p>
                             ${proj || '<div class="text-muted small">Base já no nível ideal — sem ganhos relevantes a projetar.</div>'}
                         </div>
                     </div>
@@ -4982,11 +4984,12 @@ function renderAuditoria(r, fromCache) {
                 <div class="col-lg-6 mb-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-list-check me-1"></i> Onde faltam registros (meta: ${op.metaCoerentesPorTipo} por tipo)</h6>
-                            ${lacunas ? `<div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead class="table-light"><tr><th>Tipo</th><th class="text-center">Qualidade</th><th class="text-center">Lacuna</th></tr></thead><tbody>${lacunas}</tbody></table></div>` : '<div class="text-success small mb-2"><i class="fas fa-check-circle me-1"></i> Todos os tipos ativos atingiram a meta de respostas de qualidade.</div>'}
+                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-list-check me-1"></i> Onde faltam registros (${janelaTxt})</h6>
+                            <p class="small text-muted mb-2">Meta <strong>calibrada pela demanda</strong> de cada tipo (~${Math.round((op.fatorDemanda||0.25)*100)}% dos casos atendidos viram exemplos curados, entre ${op.metaRespMin ?? 3} e ${op.metaRespMax ?? 12}).</p>
+                            ${lacunas ? `<div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead class="table-light"><tr><th>Tipo</th><th class="text-center">Demanda</th><th class="text-center">Qualidade/meta</th><th class="text-center">Lacuna</th></tr></thead><tbody>${lacunas}</tbody></table></div>` : '<div class="text-success small mb-2"><i class="fas fa-check-circle me-1"></i> Todos os tipos ativos atingiram a meta de respostas de qualidade.</div>'}
                             <div class="small text-muted">
-                                Moderações aceitas: faltam <strong>${op.aceitasFaltam}</strong> para a meta ·
-                                negadas com análise: faltam <strong>${op.negadasFaltam}</strong>.
+                                Moderações aceitas: faltam <strong>${op.aceitasFaltam}</strong> p/ meta de ${op.metaAceitas ?? 20} ·
+                                negadas com análise: faltam <strong>${op.negadasFaltam}</strong> p/ meta de ${op.metaNegadas ?? 10}.
                             </div>
                         </div>
                     </div>
