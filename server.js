@@ -1936,28 +1936,56 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
         
         if (modelosComResposta.length > 0) {
             const ranqueados = ordenarModelosPorSimilaridade(modelosComResposta, dadosFormulario);
-            // Busca aprofundada: analisa TODAS as respostas que têm coerência com o caso
-            // (acima do piso de similaridade), sem teto fixo de quantidade, para que a IA
-            // identifique o PADRÃO recorrente de solução no maior conjunto possível.
-            const SIMILARIDADE_MINIMA = 0.08; // piso baixo para reunir todos os casos do mesmo contexto
-            const relevantes = ranqueados.filter(item => item.similaridade >= SIMILARIDADE_MINIMA);
-            // Garante um mínimo de exemplos mesmo quando a similaridade textual é baixa.
-            const base = relevantes.length >= 4 ? relevantes : ranqueados.slice(0, 4);
-            // Proteção apenas por TAMANHO (limite de tokens da API), não por quantidade:
-            // inclui o máximo de respostas coerentes possível, das mais parecidas para as menos.
+            const simTopo = ranqueados.length ? ranqueados[0].similaridade : 0;
+            const motivoAtual = (dadosFormulario?.motivo_solicitacao || dadosFormulario?.motivoSolicitacao || '').trim();
+
+            // PRÉ-ANÁLISE DE CONSISTÊNCIA (antes da geração): descarta respostas com contexto/
+            // informação DIVERGENTE do caso atual (origem de "modelo antigo" vazando para a resposta).
+            // 1) Piso absoluto de contexto + 2) corte relativo ao melhor caso (mantém só o que está
+            //    realmente próximo do caso mais parecido).
+            const PISO_CONTEXTO = 0.10;
+            const PISO_RELATIVO = simTopo > 0 ? simTopo * 0.4 : 0;
+            const LIMIAR = Math.max(PISO_CONTEXTO, PISO_RELATIVO);
+            let consistentes = ranqueados.filter(item => item.similaridade >= LIMIAR);
+
+            // 3) Filtro por MOTIVO: havendo motivo no caso atual, descarta os de motivo divergente
+            //    quando a semelhança textual também é baixa (ou seja, contexto realmente diferente).
+            if (motivoAtual && consistentes.length > 1) {
+                const comMotivoOuTextoForte = consistentes.filter(item =>
+                    item.simMotivo > 0 || item.simTexto >= Math.max(0.15, simTopo * 0.6));
+                if (comMotivoOuTextoForte.length > 0) consistentes = comMotivoOuTextoForte;
+            }
+
+            const descartadosPorDivergencia = ranqueados.length - consistentes.length;
+
+            // Se nada passou no crivo de contexto, usa apenas o caso mais parecido e sinaliza baixa
+            // aderência, em vez de arrastar vários casos divergentes para dentro da resposta.
+            let baixaAderencia = false;
+            if (consistentes.length === 0 && ranqueados.length > 0) {
+                baixaAderencia = true;
+                consistentes = [ranqueados[0]];
+            }
+
+            // Proteção por TAMANHO (limite de tokens da API): mantém os mais parecidos primeiro.
             const ORCAMENTO_CARACTERES = 60000;
             const selecionados = [];
             let totalChars = 0;
-            for (const item of base) {
+            for (const item of consistentes) {
                 const respostaItem = item.modelo['Resposta Aprovada'] || item.modelo.respostaAprovada || '';
                 if (!respostaItem || respostaItem.trim().length === 0) continue;
                 totalChars += respostaItem.length + 400; // resposta + metadados aproximados
-                if (selecionados.length >= 4 && totalChars > ORCAMENTO_CARACTERES) break;
+                if (selecionados.length >= 3 && totalChars > ORCAMENTO_CARACTERES) break;
                 selecionados.push(item);
             }
 
-            promptFinal += '\n✅ RESPOSTAS COERENTES APROVADAS (mesmo contexto/motivo — referência de TOM, ESTRUTURA e SOLUÇÃO):\n\n';
-            promptFinal += `📊 ${selecionados.length} resposta(s) coerente(s) analisada(s) (de ${modelosComResposta.length} disponíveis), ordenadas da mais semelhante para a menos. Analise o CONJUNTO INTEIRO para extrair o padrão de solução, priorizando as de maior similaridade:\n\n`;
+            console.log(`🔎 Consistência das coerentes: ${selecionados.length} mantida(s), ${descartadosPorDivergencia} descartada(s) por divergência de contexto/motivo (de ${modelosComResposta.length}; sim. topo ${Math.round(simTopo * 100)}%${baixaAderencia ? '; BAIXA ADERÊNCIA' : ''})`);
+
+            promptFinal += '\n✅ RESPOSTAS COERENTES APROVADAS (já FILTRADAS por mesmo contexto/motivo — referência de TOM, ESTRUTURA e SOLUÇÃO):\n\n';
+            promptFinal += `📊 ${selecionados.length} resposta(s) coerente(s) MANTIDA(S) após descartar ${descartadosPorDivergencia} por divergência de contexto/informação (de ${modelosComResposta.length} disponíveis), ordenadas da mais semelhante para a menos.\n`;
+            if (baixaAderencia) {
+                promptFinal += '⚠️ ATENÇÃO: NENHUMA resposta da base tem contexto fortemente aderente a este caso (baixa aderência). Use a(s) abaixo apenas como referência de TOM/ESTRUTURA e baseie a SOLUÇÃO no que for efetivamente compatível com a reclamação atual; NÃO traga informações/procedimentos que não se apliquem a este caso.\n';
+            }
+            promptFinal += 'Antes de usar, faça a CHECAGEM DE CONSISTÊNCIA descrita abaixo e DESCARTE qualquer resposta cujas informações divirjam do caso atual:\n\n';
 
             selecionados.forEach((item, index) => {
                 const modelo = item.modelo;
@@ -1978,8 +2006,13 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
                 promptFinal += `\n`;
             });
 
-            promptFinal += '\n🎯 COMO USAR AS RESPOSTAS COERENTES ACIMA (BUSCA APROFUNDADA + COERÊNCIA):\n';
-            promptFinal += '   1. Identifique entre as respostas acima as que tratam da MESMA reclamação/motivo do caso atual.\n';
+            promptFinal += '\n🔍 CHECAGEM DE CONSISTÊNCIA OBRIGATÓRIA (FAÇA ANTES DE GERAR):\n';
+            promptFinal += '   0a. Releia a RECLAMAÇÃO ATUAL e identifique: produto/serviço, motivo e fato central reclamado.\n';
+            promptFinal += '   0b. Para CADA resposta coerente acima, verifique se ela trata do MESMO contexto (mesmo produto/serviço, mesmo motivo) e se as INFORMAÇÕES (causa, procedimento, prazos, encaminhamento) são COMPATÍVEIS com o caso atual.\n';
+            promptFinal += '   0c. DESCARTE (não use) qualquer resposta que DIVIRJA: produto/serviço diferente, motivo diferente, procedimento/prazo desatualizado ou informação que contradiga as demais. NÃO importe nenhum dado, procedimento ou argumento dessas respostas descartadas.\n';
+            promptFinal += '   0d. Trabalhe APENAS com o subconjunto de respostas que sobrou e que está em CONSENSO de informação. Se sobrar apenas 1 (ou nenhuma fortemente aderente), baseie-se só nela/no caso atual e NÃO complete com informações de casos divergentes.\n\n';
+            promptFinal += '🎯 COMO USAR AS RESPOSTAS COERENTES (CONSISTENTES) ACIMA:\n';
+            promptFinal += '   1. Use somente as respostas que passaram na checagem 0 (mesmo contexto/informação do caso atual).\n';
             promptFinal += '   2. Extraia o PADRÃO RECORRENTE de solução: o que essas respostas têm em comum na forma de RESOLVER o problema (explicação da causa, orientação concreta, encaminhamento dado ao cliente).\n';
             promptFinal += '   3. Construa UMA resposta completa que de fato RESOLVA a reclamação atual aplicando esse padrão e reaproveitando os TRECHOS resolutivos aplicáveis — não entregue apenas contexto/explicação que deixe o cliente sem solução.\n';
             promptFinal += '   4. ESPELHE A PROFUNDIDADE das respostas coerentes: a resposta gerada deve ter o MESMO nível de detalhe, explicação e desenvolvimento da solução que essas respostas registradas, não um texto mais curto/seco. Se as coerentes explicam a causa, detalham o que foi feito e orientam o próximo passo, a sua resposta também deve fazer isso.\n';
