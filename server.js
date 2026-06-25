@@ -1144,6 +1144,12 @@ function montarBlocoManuaisModeracao(textoCaso, motivo) {
     bloco += 'Use estas hipóteses REAIS como fundamento. Só cite uma hipótese se os fatos do caso a sustentarem.\n\n';
     regras.forEach((r, i) => {
         bloco += `${i + 1}. [${r.manual}] ${r.hip.titulo}\n`;
+        const meta = [];
+        if (r.hip.categoria) meta.push(`Categoria: ${r.hip.categoria}`);
+        if (r.hip.acao) meta.push(`Ação do RA: ${r.hip.acao}`);
+        if (r.hip.status) meta.push(`Status exigido: ${r.hip.status}`);
+        if (r.hip.prazoSolicitacao) meta.push(`Prazo: ${r.hip.prazoSolicitacao}`);
+        if (meta.length) bloco += `   ${meta.join(' | ')}\n`;
         if (r.hip.quandoSeAplica) bloco += `   Quando se aplica: ${r.hip.quandoSeAplica}\n`;
         if (Array.isArray(r.hip.criterios) && r.hip.criterios.length) {
             bloco += `   Critérios: ${r.hip.criterios.join('; ')}\n`;
@@ -1186,6 +1192,9 @@ function montarChecklistConformidadeRA(textoCaso, motivo) {
         bloco += 'Temas do RA possivelmente relacionados a este caso (enquadre quando os fatos da solução implementada sustentarem; não force):\n';
         temas.forEach((t) => {
             bloco += `- ${t.hip.titulo}: ${t.hip.quandoSeAplica}\n`;
+            if (t.hip.regraRespostaRA) {
+                bloco += `  Como redigir para este tema: ${t.hip.regraRespostaRA}\n`;
+            }
         });
     }
     bloco += 'DIRETRIZES DE ESCRITA FAVORÁVEL À MODERAÇÃO (sem inventar nada além da solução implementada):\n';

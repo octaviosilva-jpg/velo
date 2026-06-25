@@ -26,15 +26,17 @@ O servidor lê o arquivo **`manuais-moderacao.json`** (nesta pasta) e injeta as 
 - **Moderação** (`/api/generate-moderation`): bloco "BASE NORMATIVA — MANUAIS DO RA" com as hipóteses que os fatos do caso sustentam + como citar.
 - **Resposta RA** (`/api/gerar-resposta`): checklist "CONFORMIDADE COM OS MANUAIS DO RA" para a resposta pública não violar as regras (mantendo tom e estrutura atuais).
 
-Enquanto o `hipoteses` de todos os manuais estiver **vazio**, a base fica **inativa** (nada é injetado). Veja o campo `_schema` no JSON para o formato de cada hipótese.
+> **Status atual:** a base está **ATIVA e preenchida** a partir dos PDFs oficiais (versão `1.2` do `manuais-moderacao.json`): 7 categorias de moderação, requisitos e 6 regras da categoria AENV, 15 hipóteses do Manual Geral e 11 hipóteses do Manual de Bancos. Cada hipótese traz `origem` (`manual-geral-oficial` / `manual-bancos-oficial`) para auditoria.
 
-### Para ativar (passo a passo)
+Se o `hipoteses` de todos os manuais ficar **vazio**, a base volta a ficar **inativa** (nada é injetado). Veja o campo `_schema` no JSON para o formato de cada hipótese.
 
-1. Baixe os PDFs oficiais e salve nesta pasta com os nomes:
-   - `manual-moderacao-geral.pdf`
-   - `manual-moderacao-bancos-financeiras.pdf`
-2. Avise o assistente: ele lê os PDFs e preenche o `manuais-moderacao.json` com as hipóteses estruturadas (título, quando se aplica, critérios, como citar, palavras-chave).
-3. Reinicie o servidor — o log deve mostrar `📚 Manuais de moderação carregados: N manuais, M hipóteses`.
+### Como atualizar a base a partir dos PDFs
+
+1. Mantenha os PDFs oficiais nesta pasta (já presentes):
+   - `Manual Geral de Moderação de Conteúdo - Reclame AQUI.pdf`
+   - `Manual de Moderação - Bancos, Instituições Financeiras e Meios (1).pdf`
+2. Avise o assistente: ele lê os PDFs e atualiza o `manuais-moderacao.json` com as hipóteses estruturadas (título, categoria, ação, status, prazo, quando se aplica, critérios, como citar, palavras-chave).
+3. Reinicie o servidor — o log deve mostrar `📚 Manuais de moderação carregados: N manuais, M temas, K regras AENV`.
 
 ## Backup
 
