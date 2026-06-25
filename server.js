@@ -8291,9 +8291,10 @@ PASSO 3 — Padrões aceitos: nos casos aprovados semelhantes, identifique quais
 PASSO 4 — Aderência: classifique o caso atual como ALTA (muito semelhante aos aprovados), MÉDIA (algumas semelhanças) ou BAIXA (poucas semelhanças relevantes).
 
 PASSO 5 — Impacto na probabilidade (ajuste aplicado sobre a % FINAL da ETAPA 9/11, nunca substituindo os manuais):
-• ALTA aderência → +5 a +15 pontos percentuais
-• MÉDIA aderência → 0 a +5 pontos percentuais
+• ALTA aderência → +10 a +20 pontos percentuais
+• MÉDIA aderência → 0 a +10 pontos percentuais
 • BAIXA aderência → sem ajuste
+Classifique como ALTA aderência sempre que o tema principal, a tese da empresa e o motivo da moderação do caso atual coincidirem com casos aprovados do histórico — ainda que a redação, as datas ou o nome do cliente sejam diferentes. NÃO exija identidade textual para reconhecer ALTA aderência: contexto e fatos semelhantes já bastam.
 
 REGRAS OBRIGATÓRIAS — a calibração histórica NÃO pode: ignorar os manuais do RA; transformar um caso fraco em forte; compensar falha grave de atendimento; compensar divergência relevante não respondida; nem compensar ausência de resposta aos fatos centrais — mesmo havendo casos semelhantes aprovados.
 
@@ -8460,6 +8461,8 @@ CALIBRAGEM DA % (cruze os dois eixos, sem travar em 40–60; não seja excessiva
 • 25–40% → caso FRACO, mas ainda PLAUSÍVEL (inconsistência tênue ou cobertura/prova limitada).
 • 5–25% → caso IMPROVÁVEL — reserve esta faixa apenas para situações CLARAMENTE desfavoráveis (reclamação procedente, empresa realmente falhou, ≥2 regras AENV reprovadas). NÃO use esta faixa para casos meramente "sem tema específico".
 
+ANCORAGEM PARA CASOS EM CONFORMIDADE (NÃO subestime): quando NÃO houver falha de atendimento, NÃO houver divergência relevante não respondida, a reclamação estiver avaliada e no prazo, e a resposta pública enfrentar os fatos centrais de forma concreta evidenciando a inconsistência/omissão do consumidor, o caso DEVE ficar entre 60% e 85% — e não no piso da escala. Reserve valores abaixo de 40% para casos com falha real da empresa, divergência não resolvida, cobertura baixa dos fatos (ETAPA 3.5) ou ausência de inconsistência qualificável. A simples ausência de tema específico nos manuais NÃO justifica, por si só, uma % baixa.
+
 PESO DA QUALIDADE DA RESPOSTA DA EMPRESA (DRIVER QUE MOVE A %):
 A força da inconsistência (Eixo 2) define a FAIXA possível do caso; a clareza e a conformidade da RESPOSTA da empresa (Eixo 1) definem ONDE dentro dessa faixa o caso cai e se ele chega ao topo. Isso significa:
 • Uma resposta concreta, objetiva, que evidencia a inconsistência/omissão e cumpre as 6 regras AENV deve levar o caso ao TOPO da faixa possível (e pode subir uma faixa quando torna a inconsistência inequívoca).
@@ -8620,15 +8623,16 @@ Após aplicar essa reformulação, a resposta estratégica deverá:
 
 ETAPA 11 — REAVALIAÇÃO DA PROBABILIDADE
 
-Após reformular a resposta, reavaliar a probabilidade REAL pelos eixos da ETAPA 9. NÃO existe obrigação de a chance subir: a reformulação pode apenas melhorar a escrita sem alterar os fatos, a tese ou a aderência aos critérios do RA.
+Após reformular a resposta, reavaliar a probabilidade REAL pelos eixos da ETAPA 9.
 
-A probabilidade pós-revisão somente poderá ser MAIOR quando a reformulação:
+A probabilidade pós-revisão DEVE ser MAIOR sempre que a reformulação trouxer ganho material, ou seja, quando ela:
 • eliminar divergências relevantes;
-• responder fatos que a resposta original ignorou;
+• responder fatos que a resposta original ignorou (aumentando a cobertura da ETAPA 3.5);
 • reduzir riscos previstos nas regras AENV; ou
-• tornar o ocorrido substancialmente mais compreensível para um terceiro (sem acesso a sistemas internos).
+• tornar o ocorrido substancialmente mais compreensível para um terceiro (sem acesso a sistemas internos), evidenciando a inconsistência/omissão do consumidor.
+Havendo qualquer um desses ganhos, NÃO mantenha a chance igual: reflita o ganho no percentual e, quando o ganho for relevante, o caso pode SUBIR de faixa.
 
-Mudanças apenas de tom, cordialidade, organização textual, formalidade ou estilo NÃO justificam aumento significativo da probabilidade. É permitido (e esperado) que a chance permaneça IGUAL quando a reformulação não alterar materialmente a aderência aos critérios de moderação.
+A chance só permanece IGUAL quando a reformulação for puramente de tom, cordialidade, organização textual, formalidade ou estilo, sem alterar a cobertura dos fatos nem a aderência aos critérios de moderação. NUNCA reduza a chance apenas por ter reformulado — só reduza se a reformulação introduzir um problema real (ex.: passou a admitir falha ou criou divergência).
 
 Informe DOIS números, sem trava em 40–60%:
 • Chance com a resposta ORIGINAL (a que foi enviada para análise)
