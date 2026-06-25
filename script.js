@@ -5059,14 +5059,36 @@ function renderAuditoria(r, fromCache) {
                 <div class="col-lg-6 mb-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-list-check me-1"></i> Onde faltam registros (${janelaTxt})</h6>
-                            <p class="small text-muted mb-2">Meta <strong>calibrada pela demanda</strong> de cada tipo (~${Math.round((op.fatorDemanda||0.25)*100)}% dos casos atendidos viram exemplos curados, entre ${op.metaRespMin ?? 3} e ${op.metaRespMax ?? 12}).</p>
-                            ${lacunas ? `<div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead class="table-light"><tr><th>Tipo</th><th class="text-center">Demanda</th><th class="text-center">Qualidade/meta</th><th class="text-center">Lacuna</th></tr></thead><tbody>${lacunas}</tbody></table></div>` : '<div class="text-success small mb-2"><i class="fas fa-check-circle me-1"></i> Todos os tipos ativos atingiram a meta de respostas de qualidade.</div>'}
-                            <div class="small text-muted">
-                                Moderações aceitas: faltam <strong>${op.aceitasFaltam}</strong> p/ meta de ${op.metaAceitas ?? 20} ·
-                                negadas com análise: faltam <strong>${op.negadasFaltam}</strong> p/ meta de ${op.metaNegadas ?? 10}.
-                                ${op.metasModeracaoCalibradas ? `<br><span style="font-size:.85em;">Metas de moderação calibradas pelo volume (${op.demandaModeracao ?? 0} moderações na janela).</span>` : ''}
-                            </div>
+                            <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="fas fa-percent me-1"></i> Assertividade de moderação (${janelaTxt})</h6>
+                            ${(() => {
+                                const a = res.assertividadeModeracao;
+                                const meta = res.assertividadeMeta ?? 85;
+                                if (a === null || a === undefined) {
+                                    return '<div class="text-muted small">Ainda não há moderações com resultado (aceita/negada) registrado nesta janela para calcular a assertividade.</div>';
+                                }
+                                const cor = a >= meta ? 'success' : (a >= meta - 15 ? 'warning' : 'danger');
+                                const aceitas = res.moderacoesAceitas ?? 0;
+                                const negadas = res.moderacoesNegadas ?? 0;
+                                const base = res.assertividadeBase ?? (aceitas + negadas);
+                                return `
+                                    <p class="small text-muted mb-2">Percentual de moderações <strong>aceitas pelo RA</strong> entre as que já tiveram resultado (aceita ou negada) na janela.</p>
+                                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                                        <span class="display-6 fw-bold text-${cor}">${a}%</span>
+                                        <span class="text-muted small">aceitas ÷ (aceitas + negadas)</span>
+                                    </div>
+                                    <div class="progress mb-2" style="height:8px;">
+                                        <div class="progress-bar bg-${cor}" style="width:${a}%"></div>
+                                    </div>
+                                    <div class="small mb-2">
+                                        <span class="badge bg-success me-1">${aceitas} aceitas</span>
+                                        <span class="badge bg-danger me-1">${negadas} negadas</span>
+                                        <span class="text-muted">em ${base} com resultado</span>
+                                    </div>
+                                    <div class="small ${a >= meta ? 'text-success' : 'text-danger'}">
+                                        <i class="fas fa-bullseye me-1"></i> Meta ${meta}% (mínimo do RA para aumento de cota).
+                                        ${a >= meta ? ' Acima da meta.' : ` Faltam ${meta - a} pontos para a meta.`}
+                                    </div>`;
+                            })()}
                         </div>
                     </div>
                 </div>

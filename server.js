@@ -9712,7 +9712,12 @@ async function gerarRelatorioAuditoria(janelaDias, cfgEntrada = {}) {
             moderacoesPeriodo: relModeracoes.total,
             moderacoesAprovadas: relModeracoes.aprovadas,
             moderacoesAceitas: aceitas.length,
-            moderacoesNegadas: negadas.length
+            moderacoesNegadas: negadas.length,
+            assertividadeModeracao: (aceitas.length + negadas.length) > 0
+                ? Math.round((aceitas.length / (aceitas.length + negadas.length)) * 100)
+                : null,
+            assertividadeBase: aceitas.length + negadas.length,
+            assertividadeMeta: 85
         },
         config: cfg,
         maturidade,
