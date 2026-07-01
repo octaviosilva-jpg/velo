@@ -1377,8 +1377,6 @@ function extrairBlocoModeracaoPorMarcadores(texto, inicioMarcadores, fimMarcador
 function separarBlocosModeracao(resposta) {
     if (!resposta) return { auditoriaHipotese: '', linhaRaciocinio: '', textoFinal: '', validacaoFalhou: false };
 
-    const validacaoFalhou = resposta.includes(MSG_VALIDACAO_HIPOTESE_FALHOU);
-
     const marcadoresAuditoria = [
         '(1) AUDITORIA DA HIPÓTESE',
         'AUDITORIA DA HIPÓTESE (USO INTERNO)',
@@ -1440,17 +1438,17 @@ function separarBlocosModeracao(resposta) {
         }
     }
 
-    if (validacaoFalhou) {
-        linhaRaciocinio = '';
-        textoFinal = '';
-        if (!auditoriaHipotese) auditoriaHipotese = resposta.trim();
-    }
+    // Sinal informativo de confiança baixa (fallback); nunca zera o pedido
+    const alvoConfianca = (auditoriaHipotese || resposta).toLowerCase();
+    const validacaoFalhou = /confian[çc]a\s*(:|-|—)?\s*baixa/.test(alvoConfianca)
+        || alvoConfianca.includes('confiança baixa')
+        || alvoConfianca.includes(MSG_VALIDACAO_HIPOTESE_FALHOU.toLowerCase());
 
     return { auditoriaHipotese, linhaRaciocinio, textoFinal, validacaoFalhou };
 }
 
 // Função para formatar a auditoria da hipótese (uso interno)
-function formatarAuditoriaHipotese(auditoria) {
+function formatarAuditoriaHipotese(auditoria, confiancaBaixa) {
     if (!auditoria) return '';
 
     let conteudoFormatado = auditoria
@@ -1461,6 +1459,9 @@ function formatarAuditoriaHipotese(auditoria) {
 
     let bloco = '<div class="auditoria-hipotese">';
     bloco += '<h6 class="text-warning mb-3"><i class="fas fa-search me-2"></i>Auditoria da Hipótese (uso interno — não enviar ao RA):</h6>';
+    if (confiancaBaixa) {
+        bloco += '<div class="alert alert-warning border-start border-warning border-4 mb-2"><strong><i class="fas fa-exclamation-triangle me-2"></i>Confiança baixa na hipótese.</strong> O pedido foi gerado mesmo assim; revise a aderência antes de enviar ao RA.</div>';
+    }
     bloco += `<div class="alert alert-light border-start border-warning border-4">${conteudoFormatado}</div>`;
     bloco += '</div>';
     return bloco;
@@ -1572,41 +1573,33 @@ async function gerarModeracao() {
         const data = await response.json();
         
         if (data.success) {
-            // Processar a resposta (agora com auditoria + linha de raciocínio + texto)
+            // Processar a resposta (auditoria interna + linha de raciocínio + texto do pedido)
             const resposta = data.result;
 
             // Preferir os campos estruturados do servidor; se ausentes, reparsear localmente
             const blocos = separarBlocosModeracao(resposta);
             const auditoria = (typeof data.auditoriaHipotese === 'string' && data.auditoriaHipotese) ? data.auditoriaHipotese : blocos.auditoriaHipotese;
-            const validacaoFalhou = (typeof data.validacaoFalhou === 'boolean') ? data.validacaoFalhou : blocos.validacaoFalhou;
+            const confiancaBaixa = (typeof data.confiancaBaixa === 'boolean') ? data.confiancaBaixa : blocos.validacaoFalhou;
             const linhaRaciocinioBruta = (typeof data.linhaRaciocinio === 'string' && data.linhaRaciocinio) ? data.linhaRaciocinio : blocos.linhaRaciocinio;
-            const textoFinalBruto = (typeof data.textoModeracao === 'string') ? data.textoModeracao : blocos.textoFinal;
+            const textoFinalBruto = (typeof data.textoModeracao === 'string' && data.textoModeracao) ? data.textoModeracao : blocos.textoFinal;
 
             const elAuditoria = document.getElementById('auditoria-hipotese');
-            if (elAuditoria) elAuditoria.innerHTML = formatarAuditoriaHipotese(auditoria);
+            if (elAuditoria) elAuditoria.innerHTML = formatarAuditoriaHipotese(auditoria, confiancaBaixa);
 
-            if (validacaoFalhou) {
-                // Auditoria não validou hipótese: não há pedido a enviar ao RA
-                document.getElementById('linha-raciocinio').innerHTML = '';
-                document.getElementById('texto-moderacao').innerHTML =
-                    `<div class="alert alert-danger border-start border-danger border-4">
-                        <strong><i class="fas fa-ban me-2"></i>Moderação não recomendada.</strong>
-                        <p class="mb-0 mt-2">${MSG_VALIDACAO_HIPOTESE_FALHOU}</p>
-                    </div>`;
-                document.getElementById('moderacao-resultado').style.display = 'block';
-                carregarEstatisticasGlobais();
-                showErrorMessage('Auditoria concluída: nenhuma hipótese suficientemente sustentada pelos fatos.');
+            // O pedido é SEMPRE gerado; a auditoria apenas melhora o enquadramento
+            const linhaRaciocinio = formatarLinhaRaciocinioServidor(linhaRaciocinioBruta);
+            const textoModeracao = formatarTextoModeracao(textoFinalBruto);
+
+            document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
+            document.getElementById('texto-moderacao').innerHTML = textoModeracao;
+            document.getElementById('moderacao-resultado').style.display = 'block';
+
+            // Recarregar estatísticas globais do servidor
+            carregarEstatisticasGlobais();
+
+            if (confiancaBaixa) {
+                showSuccessMessage('Moderação gerada. Atenção: a auditoria sinalizou confiança baixa na hipótese, revise antes de enviar.');
             } else {
-                const linhaRaciocinio = formatarLinhaRaciocinioServidor(linhaRaciocinioBruta);
-                const textoModeracao = formatarTextoModeracao(textoFinalBruto);
-
-                document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
-                document.getElementById('texto-moderacao').innerHTML = textoModeracao;
-                document.getElementById('moderacao-resultado').style.display = 'block';
-
-                // Recarregar estatísticas globais do servidor
-                carregarEstatisticasGlobais();
-
                 showSuccessMessage('Solicitação de moderação gerada com script estruturado!');
             }
         } else {

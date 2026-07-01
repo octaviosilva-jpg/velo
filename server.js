@@ -4847,8 +4847,6 @@ function separarBlocosModeracao(resposta) {
         return { auditoriaHipotese: '', linhaRaciocinio: '', textoModeracao: '', validacaoFalhou: false };
     }
 
-    const validacaoFalhou = resposta.includes(MSG_VALIDACAO_HIPOTESE_FALHOU);
-
     const marcadoresAuditoria = [
         '(1) AUDITORIA DA HIPÓTESE',
         'AUDITORIA DA HIPÓTESE (USO INTERNO)',
@@ -4910,12 +4908,11 @@ function separarBlocosModeracao(resposta) {
         }
     }
 
-    // Quando a auditoria reprova a hipótese, não há pedido a enviar ao RA
-    if (validacaoFalhou) {
-        linhaRaciocinio = '';
-        textoModeracao = '';
-        if (!auditoriaHipotese) auditoriaHipotese = resposta.trim();
-    }
+    // A auditoria é advisória: nunca impede o pedido. Detecta confiança baixa apenas como sinal informativo.
+    const alvoConfianca = (auditoriaHipotese || resposta).toLowerCase();
+    const validacaoFalhou = /confian[çc]a\s*(:|-|—)?\s*baixa/.test(alvoConfianca)
+        || alvoConfianca.includes('confiança baixa')
+        || alvoConfianca.includes(MSG_VALIDACAO_HIPOTESE_FALHOU.toLowerCase());
 
     return { auditoriaHipotese, linhaRaciocinio, textoModeracao, validacaoFalhou };
 }
@@ -5252,11 +5249,11 @@ ${conhecimentoFeedback || ''}
 
 ⚙️ FLUXO LÓGICO OBRIGATÓRIO (siga sem pular etapas):
 
-🔎 PAPEL OBRIGATÓRIO: Atue como AUDITOR da hipótese de moderação, NÃO como defensor de uma hipótese. NÃO presuma que existe hipótese válida só porque foi solicitado um pedido de moderação. Primeiro decida se há fundamento suficiente; só então construa a linha de raciocínio e o pedido.
+🔎 PAPEL OBRIGATÓRIO: Atue como AUDITOR da hipótese de moderação, escolhendo a hipótese MAIS FORTE para o caso, e NÃO como mero defensor da primeira hipótese que aparecer. A auditoria serve para melhorar o ENQUADRAMENTO e a assertividade — ela NUNCA impede a geração do pedido, que deve sempre ser produzido.
 
-🚫 REGRA SOBRE HIPÓTESES: Nunca adapte os fatos para fazer o caso caber em uma hipótese do Manual. Adapte a hipótese aos fatos. Se nenhuma hipótese representar fielmente o caso concreto, conclua que NÃO recomenda a solicitação de moderação.
+🚫 REGRA SOBRE HIPÓTESES: Nunca adapte os fatos para fazer o caso caber em uma hipótese do Manual. Adapte a hipótese aos fatos, escolhendo aquela que melhor os representa. Se nenhuma hipótese for perfeita, selecione a MAIS PRÓXIMA e sustentável, registre a ressalva como alerta interno, e ainda assim gere o pedido.
 
-🔒 REGRA DE VALIDAÇÃO FACTUAL: Não utilize afirmações genéricas. Sempre que afirmar "informação incorreta", "omissão", "solução aplicada", "fato divergente", "cláusula contratual" ou "violação do Manual", aponte exatamente qual TRECHO LITERAL (da solicitação, resposta ou consideração final) sustenta essa conclusão. Se não conseguir localizar objetivamente esse trecho, descarte a hipótese.
+🔒 REGRA DE VALIDAÇÃO FACTUAL: Prefira sempre afirmações ancoradas em trechos. Ao afirmar "informação incorreta", "omissão", "solução aplicada", "fato divergente", "cláusula contratual" ou "violação do Manual", aponte, quando possível, o TRECHO LITERAL (da solicitação, resposta ou consideração final) que sustenta a conclusão. Se para uma hipótese não houver trecho que a sustente, prefira outra hipótese mais bem sustentada; havendo apenas hipóteses fracas, escolha a mais forte entre elas e registre a limitação como alerta interno.
 
 1. ANÁLISE DO CONTEÚDO REAL:
 - Analise a SOLICITAÇÃO DO CLIENTE: identifique o problema alegado, acusações feitas, pedidos solicitados
@@ -5333,24 +5330,23 @@ Execute esta etapa como auditor crítico. Responda, de forma estruturada, às pe
 
 4.14. AUTOCRÍTICA (obrigatória): responda "Quais argumentos um moderador do Reclame Aqui poderia utilizar para negar este pedido de moderação?" Liste-os. Em seguida, informe se, mesmo assim, essa hipótese continua sendo a mais aderente aos fatos.
 
-DECISÃO DA AUDITORIA (regra dura):
-- REPROVE a hipótese (interrompa o fluxo) sempre que ocorrer QUALQUER um destes: grau de confiança Baixa; aderência Baixa; classificação "Predominantemente interpretativa"; impossibilidade de apontar os trechos literais exigidos na etapa 4.9; ou existência de hipótese concorrente mais forte que também não se sustente.
-- Se REPROVADA: NÃO gere linha de raciocínio nem pedido de moderação. Retorne APENAS o bloco "(1) AUDITORIA DA HIPÓTESE" com toda a auditoria acima e, ao final, EXATAMENTE a frase (sem aspas, em linha própria):
-${MSG_VALIDACAO_HIPOTESE_FALHOU}
-- Se APROVADA (confiança Alta ou Média, com sustentação objetiva e trechos literais localizados): prossiga para as etapas 5 e 6 usando SOMENTE a hipótese validada.
+RESULTADO DA AUDITORIA (a auditoria NUNCA impede a geração do pedido — ela serve para ESCOLHER a hipótese mais forte e aumentar a assertividade do enquadramento):
+- SEMPRE selecione a hipótese MAIS FORTE encontrada e prossiga para as etapas 5 e 6 gerando a linha de raciocínio e o pedido com base NELA. O pedido de moderação deve SEMPRE ser produzido, como já era feito.
+- Se a confiança for Baixa, a aderência for fraca, a hipótese for "Predominantemente interpretativa" ou não for possível apontar todos os trechos literais ideais, NÃO interrompa: registre isso ao FINAL da auditoria como um ALERTA INTERNO (ex.: "⚠️ Confiança baixa — atenção: ...", com o motivo) e AINDA ASSIM gere o pedido usando a melhor hipótese disponível.
+- A auditoria e o eventual alerta são de USO INTERNO e NÃO vão para o texto enviado ao RA.
 
-5. CONSTRUÇÃO DA LINHA DE RACIOCÍNIO INTERNA (somente se a auditoria APROVOU a hipótese):
-Esse bloco não vai para o RA, mas é obrigatório na saída quando houver hipótese validada. Ele deve ser CONSEQUÊNCIA da auditoria (etapa 4), refletindo apenas a hipótese que permaneceu válida — nunca uma justificativa automática da primeira hipótese encontrada. Estrutura:
+5. CONSTRUÇÃO DA LINHA DE RACIOCÍNIO INTERNA:
+Esse bloco não vai para o RA, mas é obrigatório na saída. Ele deve ser CONSEQUÊNCIA da auditoria (etapa 4), refletindo a hipótese MAIS FORTE selecionada — nunca uma justificativa automática da primeira hipótese encontrada. Estrutura:
 - Análise do conteúdo: resuma o que o cliente alegou, como a empresa respondeu, e o que o cliente disse na consideração final
 - Fatos reais comprovados: descreva o que realmente ocorreu, com datas, registros e documentos (internos ou oficiais)
 - Divergência/violação identificada: aponte especificamente onde o conteúdo (solicitação, resposta ou consideração) contém informações incorretas, está desatualizado ou infringe regras do RA, citando os trechos
-- Hipótese validada na auditoria: qual hipótese do Manual foi confirmada e por quê
+- Hipótese selecionada na auditoria: qual hipótese do Manual é a mais forte e por quê
 - Base normativa: indique explicitamente:
   * Qual manual do RA dá respaldo (citar manual + seção, se aplicável)
   * Qual cláusula contratual ou termo aceito pelo cliente fundamenta o pedido
   * Qual regra específica foi violada pelo conteúdo analisado
 
-6. CONSTRUÇÃO DA RESPOSTA FINAL DE MODERAÇÃO (somente se a auditoria APROVOU a hipótese):
+6. CONSTRUÇÃO DA RESPOSTA FINAL DE MODERAÇÃO:
 Esse é o texto que vai ser enviado ao RA. Deve ser:
 - Baseado na análise real do conteúdo (solicitação, resposta, consideração)
 - Objetivo e técnico, utilizando termos objetivos e técnicos
@@ -5374,8 +5370,7 @@ Dessa forma, solicitamos a moderação da publicação, conforme regras vigentes
 ⚠️ IMPORTANTE: O texto final DEVE seguir EXATAMENTE esta estrutura de 3 parágrafos. NÃO use outros formatos como "Prezados Senhores", "Atenciosamente", ou estruturas diferentes.
 
 7. SAÍDA FINAL OBRIGATÓRIA:
-- Se a auditoria REPROVOU a hipótese: a resposta deve conter APENAS o bloco (1) AUDITORIA DA HIPÓTESE, terminando com a frase de falha definida na DECISÃO DA AUDITORIA.
-- Se a auditoria APROVOU a hipótese: a resposta deve conter EXATAMENTE três blocos, nesta ordem:
+A resposta deve conter SEMPRE EXATAMENTE três blocos, nesta ordem (a auditoria nunca substitui o pedido):
 (1) AUDITORIA DA HIPÓTESE (uso interno — NÃO enviar ao RA)
 (2) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
 (3) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
@@ -5429,18 +5424,12 @@ Dessa forma, solicitamos a moderação da publicação, conforme regras vigentes
 
 IMPORTANTE: Use o conhecimento dos feedbacks anteriores para gerar um texto de moderação de alta qualidade desde o início, evitando negativas do RA.
 
-Execute PRIMEIRO a auditoria da hipótese (etapa 4) e só então, se aprovada, os blocos de raciocínio e pedido.
+Execute PRIMEIRO a auditoria da hipótese (etapa 4) para escolher a hipótese mais forte e, EM SEGUIDA, gere SEMPRE a linha de raciocínio e o pedido com base nela.
 
-FORMATO DE SAÍDA OBRIGATÓRIO:
+FORMATO DE SAÍDA OBRIGATÓRIO (sempre os três blocos):
 
-▶ CASO A AUDITORIA REPROVE A HIPÓTESE:
 (1) AUDITORIA DA HIPÓTESE (uso interno — NÃO enviar ao RA)
-[Toda a auditoria das etapas 4.1 a 4.14]
-${MSG_VALIDACAO_HIPOTESE_FALHOU}
-
-▶ CASO A AUDITORIA APROVE A HIPÓTESE:
-(1) AUDITORIA DA HIPÓTESE (uso interno — NÃO enviar ao RA)
-[Toda a auditoria das etapas 4.1 a 4.14]
+[Toda a auditoria das etapas 4.1 a 4.14, com eventual "⚠️ Confiança baixa" ao final quando aplicável]
 
 (2) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
 [Conteúdo da linha de raciocínio interna, consequência da auditoria]
@@ -5448,7 +5437,7 @@ ${MSG_VALIDACAO_HIPOTESE_FALHOU}
 (3) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
 [Texto seguindo EXATAMENTE o modelo fixo de 3 parágrafos acima]
 
-⚠️ CRÍTICO: Quando houver pedido, o texto final DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.
+⚠️ CRÍTICO: O texto final DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações. O pedido deve SEMPRE ser gerado, mesmo quando a auditoria registrar confiança baixa.
 
 🚫 PROIBIDO: NÃO cite os dados de entrada (solicitação do cliente, resposta da empresa, consideração final) literalmente no TEXTO FINAL. Analise o conteúdo e formule baseado na análise, não na citação dos dados. (A auditoria interna PODE e DEVE citar trechos literais.)`;
 
@@ -5463,7 +5452,7 @@ ${MSG_VALIDACAO_HIPOTESE_FALHOU}
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de Reclame Aqui, com foco em formulação de textos de moderação. Atue como AUDITOR crítico de hipóteses de moderação, não como defensor de uma hipótese pré-definida: primeiro valide se os fatos sustentam uma hipótese e, se não sustentarem, recuse o pedido. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
+                        content: 'Você é um analista de Reclame Aqui, com foco em formulação de textos de moderação. Atue como AUDITOR crítico para escolher a hipótese MAIS FORTE do caso e melhorar o enquadramento, mas SEMPRE gere o pedido de moderação ao final (a auditoria é interna e não impede a geração). Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
@@ -5508,34 +5497,31 @@ ${MSG_VALIDACAO_HIPOTESE_FALHOU}
             }
             
             // Separar auditoria da hipótese, linha de raciocínio e texto de moderação
+            // A auditoria é advisória (melhora o enquadramento) e NUNCA impede o pedido.
             const partes = separarBlocosModeracao(resposta);
             const auditoriaHipotese = partes.auditoriaHipotese || '';
-            const validacaoFalhou = partes.validacaoFalhou === true;
+            const confiancaBaixa = partes.validacaoFalhou === true; // sinal informativo apenas
             const linhaRaciocinio = partes.linhaRaciocinio || '';
-            const textoModeracao = validacaoFalhou ? '' : (partes.textoModeracao || resposta);
+            const textoModeracao = partes.textoModeracao || resposta;
 
-            if (validacaoFalhou) {
-                console.log('⚠️ Auditoria da hipótese: nenhuma hipótese suficientemente sustentada — pedido de moderação NÃO gerado.');
-            } else if (auditoriaHipotese) {
-                console.log('✅ Auditoria da hipótese aprovada — pedido de moderação gerado com base na hipótese validada.');
+            if (auditoriaHipotese) {
+                console.log('✅ Auditoria da hipótese realizada — pedido de moderação gerado com base na hipótese mais forte.');
+            } else {
+                console.log('ℹ️ Aviso: resposta sem bloco de auditoria detectável (formato legado ou marcadores ausentes).');
             }
-
-            // Verificação leve pós-IA (não bloqueia): checa se o pedido não é genérico e se há auditoria
-            if (!validacaoFalhou) {
-                if (!auditoriaHipotese) {
-                    console.log('ℹ️ Aviso: resposta sem bloco de auditoria detectável (formato legado ou marcadores ausentes).');
-                }
-                const temGenericaNoPedido = palavrasGenericas.some(p => textoModeracao.toLowerCase().includes(p));
-                if (temGenericaNoPedido) {
-                    console.log('⚠️ Aviso: o texto de moderação contém expressões genéricas — revisar aderência à hipótese.');
-                }
+            if (confiancaBaixa) {
+                console.log('⚠️ Auditoria sinalizou confiança baixa — pedido gerado mesmo assim (revisar aderência à hipótese).');
+            }
+            const temGenericaNoPedido = palavrasGenericas.some(p => textoModeracao.toLowerCase().includes(p));
+            if (temGenericaNoPedido) {
+                console.log('⚠️ Aviso: o texto de moderação contém expressões genéricas — revisar aderência à hipótese.');
             }
             
             // Gerar ID único para a moderação
             const moderacaoId = Date.now();
             
-            // Salvar moderação inicial na planilha "Moderações" apenas quando há pedido válido gerado
-            if (!validacaoFalhou && googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+            // Salvar moderação inicial na planilha "Moderações" (sempre que houver pedido gerado)
+            if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
                 try {
                     console.log('💾 Salvando moderação inicial na planilha "Moderações"...');
                     const moderacaoData = {
@@ -5567,26 +5553,26 @@ ${MSG_VALIDACAO_HIPOTESE_FALHOU}
             
             // Aprendizado negativo já foi consultado antes da geração e incluído no prompt
             
-            // Incrementar estatística global apenas quando um pedido válido foi de fato gerado
-            if (!validacaoFalhou) {
-                await incrementarEstatisticaGlobal('moderacoes_geradas');
-            }
+            // Incrementar estatística global (pedido sempre é gerado)
+            await incrementarEstatisticaGlobal('moderacoes_geradas');
             
             // Mensagem de transparência (FASE 3)
             let mensagemTransparenciaFinal = null;
-            if (validacaoFalhou) {
-                mensagemTransparenciaFinal = 'A auditoria interna não validou objetivamente uma hipótese de moderação sustentada pelos fatos. O pedido não foi gerado.';
-            } else if (aprendizadoPositivoAplicado) {
+            if (aprendizadoPositivoAplicado) {
                 mensagemTransparenciaFinal = mensagemTransparencia || 
                     'Esta moderação foi baseada em modelos previamente aceitos para este tema, com ajustes para evitar erros identificados em negativas anteriores.';
             } else if (aprendizadoNegativoAplicado) {
                 mensagemTransparenciaFinal = 'Esta moderação foi baseada em modelos coerentes e ajustada para evitar erros identificados em negativas anteriores deste tema.';
             }
+            if (confiancaBaixa) {
+                mensagemTransparenciaFinal = (mensagemTransparenciaFinal ? mensagemTransparenciaFinal + ' ' : '') +
+                    'Atenção: a auditoria interna sinalizou confiança baixa na hipótese — revise a aderência antes de enviar.';
+            }
             
             res.json({
                 success: true,
                 result: resposta,
-                validacaoFalhou: validacaoFalhou,
+                confiancaBaixa: confiancaBaixa,
                 auditoriaHipotese: auditoriaHipotese,
                 linhaRaciocinio: linhaRaciocinio,
                 textoModeracao: textoModeracao,
@@ -15112,4 +15098,3 @@ app.use('*', (req, res) => {
 });
 
 module.exports = app;
-
