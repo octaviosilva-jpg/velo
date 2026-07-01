@@ -9865,11 +9865,22 @@ app.get('/api/auditoria', async (req, res) => {
     }
 });
 
+async function ensureGoogleSheetsReady() {
+    if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+        if (!global.googleSheetsInitialized) {
+            await initializeGoogleSheets(loadEnvFile());
+            global.googleSheetsInitialized = true;
+        }
+    }
+    return !!(googleSheetsConfig && googleSheetsConfig.isInitialized());
+}
+
 /** Preview do lembrete (sem enviar) — útil antes de configurar SMTP/Resend na Vercel. */
 app.get('/api/lembrete-marcacoes/preview', async (req, res) => {
     try {
         const { montarMensagemLembrete, obterConfigEmail } = require('./email-lembretes');
-        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+        const sheetsOk = await ensureGoogleSheetsReady();
+        if (!sheetsOk) {
             return res.json({ success: false, error: 'Planilha indisponível' });
         }
         const [modAll, aceitasAll, negadasAll] = await Promise.all([
@@ -9903,7 +9914,8 @@ app.get('/api/cron/lembrete-marcacoes', async (req, res) => {
     }
     try {
         const { enviarLembreteMarcacoes } = require('./email-lembretes');
-        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+        const sheetsOk = await ensureGoogleSheetsReady();
+        if (!sheetsOk) {
             return res.json({ success: false, error: 'Planilha indisponível' });
         }
         const [modAll, aceitasAll, negadasAll] = await Promise.all([
