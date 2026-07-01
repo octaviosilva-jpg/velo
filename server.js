@@ -9437,6 +9437,95 @@ function normalizarCfgAuditoria(cfg = {}) {
     return out;
 }
 
+function _audInicioDoDia(d) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+}
+
+function _audDiasDesde(data) {
+    if (!data) return null;
+    const hoje = _audInicioDoDia(new Date());
+    const ref = _audInicioDoDia(data);
+    return Math.floor((hoje - ref) / (24 * 60 * 60 * 1000));
+}
+
+function _audMaxData(rows, filtro) {
+    let max = null;
+    for (const r of rows || []) {
+        if (filtro && !filtro(r)) continue;
+        if (!r._data) continue;
+        if (!max || r._data > max) max = r._data;
+    }
+    return max;
+}
+
+/** Dias desde a última marcação em cada camada de aprendizado de moderação (planilha inteira). */
+function calcularVigilanciaMarcacoes(modAll, aceitasAll, negadasAll, opts = {}) {
+    const { obterConfigEmail } = require('./email-lembretes');
+    const emailCfg = obterConfigEmail();
+    const limiteDias = opts.limiteDias ?? emailCfg.limiteDias ?? 7;
+    const statusDe = (r) => String(r['Status Aprovação'] || '').trim().toLowerCase();
+
+    const dataUltAprovada = _audMaxData(modAll, r => statusDe(r).includes('aprov'));
+    const dataUltAceita = _audMaxData(aceitasAll);
+    const dataUltNegada = _audMaxData(negadasAll);
+
+    const marcacoesResultadoRA = [
+        dataUltAceita && { tipo: 'aceita', label: 'Aceita pelo Reclame Aqui', data: dataUltAceita },
+        dataUltNegada && { tipo: 'negada', label: 'Negada com análise', data: dataUltNegada }
+    ].filter(Boolean);
+    const ultimoResultadoRA = marcacoesResultadoRA.length
+        ? marcacoesResultadoRA.reduce((a, b) => (a.data > b.data ? a : b))
+        : null;
+    const diasSemResultadoRA = ultimoResultadoRA ? _audDiasDesde(ultimoResultadoRA.data) : null;
+
+    const marcacoes = [
+        dataUltAprovada && { tipo: 'aprovada', label: 'Moderação aprovada (coerente)', data: dataUltAprovada },
+        dataUltAceita && { tipo: 'aceita', label: 'Aceita pelo Reclame Aqui', data: dataUltAceita },
+        dataUltNegada && { tipo: 'negada', label: 'Negada com análise', data: dataUltNegada }
+    ].filter(Boolean);
+
+    const ultima = marcacoes.length
+        ? marcacoes.reduce((a, b) => (a.data > b.data ? a : b))
+        : null;
+
+    const diasDesdeUltimaMarcacao = ultima ? _audDiasDesde(ultima.data) : null;
+    const moderacoesPendentes = (modAll || []).filter(r => statusDe(r).includes('pend')).length;
+    const moderacoesAprovadasCoerentes = (modAll || []).filter(r => statusDe(r).includes('aprov')).length;
+
+    return {
+        limiteDiasAlerta: limiteDias,
+        diasDesdeUltimaMarcacao,
+        diasDesdeUltimaAprovada: _audDiasDesde(dataUltAprovada),
+        diasDesdeUltimaAceita: _audDiasDesde(dataUltAceita),
+        diasDesdeUltimaNegada: _audDiasDesde(dataUltNegada),
+        diasSemResultadoRA,
+        ultimoResultadoRAEm: ultimoResultadoRA ? ultimoResultadoRA.data.toLocaleDateString('pt-BR') : null,
+        ultimoResultadoRATipo: ultimoResultadoRA ? ultimoResultadoRA.tipo : null,
+        ultimaMarcacaoEm: ultima ? ultima.data.toLocaleDateString('pt-BR') : null,
+        ultimaMarcacaoTipo: ultima ? ultima.tipo : null,
+        ultimaMarcacaoLabel: ultima ? ultima.label : null,
+        semMarcacaoRegistrada: marcacoes.length === 0,
+        emAlerta: (diasSemResultadoRA !== null ? diasSemResultadoRA : diasDesdeUltimaMarcacao) !== null
+            ? (diasSemResultadoRA !== null ? diasSemResultadoRA : diasDesdeUltimaMarcacao) >= limiteDias
+            : moderacoesPendentes > 0,
+        moderacoesPendentes,
+        moderacoesAprovadasCoerentes,
+        totaisPlanilha: {
+            moderacoes: (modAll || []).length,
+            aprovadasCoerentes: moderacoesAprovadasCoerentes,
+            aceitas: (aceitasAll || []).length,
+            negadas: (negadasAll || []).length
+        },
+        email: {
+            configurado: emailCfg.configurado,
+            provider: emailCfg.provider || null,
+            limiteDias
+        }
+    };
+}
+
 async function gerarRelatorioAuditoria(janelaDias, cfgEntrada = {}) {
     const cfg = normalizarCfgAuditoria(cfgEntrada);
     const hoje = new Date();
@@ -9699,6 +9788,8 @@ async function gerarRelatorioAuditoria(janelaDias, cfgEntrada = {}) {
         negadas: b.negadas
     }));
 
+    const vigilanciaMarcacoes = calcularVigilanciaMarcacoes(modAll, aceitasAll, negadasAll);
+
     return {
         janelaDias,
         periodo: { de: inicio.toLocaleDateString('pt-BR'), ate: hoje.toLocaleDateString('pt-BR') },
@@ -9723,6 +9814,7 @@ async function gerarRelatorioAuditoria(janelaDias, cfgEntrada = {}) {
         maturidade,
         oportunidades,
         curvaSemanal,
+        vigilanciaMarcacoes,
         aprendizado: { coerentes: relCoerentes, feedbacks: relFeedbacks, janelas, porMes, recomendacao },
         moderacoes: {
             totaisPlanilha: { moderacoes: modAll.length, aceitas: aceitasAll.length, negadas: negadasAll.length },
@@ -9770,6 +9862,62 @@ app.get('/api/auditoria', async (req, res) => {
     } catch (error) {
         console.error('❌ Erro ao gerar auditoria:', error);
         res.status(500).json({ success: false, error: 'Erro ao gerar auditoria: ' + error.message });
+    }
+});
+
+/** Preview do lembrete (sem enviar) — útil antes de configurar SMTP/Resend na Vercel. */
+app.get('/api/lembrete-marcacoes/preview', async (req, res) => {
+    try {
+        const { montarMensagemLembrete, obterConfigEmail } = require('./email-lembretes');
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.json({ success: false, error: 'Planilha indisponível' });
+        }
+        const [modAll, aceitasAll, negadasAll] = await Promise.all([
+            _audLerAba('Moderações'),
+            _audLerAba('Moderações Aceitas'),
+            _audLerAba('Moderações Negadas')
+        ]);
+        const vigilancia = calcularVigilanciaMarcacoes(modAll, aceitasAll, negadasAll);
+        const preview = montarMensagemLembrete(vigilancia);
+        res.json({
+            success: true,
+            vigilancia,
+            email: obterConfigEmail(),
+            preview: { assunto: preview.assunto, texto: preview.texto }
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+/**
+ * Cron Vercel — lembrete por e-mail quando há dias sem marcação.
+ * Protegido por CRON_SECRET (header Authorization: Bearer … ou ?secret=).
+ */
+app.get('/api/cron/lembrete-marcacoes', async (req, res) => {
+    const secret = process.env.CRON_SECRET || '';
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : (req.query.secret || '');
+    if (!secret || token !== secret) {
+        return res.status(401).json({ success: false, error: 'Não autorizado' });
+    }
+    try {
+        const { enviarLembreteMarcacoes } = require('./email-lembretes');
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.json({ success: false, error: 'Planilha indisponível' });
+        }
+        const [modAll, aceitasAll, negadasAll] = await Promise.all([
+            _audLerAba('Moderações'),
+            _audLerAba('Moderações Aceitas'),
+            _audLerAba('Moderações Negadas')
+        ]);
+        const vigilancia = calcularVigilanciaMarcacoes(modAll, aceitasAll, negadasAll);
+        const forcar = req.query.forcar === '1' || req.query.forcar === 'true';
+        const resultado = await enviarLembreteMarcacoes(vigilancia, { googleSheetsConfig, forcar });
+        res.json({ success: true, vigilancia, resultado });
+    } catch (e) {
+        console.error('❌ Cron lembrete-marcacoes:', e);
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

@@ -5026,6 +5026,41 @@ function renderAuditoria(r, fromCache) {
             </div>`;
     }
 
+    // Vigilância de marcações (aprendizado de moderação)
+    const vig = r.vigilanciaMarcacoes;
+    if (vig) {
+        const lim = vig.limiteDiasAlerta ?? 7;
+        const dias = vig.diasDesdeUltimaMarcacao;
+        const fmtV = (n) => (n === null || n === undefined ? 'nunca' : (n === 0 ? 'hoje' : `há ${n}d`));
+        const corVig = vig.emAlerta ? 'danger' : (dias !== null && dias >= lim - 2 ? 'warning' : 'success');
+        const emailOk = vig.email?.configurado;
+        html += `
+            <div class="card border-0 shadow-sm mb-3 border-start border-4 border-${corVig}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                        <h6 class="text-muted text-uppercase small fw-bold mb-0">
+                            <i class="fas fa-bell me-1"></i> Vigilância de marcações (aprendizado)
+                        </h6>
+                        <span class="badge bg-${emailOk ? 'success' : 'secondary'}">${emailOk ? 'E-mail configurado' : 'E-mail pendente na Vercel'}</span>
+                    </div>
+                    ${vig.semMarcacaoRegistrada
+                        ? '<p class="small text-danger mb-2"><strong>Nenhuma marcação registrada</strong> na planilha (aprovada, aceita ou negada).</p>'
+                        : `<p class="mb-2">Última marcação: <strong class="text-${corVig}">${dias === 0 ? 'hoje' : dias + ' dia(s)'}</strong>
+                            — ${escAud(vig.ultimaMarcacaoLabel || vig.ultimaMarcacaoTipo)} em ${escAud(vig.ultimaMarcacaoEm)}.</p>`}
+                    <div class="row small mb-2">
+                        <div class="col-md-4"><i class="fas fa-thumbs-up text-info me-1"></i> Aprovada (coerente): <strong>${fmtV(vig.diasDesdeUltimaAprovada)}</strong></div>
+                        <div class="col-md-4"><i class="fas fa-check-double text-success me-1"></i> Aceita RA: <strong>${fmtV(vig.diasDesdeUltimaAceita)}</strong></div>
+                        <div class="col-md-4"><i class="fas fa-times-circle text-danger me-1"></i> Negada c/ análise: <strong>${fmtV(vig.diasDesdeUltimaNegada)}</strong></div>
+                    </div>
+                    <div class="small text-muted">
+                        <span class="badge bg-warning text-dark me-1">${vig.moderacoesPendentes ?? 0} pendentes</span>
+                        Alerta após <strong>${lim} dias</strong> sem marcação.
+                        ${vig.emAlerta ? '<span class="text-danger ms-1"><i class="fas fa-exclamation-triangle"></i> Em alerta — lembrete por e-mail será disparado quando SMTP/Resend estiver configurado.</span>' : ''}
+                    </div>
+                </div>
+            </div>`;
+    }
+
     // Onde focar: lacunas + projeção de ganho
     const op = r.oportunidades;
     if (op) {

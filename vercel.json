@@ -42,5 +42,11 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/lembrete-marcacoes",
+      "schedule": "0 12 * * 1-5"
+    }
+  ]
 }
