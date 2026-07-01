@@ -9462,7 +9462,7 @@ function _audMaxData(rows, filtro) {
 
 /** Dias desde a última marcação em cada camada de aprendizado de moderação (planilha inteira). */
 function calcularVigilanciaMarcacoes(modAll, aceitasAll, negadasAll, opts = {}) {
-    const { obterConfigEmail } = require('./email-lembretes');
+    const { obterConfigEmail, obterNivelAlerta, NIVEIS_DIAS } = require('./email-lembretes');
     const emailCfg = obterConfigEmail();
     const limiteDias = opts.limiteDias ?? emailCfg.limiteDias ?? 7;
     const statusDe = (r) => String(r['Status Aprovação'] || '').trim().toLowerCase();
@@ -9518,10 +9518,13 @@ function calcularVigilanciaMarcacoes(modAll, aceitasAll, negadasAll, opts = {}) 
             aceitas: (aceitasAll || []).length,
             negadas: (negadasAll || []).length
         },
+        nivelAlerta: obterNivelAlerta(diasSemResultadoRA),
+        niveisLembrete: NIVEIS_DIAS,
         email: {
             configurado: emailCfg.configurado,
             provider: emailCfg.provider || null,
-            limiteDias
+            limiteDias,
+            niveisDias: NIVEIS_DIAS
         }
     };
 }
@@ -9894,7 +9897,12 @@ app.get('/api/lembrete-marcacoes/preview', async (req, res) => {
             success: true,
             vigilancia,
             email: obterConfigEmail(),
-            preview: { assunto: preview.assunto, texto: preview.texto }
+            preview: {
+                assunto: preview.assunto,
+                texto: preview.texto,
+                nivel: preview.nivel,
+                nivelLabel: preview.nivelLabel
+            }
         });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -9913,7 +9921,11 @@ app.get('/api/cron/lembrete-marcacoes', async (req, res) => {
         return res.status(401).json({ success: false, error: 'Não autorizado' });
     }
     try {
-        const { enviarLembreteMarcacoes } = require('./email-lembretes');
+        const { enviarLembreteMarcacoes, enviarTesteTodosNiveis } = require('./email-lembretes');
+        if (req.query.teste_niveis === '1' || req.query.teste_niveis === 'true') {
+            const resultado = await enviarTesteTodosNiveis();
+            return res.json({ success: resultado.ok, teste: true, resultado });
+        }
         const sheetsOk = await ensureGoogleSheetsReady();
         if (!sheetsOk) {
             return res.json({ success: false, error: 'Planilha indisponível' });
