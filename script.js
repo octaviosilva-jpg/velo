@@ -1348,51 +1348,122 @@ function limparEdicao() {
 
 // ===== FUNÇÕES DE MODERAÇÃO =====
 
-// Função para separar os dois blocos da resposta do servidor
+// Mensagem exata retornada quando a auditoria não valida nenhuma hipótese (espelha o servidor)
+const MSG_VALIDACAO_HIPOTESE_FALHOU = 'Não foi possível validar objetivamente uma hipótese de moderação suficientemente sustentada pelos fatos apresentados.';
+
+// Extrai conteúdo entre o primeiro marcador de início e o primeiro marcador de fim após ele
+function extrairBlocoModeracaoPorMarcadores(texto, inicioMarcadores, fimMarcadores) {
+    let startIdx = -1;
+    let startMarkerLen = 0;
+    for (const marcador of inicioMarcadores) {
+        const idx = texto.indexOf(marcador);
+        if (idx !== -1 && (startIdx === -1 || idx < startIdx)) {
+            startIdx = idx;
+            startMarkerLen = marcador.length;
+        }
+    }
+    if (startIdx === -1) return '';
+    const corpoInicio = startIdx + startMarkerLen;
+    let endIdx = texto.length;
+    for (const marcador of fimMarcadores) {
+        const idx = texto.indexOf(marcador, corpoInicio);
+        if (idx !== -1 && idx < endIdx) endIdx = idx;
+    }
+    return texto.substring(corpoInicio, endIdx).trim();
+}
+
+// Função para separar auditoria da hipótese, linha de raciocínio e texto de moderação
+// Compatível com o formato antigo de 2 blocos (fallback legado).
 function separarBlocosModeracao(resposta) {
-    if (!resposta) return { linhaRaciocinio: '', textoFinal: '' };
-    
-    // Procurar por marcadores que indicam os blocos
-    const marcadores = [
-        '(1) LINHA DE RACIOCÍNIO INTERNA',
-        '(2) TEXTO FINAL DE MODERAÇÃO',
-        'LINHA DE RACIOCÍNIO INTERNA',
-        'TEXTO FINAL DE MODERAÇÃO',
-        '1. LINHA DE RACIOCÍNIO INTERNA',
-        '2. TEXTO FINAL DE MODERAÇÃO'
+    if (!resposta) return { auditoriaHipotese: '', linhaRaciocinio: '', textoFinal: '', validacaoFalhou: false };
+
+    const validacaoFalhou = resposta.includes(MSG_VALIDACAO_HIPOTESE_FALHOU);
+
+    const marcadoresAuditoria = [
+        '(1) AUDITORIA DA HIPÓTESE',
+        'AUDITORIA DA HIPÓTESE (USO INTERNO)',
+        '1. AUDITORIA DA HIPÓTESE',
+        'AUDITORIA DA HIPÓTESE'
     ];
-    
-    let linhaRaciocinio = '';
-    let textoFinal = '';
-    
-    // Tentar separar por marcadores
-    for (let i = 0; i < marcadores.length; i += 2) {
-        const marcador1 = marcadores[i];
-        const marcador2 = marcadores[i + 1];
-        
-        const index1 = resposta.indexOf(marcador1);
-        const index2 = resposta.indexOf(marcador2);
-        
-        if (index1 !== -1 && index2 !== -1) {
-            linhaRaciocinio = resposta.substring(index1 + marcador1.length, index2).trim();
-            textoFinal = resposta.substring(index2 + marcador2.length).trim();
-            break;
+    const marcadoresRaciocinio = [
+        '(2) LINHA DE RACIOCÍNIO INTERNA',
+        '(1) LINHA DE RACIOCÍNIO INTERNA',
+        'LINHA DE RACIOCÍNIO INTERNA',
+        '1. LINHA DE RACIOCÍNIO INTERNA',
+        '2. LINHA DE RACIOCÍNIO INTERNA'
+    ];
+    const marcadoresTexto = [
+        '(3) TEXTO FINAL DE MODERAÇÃO',
+        '(2) TEXTO FINAL DE MODERAÇÃO',
+        'TEXTO FINAL DE MODERAÇÃO',
+        '2. TEXTO FINAL DE MODERAÇÃO',
+        '3. TEXTO FINAL DE MODERAÇÃO'
+    ];
+
+    let auditoriaHipotese = extrairBlocoModeracaoPorMarcadores(
+        resposta,
+        marcadoresAuditoria,
+        marcadoresRaciocinio.concat(marcadoresTexto)
+    );
+    let linhaRaciocinio = extrairBlocoModeracaoPorMarcadores(resposta, marcadoresRaciocinio, marcadoresTexto);
+    let textoFinal = extrairBlocoModeracaoPorMarcadores(resposta, marcadoresTexto, []);
+
+    // Fallback legado: formato antigo com apenas dois blocos
+    if (!auditoriaHipotese && !linhaRaciocinio && !textoFinal) {
+        const marcadoresLegado = [
+            '(1) LINHA DE RACIOCÍNIO INTERNA',
+            '(2) TEXTO FINAL DE MODERAÇÃO',
+            'LINHA DE RACIOCÍNIO INTERNA',
+            'TEXTO FINAL DE MODERAÇÃO',
+            '1. LINHA DE RACIOCÍNIO INTERNA',
+            '2. TEXTO FINAL DE MODERAÇÃO'
+        ];
+        for (let i = 0; i < marcadoresLegado.length; i += 2) {
+            const marcador1 = marcadoresLegado[i];
+            const marcador2 = marcadoresLegado[i + 1];
+            const index1 = resposta.indexOf(marcador1);
+            const index2 = resposta.indexOf(marcador2);
+            if (index1 !== -1 && index2 !== -1) {
+                linhaRaciocinio = resposta.substring(index1 + marcador1.length, index2).trim();
+                textoFinal = resposta.substring(index2 + marcador2.length).trim();
+                break;
+            }
+        }
+        if (!linhaRaciocinio && !textoFinal) {
+            const partes = resposta.split('\n\n');
+            if (partes.length >= 2) {
+                linhaRaciocinio = partes[0].trim();
+                textoFinal = partes.slice(1).join('\n\n').trim();
+            } else {
+                textoFinal = resposta;
+            }
         }
     }
-    
-    // Se não encontrou marcadores, tentar separar por quebras de linha duplas
-    if (!linhaRaciocinio && !textoFinal) {
-        const partes = resposta.split('\n\n');
-        if (partes.length >= 2) {
-            linhaRaciocinio = partes[0].trim();
-            textoFinal = partes.slice(1).join('\n\n').trim();
-        } else {
-            // Se não conseguiu separar, usar toda a resposta como texto final
-            textoFinal = resposta;
-        }
+
+    if (validacaoFalhou) {
+        linhaRaciocinio = '';
+        textoFinal = '';
+        if (!auditoriaHipotese) auditoriaHipotese = resposta.trim();
     }
-    
-    return { linhaRaciocinio, textoFinal };
+
+    return { auditoriaHipotese, linhaRaciocinio, textoFinal, validacaoFalhou };
+}
+
+// Função para formatar a auditoria da hipótese (uso interno)
+function formatarAuditoriaHipotese(auditoria) {
+    if (!auditoria) return '';
+
+    let conteudoFormatado = auditoria
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/^/, '<p>')
+        .replace(/$/, '</p>');
+
+    let bloco = '<div class="auditoria-hipotese">';
+    bloco += '<h6 class="text-warning mb-3"><i class="fas fa-search me-2"></i>Auditoria da Hipótese (uso interno — não enviar ao RA):</h6>';
+    bloco += `<div class="alert alert-light border-start border-warning border-4">${conteudoFormatado}</div>`;
+    bloco += '</div>';
+    return bloco;
 }
 
 // Função para formatar a linha de raciocínio interna do servidor
@@ -1501,26 +1572,43 @@ async function gerarModeracao() {
         const data = await response.json();
         
         if (data.success) {
-            // Processar a resposta que agora vem com dois blocos
+            // Processar a resposta (agora com auditoria + linha de raciocínio + texto)
             const resposta = data.result;
-            
-            // Separar os dois blocos da resposta
+
+            // Preferir os campos estruturados do servidor; se ausentes, reparsear localmente
             const blocos = separarBlocosModeracao(resposta);
-            
-            // Usar a linha de raciocínio interna gerada pelo servidor
-            const linhaRaciocinio = formatarLinhaRaciocinioServidor(blocos.linhaRaciocinio);
-            
-            // Usar o texto final de moderação gerado pelo servidor
-            const textoModeracao = formatarTextoModeracao(blocos.textoFinal);
-            
-            document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
-            document.getElementById('texto-moderacao').innerHTML = textoModeracao;
-            document.getElementById('moderacao-resultado').style.display = 'block';
-            
-            // Recarregar estatísticas globais do servidor
-            carregarEstatisticasGlobais();
-            
-            showSuccessMessage('Solicitação de moderação gerada com script estruturado!');
+            const auditoria = (typeof data.auditoriaHipotese === 'string' && data.auditoriaHipotese) ? data.auditoriaHipotese : blocos.auditoriaHipotese;
+            const validacaoFalhou = (typeof data.validacaoFalhou === 'boolean') ? data.validacaoFalhou : blocos.validacaoFalhou;
+            const linhaRaciocinioBruta = (typeof data.linhaRaciocinio === 'string' && data.linhaRaciocinio) ? data.linhaRaciocinio : blocos.linhaRaciocinio;
+            const textoFinalBruto = (typeof data.textoModeracao === 'string') ? data.textoModeracao : blocos.textoFinal;
+
+            const elAuditoria = document.getElementById('auditoria-hipotese');
+            if (elAuditoria) elAuditoria.innerHTML = formatarAuditoriaHipotese(auditoria);
+
+            if (validacaoFalhou) {
+                // Auditoria não validou hipótese: não há pedido a enviar ao RA
+                document.getElementById('linha-raciocinio').innerHTML = '';
+                document.getElementById('texto-moderacao').innerHTML =
+                    `<div class="alert alert-danger border-start border-danger border-4">
+                        <strong><i class="fas fa-ban me-2"></i>Moderação não recomendada.</strong>
+                        <p class="mb-0 mt-2">${MSG_VALIDACAO_HIPOTESE_FALHOU}</p>
+                    </div>`;
+                document.getElementById('moderacao-resultado').style.display = 'block';
+                carregarEstatisticasGlobais();
+                showErrorMessage('Auditoria concluída: nenhuma hipótese suficientemente sustentada pelos fatos.');
+            } else {
+                const linhaRaciocinio = formatarLinhaRaciocinioServidor(linhaRaciocinioBruta);
+                const textoModeracao = formatarTextoModeracao(textoFinalBruto);
+
+                document.getElementById('linha-raciocinio').innerHTML = linhaRaciocinio;
+                document.getElementById('texto-moderacao').innerHTML = textoModeracao;
+                document.getElementById('moderacao-resultado').style.display = 'block';
+
+                // Recarregar estatísticas globais do servidor
+                carregarEstatisticasGlobais();
+
+                showSuccessMessage('Solicitação de moderação gerada com script estruturado!');
+            }
         } else {
             throw new Error(data.error || 'Erro ao gerar moderação');
         }
@@ -1529,6 +1617,8 @@ async function gerarModeracao() {
         showErrorMessage('Erro ao gerar moderação. Usando modelo local como fallback.');
         
         // Fallback para o modelo local
+        const elAuditoriaFallback = document.getElementById('auditoria-hipotese');
+        if (elAuditoriaFallback) elAuditoriaFallback.innerHTML = '';
         const linhaRaciocinio = gerarLinhaRaciocinioModeracao(motivoModeracao, solicitacaoCliente, respostaEmpresa);
         const textoModeracao = gerarTextoModeracao(motivoModeracao, consideracaoFinal);
         
