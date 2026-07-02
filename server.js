@@ -8668,6 +8668,44 @@ Indicadores que costumam elevar o risco de imagem (lista não exaustiva):
 
 Observação: presença desses temas na reclamação não significa, por si só, maior chance de o RA aceitar moderação; relate-as aqui como risco reputacional, sem transportar esse juízo para a ETAPA 9.
 
+──────────────────────────────────────────────────────────────
+REGRAS DE PONTUAÇÃO DA CHANCE (AUDITORIA ≠ PONTUAÇÃO — LEIA ANTES DA ETAPA 9)
+──────────────────────────────────────────────────────────────
+Estas regras governam COMO a auditoria (FASES 1–8 e ETAPAs anteriores) se converte na % da ETAPA 9. A % deve representar a PROBABILIDADE REAL de o RA aceitar a moderação — NUNCA uma nota de qualidade da resposta.
+
+1. SEPARE AUDITORIA DE PONTUAÇÃO. Primeiro produza TODA a auditoria (cobertura, clareza, qualidade, hipótese, fundamentação, riscos). Só DEPOIS de concluí-la inicie o cálculo da %. As observações da auditoria NÃO reduzem a % automaticamente — elas entram na % apenas pela matriz do item 9.
+
+2. NÃO PENALIZE O MESMO PROBLEMA DUAS VEZES. Um mesmo problema (ex.: baixa clareza) pode ser citado em várias seções (fundamentação, clareza, riscos de negativa, revisão) para fins explicativos, mas gera UMA única penalização. Consolide problemas equivalentes antes de pontuar.
+
+3. COBERTURA ≠ CLAREZA. Cobertura = "a empresa enfrentou objetivamente o fato?". Clareza = "o moderador compreende facilmente?". Baixa clareza NUNCA transforma fato respondido em "Respondido parcialmente"; alta clareza NUNCA transforma fato não respondido em "Respondido diretamente".
+
+4. COBERTURA ≠ QUALIDADE DA FUNDAMENTAÇÃO. Fundamentação simples porém suficiente = cobertura adequada. Qualidade (organização, coerência, fluidez) orienta melhorias futuras e NÃO reduz significativamente a % quando o fato principal já foi corretamente enfrentado.
+
+5. PRIORIZE FATOS SOBRE REDAÇÃO. Ordem de prioridade na %: (1) cobertura dos fatos principais; (2) correlação reclamação × resposta × consideração final; (3) adequação da hipótese ao Manual. Só depois: clareza, qualidade, organização. Ausência de resposta ao fato principal pesa MUITO mais que problemas de redação.
+
+6. PESO REDUZIDO DA CLAREZA. Baixa clareza = oportunidade de melhoria, não baixa chance automática. Se o núcleo foi objetivamente respondido, a penalização por clareza é MODERADA. Clareza AJUSTA a probabilidade; não a DETERMINA.
+
+7. FALTA DE RESPOSTA ≠ FALTA DE DETALHAMENTO. (A) fato não respondido → penalização ELEVADA. (B) fato respondido mas que poderia ser mais detalhado → penalização REDUZIDA. Distinga obrigatoriamente as duas.
+
+8. GENÉRICA ≠ OBJETIVA. Só classifique como "genérica" se demonstrar objetivamente: qual trecho é genérico; qual informação relevante faltou; por que reduz aderência ao Manual (usar os critérios da DEFINIÇÃO OBJETIVA DE RESPOSTA GENÉRICA abaixo). Sem essa justificativa objetiva, NÃO use a classificação.
+
+9. MATRIZ DE DECISÃO (a % resulta da combinação ponderada, não de intuição):
+   • Cobertura dos fatos principais ....... PESO MÁXIMO
+   • Adequação da hipótese ao Manual ....... PESO ALTO
+   • Correlação reclamação/resposta/consideração final ... PESO ALTO
+   • Cobertura dos fatos secundários ....... PESO INTERMEDIÁRIO
+   • Clareza ............................... PESO REDUZIDO
+   • Qualidade da fundamentação ............ PESO REDUZIDO
+   • Calibração histórica (ETAPA 0) ........ AJUSTE FINAL
+   Esta matriz IMPEDE que problemas de baixa relevância derrubem excessivamente a %. Quando os critérios de peso máximo/alto estão satisfeitos, os de peso reduzido só ajustam a % em poucos pontos.
+
+10. PENALIZE PELA RELEVÂNCIA DO PROBLEMA (impacto proporcional): fato principal não respondido → impacto ALTO; pedido acessório não respondido → impacto REDUZIDO; explicação pouco detalhada → impacto BAIXO; texto pouco objetivo → impacto MUITO BAIXO.
+
+11. TRANSPARÊNCIA. Ao apresentar a análise, exiba como a % foi construída (bloco "🧮 Composição da chance" na seção 15), listando cada critério da matriz e seu status.
+
+12. OBJETIVO FINAL. Resposta imperfeita na redação PODE ter alta chance se enfrentar os fatos, usar a hipótese adequada e atender ao Manual. Resposta muito bem escrita NÃO tem alta chance se ignorar fatos relevantes. A % reflete aprovação pelo RA, não qualidade textual.
+──────────────────────────────────────────────────────────────
+
 ETAPA 9 — CÁLCULO DE PROBABILIDADE REAL (CONFORMIDADE COM OS MANUAIS DO RA)
 
 NÃO existe faixa "padrão" nem teto artificial. NÃO ancore a estimativa em 40–60% por precaução: use TODA a escala de 5% a 95% conforme a conformidade real do caso com os manuais do RA. Ignore reputação, visibilidade ou "peso" midiático (isso é a ETAPA 8). A % deve refletir a probabilidade REAL de o RA aceitar a moderação, podendo ser alta quando estamos efetivamente em conformidade.
@@ -8922,6 +8960,17 @@ A resposta deve sempre apresentar (mantendo claro que chance de moderação e ri
 
 🔎 Fatores que reduziram a chance de moderação (quadro obrigatório da auditoria da resposta original):
    Para cada fator efetivamente identificado, apresente uma linha "Fator | Motivo técnico | Impacto estimado" (ex.: "Baixa clareza | fato principal respondido, mas relação entre eventos pouco objetiva | -5%"). Liste apenas fatores realmente presentes na resposta. Este quadro fundamenta a estratégia de melhoria e justifica tecnicamente o aumento da chance após a reformulação.
+
+🧮 Composição da chance (da MATRIZ DE DECISÃO — item 9 das Regras de Pontuação):
+   Mostre como a % foi construída, uma linha por critério com seu status:
+   • Cobertura dos fatos principais: Respondido / Parcial / Não respondido
+   • Adequação da hipótese ao Manual: Alta / Média / Baixa
+   • Correlação reclamação × resposta × consideração final: Alta / Média / Baixa
+   • Cobertura dos fatos secundários: Respondido / Parcial / Não respondido
+   • Clareza: Excelente / Boa / Média / Baixa (peso reduzido)
+   • Qualidade da fundamentação: Boa / Média / Baixa (peso reduzido)
+   • Calibração histórica: Positiva / Neutra / Negativa (ajuste final)
+   Lembrete: critérios de peso reduzido ajustam poucos pontos; não derrubam a % quando os fatos principais foram enfrentados.
 
 📚 Calibração histórica (da ETAPA 0):
    Casos semelhantes encontrados: X
