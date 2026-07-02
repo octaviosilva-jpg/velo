@@ -17,35 +17,101 @@ const LABELS = {
     calibracao_historica: 'Calibracao historica'
 };
 
-// Guias curtos por criterio para orientar a classificacao (nao alteram o calculo).
+// V2 — Criterios objetivos por estado, com requisitos obrigatorios e regras de rebaixamento.
+// (Nao alteram o calculo; orientam a classificacao para aumentar a discriminancia.)
 const GUIA = {
-    cobertura_fato_principal: 'A empresa enfrentou objetivamente o NUCLEO da reclamacao? respondido_diretamente | respondido_indiretamente | respondido_parcialmente | nao_respondido. Baixa clareza NAO rebaixa para parcial.',
-    adequacao_hipotese: 'Quao bem o caso se enquadra em uma hipotese normativa do Manual do RA (independente do fato ter sido respondido): muito_forte | forte | media | fraca | inadequada.',
-    correlacao: 'A resposta endereca o que foi reclamado e a consideracao final nao reabre o ponto: alta | media | baixa | contraditoria (a consideracao final desmonta a resposta).',
-    evidencia_objetiva: 'Quantidade/qualidade de elementos VERIFICAVEIS na resposta: documental_conclusiva (protocolos, prints, datas/contratos) | objetiva_forte (fatos concretos checaveis) | objetiva_moderada (concreta com lacunas) | declaratoria (so afirmacoes) | sem_evidencia.',
-    cobertura_secundaria: 'Fatos secundarios (contexto, nao o nucleo): respondido | parcial | nao_respondido | inexistente (se nao houver fatos secundarios).',
-    conformidade_aenv: 'Regras que bloqueiam moderacao (falha de atendimento, divergencia nao respondida, discussao de merito, clausula abusiva, resposta generica/evasiva): sem_riscos | riscos_leves | risco_bloqueante.',
-    qualidade_fundamentacao: 'Organizacao/coerencia/objetividade da resposta: boa | media | baixa. NAO confundir com cobertura.',
-    clareza: 'Facilidade de o moderador compreender a posicao da empresa: excelente | boa | media | baixa. NAO altera a cobertura.',
-    pedidos_acessorios: 'Pedidos/consequencias derivados do fato principal: respondido_diretamente | respondido_indiretamente (absorvido pela solucao do fato principal) | autonomo_nao_respondido (pedido autonomo que exige resposta propria e nao foi atendido) | inexistente.'
+    cobertura_fato_principal:
+        'Avalie SE o NUCLEO da reclamacao foi enfrentado (independente de clareza/redacao):\n' +
+        '      . respondido_diretamente: o nucleo foi enfrentado de forma EXPLICITA e ESPECIFICA, sem depender de inferencia. NAO usar se qualquer parte relevante do nucleo ficou sem resposta.\n' +
+        '      . respondido_indiretamente: o nucleo decorre logicamente de outra explicacao apresentada pela empresa.\n' +
+        '      . respondido_parcialmente: parte relevante do nucleo permanece sem resposta.\n' +
+        '      . nao_respondido: o nucleo nao foi enfrentado.\n' +
+        '      REBAIXAMENTO: baixa clareza NAO rebaixa este criterio; avalie apenas o enfrentamento do fato.',
+    adequacao_hipotese:
+        'Enquadramento normativo no Manual do RA (independente do fato ter sido respondido):\n' +
+        '      . muito_forte: SOMENTE se TODOS: responde integralmente o nucleo; enfrenta todos os argumentos centrais; apresenta evidencias objetivas; nao deixa divergencias relevantes abertas; aderencia clara ao Manual. Se QUALQUER requisito faltar, rebaixe para forte.\n' +
+        '      . forte: nucleo enfrentado com pequenas deficiencias que nao comprometem. Se houver MULTIPLAS deficiencias relevantes, rebaixe para media.\n' +
+        '      . media: aderencia parcial ou deficiencias relevantes.\n' +
+        '      . fraca: enquadramento fragil.\n' +
+        '      . inadequada: nao existe hipotese normativa valida.',
+    correlacao:
+        'Aderencia entre reclamacao, resposta e consideracao final:\n' +
+        '      . alta: SOMENTE quando TODOS os fatos principais forem enfrentados diretamente.\n' +
+        '      . media: pequena divergencia restante.\n' +
+        '      . baixa: parte relevante da reclamacao permanece sem resposta.\n' +
+        '      . contraditoria: a resposta conflita com a reclamacao ou com a consideracao final.',
+    evidencia_objetiva:
+        'Elementos VERIFICAVEIS presentes na resposta (contam-se elementos objetivos: contrato, protocolo, comprovante, print, data, horario, numero de transacao):\n' +
+        '      . documental_conclusiva: SOMENTE com documento(s) verificavel(is) anexado(s)/citado(s) de forma conclusiva.\n' +
+        '      . objetiva_forte: SOMENTE com PELO MENOS DOIS elementos objetivos verificaveis.\n' +
+        '      . objetiva_moderada: apenas UM elemento objetivo verificavel.\n' +
+        '      . declaratoria: apenas afirmacoes da empresa, sem elemento verificavel.\n' +
+        '      . sem_evidencia: nenhum elemento verificavel.',
+    cobertura_secundaria:
+        'Fatos secundarios (contexto, nao o nucleo):\n' +
+        '      . respondido: fatos secundarios enfrentados.\n' +
+        '      . parcial: enfrentados de forma incompleta.\n' +
+        '      . nao_respondido: ignorados.\n' +
+        '      . inexistente: nao ha fatos secundarios.',
+    conformidade_aenv:
+        'Regras que bloqueiam moderacao (falha de atendimento, divergencia nao respondida, discussao de merito, clausula abusiva, resposta generica/evasiva):\n' +
+        '      . sem_riscos: nenhuma regra presente.\n' +
+        '      . riscos_leves: indicios leves.\n' +
+        '      . risco_bloqueante: alguma regra claramente presente.\n' +
+        '      REBAIXAMENTO: se houver duvida entre sem_riscos e riscos_leves, use riscos_leves.',
+    qualidade_fundamentacao:
+        'Organizacao, coerencia e objetividade da resposta (NAO confundir com cobertura nem com clareza):\n' +
+        '      . boa: organizada, coerente e objetiva.\n' +
+        '      . media: deficiencias de organizacao/coerencia.\n' +
+        '      . baixa: desorganizada ou incoerente.',
+    clareza:
+        'Facilidade de o moderador compreender a POSICAO da empresa (NAO altera cobertura):\n' +
+        '      . excelente: SOMENTE quando TODOS: compreendida em uma unica leitura; sem ambiguidades relevantes; sem necessidade de inferencia; sequencia logica clara. Se QUALQUER requisito faltar, NAO use excelente.\n' +
+        '      . boa: compreensivel, com pequenas ambiguidades que nao comprometem.\n' +
+        '      . media: exige releitura; ambiguidades relevantes; dificulta parcialmente.\n' +
+        '      . baixa: impede ou dificulta significativamente a compreensao.',
+    pedidos_acessorios:
+        'Pedidos/consequencias derivados do fato principal:\n' +
+        '      . respondido_diretamente: pedido acessorio tratado explicitamente.\n' +
+        '      . respondido_indiretamente: abrangido pela solucao do fato principal. NAO use se existir pedido AUTONOMO sem resposta.\n' +
+        '      . autonomo_nao_respondido: pedido autonomo que exige resposta propria e nao foi atendido.\n' +
+        '      . inexistente: nao ha pedidos acessorios.'
 };
 
 const GATE_GUIA = {
     prazo: 'A reclamacao foi avaliada/respondida e esta dentro do prazo de moderacao? elegivel | nao_elegivel.',
-    resposta_generica: 'A resposta e comprovadamente generica (nao explica causa, so frases institucionais, serviria para qualquer reclamacao)? nao_generica | generica_comprovada. Use generica_comprovada apenas com justificativa objetiva.'
+    resposta_generica: 'A resposta e comprovadamente generica (nao explica causa, so frases institucionais, serviria para qualquer reclamacao)? nao_generica | generica_comprovada. Use generica_comprovada apenas com justificativa objetiva (cite o trecho generico).'
 };
 
-/** Monta a instrucao da 2a chamada (extracao de estados), derivada do perfil (sem drift de enums). */
+/** Monta a instrucao da 2a chamada (extracao de estados V2), derivada do perfil (sem drift de enums). */
 function montarInstrucaoEstados(perfil) {
     const linhasCriterios = Object.keys(perfil.criterios)
-        .map(c => `- "${c}" (${LABELS[c]}): ${Object.keys(perfil.criterios[c].estados).join(' | ')}\n    ${GUIA[c] || ''}`)
+        .map(c => `- "${c}" (${LABELS[c]}): ${Object.keys(perfil.criterios[c].estados).join(' | ')}\n      ${GUIA[c] || ''}`)
         .join('\n');
 
     const linhasGates = Object.keys(perfil.gates_independentes)
-        .map(g => `- "${g}": ${perfil.gates_independentes[g].estados_validos.join(' | ')}\n    ${GATE_GUIA[g] || ''}`)
+        .map(g => `- "${g}": ${perfil.gates_independentes[g].estados_validos.join(' | ')}\n      ${GATE_GUIA[g] || ''}`)
         .join('\n');
 
+    const objetoEstado = '{ "estado": "<valor da lista>", "fundamento": "<justificativa curta>", "trechos_utilizados": { "reclamacao": ["<trecho curto>"], "resposta": ["<trecho curto>"] } }';
+
+    const formatoEstados = Object.keys(perfil.criterios).map(c => `"${c}": ${objetoEstado}`).join(',\n    ');
+    const formatoGates = Object.keys(perfil.gates_independentes).map(g => `"${g}": ${objetoEstado}`).join(',\n    ');
+
     return `TAREFA: classificar o caso em ESTADOS CATEGORICOS para o Motor de Pontuacao. NAO calcule porcentagem. NAO escreva analise. Responda APENAS um objeto JSON valido.
+
+REGRA DE REQUISITOS (OBRIGATORIA): um estado alto so pode ser usado quando TODOS os criterios obrigatorios daquele estado estiverem CLARAMENTE presentes. Se qualquer requisito obrigatorio nao for atendido, rebaixe para o nivel imediatamente inferior. NAO rebaixe por precaucao quando os requisitos estiverem satisfeitos (evite subestimacao artificial).
+
+AVALIACAO INDEPENDENTE (OBRIGATORIA): avalie cada criterio isoladamente. Cobertura != Clareza; Clareza != Fundamentacao; Fundamentacao != Evidencia; Correlacao != Cobertura. Um problema de redacao (clareza/fundamentacao) NUNCA rebaixa Cobertura ou Evidencia.
+
+REBAIXAMENTO GLOBAL: se existir fato principal sem resposta, divergencia relevante aberta, ou faltar evidencia objetiva importante, rebaixe o estado do criterio afetado para o nivel imediatamente inferior.
+
+ETAPA 0 — MAPEAMENTO DA RECLAMACAO (faca ANTES de classificar; parta SEMPRE da reclamacao, NUNCA da resposta):
+1) identifique o fato principal (o nucleo do problema);
+2) identifique os fatos secundarios (contexto);
+3) identifique os pedidos acessorios (consequencias/pedidos derivados);
+4) SOMENTE depois avalie se a resposta publica os enfrenta.
+Retorne esse mapeamento no campo "mapa_reclamacao".
 
 Baseie-se exclusivamente na reclamacao, na resposta publica e na consideracao final fornecidas. Para cada campo escolha UM valor da lista permitida (exatamente como escrito, em minusculas).
 
@@ -55,17 +121,73 @@ ${linhasCriterios}
 GATES (campo "gates"):
 ${linhasGates}
 
+Para CADA criterio e CADA gate, retorne um objeto no formato:
+${objetoEstado}
+Os campos "fundamento" e "trechos_utilizados" servem para auditoria (o Motor usa apenas "estado"). Em "trechos_utilizados" cite trechos CURTOS e literais.
+
 Tambem inclua:
 - "hipotese_escolhida": { "titulo": "<hipotese do Manual aplicavel ou 'nenhuma'>" }
 - "deficiencias": lista de { "id": "<ID_CANONICO_EM_MAIUSCULAS>", "criterio": "<criterio>", "descricao": "<curta>" } para cada problema real (consolidar problemas equivalentes em UM id).
 
-NAO inclua o campo calibracao_historica (o sistema define). Responda somente o JSON, sem texto antes ou depois. Formato:
+NAO inclua o campo calibracao_historica (o sistema define). Responda SOMENTE o JSON, sem texto antes ou depois. Formato:
 {
-  "estados": { ${Object.keys(perfil.criterios).map(c => `"${c}": "..."`).join(', ')} },
-  "gates": { ${Object.keys(perfil.gates_independentes).map(g => `"${g}": "..."`).join(', ')} },
+  "mapa_reclamacao": { "fato_principal": "...", "fatos_secundarios": [], "pedidos_acessorios": [] },
+  "estados": {
+    ${formatoEstados}
+  },
+  "gates": {
+    ${formatoGates}
+  },
   "hipotese_escolhida": { "titulo": "..." },
   "deficiencias": []
 }`;
+}
+
+/**
+ * Normaliza a saida do Extrator (V2 aninhado {estado,fundamento,trechos_utilizados}
+ * ou V1 string pura) para o formato PLANO consumido pelo Motor (estados/gates como string).
+ * Coleta fundamentos, trechos e o mapa da reclamacao para os metadados (auditoria).
+ * O Motor, o Contrato e o Perfil permanecem inalterados.
+ */
+function normalizarEstados(auditoria) {
+    const extrairEstado = (v) => (v && typeof v === 'object') ? v.estado : v;
+
+    const estadosBrutos = (auditoria && auditoria.estados) || {};
+    const gatesBrutos = (auditoria && auditoria.gates) || {};
+
+    const estados = {};
+    const gates = {};
+    const fundamentos = {};
+
+    for (const [criterio, valor] of Object.entries(estadosBrutos)) {
+        estados[criterio] = extrairEstado(valor);
+        if (valor && typeof valor === 'object') {
+            fundamentos[criterio] = {
+                fundamento: valor.fundamento || null,
+                trechos_utilizados: valor.trechos_utilizados || null
+            };
+        }
+    }
+    for (const [gate, valor] of Object.entries(gatesBrutos)) {
+        gates[gate] = extrairEstado(valor);
+        if (valor && typeof valor === 'object') {
+            fundamentos[gate] = {
+                fundamento: valor.fundamento || null,
+                trechos_utilizados: valor.trechos_utilizados || null
+            };
+        }
+    }
+
+    return {
+        auditoriaPlana: {
+            estados,
+            gates,
+            hipotese_escolhida: auditoria ? auditoria.hipotese_escolhida : undefined,
+            deficiencias: auditoria ? auditoria.deficiencias : undefined
+        },
+        fundamentos,
+        mapa_reclamacao: (auditoria && auditoria.mapa_reclamacao) || null
+    };
 }
 
 /** O sistema define a calibracao historica pela quantidade de casos aprovados semelhantes. */
@@ -147,4 +269,4 @@ function aplicarRegraSemReformulacao(texto, chanceFinal, perfil) {
     return { texto: `${texto}\n\n${regra.mensagem}\n`, aplicada: true };
 }
 
-module.exports = { montarInstrucaoEstados, derivarCalibracaoHistorica, montarBlocoOficial, aplicarRegraSemReformulacao };
+module.exports = { montarInstrucaoEstados, derivarCalibracaoHistorica, montarBlocoOficial, aplicarRegraSemReformulacao, normalizarEstados };

@@ -9145,14 +9145,17 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
                             { role: 'user', content: `${instrucaoEstados}\n\n=== DADOS DO CASO ===\n${dadosCasoEstados}` }
                         ],
                         temperature: 0,
-                        max_tokens: 900,
+                        max_tokens: 2000,
                         response_format: { type: 'json_object' }
                     })
                 });
 
                 if (respEstados.ok) {
                     const dataEstados = await respEstados.json();
-                    const auditoria = JSON.parse(dataEstados.choices[0].message.content);
+                    const auditoriaBruta = JSON.parse(dataEstados.choices[0].message.content);
+                    // Normaliza saída V2 (aninhada) -> formato plano consumido pelo Motor.
+                    const norm = motorIntegracao.normalizarEstados(auditoriaBruta);
+                    const auditoria = norm.auditoriaPlana;
                     // O SISTEMA define a calibração histórica (não a IA)
                     auditoria.estados = auditoria.estados || {};
                     auditoria.estados.calibracao_historica = motorIntegracao.derivarCalibracaoHistorica(
@@ -9169,7 +9172,8 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
                         }
                         const blocoOficial = motorIntegracao.montarBlocoOficial(resultadoMotor, perfilVersao);
                         resultado = blocoOficial + '\n' + resultado;
-                        motorMetadados = resultadoMotor.metadados;
+                        // Fundamentos/trechos/mapa só para auditoria (o Motor usa apenas os estados).
+                        motorMetadados = { ...resultadoMotor.metadados, fundamentos: norm.fundamentos, mapa_reclamacao: norm.mapa_reclamacao };
                         console.log(`🧮 Motor: ${resultadoMotor.chance_final}% (${resultadoMotor.faixa_final}), validador ${resultadoMotor.validador.status}`);
                     } else {
                         console.warn('⚠️ Motor: contrato inválido, usando estimativa da IA (fallback):', resultadoMotor.erros || resultadoMotor.contradicoes);
