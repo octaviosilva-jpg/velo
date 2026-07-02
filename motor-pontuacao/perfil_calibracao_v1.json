@@ -3,9 +3,14 @@
   "descricao": "Perfil de Calibracao do Motor de Pontuacao da Chance de Moderacao. Fonte unica de verdade (SSoT) dos numeros do calculo. IMUTAVEL: qualquer alteracao em pesos, fatores, gates ou regras exige criar perfil_calibracao_v2.",
   "data_vigencia": "2026-07-02",
   "changelog": [
-    "v1: distribuicao inicial aprovada. Nucleo CFP28/HIP18/COR16/EO16; refinadores QF5/CL5/PA2; secundaria 6; AENV 4. Historico +0..+5 intra-faixa. Gates por teto de faixa + compressao linear. Clamp global [5,95]."
+    "v1: distribuicao inicial aprovada. Nucleo CFP28/HIP18/COR16/EO16; refinadores QF5/CL5/PA2; secundaria 6; AENV 4. Historico +0..+5 intra-faixa. Gates por teto de faixa + compressao linear. Clamp global [5,95].",
+    "v1: regra_sem_reformulacao adicionada (chance oficial >= 90% suprime a resposta reformulada)."
   ],
   "clamp_global": { "min": 5, "max": 95 },
+  "regra_sem_reformulacao": {
+    "chance_minima": 90,
+    "mensagem": "A resposta já possui elevada aderência aos critérios de moderação do Reclame Aqui. Não foram identificadas melhorias materiais."
+  },
   "faixas": {
     "ordem": ["muito_baixa", "baixa", "intermediaria", "boa", "alta"],
     "limites": {

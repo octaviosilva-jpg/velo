@@ -111,4 +111,40 @@ function resultado_motorVersao(metadados) {
     return metadados.motor_version || 'v1';
 }
 
-module.exports = { montarInstrucaoEstados, derivarCalibracaoHistorica, montarBlocoOficial };
+/**
+ * Regra: quando a chance oficial >= chance_minima, suprime a resposta reformulada
+ * (e o bloco de impacto associado), exibindo apenas a mensagem definida no perfil.
+ * Substitui a partir do marcador de revisao ate o marcador de Auditoria de consistencia (🔍).
+ * @returns { texto, aplicada }
+ */
+function aplicarRegraSemReformulacao(texto, chanceFinal, perfil) {
+    const regra = perfil.regra_sem_reformulacao;
+    if (!regra || typeof chanceFinal !== 'number' || chanceFinal < regra.chance_minima) {
+        return { texto, aplicada: false };
+    }
+
+    const marcadores = [
+        '✍️ Revisão estratégica da resposta',
+        'Revisão estratégica da resposta',
+        '✍️ Revisão de Textos (versão estratégica)',
+        'Revisão de Textos (versão estratégica)',
+        'REVISÃO DE TEXTOS'
+    ];
+
+    for (const marc of marcadores) {
+        const idx = texto.indexOf(marc);
+        if (idx === -1) continue;
+        const inicioConteudo = idx + marc.length;
+        // Vai ate a Auditoria de consistencia (preserva esse bloco final).
+        let fim = texto.indexOf('🔍', inicioConteudo);
+        if (fim === -1) fim = texto.length;
+        const antes = texto.substring(0, inicioConteudo);
+        const depois = texto.substring(fim);
+        return { texto: `${antes}\n\n${regra.mensagem}\n\n${depois}`, aplicada: true };
+    }
+
+    // Sem marcador de revisao: anexa a mensagem ao final.
+    return { texto: `${texto}\n\n${regra.mensagem}\n`, aplicada: true };
+}
+
+module.exports = { montarInstrucaoEstados, derivarCalibracaoHistorica, montarBlocoOficial, aplicarRegraSemReformulacao };

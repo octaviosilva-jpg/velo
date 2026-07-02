@@ -9161,6 +9161,12 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
 
                     const resultadoMotor = motorPontuacao.analisarChance(auditoria, { perfilVersao });
                     if (resultadoMotor.sucesso) {
+                        // Regra: chance oficial >= 90% => não gerar resposta reformulada
+                        const regra = motorIntegracao.aplicarRegraSemReformulacao(resultado, resultadoMotor.chance_final, perfil);
+                        resultado = regra.texto;
+                        if (regra.aplicada) {
+                            console.log(`🧮 Motor: chance ${resultadoMotor.chance_final}% >= limiar, reformulação suprimida.`);
+                        }
                         const blocoOficial = motorIntegracao.montarBlocoOficial(resultadoMotor, perfilVersao);
                         resultado = blocoOficial + '\n' + resultado;
                         motorMetadados = resultadoMotor.metadados;
