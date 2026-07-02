@@ -8516,18 +8516,32 @@ Avalie se a resposta:
 • apresenta contexto omitido
 • demonstra que a responsabilidade pertence a terceiro.
 
-ETAPA 3.5 — COBERTURA DOS FATOS (OBRIGATÓRIA)
+ETAPA 3.5 — COBERTURA DOS FATOS (OBRIGATÓRIA, PONDERADA POR RELEVÂNCIA)
 
-Liste TODOS os fatos relevantes narrados pelo consumidor (cada alegação, pedido, orientação recebida ou evento descrito).
+PASSO A — SEPARAÇÃO POR NATUREZA (antes de calcular cobertura):
+Liste TODOS os itens narrados pelo consumidor e classifique CADA um quanto à natureza:
+• Fato principal — o núcleo do problema, a alegação central que motivou a reclamação;
+• Fato secundário — circunstância relevante que contextualiza, mas não é o núcleo;
+• Pedido acessório — pedido ou consequência derivada do fato principal (ex.: pedido de retorno, estorno decorrente, atualização de status), que não é um problema autônomo em si.
 
-Para CADA fato, classifique:
-• Respondido diretamente — a resposta pública enfrenta o fato de forma clara e específica;
-• Respondido parcialmente — a resposta toca no fato, mas de forma incompleta ou superficial;
-• Não respondido — a resposta pública não trata o fato.
+REGRA DE RESPOSTA INDIRETA: sempre que a resposta da empresa solucionar ou esclarecer objetivamente o FATO PRINCIPAL, considere os PEDIDOS ACESSÓRIOS a ele vinculados como respondidos INDIRETAMENTE — salvo quando houver solicitação autônoma que exija resposta específica (ex.: envio de documento, apresentação de memória de cálculo já prometida, cumprimento de obrigação independente). Nesses casos autônomos, exija resposta própria.
 
-Calcule o PERCENTUAL DE COBERTURA = (fatos respondidos diretamente + parcialmente ponderados) sobre o total de fatos relevantes.
+PASSO B — STATUS DE RESPOSTA (para cada item):
+• Respondido diretamente — a resposta pública enfrenta o item de forma clara e específica;
+• Respondido indiretamente — pedido acessório abrangido pela solução/explicação do fato principal;
+• Respondido parcialmente — a resposta toca no item, mas de forma incompleta ou superficial;
+• Não respondido — a resposta pública não trata o item.
 
-Se menos de 70% dos fatos relevantes forem efetivamente enfrentados pela resposta pública, REDUZA a chance de moderação (a resposta não cobre o que o consumidor narrou). Esse resultado alimenta a ETAPA 9 e o bloco de Auditoria de cobertura da seção 15.
+PASSO C — COBERTURA PONDERADA POR RELEVÂNCIA (não por quantidade de itens):
+Calcule a cobertura dando PESO MAIOR aos fatos principais e PESO MENOR aos pedidos acessórios. Sugestão de pesos: fato principal = ALTO; fato secundário = MÉDIO; pedido acessório = BAIXO. A ausência de resposta a um pedido acessório NÃO pode receber a mesma penalização da ausência de resposta ao fato principal.
+
+Regras de penalização:
+• Fato principal não respondido (ou respondido apenas parcialmente) → penalização FORTE na chance.
+• Fato secundário não respondido → penalização MODERADA.
+• Pedido acessório não respondido, quando já abrangido pela solução/explicação do fato principal → penalização MÍNIMA ou nula (trate como respondido indiretamente).
+• Pedido acessório autônomo (exige resposta específica) não respondido → penalização MODERADA.
+
+Só REDUZA de forma relevante a chance de moderação quando os FATOS PRINCIPAIS não forem efetivamente enfrentados pela resposta pública. Não rebaixe o caso apenas porque um pedido acessório, já coberto pela solução do fato principal, não foi tratado item a item. Esse resultado ponderado alimenta a ETAPA 9 e o bloco de Auditoria de cobertura da seção 15.
 
 ETAPA 4 — CLASSIFICAÇÃO DA DISTORÇÃO
 
@@ -8859,7 +8873,7 @@ A resposta deve sempre apresentar (mantendo claro que chance de moderação e ri
 ⚠️ Riscos de negativa
 
 📋 Auditoria de cobertura dos fatos (da ETAPA 3.5):
-   Liste, em formato "Fato | Status", cada fato relevante narrado pelo consumidor com seu status (Respondido diretamente / Respondido parcialmente / Não respondido) e informe o percentual total de cobertura da resposta. Use este bloco para deixar claro por que a chance foi reduzida quando a cobertura for baixa.
+   Liste, em formato "Item | Natureza | Status", cada item narrado pelo consumidor, indicando a Natureza (Fato principal / Fato secundário / Pedido acessório) e o Status (Respondido diretamente / Respondido indiretamente / Respondido parcialmente / Não respondido). Informe a cobertura PONDERADA POR RELEVÂNCIA (não a simples contagem de itens) e deixe claro se os FATOS PRINCIPAIS foram enfrentados. Só justifique redução relevante da chance quando o problema estiver nos fatos principais; pedidos acessórios já abrangidos pela solução não devem puxar a chance para baixo.
 
 📚 Calibração histórica (da ETAPA 0):
    Casos semelhantes encontrados: X
