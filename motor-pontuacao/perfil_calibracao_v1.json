@@ -1,0 +1,154 @@
+{
+  "perfil_calibracao_version": "v1",
+  "descricao": "Perfil de Calibracao do Motor de Pontuacao da Chance de Moderacao. Fonte unica de verdade (SSoT) dos numeros do calculo. IMUTAVEL: qualquer alteracao em pesos, fatores, gates ou regras exige criar perfil_calibracao_v2.",
+  "data_vigencia": "2026-07-02",
+  "changelog": [
+    "v1: distribuicao inicial aprovada. Nucleo CFP28/HIP18/COR16/EO16; refinadores QF5/CL5/PA2; secundaria 6; AENV 4. Historico +0..+5 intra-faixa. Gates por teto de faixa + compressao linear. Clamp global [5,95]."
+  ],
+  "clamp_global": { "min": 5, "max": 95 },
+  "faixas": {
+    "ordem": ["muito_baixa", "baixa", "intermediaria", "boa", "alta"],
+    "limites": {
+      "muito_baixa": [0, 20],
+      "baixa": [20, 40],
+      "intermediaria": [40, 60],
+      "boa": [60, 80],
+      "alta": [80, 100]
+    }
+  },
+  "compressao": {
+    "descricao": "Quando a faixa natural do score excede a faixa permitida por um gate, comprime na faixa permitida [lo,hi]: final = lo + (hi - lo) * (score/100).",
+    "formula": "lo + (hi - lo) * (score / 100)"
+  },
+  "criterios": {
+    "cobertura_fato_principal": {
+      "peso": 28,
+      "hierarquia": "muito_alto",
+      "estados": {
+        "respondido_diretamente": 1.0,
+        "respondido_indiretamente": 0.75,
+        "respondido_parcialmente": 0.45,
+        "nao_respondido": 0.0
+      },
+      "gate": { "respondido_parcialmente": "intermediaria", "nao_respondido": "baixa" }
+    },
+    "adequacao_hipotese": {
+      "peso": 18,
+      "hierarquia": "muito_alto",
+      "estados": {
+        "muito_forte": 1.0,
+        "forte": 0.85,
+        "media": 0.55,
+        "fraca": 0.3,
+        "inadequada": 0.0
+      },
+      "gate": { "fraca": "intermediaria", "inadequada": "baixa" }
+    },
+    "correlacao": {
+      "peso": 16,
+      "hierarquia": "alto",
+      "estados": {
+        "alta": 1.0,
+        "media": 0.6,
+        "baixa": 0.3,
+        "contraditoria": 0.0
+      }
+    },
+    "evidencia_objetiva": {
+      "peso": 16,
+      "hierarquia": "alto",
+      "estados": {
+        "documental_conclusiva": 1.0,
+        "objetiva_forte": 0.8,
+        "objetiva_moderada": 0.55,
+        "declaratoria": 0.3,
+        "sem_evidencia": 0.0
+      }
+    },
+    "cobertura_secundaria": {
+      "peso": 6,
+      "hierarquia": "medio",
+      "estados": {
+        "respondido": 1.0,
+        "parcial": 0.5,
+        "nao_respondido": 0.0,
+        "inexistente": 1.0
+      }
+    },
+    "conformidade_aenv": {
+      "peso": 4,
+      "hierarquia": "muito_alto",
+      "estados": {
+        "sem_riscos": 1.0,
+        "riscos_leves": 0.5,
+        "risco_bloqueante": 0.0
+      },
+      "gate": { "risco_bloqueante": "baixa" }
+    },
+    "qualidade_fundamentacao": {
+      "peso": 5,
+      "hierarquia": "baixo",
+      "estados": {
+        "boa": 1.0,
+        "media": 0.6,
+        "baixa": 0.2
+      }
+    },
+    "clareza": {
+      "peso": 5,
+      "hierarquia": "muito_baixo",
+      "estados": {
+        "excelente": 1.0,
+        "boa": 0.8,
+        "media": 0.5,
+        "baixa": 0.2
+      }
+    },
+    "pedidos_acessorios": {
+      "peso": 2,
+      "hierarquia": "muito_baixo",
+      "estados": {
+        "respondido_diretamente": 1.0,
+        "respondido_indiretamente": 1.0,
+        "autonomo_nao_respondido": 0.0,
+        "inexistente": 1.0
+      }
+    }
+  },
+  "calibracao_historica": {
+    "descricao": "Ajuste aplicado apos o score base. NUNCA reclassifica a faixa: se o ajuste cruzar o limite da faixa natural, e preso no limite (intra-faixa).",
+    "intra_faixa": true,
+    "ajustes": {
+      "positiva_alta": 5,
+      "positiva_media": 3,
+      "neutra": 0,
+      "sem_referencia": 0
+    }
+  },
+  "gates_independentes": {
+    "prazo": {
+      "estados_validos": ["elegivel", "nao_elegivel"],
+      "gate": { "nao_elegivel": "muito_baixa" }
+    },
+    "resposta_generica": {
+      "estados_validos": ["nao_generica", "generica_comprovada"],
+      "gate": { "generica_comprovada": "intermediaria" }
+    }
+  },
+  "validador": {
+    "descricao": "Validador Especialista RA. NAO recalcula pontuacao; apenas verifica coerencia entre estados, gates e faixa final, e reconcilia dentro de limites com justificativa.",
+    "estados_fortes": {
+      "cobertura_fato_principal": ["respondido_diretamente"],
+      "adequacao_hipotese": ["forte", "muito_forte"],
+      "correlacao": ["alta"],
+      "conformidade_aenv": ["sem_riscos"]
+    },
+    "estados_fracos": {
+      "cobertura_fato_principal": ["nao_respondido"],
+      "adequacao_hipotese": ["inadequada"]
+    },
+    "evidencia_fraca": ["sem_evidencia", "declaratoria"],
+    "piso_estados_fortes": 60,
+    "teto_alta_sem_evidencia": 79
+  }
+}

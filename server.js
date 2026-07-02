@@ -28,6 +28,11 @@ const GoogleSheetsQueueRobust = require('./google-sheets-queue-robust');
 const GoogleSheetsDiagnostics = require('./google-sheets-diagnostics');
 const relatorioReclamacoes = require('./relatorio-reclamacoes');
 
+// ===== MOTOR DE PONTUACAO (Chance de Moderacao) =====
+const motorPontuacao = require('./motor-pontuacao');
+const { carregarPerfil } = require('./motor-pontuacao/perfil');
+const motorIntegracao = require('./motor-pontuacao/integracao');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -9114,9 +9119,67 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
             }
         }
 
+        // ===== MOTOR DE PONTUACAO (determinístico) — COMPORTAMENTO PADRÃO =====
+        // A IA acima produz a análise textual (estimativa de referência).
+        // Aqui, uma 2ª chamada extrai os ESTADOS estruturados e o Motor calcula a % OFICIAL.
+        // Kill-switch de contingência (raro): MOTOR_PONTUACAO_DESATIVAR=true volta ao motor antigo.
+        let motorMetadados = null;
+        const motorDesativado = String(envVars.MOTOR_PONTUACAO_DESATIVAR || process.env.MOTOR_PONTUACAO_DESATIVAR || '')
+            .toLowerCase() === 'true';
+
+        if (!motorDesativado) {
+            try {
+                const perfilVersao = 'v1';
+                const perfil = carregarPerfil(perfilVersao);
+                const instrucaoEstados = motorIntegracao.montarInstrucaoEstados(perfil);
+                const dadosCasoEstados = `RECLAMAÇÃO:\n${reclamacaoCompleta}\n\nRESPOSTA PÚBLICA:\n${respostaPublica}\n` +
+                    (consideracaoFinal ? `\nCONSIDERAÇÃO FINAL:\n${consideracaoFinal}\n` : '');
+
+                const respEstados = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: envVars.OPENAI_MODEL || 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: 'Você é um auditor de moderação do Reclame Aqui. Classifique o caso em estados categóricos objetivos. Responda APENAS com JSON válido, sem texto adicional.' },
+                            { role: 'user', content: `${instrucaoEstados}\n\n=== DADOS DO CASO ===\n${dadosCasoEstados}` }
+                        ],
+                        temperature: 0,
+                        max_tokens: 900,
+                        response_format: { type: 'json_object' }
+                    })
+                });
+
+                if (respEstados.ok) {
+                    const dataEstados = await respEstados.json();
+                    const auditoria = JSON.parse(dataEstados.choices[0].message.content);
+                    // O SISTEMA define a calibração histórica (não a IA)
+                    auditoria.estados = auditoria.estados || {};
+                    auditoria.estados.calibracao_historica = motorIntegracao.derivarCalibracaoHistorica(
+                        (casosHistoricos || []).length
+                    );
+
+                    const resultadoMotor = motorPontuacao.analisarChance(auditoria, { perfilVersao });
+                    if (resultadoMotor.sucesso) {
+                        const blocoOficial = motorIntegracao.montarBlocoOficial(resultadoMotor, perfilVersao);
+                        resultado = blocoOficial + '\n' + resultado;
+                        motorMetadados = resultadoMotor.metadados;
+                        console.log(`🧮 Motor: ${resultadoMotor.chance_final}% (${resultadoMotor.faixa_final}), validador ${resultadoMotor.validador.status}`);
+                    } else {
+                        console.warn('⚠️ Motor: contrato inválido, usando estimativa da IA (fallback):', resultadoMotor.erros || resultadoMotor.contradicoes);
+                    }
+                } else {
+                    console.warn('⚠️ Motor: 2ª chamada (estados) falhou, usando estimativa da IA (fallback).');
+                }
+            } catch (motorErr) {
+                console.warn('⚠️ Motor: erro na integração, usando estimativa da IA (fallback):', motorErr.message);
+            }
+        }
+
         res.json({
             success: true,
-            result: humanizarPontuacaoGerada(resultado)
+            result: humanizarPontuacaoGerada(resultado),
+            motor: motorMetadados
         });
 
     } catch (error) {
