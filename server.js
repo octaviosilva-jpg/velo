@@ -8452,6 +8452,47 @@ Moderadores humanos tendem a considerar:
 
 A análise deve seguir obrigatoriamente as etapas abaixo.
 
+──────────────────────────────────────────────────────────────
+PROTOCOLO OBRIGATÓRIO DE AUDITORIA DA RESPOSTA (disciplina de ordem — rege TODAS as ETAPAs abaixo)
+──────────────────────────────────────────────────────────────
+IMPORTANTE: A análise da resposta deve seguir obrigatoriamente o fluxo em FASES abaixo. NÃO busque imediatamente uma resposta melhor. Primeiro AUDITE a resposta existente exatamente como um moderador do Reclame Aqui faria. Só depois de concluir integralmente essa auditoria elabore sugestões de melhoria e a resposta reformulada. (As FASES organizam a ordem do raciocínio; as ETAPAs 0 a 12 detalhamento operacional. A FASE 2 usa a cobertura ponderada da ETAPA 3.5; as FASES 6 a 8 correspondem à reformulação/reavaliação das ETAPAs 10 e 11.)
+
+FASE 1 — AUDITORIA DA RESPOSTA ORIGINAL
+Avalie EXCLUSIVAMENTE a resposta atualmente publicada pela empresa. NÃO: imagine informações adicionais; considere melhorias futuras; compare com uma resposta ideal; use argumentos que não estejam presentes na resposta. Objetivo: reproduzir exatamente a visão de um moderador do RA diante da resposta pública existente.
+
+FASE 2 — COBERTURA DOS FATOS (usar a ponderação da ETAPA 3.5)
+Antes de calcular a cobertura, identifique: Fatos principais; Fatos secundários; Pedidos acessórios. A cobertura analisa EXCLUSIVAMENTE se os FATOS foram enfrentados pela empresa. A cobertura NÃO pode avaliar: qualidade da explicação; clareza; riqueza de detalhes; organização do texto; capacidade de convencimento (esses critérios são avaliados separadamente nas FASES 3 e 4).
+Classificações permitidas e critérios:
+• Respondido diretamente — quando o núcleo da alegação foi objetivamente enfrentado. Mesmo que a explicação possa ser aprimorada, o fato continua "Respondido diretamente".
+• Respondido indiretamente — quando o fato decorre logicamente de outra explicação apresentada pela empresa.
+• Respondido parcialmente — SOMENTE quando parte relevante do fato principal permanecer efetivamente sem resposta. JAMAIS usar apenas porque a resposta poderia ser mais clara, mais detalhada, usar exemplos melhores ou ser mais convincente.
+• Não respondido — SOMENTE quando o fato realmente não tiver sido enfrentado.
+
+FASE 3 — AVALIAÇÃO DA CLAREZA (independente da cobertura)
+Pergunta: a resposta permite que um moderador compreenda facilmente o motivo da posição da empresa? Classifique: Excelente | Boa | Média | Baixa. IMPORTANTE: baixa clareza NÃO altera a cobertura dos fatos; influencia apenas a facilidade de compreensão.
+
+FASE 4 — QUALIDADE DA FUNDAMENTAÇÃO (separada da cobertura)
+Avalie: coerência lógica; organização; objetividade; redundâncias; lacunas argumentativas; facilidade de compreensão. Serve EXCLUSIVAMENTE para orientar melhorias e NÃO pode alterar automaticamente a cobertura dos fatos.
+
+FASE 5 — DIAGNÓSTICO TÉCNICO (sem propor melhorias ainda)
+Identifique objetivamente os fatores que reduziram a chance de moderação (ex.: fato principal não respondido; fato secundário parcial; baixa clareza; fundamentação insuficiente; hipótese inadequada; excesso de texto; omissão relevante). Apenas diagnostique.
+
+FASE 6 — ESTRATÉGIA DE MELHORIA (só após o diagnóstico; ver ETAPA 10)
+Cada alteração sugerida deve estar diretamente ligada a um problema identificado na auditoria. NÃO altere trechos já adequados. A resposta reformulada NÃO busca perfeição: corrige EXCLUSIVAMENTE os fatores que reduziram a chance de moderação.
+
+FASE 7 — NOVA AUDITORIA (mesmos critérios da FASE 1 a 4)
+Após gerar a resposta reformulada, execute novamente TODA a auditoria com EXATAMENTE os mesmos critérios. Não use critérios diferentes entre a primeira e a segunda auditoria.
+
+FASE 8 — NOVA ESTIMATIVA (ver ETAPA 11)
+A nova chance só é calculada após concluir a nova auditoria. O aumento deve decorrer EXCLUSIVAMENTE das melhorias efetivamente identificadas. Nunca aumente a chance apenas porque houve reformulação; todo aumento deve ser tecnicamente justificável.
+
+REGRAS GERAIS DA AUDITORIA:
+• Nunca confunda cobertura com clareza. • Nunca confunda clareza com qualidade. • Nunca transforme um fato respondido em "Respondido parcialmente" só porque a explicação poderia ser melhor. • Sempre diferencie fatos principais de pedidos acessórios. • A ausência de resposta ao fato principal tem impacto MUITO maior do que a ausência de resposta a pedidos acessórios. • Avalie primeiro se a empresa enfrentou objetivamente a reclamação; só depois avalie clareza e fundamentação.
+
+QUADRO OBRIGATÓRIO — FATORES QUE REDUZIRAM A CHANCE DE MODERAÇÃO:
+Ao final da auditoria da resposta original, apresente um quadro com, para cada fator: Fator identificado | Motivo técnico | Impacto estimado na chance (ex.: -5%). Inclua apenas fatores efetivamente identificados na resposta. Este quadro é a base da estratégia de melhoria e justifica eventual aumento da chance após a reformulação.
+──────────────────────────────────────────────────────────────
+
 ETAPA 0 — CALIBRAÇÃO HISTÓRICA COM BASE NAS MODERAÇÕES REAIS DA VELOTAX
 
 Objetivo: antes da análise técnica, consultar o histórico real de moderações APROVADAS da empresa (bloco "📚 HISTÓRICO REAL DE MODERAÇÕES APROVADAS" acima) para identificar padrões de aceite e calibrar a estimativa percentual FINAL.
@@ -8874,6 +8915,13 @@ A resposta deve sempre apresentar (mantendo claro que chance de moderação e ri
 
 📋 Auditoria de cobertura dos fatos (da ETAPA 3.5):
    Liste, em formato "Item | Natureza | Status", cada item narrado pelo consumidor, indicando a Natureza (Fato principal / Fato secundário / Pedido acessório) e o Status (Respondido diretamente / Respondido indiretamente / Respondido parcialmente / Não respondido). Informe a cobertura PONDERADA POR RELEVÂNCIA (não a simples contagem de itens) e deixe claro se os FATOS PRINCIPAIS foram enfrentados. Só justifique redução relevante da chance quando o problema estiver nos fatos principais; pedidos acessórios já abrangidos pela solução não devem puxar a chance para baixo.
+
+🔤 Clareza (da FASE 3): Excelente / Boa / Média / Baixa — 1 linha justificando. (Lembrete: clareza NÃO altera a cobertura acima.)
+
+🧱 Qualidade da fundamentação (da FASE 4): coerência, organização, objetividade, redundâncias e lacunas — em 1-2 linhas. (Serve para orientar melhorias; NÃO altera a cobertura.)
+
+🔎 Fatores que reduziram a chance de moderação (quadro obrigatório da auditoria da resposta original):
+   Para cada fator efetivamente identificado, apresente uma linha "Fator | Motivo técnico | Impacto estimado" (ex.: "Baixa clareza | fato principal respondido, mas relação entre eventos pouco objetiva | -5%"). Liste apenas fatores realmente presentes na resposta. Este quadro fundamenta a estratégia de melhoria e justifica tecnicamente o aumento da chance após a reformulação.
 
 📚 Calibração histórica (da ETAPA 0):
    Casos semelhantes encontrados: X
