@@ -1003,6 +1003,72 @@ class GoogleSheetsIntegration {
     }
 
     /**
+     * [Pipeline V2] Garante que uma aba exista; cria com cabecalhos se necessario.
+     * Best-effort e nao-bloqueante.
+     */
+    async ensureSheetExists(sheetName, headers) {
+        try {
+            const sheets = googleSheetsConfig.getSheets();
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            const meta = await sheets.spreadsheets.get({ spreadsheetId });
+            const existe = (meta.data.sheets || []).some(s => s.properties && s.properties.title === sheetName);
+            if (!existe) {
+                await sheets.spreadsheets.batchUpdate({
+                    spreadsheetId,
+                    requestBody: { requests: [{ addSheet: { properties: { title: sheetName } } }] }
+                });
+                if (Array.isArray(headers) && headers.length) {
+                    await googleSheetsConfig.appendRow(`${sheetName}!A1`, headers);
+                }
+            }
+            return true;
+        } catch (error) {
+            console.warn('⚠️ [WorkflowV2] Nao foi possivel garantir a aba', sheetName, ':', error.message);
+            return false;
+        }
+    }
+
+    /**
+     * [Pipeline V2] Registra o RESUMO de uma execucao do WorkflowState na aba
+     * "Moderações Workflow". Nao substitui registrarModeracaoCoerente (contrato atual);
+     * apenas adiciona rastreabilidade/telemetria. Nao-bloqueante.
+     */
+    async registrarModeracaoWorkflow(resumo) {
+        if (!this.isActive()) {
+            const inicializado = await this.initialize();
+            if (!inicializado) return false;
+        }
+        const SHEET = 'Moderações Workflow';
+        const HEADERS = [
+            'Data/Hora', 'ExecutionId', 'ID Reclamação', 'Workflow Version', 'Conflito Principal',
+            'Hipótese Selecionada', 'Confiança', 'Tokens Total', 'Custo Estimado (USD)',
+            'Duração (ms)', 'Prompt Versions', 'Hashes'
+        ];
+        try {
+            await this.ensureSheetExists(SHEET, HEADERS);
+            const row = [
+                new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+                resumo.executionId || '',
+                resumo.idReclamacao || '',
+                resumo.workflowVersion || '',
+                resumo.conflitoPrincipal || '',
+                resumo.hipoteseSelecionada || '',
+                resumo.confianca != null ? String(resumo.confianca) : '',
+                resumo.tokensTotal != null ? String(resumo.tokensTotal) : '',
+                resumo.custoEstimado != null ? String(resumo.custoEstimado) : '',
+                resumo.duracaoMs != null ? String(resumo.duracaoMs) : '',
+                Array.isArray(resumo.promptVersions) ? resumo.promptVersions.join(', ') : '',
+                Array.isArray(resumo.hashes) ? resumo.hashes.map(h => String(h).slice(0, 12)).join(', ') : ''
+            ];
+            await googleSheetsConfig.appendRow(`${SHEET}!A:L`, row);
+            return true;
+        } catch (error) {
+            console.error('❌ [WorkflowV2] Erro ao registrar resumo do workflow:', error.message);
+            return false;
+        }
+    }
+
+    /**
      * Registra um acesso à interface no Google Sheets
      */
     async registrarAcessoInterface(acessoData) {

@@ -3,7 +3,8 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "maxDuration": 60 }
     },
     {
       "src": "*.css",
@@ -41,7 +42,8 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "MODERACAO_PIPELINE_V2": "true"
   },
   "crons": [
     {

@@ -4923,6 +4923,90 @@ function separarBlocosModeracao(resposta) {
 }
 
 // Rota para gerar moderação via API OpenAI
+/**
+ * [Pipeline V2] Executa a arquitetura State Machine (3 chamadas: Compreensao/Decisao/Redacao)
+ * e devolve um payload IDENTICO ao contrato da V1 (mesmos campos consumidos pelo frontend).
+ * Nao altera a V1: e chamado apenas quando MODERACAO_PIPELINE_V2=true e, em qualquer erro,
+ * o endpoint faz fallback para o fluxo V1 existente.
+ */
+async function executarPipelineModeracaoV2({ idReclamacao, dadosModeracao, envVars, apiKey, req }) {
+    const { runPipelineV2 } = require('./moderacao-pipeline');
+    const sol = dadosModeracao.solicitacaoCliente || '';
+    const resp = dadosModeracao.respostaEmpresa || '';
+    const cons = dadosModeracao.consideracaoFinal || '';
+    const motivo = dadosModeracao.motivoModeracao || '';
+
+    const deps = {
+        apiKey,
+        confLimiar: parseFloat(envVars.MODERACAO_CONF_LIMIAR) || 0.6,
+        buildManualBloco: async () => montarBlocoManuaisModeracao(`${sol}\n${resp}\n${cons}`, motivo),
+        buildUniversoHipoteses: async () => montarListaHipotesesAuditoria(),
+        buildAprendizado: async () => {
+            // Referencia de ESTILO apenas (nao muda os fatos nem a hipotese decidida).
+            try {
+                const modelos = await getModelosModeracaoRelevantes(motivo, dadosModeracao);
+                if (modelos && typeof modelos.textoReferencia === 'string' && modelos.textoReferencia) return modelos.textoReferencia;
+                const lista = Array.isArray(modelos) ? modelos : (modelos && modelos.modelos) || [];
+                if (Array.isArray(lista) && lista.length) {
+                    return lista.slice(0, 2).map(m => m.textoModeracao || m.texto || m.textoFinal || '').filter(Boolean).join('\n---\n');
+                }
+            } catch (_) { /* referencia e opcional */ }
+            return '';
+        },
+        appendSheetSummary: async (resumo) => {
+            if (googleSheetsIntegration && typeof googleSheetsIntegration.registrarModeracaoWorkflow === 'function') {
+                return googleSheetsIntegration.registrarModeracaoWorkflow(resumo);
+            }
+        }
+    };
+
+    const { mapped } = await runPipelineV2({ idReclamacao: idReclamacao.trim(), dadosModeracao }, deps);
+
+    const moderacaoId = Date.now();
+
+    // Persistir na aba "Moderações" reutilizando o mesmo caminho da V1.
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            await googleSheetsIntegration.registrarModeracaoCoerente({
+                id: moderacaoId,
+                idReclamacao: idReclamacao.trim(),
+                tipo: 'moderacao',
+                dadosModeracao,
+                auditoriaHipotese: mapped.auditoriaHipotese,
+                linhaRaciocinio: mapped.linhaRaciocinio,
+                textoModeracao: mapped.textoModeracao,
+                textoFinal: mapped.textoModeracao,
+                userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
+                userName: req.userData?.nome || 'N/A',
+                userEmail: req.userData?.email || 'N/A'
+            });
+        } catch (e) {
+            console.error('❌ [PipelineV2] Falha ao salvar moderação inicial (nao bloqueante):', e.message);
+        }
+    }
+
+    await incrementarEstatisticaGlobal('moderacoes_geradas');
+
+    return {
+        success: true,
+        result: mapped.result,
+        confiancaBaixa: mapped.confiancaBaixa,
+        auditoriaHipotese: mapped.auditoriaHipotese,
+        linhaRaciocinio: mapped.linhaRaciocinio,
+        textoModeracao: mapped.textoModeracao,
+        moderacaoId,
+        aprendizadoPositivoAplicado: false,
+        aprendizadoNegativoAplicado: false,
+        pesoModeloPrincipal: null,
+        quantidadeAceites: null,
+        mensagem: mapped.confiancaBaixa
+            ? 'Atenção: a auditoria interna sinalizou confiança baixa na hipótese — revise a aderência antes de enviar.'
+            : null,
+        pipelineVersion: 'v2',
+        executionId: mapped.executionId
+    };
+}
+
 app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
     try {
         const envVars = loadEnvFile();
@@ -4958,6 +5042,21 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                 success: false,
                 error: 'Dados de moderação não fornecidos'
             });
+        }
+        
+        // ===== Pipeline V2 (State Machine, 3 chamadas) atras de flag =====
+        // Default OFF: quando MODERACAO_PIPELINE_V2!=true, o fluxo V1 abaixo roda intacto.
+        // Em QUALQUER erro do V2, faz fallback transparente para a V1.
+        const pipelineV2Enabled = String(envVars.MODERACAO_PIPELINE_V2 || process.env.MODERACAO_PIPELINE_V2 || '').toLowerCase() === 'true';
+        if (pipelineV2Enabled) {
+            try {
+                console.log('🧪 [PipelineV2] MODERACAO_PIPELINE_V2=on — executando pipeline de 3 chamadas');
+                const payloadV2 = await executarPipelineModeracaoV2({ idReclamacao, dadosModeracao, envVars, apiKey, req });
+                return res.json(payloadV2);
+            } catch (e) {
+                console.error('❌ [PipelineV2] Erro — usando fallback para o pipeline V1:', e.message);
+                // Nao retorna: segue para o fluxo V1 existente abaixo.
+            }
         }
         
         // Registrar o ID da reclamação para rastreabilidade

@@ -1,0 +1,27 @@
+{
+  "_schema": "Casos de regressao para comparar V1 x V2. Copie para casos.json e preencha com 30-100 casos reais bem distribuidos entre os principais cenarios de moderacao.",
+  "_camposPorCaso": {
+    "id": "identificador interno do caso (string)",
+    "cenario": "rotulo do cenario (ex.: 'negativa credito', 'publicidade', 'cobranca', 'pix', 'fraude', 'lgpd')",
+    "idReclamacao": "id numerico da reclamacao (string apenas digitos)",
+    "dadosModeracao": {
+      "solicitacaoCliente": "texto da reclamacao do cliente",
+      "respostaEmpresa": "texto da resposta da empresa",
+      "consideracaoFinal": "texto da consideracao final do consumidor (pode ser vazio)",
+      "motivoModeracao": "dica do operador sobre o motivo/tema"
+    }
+  },
+  "casos": [
+    {
+      "id": "exemplo-001",
+      "cenario": "pix-garantia",
+      "idReclamacao": "123456789",
+      "dadosModeracao": {
+        "solicitacaoCliente": "Minha chave Pix sumiu e a empresa nao resolve.",
+        "respostaEmpresa": "A chave Pix foi vinculada como garantia conforme a CCB assinada.",
+        "consideracaoFinal": "Entendi, era isso que constava no contrato.",
+        "motivoModeracao": "nao-violou-direito"
+      }
+    }
+  ]
+}
