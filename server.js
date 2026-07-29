@@ -1145,8 +1145,15 @@ function selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA = false, lim
 function montarBlocoManuaisModeracao(textoCaso, motivo) {
     const regras = selecionarRegrasManual(textoCaso, motivo, { paraRespostaRA: false, limite: 6 });
     if (regras.length === 0) return '';
-    let bloco = '\n📚 BASE NORMATIVA — MANUAIS DO RA (hipóteses aplicáveis a este caso):\n';
-    bloco += 'Use estas hipóteses REAIS como fundamento. Só cite uma hipótese se os fatos do caso a sustentarem.\n\n';
+    let bloco = '\n📋 RECORTE AUTOMÁTICO DO MANUAL (não vinculante):\n\n';
+    bloco += 'Este bloco foi gerado automaticamente por um pré-filtro baseado em palavras-chave e no motivo informado. ';
+    bloco += 'Como todo pré-filtro automático, ele pode estar incompleto e não refletir integralmente o contexto da reclamação. ';
+    bloco += 'Utilize-o apenas como referência auxiliar durante a análise.\n\n';
+    bloco += 'A hipótese deve ser definida com base na análise holística da reclamação, considerando conjuntamente:\n';
+    bloco += '- a reclamação do consumidor;\n';
+    bloco += '- a resposta pública da empresa;\n';
+    bloco += '- a consideração final do consumidor; e\n';
+    bloco += '- o universo completo de hipóteses apresentado abaixo.\n\n';
     regras.forEach((r, i) => {
         bloco += `${i + 1}. [${r.manual}] ${r.hip.titulo}\n`;
         const meta = [];
@@ -1168,7 +1175,7 @@ function montarBlocoManuaisModeracao(textoCaso, motivo) {
         regrasAENV.forEach((r) => { bloco += `- ${r.titulo}: ${r.reprovaQuando}\n`; });
         bloco += '\n';
     }
-    bloco += '🎯 Fundamente a moderação em UMA hipótese acima que os fatos sustentem; cite o manual exatamente como indicado, sem inventar regra.\n';
+    bloco += 'Após a análise holística, fundamente a moderação em UMA hipótese do Manual que os fatos sustentem; cite conforme indicado, sem inventar regra.\n';
     return bloco;
 }
 

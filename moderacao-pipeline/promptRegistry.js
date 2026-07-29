@@ -111,7 +111,7 @@ const REGISTRY = {
                 `- Resposta: ${ctx.resposta || ''}`,
                 `- Consideracao final: ${ctx.consideracao || '(nao informada)'}`,
                 '',
-                'BASE NORMATIVA (Manual):',
+                'RECORTE AUTOMATICO DO MANUAL (nao vinculante):',
                 ctx.manualBloco || '(base normativa indisponivel)',
                 '',
                 'UNIVERSO DE HIPOTESES:',
