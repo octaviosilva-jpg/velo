@@ -54,7 +54,7 @@ const DECISAO = {
     id: 'DECISAO',
     node: NODES.DECISAO,
     etapas: [ETAPAS.E4_HIPOTESE, ETAPAS.E5_AUTOAUDITORIA],
-    promptRef: 'decisao@v2',
+    promptRef: 'decisao@v3',
     actor: 'llm',
     writes: ['analiseDecisao', 'hipotesesCandidatas', 'hipotesesDescartadas', 'hipoteseSelecionada', 'justificativa', 'trechosSustentam', 'confianca'],
     model: (deps) => deps.models?.decisao || DEFAULTS.models.decisao,

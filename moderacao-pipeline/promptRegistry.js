@@ -6,6 +6,7 @@ const crypto = require('crypto');
  * Registro de prompts VERSIONADOS. Uma responsabilidade por prompt:
  *  - compreensao@v1: extrair fatos + conflito + cobertura (JSON). NAO decide hipotese.
  *  - decisao@v1: escolher UMA hipotese com autoauditoria adversarial (JSON). NAO redige.
+ *  - decisao@v3: decisao@v2 + ponderacao de insumos concorrentes (JSON). NAO redige.
  *  - redacao@v1: redigir linha de raciocinio + texto final (JSON). NAO reabre decisao.
  *
  * Os builders recebem blocos ja renderizados (manualBloco, universoHipoteses,
@@ -119,6 +120,67 @@ const REGISTRY = {
                 '',
                 'No campo "respondido_pela_empresa" use true, false ou a string "parcial". O campo "tipo" deve ser "principal" ou "secundario".',
                 'A "justificativa" deve relacionar a hipotese selecionada a TODOS os conflitos identificados (nao apenas ao primeiro tema).',
+                '',
+                'Retorne EXATAMENTE este JSON (sem texto adicional):',
+                '{',
+                '  "analise_holistica": {',
+                '    "nucleo_reclamacao": "...",',
+                '    "conflitos": [ { "conflito": "...", "tipo": "principal", "respondido_pela_empresa": true, "evidencia": "..." } ],',
+                '    "leitura_consideracao_final": "..."',
+                '  },',
+                '  "hipoteses_candidatas": [ { "hipotese": "...", "score": 0.0, "aderencia": "alta|media|baixa" } ],',
+                '  "hipoteses_descartadas": [ { "hipotese": "...", "score": 0.0, "evidenciasFavoraveis": ["..."], "evidenciasContrarias": ["..."], "trechos": ["..."], "motivoDescarte": "..." } ],',
+                '  "hipotese_selecionada": { "id": "...", "titulo": "...", "manual": "...", "comoCitar": "..." },',
+                '  "justificativa": "...",',
+                '  "trechos_sustentam": [ { "trecho": "...", "origem": "reclamacao|resposta|consideracao" } ],',
+                '  "confianca": 0.0',
+                '}'
+            ].join('\n');
+            return { system, user };
+        }
+    },
+
+    'decisao@v3': {
+        id: 'decisao',
+        version: 'v3',
+        responseFormat: 'json_object',
+        build(ctx = {}) {
+            const system = 'Voce e um AUDITOR de moderacao do Reclame Aqui. ANTES de escolher a hipotese, e OBRIGATORIO '
+                + 'analisar a reclamacao COMO UM TODO, nesta ordem: (1) identificar TODOS os conflitos (principal e secundarios); '
+                + '(2) determinar o NUCLEO da reclamacao; (3) verificar, para CADA conflito, se foi efetivamente respondido pela '
+                + 'empresa e com qual evidencia; (4) avaliar a consideracao final do consumidor; (5) SO ENTAO selecionar a hipotese '
+                + 'do Manual que melhor representa o caso. A existencia de um assunto (ex.: negativa de credito) NAO determina a '
+                + 'hipotese por si so; pondere a relacao entre reclamacao, resposta publica e consideracao final. A BASE NORMATIVA '
+                + 'e apenas um recorte por palavra-chave (pode estar incompleta); use TAMBEM o UNIVERSO DE HIPOTESES. Escolha pelos '
+                + 'FATOS, nao pelo motivo sugerido nem por modelos anteriores. NAO redija o texto de moderacao. Responda SOMENTE com JSON valido.';
+            const user = [
+                'FATOS EXTRAIDOS (Chamada 1):',
+                JSON.stringify(ctx.compreensao || {}, null, 2),
+                '',
+                'TEXTOS CRUS (para citar trechos literais):',
+                `- Solicitacao: ${ctx.solicitacao || ''}`,
+                `- Resposta: ${ctx.resposta || ''}`,
+                `- Consideracao final: ${ctx.consideracao || '(nao informada)'}`,
+                '',
+                'RECORTE AUTOMATICO DO MANUAL (nao vinculante):',
+                ctx.manualBloco || '(base normativa indisponivel)',
+                '',
+                'UNIVERSO DE HIPOTESES:',
+                ctx.universoHipoteses || '(universo indisponivel)',
+                '',
+                'No campo "respondido_pela_empresa" use true, false ou a string "parcial". O campo "tipo" deve ser "principal" ou "secundario".',
+                'A "justificativa" deve relacionar a hipotese selecionada a TODOS os conflitos identificados (nao apenas ao primeiro tema).',
+                '',
+                'PONDERACAO DE INSUMOS CONCORRENTES (quando apontarem para conflitos diferentes):',
+                '',
+                '- Os TEXTOS CRUS (reclamacao, resposta publica, consideracao final) constituem a principal base para a analise dos fatos e para a identificacao do nucleo e dos conflitos.',
+                '- Os dados estruturados produzidos pela etapa de Compreensao (Chamada 1) auxiliam na organizacao da analise dos textos, mas nao vinculam a classificacao e podem ser reavaliados quando os fatos indicarem conclusao diferente.',
+                '- O Recorte Automatico e referencia auxiliar: pode estar incompleto ou destacar tema secundario; nao vincula a classificacao.',
+                '',
+                '- Quando houver mais de um conflito plausivel, escolha como conflito principal aquele que melhor representa o objeto central da reclamacao e explica a controversia apresentada pelo consumidor, considerando conjuntamente os fatos narrados, os pedidos formulados, as acusacoes apresentadas, a resposta da empresa e a consideracao final do consumidor. O pedido formulado pode ser consequencia desejada e nao o objeto principal do conflito. Nao escolha com base apenas no primeiro assunto mencionado, no tema mais recorrente na narrativa, no conflito_principal da Compreensao ou no tema destacado pelo Recorte Automatico.',
+                '',
+                '- A cobertura da resposta informa se cada conflito foi respondido (passo 3), mas nao substitui a definicao do nucleo nem conduz sozinho a escolha da hipotese.',
+                '- Recorte e Universo servem para enquadrar a hipotese SOMENTE apos definidos nucleo e conflito principal; conflitos secundarios devem constar em analise_holistica e justificativa, mas nao conduzir sozinhos a escolha da hipotese.',
                 '',
                 'Retorne EXATAMENTE este JSON (sem texto adicional):',
                 '{',
