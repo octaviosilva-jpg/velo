@@ -54,9 +54,9 @@ const DECISAO = {
     id: 'DECISAO',
     node: NODES.DECISAO,
     etapas: [ETAPAS.E4_HIPOTESE, ETAPAS.E5_AUTOAUDITORIA],
-    promptRef: 'decisao@v1',
+    promptRef: 'decisao@v2',
     actor: 'llm',
-    writes: ['hipotesesCandidatas', 'hipotesesDescartadas', 'hipoteseSelecionada', 'justificativa', 'trechosSustentam', 'confianca'],
+    writes: ['analiseDecisao', 'hipotesesCandidatas', 'hipotesesDescartadas', 'hipoteseSelecionada', 'justificativa', 'trechosSustentam', 'confianca'],
     model: (deps) => deps.models?.decisao || DEFAULTS.models.decisao,
     temperature: (deps) => num(deps.temperatures?.decisao, DEFAULTS.temperatures.decisao),
     maxTokens: (deps) => deps.maxTokens?.decisao || DEFAULTS.maxTokens.decisao,
@@ -78,7 +78,18 @@ const DECISAO = {
     },
     toPartial(parsed) {
         parsed = parsed || {};
+        const ah = parsed.analise_holistica || null;
         return {
+            analiseDecisao: ah ? {
+                nucleoReclamacao: ah.nucleo_reclamacao || '',
+                conflitos: arr(ah.conflitos).map(c => ({
+                    conflito: c.conflito || '',
+                    tipo: c.tipo === 'principal' || c.tipo === 'secundario' ? c.tipo : 'secundario',
+                    respondidoPelaEmpresa: c.respondido_pela_empresa,
+                    evidencia: c.evidencia || ''
+                })),
+                leituraConsideracaoFinal: ah.leitura_consideracao_final || ''
+            } : null,
             hipotesesCandidatas: arr(parsed.hipoteses_candidatas),
             hipotesesDescartadas: arr(parsed.hipoteses_descartadas).map(h => ({
                 hipotese: h.hipotese || h.titulo || '',
@@ -100,7 +111,7 @@ const REDACAO = {
     id: 'REDACAO',
     node: NODES.REDACAO,
     etapas: [ETAPAS.E6_RACIOCINIO, ETAPAS.E7_TEXTO],
-    promptRef: 'redacao@v1',
+    promptRef: 'redacao@v2',
     actor: 'llm',
     writes: ['linhaRaciocinio', 'textoFinal'],
     model: (deps) => deps.models?.redacao || DEFAULTS.models.redacao,
@@ -111,6 +122,7 @@ const REDACAO = {
             hipoteseSelecionada: state.hipoteseSelecionada,
             justificativa: state.justificativa,
             trechosSustentam: state.trechosSustentam,
+            analiseDecisao: state.analiseDecisao,
             solicitacao: state.entradasCruas.solicitacao,
             resposta: state.entradasCruas.resposta,
             consideracao: state.entradasCruas.consideracao,

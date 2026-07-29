@@ -34,6 +34,14 @@ function validate(state, { confLimiar = DEFAULTS.confLimiar } = {}) {
         reasons.push('consideracao final presente mas nao classificada');
     }
 
+    // 3b) A Decisao deve ter avaliado TODOS os conflitos identificados na Compreensao.
+    const conflitosIdentificados = (state.conflitoPrincipal ? 1 : 0) + (Array.isArray(state.conflitosSecundarios) ? state.conflitosSecundarios.length : 0);
+    const conflitosAvaliados = state.analiseDecisao && Array.isArray(state.analiseDecisao.conflitos)
+        ? state.analiseDecisao.conflitos.length : 0;
+    if (conflitosIdentificados > 0 && conflitosAvaliados < conflitosIdentificados) {
+        reasons.push(`analise holistica incompleta: ${conflitosAvaliados} de ${conflitosIdentificados} conflitos avaliados`);
+    }
+
     // 4) Confianca deve atingir o limiar (senao pede re-decisao 1x).
     const conf = typeof state.confianca === 'number' ? state.confianca : null;
     if (conf == null) {

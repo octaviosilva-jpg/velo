@@ -41,6 +41,7 @@ function createWorkflowState({ idReclamacao, entradasCruas } = {}) {
         coberturaResposta: [],
 
         // DECISAO (E4..E5)
+        analiseDecisao: null, // { nucleoReclamacao, conflitos:[{conflito,tipo,respondidoPelaEmpresa,evidencia}], leituraConsideracaoFinal }
         hipotesesCandidatas: [],
         hipotesesDescartadas: [], // [{ hipotese, score, evidenciasFavoraveis[], evidenciasContrarias[], trechos[], motivoDescarte }]
         hipoteseSelecionada: null,

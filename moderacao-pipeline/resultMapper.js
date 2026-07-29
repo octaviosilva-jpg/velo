@@ -19,6 +19,20 @@ function construirAuditoria(state) {
     if (state.confianca != null) linhas.push(`Confianca: ${state.confianca}`);
     if (state.conflitoPrincipal) linhas.push(`Conflito principal: ${state.conflitoPrincipal}`);
 
+    const ad = state.analiseDecisao;
+    if (ad && typeof ad === 'object') {
+        if (ad.nucleoReclamacao) linhas.push(`Nucleo da reclamacao: ${ad.nucleoReclamacao}`);
+        if (Array.isArray(ad.conflitos) && ad.conflitos.length) {
+            linhas.push('Conflitos avaliados:');
+            ad.conflitos.forEach((c, i) => {
+                const resp = c.respondidoPelaEmpresa === true ? 'respondido'
+                    : (c.respondidoPelaEmpresa === false ? 'nao respondido' : String(c.respondidoPelaEmpresa || 'n/a'));
+                linhas.push(`  ${i + 1}. [${c.tipo || 'secundario'}] ${c.conflito} - ${resp}${c.evidencia ? ` (evidencia: ${c.evidencia})` : ''}`);
+            });
+        }
+        if (ad.leituraConsideracaoFinal) linhas.push(`Leitura da consideracao final: ${ad.leituraConsideracaoFinal}`);
+    }
+
     if (Array.isArray(state.hipotesesDescartadas) && state.hipotesesDescartadas.length) {
         linhas.push('');
         linhas.push('Hipoteses descartadas:');
