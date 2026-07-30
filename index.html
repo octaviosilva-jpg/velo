@@ -363,6 +363,19 @@
                                                     <label for="texto-resposta-gpt5" class="form-label">Texto da Resposta:</label>
                                                     <textarea class="form-control" id="texto-resposta-gpt5" rows="8" placeholder="Resposta será gerada aqui..."></textarea>
                                                 </div>
+
+                                                <!-- Chance de Moderação (automática após gerar resposta) -->
+                                                <div id="ra-chance-moderacao-area" class="mb-3" style="display: none;">
+                                                    <label class="form-label">
+                                                        <i class="fas fa-percentage me-2"></i>
+                                                        Chance de Moderação
+                                                    </label>
+                                                    <div id="ra-chance-moderacao-loading" class="text-center py-3" style="display: none;">
+                                                        <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                                                        <span class="text-muted ms-2">Analisando chance de moderação...</span>
+                                                    </div>
+                                                    <div id="ra-analise-chance-moderacao" class="response-box border rounded p-3 bg-light"></div>
+                                                </div>
                                                 
                                                 <!-- Campo de Feedback para Reformulação -->
                                                 <div id="campo-feedback" class="mb-3" style="display: none;">

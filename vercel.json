@@ -43,10 +43,7 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "MODERACAO_PIPELINE_V2": "true",
-    "RESPOSTA_PIPELINE_MODE": "pev",
-    "PEV_PLAN_EXEC_ENABLED": "true",
-    "PEV_CHANCE_MODERACAO_ENABLED": "true"
+    "MODERACAO_PIPELINE_V2": "true"
   },
   "crons": [
     {

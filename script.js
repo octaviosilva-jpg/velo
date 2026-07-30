@@ -285,22 +285,24 @@ async function gerarRespostaOpenAI() {
         document.getElementById('texto-resposta-gpt5').value = resposta;
         document.getElementById('resposta-gpt5').style.display = 'block';
 
-        // Fase 6 — integrar Chance de Moderação do PEV na aba Revisão
+        showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
+
+        // Chance de Moderação automática na própria aba Reclame Aqui
         if (apiResult.chanceModeracao?.success && apiResult.chanceModeracao.result) {
-            preencherCamposRevisaoChance({
+            await aplicarChanceModeracaoPosRespostaRA({
                 reclamacaoCompleta: reclamacaoValue,
-                respostaPublica: resposta
-            });
-            aplicarResultadoChanceModeracao({
+                respostaPublica: resposta,
                 result: apiResult.chanceModeracao.result,
                 motor: apiResult.chanceModeracao.motor,
                 origem: 'pev',
                 executionId: apiResult.executionId || null
             });
-            atualizarRotuloBotaoChanceModeracao();
-            showSuccessMessage('Resposta gerada com sucesso! Análise de chance de moderação disponível na aba Revisão.');
         } else {
-            showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
+            await aplicarChanceModeracaoPosRespostaRA({
+                reclamacaoCompleta: reclamacaoValue,
+                respostaPublica: resposta,
+                origem: 'ra-auto'
+            });
         }
         
         console.log('Resposta exibida na interface');
@@ -2222,6 +2224,114 @@ function preencherCamposRevisaoChance({ reclamacaoCompleta, respostaPublica }) {
     if (elResposta && respostaPublica) elResposta.value = respostaPublica;
 }
 
+function aplicarResultadoChanceModeracaoRA({ result, motor, origem, executionId }) {
+    if (!result) return;
+
+    const area = document.getElementById('ra-chance-moderacao-area');
+    const elAnalise = document.getElementById('ra-analise-chance-moderacao');
+    const elLoading = document.getElementById('ra-chance-moderacao-loading');
+    if (!area || !elAnalise) return;
+
+    elLoading.style.display = 'none';
+    elAnalise.innerHTML = formatarAnaliseChanceModeracao(result);
+    area.style.display = 'block';
+}
+
+function ocultarLoadingChanceModeracaoRA() {
+    const elLoading = document.getElementById('ra-chance-moderacao-loading');
+    if (elLoading) elLoading.style.display = 'none';
+}
+
+function mostrarLoadingChanceModeracaoRA() {
+    const area = document.getElementById('ra-chance-moderacao-area');
+    const elLoading = document.getElementById('ra-chance-moderacao-loading');
+    const elAnalise = document.getElementById('ra-analise-chance-moderacao');
+    if (!area || !elLoading) return;
+    area.style.display = 'block';
+    elLoading.style.display = 'block';
+    if (elAnalise) elAnalise.innerHTML = '';
+}
+
+async function aplicarChanceModeracaoPosRespostaRA({
+    reclamacaoCompleta,
+    respostaPublica,
+    result,
+    motor,
+    origem,
+    executionId
+}) {
+    preencherCamposRevisaoChance({ reclamacaoCompleta, respostaPublica });
+
+    if (result) {
+        aplicarResultadoChanceModeracao({
+            result,
+            motor,
+            origem: origem || 'pev',
+            executionId: executionId || null
+        });
+        return;
+    }
+
+    const fingerprintAtual = calcularFingerprintChanceModeracao(
+        reclamacaoCompleta,
+        respostaPublica,
+        '',
+        ''
+    );
+    const cache = window.analiseChanceModeracaoCache;
+    if (cache && cache.result && cache.fingerprint === fingerprintAtual) {
+        aplicarResultadoChanceModeracao({
+            result: cache.result,
+            motor: cache.motor,
+            origem: cache.origem,
+            executionId: cache.executionId
+        });
+        return;
+    }
+
+    mostrarLoadingChanceModeracaoRA();
+
+    try {
+        const response = await fetch('/api/chance-moderacao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                reclamacaoCompleta,
+                respostaPublica,
+                consideracaoFinal: '',
+                historicoModeracao: ''
+            })
+        });
+        const data = await response.json();
+        ocultarLoadingChanceModeracaoRA();
+
+        if (data.success) {
+            aplicarResultadoChanceModeracao({
+                result: data.result,
+                motor: data.motor,
+                origem: origem || 'ra-auto',
+                executionId: null
+            });
+        } else {
+            const area = document.getElementById('ra-chance-moderacao-area');
+            const elAnalise = document.getElementById('ra-analise-chance-moderacao');
+            if (area && elAnalise) {
+                elAnalise.innerHTML = `<p class="text-warning mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Não foi possível calcular a chance de moderação: ${data.error || 'erro desconhecido'}</p>`;
+                area.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        ocultarLoadingChanceModeracaoRA();
+        console.error('Erro ao analisar chance de moderação (RA):', error);
+        const area = document.getElementById('ra-chance-moderacao-area');
+        const elAnalise = document.getElementById('ra-analise-chance-moderacao');
+        if (area && elAnalise) {
+            elAnalise.innerHTML = '<p class="text-warning mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Erro ao analisar chance de moderação. Use o botão na aba Revisão para tentar novamente.</p>';
+            area.style.display = 'block';
+        }
+    }
+}
+
 function aplicarResultadoChanceModeracao({ result, motor, origem, executionId }) {
     if (!result) return;
 
@@ -2255,6 +2365,7 @@ function aplicarResultadoChanceModeracao({ result, motor, origem, executionId })
     };
 
     atualizarRotuloBotaoChanceModeracao();
+    aplicarResultadoChanceModeracaoRA({ result, motor, origem, executionId });
 }
 
 function atualizarRotuloBotaoChanceModeracao() {
