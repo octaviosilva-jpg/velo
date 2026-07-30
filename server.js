@@ -33,6 +33,14 @@ const motorPontuacao = require('./motor-pontuacao');
 const { carregarPerfil } = require('./motor-pontuacao/perfil');
 const motorIntegracao = require('./motor-pontuacao/integracao');
 
+const {
+    normalizarTextoTipo,
+    calcularSimilaridadeSolicitacao,
+    ordenarModelosPorSimilaridade,
+    avaliarDisponibilidadeSolucao,
+    selecionarCoerentesCurados
+} = require('./resposta-pipeline/shared/curadoriaCoerentes');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -1040,52 +1048,6 @@ function respostaRefleteSolucaoImplementada(resposta, solucaoImplementada) {
     return correspondencias >= minimo;
 }
 
-function normalizarTextoTipo(t) {
-    return String(t || '').toLowerCase().trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-/** Similaridade Jaccard entre duas solicitações (palavras significativas, sem acento). 0 a 1. */
-function calcularSimilaridadeSolicitacao(textoA, textoB) {
-    const stopwords = new Set([
-        'para', 'como', 'sobre', 'apos', 'desde', 'pela', 'pelo', 'pelas', 'pelos', 'com', 'sem',
-        'que', 'uma', 'uns', 'das', 'dos', 'nos', 'nas', 'foi', 'ser', 'esta', 'este', 'essa',
-        'esse', 'isso', 'caso', 'velotax', 'meu', 'minha', 'mas', 'por', 'dia', 'fiz', 'sou'
-    ]);
-    const tokenizar = (t) => new Set(
-        normalizarTextoTipo(t)
-            .split(/\s+/)
-            .map(p => p.replace(/[^a-z0-9]/gi, ''))
-            .filter(p => p.length >= 4 && !stopwords.has(p))
-    );
-    const a = tokenizar(textoA);
-    const b = tokenizar(textoB);
-    if (a.size === 0 || b.size === 0) return 0;
-    let inter = 0;
-    for (const w of a) if (b.has(w)) inter++;
-    const union = a.size + b.size - inter;
-    return union === 0 ? 0 : inter / union;
-}
-
-/** Ordena modelos coerentes pela semelhança com o caso atual (mais parecido primeiro).
- *  Combina a semelhança da RECLAMAÇÃO (peso alto) com o MOTIVO da solicitação (peso médio),
- *  para localizar casos com o mesmo CONTEXTO e os mesmos MOTIVOS, não apenas palavras iguais. */
-function ordenarModelosPorSimilaridade(modelos, dadosFormulario) {
-    const textoAtual = dadosFormulario?.texto_cliente || '';
-    const motivoAtual = dadosFormulario?.motivo_solicitacao || dadosFormulario?.motivoSolicitacao || '';
-    return (modelos || [])
-        .map(m => {
-            const textoModelo = m['Texto Cliente'] || m.dadosFormulario?.texto_cliente || '';
-            const motivoModelo = m['Motivo Solicitação'] || m.motivo_solicitacao || m.dadosFormulario?.motivo_solicitacao || '';
-            const simTexto = calcularSimilaridadeSolicitacao(textoModelo, textoAtual);
-            const simMotivo = motivoAtual ? calcularSimilaridadeSolicitacao(motivoModelo, motivoAtual) : 0;
-            // Reclamação = peso alto (0.7); motivo = peso médio (0.3). Se não houver motivo, usa só a reclamação.
-            const similaridade = motivoAtual ? (simTexto * 0.7 + simMotivo * 0.3) : simTexto;
-            return { modelo: m, similaridade, simTexto, simMotivo };
-        })
-        .sort((x, y) => y.similaridade - x.similaridade);
-}
-
 // ===== MANUAIS DE MODERAÇÃO DO RECLAME AQUI (base normativa) =====
 const MANUAIS_MODERACAO_FILE = path.join(__dirname, 'manuais-reclame-aqui', 'manuais-moderacao.json');
 let _manuaisModeracaoCache; // undefined = não lido ainda; null = inexistente/vazio; objeto = carregado
@@ -1592,90 +1554,13 @@ function extrairMioloRespostaRA(respostaTexto) {
 
 // Função para formatar resposta RA com a estrutura solicitada
 function formatarRespostaRA(respostaTexto, nomeCliente, nomeAgente, userData) {
-    if (!respostaTexto || typeof respostaTexto !== 'string') {
-        return respostaTexto;
-    }
-    respostaTexto = humanizarPontuacaoGerada(respostaTexto);
-
-    // Garantir que temos um nome de agente válido
-    if (!nomeAgente || nomeAgente.trim() === '') {
-        nomeAgente = 'Agente';
-    }
-    
-    const linhaApresentacaoAgente = () => {
-        if (nomeAgente === 'Agente') {
-            return 'Sou analista de atendimento do Velotax.';
-        }
-        const art = obterArtigoDefinidoAgente(nomeAgente, userData);
-        return `Sou ${art} ${nomeAgente}, analista de atendimento do Velotax.`;
-    };
-    
-    // Se a resposta já estiver formatada com a estrutura completa, verificar e atualizar se necessário
-    const jaTemEstruturaCompleta = respostaTexto.includes('Permanecemos à disposição por meio de nossos canais oficiais') ||
-        respostaTexto.includes('3003-7293') ||
-        respostaTexto.includes('0800-800-0049');
-    
-    if (jaTemEstruturaCompleta) {
-        // Verificar se a estrutura está completa e correta
-        const temSaudacao = /Olá,\s+[^!]+!/.test(respostaTexto);
-        const temApresentacao = /Sou\s+(?:(?:o|a)\s+)?[^,]+,?\s+(?:analista|especialista)\s+de\s+atendimento/i.test(respostaTexto)
-            || /Sou analista de atendimento do Velotax/i.test(respostaTexto);
-        const temContato = respostaTexto.includes('3003-7293') && respostaTexto.includes('0800-800-0049');
-        const temAssinatura = /Atenciosamente,/.test(respostaTexto);
-        
-        // Se já tem estrutura completa e correta, apenas atualizar nome do agente se necessário
-        if (temSaudacao && temApresentacao && temContato && temAssinatura) {
-            if (nomeAgente !== 'Agente') {
-                const art = obterArtigoDefinidoAgente(nomeAgente, userData);
-                respostaTexto = respostaTexto.replace(
-                    /Sou\s+(?:(?:o|a)\s+)?[^,]+,\s+(?:especialista|analista)/gi,
-                    `Sou ${art} ${nomeAgente}, analista`
-                );
-                respostaTexto = respostaTexto.replace(/Atenciosamente,\s*\n\s*[^\n]+\s*\n\s*Equipe de Atendimento Velotax/g, 
-                    `Atenciosamente,\n${nomeAgente} \nEquipe de Atendimento Velotax`);
-            }
-            return normalizarNomeVelotax(humanizarPontuacaoGerada(respostaTexto));
-        }
-        // Se tem estrutura mas está incompleta, remover e refazer
-    }
-
-    const textoLimpo = extrairMioloRespostaRA(respostaTexto);
-
-    // Usar nome do cliente se disponível, senão usar "cliente"
-    const saudacaoCliente = nomeCliente && nomeCliente.trim() !== '' ? nomeCliente : 'cliente';
-    
-    // Construir a resposta formatada com a estrutura completa
-    const respostaFormatada = `Olá, ${saudacaoCliente}!
-
-Espero que esteja bem.
-
-${linhaApresentacaoAgente()}  
-
-${textoLimpo}
-
-
-
-Permanecemos à disposição por meio de nossos canais oficiais de atendimento:
-
-
-📞 3003-7293 (capitais e regiões metropolitanas)
-📞 0800-800-0049 (demais localidades)
-🌐 www.velotax.com.br
-
-Atenciosamente,
-${nomeAgente} 
-Equipe de Atendimento Velotax`;
-
-    return normalizarNomeVelotax(humanizarPontuacaoGerada(respostaFormatada));
-}
-
-/** Classifica a disponibilidade da Solução Implementada para a camada de fallback. */
-function avaliarDisponibilidadeSolucao(solucao) {
-    const s = String(solucao || '').trim();
-    if (s.length === 0) return 'vazia';
-    const palavras = s.split(/\s+/).filter(p => p.replace(/[^a-zA-Z0-9á-úÁ-Ú]/g, '').length >= 3);
-    if (palavras.length < 6 || s.length < 40) return 'parcial';
-    return 'completa';
+    const { buildRespostaPublica } = require('./resposta-pipeline/responseBuilder');
+    return buildRespostaPublica({
+        conteudoMiolo: respostaTexto,
+        nomeCliente,
+        nomeAgente,
+        userData
+    });
 }
 
 /** Camada de fallback: define como usar a base "Respostas Coerentes" conforme a disponibilidade da Solução Implementada. */
@@ -1977,48 +1862,11 @@ function reformularComConhecimento(scriptPadrao, dadosPlanilha, dadosFormulario,
         promptFinal += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
         
         if (modelosComResposta.length > 0) {
-            const ranqueados = ordenarModelosPorSimilaridade(modelosComResposta, dadosFormulario);
-            const simTopo = ranqueados.length ? ranqueados[0].similaridade : 0;
-            const motivoAtual = (dadosFormulario?.motivo_solicitacao || dadosFormulario?.motivoSolicitacao || '').trim();
-
-            // PRÉ-ANÁLISE DE CONSISTÊNCIA (antes da geração): descarta respostas com contexto/
-            // informação DIVERGENTE do caso atual (origem de "modelo antigo" vazando para a resposta).
-            // 1) Piso absoluto de contexto + 2) corte relativo ao melhor caso (mantém só o que está
-            //    realmente próximo do caso mais parecido).
-            const PISO_CONTEXTO = 0.10;
-            const PISO_RELATIVO = simTopo > 0 ? simTopo * 0.4 : 0;
-            const LIMIAR = Math.max(PISO_CONTEXTO, PISO_RELATIVO);
-            let consistentes = ranqueados.filter(item => item.similaridade >= LIMIAR);
-
-            // 3) Filtro por MOTIVO: havendo motivo no caso atual, descarta os de motivo divergente
-            //    quando a semelhança textual também é baixa (ou seja, contexto realmente diferente).
-            if (motivoAtual && consistentes.length > 1) {
-                const comMotivoOuTextoForte = consistentes.filter(item =>
-                    item.simMotivo > 0 || item.simTexto >= Math.max(0.15, simTopo * 0.6));
-                if (comMotivoOuTextoForte.length > 0) consistentes = comMotivoOuTextoForte;
-            }
-
-            const descartadosPorDivergencia = ranqueados.length - consistentes.length;
-
-            // Se nada passou no crivo de contexto, usa apenas o caso mais parecido e sinaliza baixa
-            // aderência, em vez de arrastar vários casos divergentes para dentro da resposta.
-            let baixaAderencia = false;
-            if (consistentes.length === 0 && ranqueados.length > 0) {
-                baixaAderencia = true;
-                consistentes = [ranqueados[0]];
-            }
-
-            // Proteção por TAMANHO (limite de tokens da API): mantém os mais parecidos primeiro.
-            const ORCAMENTO_CARACTERES = 60000;
-            const selecionados = [];
-            let totalChars = 0;
-            for (const item of consistentes) {
-                const respostaItem = item.modelo['Resposta Aprovada'] || item.modelo.respostaAprovada || '';
-                if (!respostaItem || respostaItem.trim().length === 0) continue;
-                totalChars += respostaItem.length + 400; // resposta + metadados aproximados
-                if (selecionados.length >= 3 && totalChars > ORCAMENTO_CARACTERES) break;
-                selecionados.push(item);
-            }
+            const curadoria = selecionarCoerentesCurados(modelosComResposta, dadosFormulario);
+            const selecionados = curadoria.selecionados;
+            const descartadosPorDivergencia = curadoria.descartadosPorDivergencia;
+            const baixaAderencia = curadoria.baixaAderencia;
+            const simTopo = curadoria.simTopo;
 
             console.log(`🔎 Consistência das coerentes: ${selecionados.length} mantida(s), ${descartadosPorDivergencia} descartada(s) por divergência de contexto/motivo (de ${modelosComResposta.length}; sim. topo ${Math.round(simTopo * 100)}%${baixaAderencia ? '; BAIXA ADERÊNCIA' : ''})`);
 
@@ -6369,6 +6217,19 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             historico_atendimento: dadosFormulario.historico_atendimento?.substring(0, 50) + '...',
             nome_solicitante: dadosFormulario.nome_solicitante || 'não informado'
         });
+
+        const respostaPipeline = require('./resposta-pipeline');
+        const pipelineMode = respostaPipeline.getPipelineMode(envVars);
+        const requestStartedAt = Date.now();
+        let openaiCallCount = 0;
+        let retryCount = 0;
+        let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+        let usedFallback = false;
+        let insumosPreparadosShadow = null;
+
+        if (pipelineMode !== respostaPipeline.constants.PIPELINE_MODE.OFF) {
+            console.log(`[resposta-pipeline] modo ativo: ${pipelineMode}`);
+        }
         
         // Carregar base de aprendizado e conhecimento de produtos para o prompt
         const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
@@ -6388,6 +6249,63 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         } catch (error) {
             console.log('⚠️ Erro ao carregar dados da planilha:', error.message);
             console.log('🔄 Continuando com script padrão...');
+        }
+
+        if (respostaPipeline.isShadowEnabled(pipelineMode)) {
+            insumosPreparadosShadow = respostaPipeline.buildInsumosPreparados(
+                dadosFormulario,
+                dadosPlanilha,
+                conhecimentoProdutos,
+                { montarChecklistConformidadeRA }
+            );
+            respostaPipeline.scheduleShadowPreProcess(
+                { dadosFormulario, dadosPlanilha, conhecimentoProdutos },
+                { montarChecklistConformidadeRA }
+            );
+        }
+
+        if (
+            pipelineMode === respostaPipeline.constants.PIPELINE_MODE.PEV
+            && respostaPipeline.isPevPlanExecEnabled(envVars)
+        ) {
+            console.log('[resposta-pipeline] Plan-and-Execute ativo (PEV_PLAN_EXEC_ENABLED=true)');
+            try {
+                const pevResult = await respostaPipeline.runPlanExec(
+                    { dadosFormulario, dadosPlanilha, conhecimentoProdutos, envVars, userData },
+                    {
+                        apiKey,
+                        envVars,
+                        userData,
+                        executarChanceModeracao,
+                        montarChecklistConformidadeRA,
+                        montarTextoFallbackRespostaRA,
+                        obterConhecimentoProdutos
+                    }
+                );
+
+                await incrementarEstatisticaGlobal('respostas_geradas');
+
+                const jsonResponse = {
+                    success: true,
+                    result: pevResult.respostaPublica,
+                    pipeline: 'pev',
+                    executionId: pevResult.metrics?.executionId || pevResult.state?.executionId,
+                    usedFallback: pevResult.usedFallback
+                };
+
+                if (pevResult.chanceModeracao) {
+                    jsonResponse.chanceModeracao = pevResult.chanceModeracao;
+                }
+
+                return res.json(jsonResponse);
+            } catch (pevErr) {
+                console.error('[resposta-pipeline] PEV falhou:', pevErr.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Erro no pipeline PEV',
+                    message: pevErr.message
+                });
+            }
         }
 
         const prompt = reformularComConhecimento(
@@ -6431,6 +6349,8 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
         
         if (response.ok) {
             const data = await response.json();
+            openaiCallCount += 1;
+            tokenUsage = respostaPipeline.telemetry.accumulateUsage(tokenUsage, data.usage);
             let conteudoMiolo = data.choices[0].message.content;
 
             const nomeAgente = obterPrimeiroNomeUsuario(userData);
@@ -6458,6 +6378,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             };
 
             if (!respostaValida(conteudoMiolo)) {
+                retryCount += 1;
                 console.log(`⚠️ Resposta rejeitada (${semSolucaoImpl ? 'curta/sem solução resolutiva' : 'não reflete a solução implementada'}) — tentando nova geração reforçada...`);
                 const promptRetry = semSolucaoImpl ? `${prompt}
 
@@ -6497,6 +6418,8 @@ ${dadosFormulario.solucao_implementada}`;
                 let conteudoRetry = null;
                 if (responseRetry.ok) {
                     const dataRetry = await responseRetry.json();
+                    openaiCallCount += 1;
+                    tokenUsage = respostaPipeline.telemetry.accumulateUsage(tokenUsage, dataRetry.usage);
                     conteudoRetry = dataRetry.choices[0].message.content;
                 }
 
@@ -6505,6 +6428,7 @@ ${dadosFormulario.solucao_implementada}`;
                     console.log('✅ Retry bem-sucedido — resposta alinhada à solução implementada');
                 } else {
                     // 3ª tentativa: exigir desenvolvimento completo em parágrafos, ancorado na solução implementada
+                    retryCount += 1;
                     console.log('⚠️ Retry insuficiente — 3ª tentativa pedindo desenvolvimento completo...');
                     const promptDesenvolvido = semSolucaoImpl ? `${prompt}
 
@@ -6560,6 +6484,8 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
                         });
                         if (responseDev.ok) {
                             const dataDev = await responseDev.json();
+                            openaiCallCount += 1;
+                            tokenUsage = respostaPipeline.telemetry.accumulateUsage(tokenUsage, dataDev.usage);
                             conteudoDesenvolvido = dataDev.choices[0].message.content;
                         }
                     } catch (devError) {
@@ -6582,10 +6508,12 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
                             console.log('⚠️ Sem solução implementada — usando a tentativa mais desenvolvida baseada na base coerente');
                         } else {
                             console.log('⚠️ Tentativas insuficientes — usando fallback');
+                            usedFallback = true;
                             conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
                         }
                     } else {
                         console.log('⚠️ 3ª tentativa insuficiente — usando fallback baseado na solução implementada');
+                        usedFallback = true;
                         conteudoMiolo = montarTextoFallbackRespostaRA(dadosFormulario);
                     }
                 }
@@ -6596,6 +6524,31 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
             let resposta = formatarRespostaRA(conteudoMiolo, nomeCliente, nomeAgente, userData);
             // Incrementar estatística global
             await incrementarEstatisticaGlobal('respostas_geradas');
+
+            if (respostaPipeline.isShadowEnabled(pipelineMode)) {
+                respostaPipeline.finalizeMonolithTelemetry(
+                    {
+                        envVars,
+                        dadosFormulario,
+                        insumosPreparados: insumosPreparadosShadow,
+                        metrics: {
+                            openaiCallCount,
+                            retryCount,
+                            duracaoMs: Date.now() - requestStartedAt,
+                            promptTokens: tokenUsage.promptTokens,
+                            completionTokens: tokenUsage.completionTokens,
+                            totalTokens: tokenUsage.totalTokens,
+                            regimeSolucao: respostaPipeline.preProcessor.avaliarDisponibilidadeSolucao(
+                                dadosFormulario.solucao_implementada
+                            ),
+                            usedFallback
+                        }
+                    },
+                    {}
+                ).catch(err => {
+                    console.error('[resposta-pipeline] falha ao persistir telemetria monolito:', err.message);
+                });
+            }
             
             res.json({
                 success: true,
@@ -8457,19 +8410,42 @@ function extrairRespostaRevisadaDoResultado(resultado) {
     return '';
 }
 
-// Endpoint para análise de chance de moderação
-app.post('/api/chance-moderacao', async (req, res) => {
-    console.log('🎯 Endpoint /api/chance-moderacao chamado');
+/**
+ * Unidade de dominio — Chance de Moderação (Fase 6).
+ * Ponto de entrada canonico para logica de negocio; nao conhece HTTP nem WorkflowState.
+ */
+async function executarChanceModeracao(input = {}) {
+    const t0 = Date.now();
+    let openaiCallCount = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+
+    const {
+        reclamacaoCompleta,
+        respostaPublica,
+        consideracaoFinal = '',
+        historicoModeracao = '',
+        userData = null
+    } = input;
+
+    const telemetriaBase = () => ({
+        openaiCallCount,
+        promptTokens,
+        completionTokens,
+        duracaoMs: Date.now() - t0
+    });
+
+    if (!reclamacaoCompleta || !respostaPublica) {
+        return {
+            sucesso: false,
+            erro: 'validacao',
+            result: null,
+            motor: null,
+            telemetria: telemetriaBase()
+        };
+    }
+
     try {
-        const { reclamacaoCompleta, respostaPublica, consideracaoFinal, historicoModeracao } = req.body;
-        
-        if (!reclamacaoCompleta || !respostaPublica) {
-            return res.status(400).json({
-                success: false,
-                error: 'Reclamação completa e resposta pública são obrigatórias'
-            });
-        }
-        
         // Base normativa real dos manuais (temas + regras AENV) para ancorar a chance
         const baseNormativaChance = montarBlocoChanceModeracao(
             `${reclamacaoCompleta || ''} ${respostaPublica || ''} ${consideracaoFinal || ''}`,
@@ -9129,12 +9105,16 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
         const apiKey = envVars.OPENAI_API_KEY;
         
         if (!validateApiKey(apiKey)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Chave da API OpenAI não configurada'
-            });
+            return {
+                sucesso: false,
+                erro: 'Chave da API OpenAI não configurada',
+                codigoErro: 'api_key',
+                result: null,
+                motor: null,
+                telemetria: telemetriaBase()
+            };
         }
-        
+
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -9161,10 +9141,24 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
         if (!response.ok) {
             const errorData = await response.text();
             const errorResponse = tratarErroOpenAI(response, errorData);
-            return res.status(errorResponse.statusCode).json(errorResponse);
+            return {
+                sucesso: false,
+                erro: errorResponse.error || 'Erro OpenAI',
+                codigoErro: 'openai',
+                statusCode: errorResponse.statusCode,
+                openaiDetails: errorResponse,
+                result: null,
+                motor: null,
+                telemetria: telemetriaBase()
+            };
         }
 
         const data = await response.json();
+        openaiCallCount += 1;
+        if (data.usage) {
+            promptTokens += data.usage.prompt_tokens || 0;
+            completionTokens += data.usage.completion_tokens || 0;
+        }
         let resultado = data.choices[0].message.content;
         console.log('✅ Análise de chance de moderação gerada com sucesso');
 
@@ -9180,11 +9174,11 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
                 nomeCliente = extrairNomeCliente(reclamacaoCompleta);
             }
             if (!nomeAgente || nomeAgente.trim() === '') {
-                const u = req.user || req.userData;
+                const u = userData;
                 nomeAgente = (u && u.nome) ? obterPrimeiroNomeUsuario(u) : 'Agente';
             }
             // Aplicar formatação da resposta RA (com nomes da resposta original quando existirem)
-            const respostaFormatada = formatarRespostaRA(respostaRevisada, nomeCliente, nomeAgente, req.user || req.userData || null);
+            const respostaFormatada = formatarRespostaRA(respostaRevisada, nomeCliente, nomeAgente, userData || null);
             
             // Substituir a resposta revisada no resultado pela versão formatada (V7 e legado)
             const marcadoresSubst = [
@@ -9258,6 +9252,11 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
 
                 if (respEstados.ok) {
                     const dataEstados = await respEstados.json();
+                    openaiCallCount += 1;
+                    if (dataEstados.usage) {
+                        promptTokens += dataEstados.usage.prompt_tokens || 0;
+                        completionTokens += dataEstados.usage.completion_tokens || 0;
+                    }
                     const auditoriaBruta = JSON.parse(dataEstados.choices[0].message.content);
                     // Normaliza saída V2 (aninhada) -> formato plano consumido pelo Motor.
                     const norm = motorIntegracao.normalizarEstados(auditoriaBruta);
@@ -9292,15 +9291,71 @@ Agora, execute as etapas 0 a 12 da metodologia (começando pela calibração his
             }
         }
 
-        res.json({
-            success: true,
+        return {
+            sucesso: true,
             result: humanizarPontuacaoGerada(resultado),
-            motor: motorMetadados
-        });
+            motor: motorMetadados,
+            telemetria: telemetriaBase()
+        };
 
     } catch (error) {
         console.error('❌ Erro na análise de chance de moderação:', error);
-        res.status(500).json({
+        return {
+            sucesso: false,
+            erro: error.message || 'Erro interno na análise de chance de moderação',
+            result: null,
+            motor: null,
+            telemetria: telemetriaBase()
+        };
+    }
+}
+
+// Wrapper de transporte — POST /api/chance-moderacao
+app.post('/api/chance-moderacao', async (req, res) => {
+    console.log('🎯 Endpoint /api/chance-moderacao chamado');
+    try {
+        const { reclamacaoCompleta, respostaPublica, consideracaoFinal, historicoModeracao } = req.body;
+        const out = await executarChanceModeracao({
+            reclamacaoCompleta,
+            respostaPublica,
+            consideracaoFinal: consideracaoFinal || '',
+            historicoModeracao: historicoModeracao || '',
+            userData: req.user || req.userData || null
+        });
+
+        if (!out.sucesso && out.erro === 'validacao') {
+            return res.status(400).json({
+                success: false,
+                error: 'Reclamação completa e resposta pública são obrigatórias'
+            });
+        }
+
+        if (!out.sucesso && out.codigoErro === 'api_key') {
+            return res.status(400).json({
+                success: false,
+                error: out.erro
+            });
+        }
+
+        if (!out.sucesso && out.codigoErro === 'openai' && out.openaiDetails) {
+            return res.status(out.statusCode || 500).json(out.openaiDetails);
+        }
+
+        if (!out.sucesso) {
+            return res.status(500).json({
+                success: false,
+                error: out.erro || 'Erro interno do servidor na análise de chance de moderação'
+            });
+        }
+
+        return res.json({
+            success: true,
+            result: out.result,
+            motor: out.motor
+        });
+    } catch (error) {
+        console.error('❌ Erro no transporte /api/chance-moderacao:', error);
+        return res.status(500).json({
             success: false,
             error: 'Erro interno do servidor na análise de chance de moderação'
         });
@@ -15377,6 +15432,160 @@ app.post('/api/relatorio-reclamacoes/corrigir', rateLimitMiddleware, async (req,
     }
 });
 
+// --- PEV Observabilidade (Fase 4.5) ---
+const pevObs = require('./resposta-pipeline/observability');
+
+function pevObsEnabled() {
+    return pevObs.isPevObservabilityEnabled({});
+}
+
+function pevObsOpts(req) {
+    return {
+        periodo: req.query.periodo || '7d',
+        dataInicio: req.query.dataInicio || null,
+        dataFim: req.query.dataFim || null,
+        regimeSolucao: req.query.regimeSolucao || null,
+        modoOperacao: req.query.modoOperacao || null
+    };
+}
+
+function pevObsGuard(_req, res) {
+    if (!pevObsEnabled(req)) {
+        res.status(503).json({ success: false, enabled: false, error: 'PEV observabilidade desligada' });
+        return false;
+    }
+    return true;
+}
+
+app.get('/api/pev/observabilidade/resumo', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getResumo(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/pipeline', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getPipelineMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/planner', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getPlannerMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/executor-gate', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getExecutorGateMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/auditores', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getAuditoresMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/skip-policy', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getSkipPolicyMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/shadow', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getShadowMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/qualidade', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        res.json({ success: true, ...pevObs.queryService.getQualidadeMetrics(pevObsOpts(req)) });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/execucao/:executionId', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        const data = pevObs.queryService.getExecucao(req.params.executionId);
+        if (!data) {
+            return res.status(404).json({ success: false, error: 'Execucao nao indexada' });
+        }
+        res.json({ success: true, ...data });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/pev/observabilidade/dashboard/:tipo', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        const opts = pevObsOpts(req);
+        const tipo = req.params.tipo;
+        let view;
+        if (tipo === 'executivo') view = pevObs.dashboardViews.buildExecutivoView(opts);
+        else if (tipo === 'tecnico') view = pevObs.dashboardViews.buildTecnicoView(opts);
+        else if (tipo === 'shadow') view = pevObs.dashboardViews.buildShadowView(opts);
+        else if (tipo === 'qualidade') view = pevObs.dashboardViews.buildQualidadeView(opts);
+        else return res.status(400).json({ success: false, error: 'Dashboard invalido' });
+        res.json({ success: true, ...view });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/pev/observabilidade/reindex', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    try {
+        const force = req.body?.force === true || req.query.force === 'true';
+        const result = pevObs.indexer.reindexAll({ force });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.post('/api/pev/observabilidade/export', (req, res) => {
+    if (!pevObsGuard(req, res)) return;
+    const exportsOn = pevObs.isPevObservabilityExportsEnabled(process.env)
+        || pevObs.isPevObservabilityExportsEnabled(req.body?.envVars || {});
+    if (!exportsOn) {
+        return res.status(503).json({ success: false, enabled: false, error: 'PEV_OBSERVABILITY_EXPORTS desligado' });
+    }
+    try {
+        const format = req.body?.format || req.query.format || 'json';
+        const result = pevObs.exportService.exportData(format, pevObsOpts(req));
+        res.json({ success: true, ...result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Middleware para rotas não encontradas (DEVE SER O ÚLTIMO, após TODOS os endpoints)
 app.use('*', (req, res) => {
     console.log(`❌ [404] Rota não encontrada: ${req.method} ${req.originalUrl}`);
@@ -15388,3 +15597,4 @@ app.use('*', (req, res) => {
 });
 
 module.exports = app;
+module.exports.executarChanceModeracao = executarChanceModeracao;

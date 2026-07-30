@@ -1,0 +1,137 @@
+{
+  "desdeStr": "13/03/2026",
+  "ateStr": "11/06/2026",
+  "sheetsOk": true,
+  "coerentes": {
+    "total": 42,
+    "porTipo": {
+      "erro-aplicativo": 2,
+      "duvidas-credito-pessoal": 1,
+      "alteracao-cadastral": 1,
+      "calculadora": 1,
+      "exclusao-cadastro": 1,
+      "retirar-chave-pix-cpf": 1,
+      "antecipacao": 5,
+      "antecipacao-2026": 21,
+      "divida-prescrita": 1,
+      "aplicativo": 4,
+      "emprestimo-pessoal": 1,
+      "em-cobranca": 1,
+      "conta-celcoin": 2
+    },
+    "porClassificacaoTipo": {
+      "novo": 37,
+      "outro": 4,
+      "antigo": 1
+    },
+    "tomAntigo": 40,
+    "legalSemSolucao": 12,
+    "naoRefleteSolucao": 1,
+    "duplicatas": 6,
+    "issues": [
+      {
+        "linha": 603,
+        "data": "13/03/2026, 13:16:55",
+        "tipo": "erro-aplicativo",
+        "problema": "tom_antigo",
+        "trecho": "Olá, Gabriel!\n\nEspero que esteja bem.\n\nSou Nayara, especialista de atendimento do Velotax, recebemos sua manifestação e "
+      },
+      {
+        "linha": 604,
+        "data": "13/03/2026, 13:16:57",
+        "tipo": "erro-aplicativo",
+        "problema": "tom_antigo",
+        "trecho": "Olá, Gabriel!\n\nEspero que esteja bem.\n\nSou Nayara, especialista de atendimento do Velotax, recebemos sua manifestação e "
+      },
+      {
+        "linha": 605,
+        "data": "16/03/2026, 10:59:13",
+        "tipo": "duvidas-credito-pessoal",
+        "problema": "tom_antigo",
+        "trecho": "Olá, Marcos!\n\nEspero que esteja bem.\n\nSou Nayara, especialista de atendimento do Velotax, recebemos sua manifestação e a"
+      },
+      {
+        "linha": 606,
+        "data": "17/03/2026, 11:46:49",
+        "tipo": "alteracao-cadastral",
+        "problema": "tom_antigo",
+        "trecho": "Olá, Mayra!\n\nEspero que esteja bem.\n\nSou Caroline, especialista de atendimento do Velotax, recebemos sua manifestação e "
+      },
+      {
+        "linha": 607,
+        "data": "17/03/2026, 16:04:13",
+        "tipo": "calculadora",
+        "problema": "tom_antigo",
+        "trecho": "Olá, rogerio!\n\nEspero que esteja bem.\n\nSou Caroline, especialista de atendimento do Velotax, recebemos sua manifestação "
+      }
+    ]
+  },
+  "feedbacks": {
+    "total": 174,
+    "porTipo": {
+      "cobranca": 4,
+      "duvidas-credito-pessoal": 4,
+      "calculadora": 9,
+      "aplicativo": 9,
+      "antecipacao-2026": 76,
+      "emprestimo-pessoal": 6,
+      "antecipacao": 29,
+      "em-cobranca": 1,
+      "conta-celcoin": 23,
+      "juros-abusivos": 12,
+      "(vazio)": 1
+    },
+    "porClassificacaoTipo": {
+      "novo": 160,
+      "outro": 13,
+      "vazio": 1
+    },
+    "motivoComId": 0,
+    "tomAntigoReform": 169,
+    "legalSemSolucao": 21,
+    "naoRefleteSolucao": 2,
+    "issues": []
+  },
+  "moderacoes": {
+    "total": 188,
+    "comFeedback": 2,
+    "aprovadas": 91
+  },
+  "moderacoesAceitas": 17,
+  "moderacoesNegadas": 5,
+  "coerentesAntes": 580,
+  "feedbacksAntes": 503,
+  "proposta": {
+    "janelas": [
+      {
+        "dias": 60,
+        "coerentesTotal": 16,
+        "coerentesPadraoAtual": 2,
+        "coerentesForaPadrao": 14,
+        "feedbacksTotal": 90,
+        "pctBons": 13
+      },
+      {
+        "dias": 90,
+        "coerentesTotal": 40,
+        "coerentesPadraoAtual": 2,
+        "coerentesForaPadrao": 38,
+        "feedbacksTotal": 170,
+        "pctBons": 5
+      },
+      {
+        "dias": 120,
+        "coerentesTotal": 70,
+        "coerentesPadraoAtual": 3,
+        "coerentesForaPadrao": 67,
+        "feedbacksTotal": 250,
+        "pctBons": 4
+      }
+    ],
+    "desdeMaio": {
+      "total": 10,
+      "padraoAtual": 2
+    }
+  },
+  "recomendacao": "Janela móvel de 90 dias + filtro de qualidade ativo. Poucos coerentes bons (2) — aprendizado complementar; priorizar script + solução implementada."
+}

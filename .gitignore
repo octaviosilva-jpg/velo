@@ -118,6 +118,9 @@ config.env
 
 # Pipeline V2 - artefatos de WorkflowState (contem dados do cliente)
 data/moderacao_workflow/
+data/resposta_pipeline_shadow/
+data/resposta_pipeline_pev/
+data/pev_observability/
 
 # Pipeline V2 - regressao (casos reais e saidas contem dados do cliente)
 moderacao-pipeline/regression/out/

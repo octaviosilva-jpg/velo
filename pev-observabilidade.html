@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEV Observabilidade — Velotax</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; }
+        header { background: linear-gradient(135deg, #1a5276, #2980b9); color: #fff; padding: 24px; }
+        header h1 { font-size: 1.6rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .tabs { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+        .tab { padding: 10px 18px; border: none; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .tab.active { background: #2980b9; color: #fff; }
+        .filters { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+        .filters label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
+        .filters select, .filters button { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
+        .filters button { background: #2980b9; color: #fff; border: none; cursor: pointer; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .card .label { font-size: 12px; color: #666; }
+        .card .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+        .chart-box { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        th { background: #f8f9fa; }
+        .alert { background: #fff3cd; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
+        .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>PEV — Observabilidade do Pipeline</h1>
+            <p>Métricas determinísticas Fases 1–4 (requer PEV_OBSERVABILITY_ENABLED=true)</p>
+        </div>
+    </header>
+    <div class="container">
+        <div id="statusBanner"></div>
+        <div class="filters">
+            <div>
+                <label>Período</label>
+                <select id="periodo">
+                    <option value="hoje">Hoje</option>
+                    <option value="7d" selected>7 dias</option>
+                    <option value="30d">30 dias</option>
+                </select>
+            </div>
+            <button id="btnRefresh">Atualizar</button>
+            <button id="btnExport" title="Requer PEV_OBSERVABILITY_EXPORTS=true">Exportar JSON</button>
+        </div>
+        <div class="tabs">
+            <button class="tab active" data-tab="executivo">Executivo</button>
+            <button class="tab" data-tab="tecnico">Técnico</button>
+            <button class="tab" data-tab="shadow">Shadow</button>
+            <button class="tab" data-tab="qualidade">Qualidade</button>
+        </div>
+        <div id="panel-executivo" class="panel active">
+            <div class="cards" id="cardsExecutivo"></div>
+            <div class="chart-box"><canvas id="chartVolume"></canvas></div>
+            <div class="chart-box"><canvas id="chartTokens"></canvas></div>
+        </div>
+        <div id="panel-tecnico" class="panel">
+            <div class="cards" id="cardsTecnico"></div>
+            <div class="chart-box"><canvas id="chartRetries"></canvas></div>
+        </div>
+        <div id="panel-shadow" class="panel">
+            <div class="cards" id="cardsShadow"></div>
+            <div class="chart-box"><canvas id="chartShadow"></canvas></div>
+            <table><thead><tr><th>Execution ID</th><th>Alvo</th><th>Estrato</th></tr></thead><tbody id="shadowTable"></tbody></table>
+        </div>
+        <div id="panel-qualidade" class="panel">
+            <div class="cards" id="cardsQualidade"></div>
+            <div class="chart-box"><canvas id="chartFalhas"></canvas></div>
+        </div>
+    </div>
+    <script>
+        const charts = {};
+        function qs(id) { return document.getElementById(id); }
+        function pct(v) { return v == null ? '—' : (v * 100).toFixed(1) + '%'; }
+        function num(v, d = 0) { return v == null ? '—' : Number(v).toFixed(d); }
+
+        async function api(path) {
+            const periodo = qs('periodo').value;
+            const r = await fetch(`/api/pev/observabilidade/${path}?periodo=${periodo}`);
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || r.statusText);
+            return data;
+        }
+
+        function card(label, value) {
+            return `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+        }
+
+        function destroyChart(id) {
+            if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+        }
+
+        async function loadExecutivo() {
+            const data = await api('dashboard/executivo');
+            const p = data.pipeline || {};
+            const f = data.financeiro || {};
+            qs('cardsExecutivo').innerHTML = [
+                card('Execuções', data.execucoes ?? 0),
+                card('Taxa fallback', pct(p.taxaFallback)),
+                card('Latência P95', num(p.duracaoMsP95) + ' ms'),
+                card('Chamadas LLM média', num(p.openaiCallCountMedia, 1)),
+                card('Tokens economizados', f.tokensEconomizadosTotais ?? 0),
+                card('Economia %', num(f.economiaPercentualTokens, 1) + '%')
+            ].join('');
+            const serie = data.serieDiaria || [];
+            destroyChart('chartVolume');
+            charts.chartVolume = new Chart(qs('chartVolume'), {
+                type: 'line',
+                data: {
+                    labels: serie.map(s => s.periodo),
+                    datasets: [
+                        { label: 'Execuções', data: serie.map(s => s.execucoes), borderColor: '#2980b9', tension: 0.2 },
+                        { label: 'Fallback', data: serie.map(s => s.fallback), borderColor: '#e74c3c', tension: 0.2 }
+                    ]
+                },
+                options: { responsive: true, plugins: { title: { display: true, text: 'Volume diário' } } }
+            });
+            destroyChart('chartTokens');
+            charts.chartTokens = new Chart(qs('chartTokens'), {
+                type: 'bar',
+                data: {
+                    labels: serie.map(s => s.periodo),
+                    datasets: [
+                        { label: 'Tokens consumidos', data: serie.map(s => s.tokensTotal), backgroundColor: '#3498db' },
+                        { label: 'Tokens economizados', data: serie.map(s => s.tokensEconomizados), backgroundColor: '#2ecc71' }
+                    ]
+                },
+                options: { responsive: true, plugins: { title: { display: true, text: 'Tokens' } } }
+            });
+        }
+
+        async function loadTecnico() {
+            const data = await api('dashboard/tecnico');
+            const pl = data.planner?.planner || {};
+            const ex = data.executorGate?.executor || {};
+            const sk = data.skipPolicy?.skipPolicy || {};
+            qs('cardsTecnico').innerHTML = [
+                card('Gate 1ª passagem', pct(ex.gateTaxaPrimeiraPassagem)),
+                card('Retries Executor média', num(ex.retriesMedia, 2)),
+                card('Skip factual', pct(sk.taxaSkipFactual)),
+                card('Skip editorial', pct(sk.taxaSkipEditorial)),
+                card('Planos gerados', pl.planosGerados ?? 0)
+            ].join('');
+            destroyChart('chartRetries');
+            const fa = data.auditores?.factual || {};
+            const ed = data.auditores?.editorial || {};
+            charts.chartRetries = new Chart(qs('chartRetries'), {
+                type: 'bar',
+                data: {
+                    labels: ['Factual retries', 'Editorial retries', 'Executor retries'],
+                    datasets: [{ label: 'Total', data: [fa.retriesTotal || 0, ed.retriesTotal || 0, ex.retriesTotal || 0], backgroundColor: ['#9b59b6', '#e67e22', '#34495e'] }]
+                },
+                options: { responsive: true, plugins: { title: { display: true, text: 'Retries por camada' } } }
+            });
+        }
+
+        async function loadShadow() {
+            const data = await api('dashboard/shadow');
+            qs('cardsShadow').innerHTML = [
+                card('Divergência shadow', pct(data.divergenciaShadow)),
+                card('Avaliações shadow', data.shadowAvaliacoes ?? 0),
+                card('Divergências', data.shadowDivergencias ?? 0)
+            ].join('');
+            const serie = data.serieDiaria || [];
+            destroyChart('chartShadow');
+            charts.chartShadow = new Chart(qs('chartShadow'), {
+                type: 'line',
+                data: {
+                    labels: serie.map(s => s.periodo),
+                    datasets: [{ label: 'Divergência shadow', data: serie.map(s => (s.divergenciaShadow || 0) * 100), borderColor: '#8e44ad', tension: 0.2 }]
+                },
+                options: { responsive: true, plugins: { title: { display: true, text: 'Tendência divergência shadow (%)' } } }
+            });
+            qs('shadowTable').innerHTML = (data.divergencias || []).slice(0, 20).map(d =>
+                `<tr><td>${d.executionId}</td><td>${d.alvo}</td><td>${d.regimeSolucao}|${d.modoOperacao}</td></tr>`
+            ).join('') || '<tr><td colspan="3">Nenhuma divergência no período</td></tr>';
+        }
+
+        async function loadQualidade() {
+            const data = await api('dashboard/qualidade');
+            qs('cardsQualidade').innerHTML = [
+                card('Aprovação factual', pct(data.factual?.taxaAprovacao)),
+                card('Aprovação editorial', pct(data.editorial?.taxaAprovacao))
+            ].join('');
+            const falhas = { ...(data.editorial?.falhasPorTipo || {}), ...(data.factual?.falhasPorTipo || {}) };
+            const labels = Object.keys(falhas).slice(0, 10);
+            destroyChart('chartFalhas');
+            charts.chartFalhas = new Chart(qs('chartFalhas'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: 'Ocorrências', data: labels.map(l => falhas[l]), backgroundColor: '#c0392b' }]
+                },
+                options: { indexAxis: 'y', responsive: true, plugins: { title: { display: true, text: 'Top falhas' } } }
+            });
+        }
+
+        async function refresh() {
+            const tab = document.querySelector('.tab.active')?.dataset.tab || 'executivo';
+            try {
+                qs('statusBanner').innerHTML = '';
+                if (tab === 'executivo') await loadExecutivo();
+                else if (tab === 'tecnico') await loadTecnico();
+                else if (tab === 'shadow') await loadShadow();
+                else if (tab === 'qualidade') await loadQualidade();
+            } catch (e) {
+                qs('statusBanner').innerHTML = `<div class="error">${e.message}. Verifique PEV_OBSERVABILITY_ENABLED=true.</div>`;
+            }
+        }
+
+        document.querySelectorAll('.tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                qs('panel-' + btn.dataset.tab).classList.add('active');
+                refresh();
+            });
+        });
+        qs('btnRefresh').addEventListener('click', refresh);
+        qs('btnExport').addEventListener('click', async () => {
+            try {
+                const r = await fetch('/api/pev/observabilidade/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ format: 'json', periodo: qs('periodo').value })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'Export falhou');
+                alert('Export gerado: ' + (data.exportId || 'ok'));
+            } catch (e) { alert(e.message); }
+        });
+        refresh();
+    </script>
+</body>
+</html>

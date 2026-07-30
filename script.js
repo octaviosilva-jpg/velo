@@ -276,13 +276,32 @@ async function gerarRespostaOpenAI() {
         console.log('Chamando servidor...');
         
         // Chamar servidor para gerar resposta
-        const resposta = await gerarRespostaRAViaAPI(dadosResposta);
+        const apiResult = await gerarRespostaRAViaAPI(dadosResposta);
+        const resposta = apiResult.result;
         
         console.log('Resposta recebida:', resposta.substring(0, 100) + '...');
         
         // Exibir resposta
         document.getElementById('texto-resposta-gpt5').value = resposta;
         document.getElementById('resposta-gpt5').style.display = 'block';
+
+        // Fase 6 — integrar Chance de Moderação do PEV na aba Revisão
+        if (apiResult.chanceModeracao?.success && apiResult.chanceModeracao.result) {
+            preencherCamposRevisaoChance({
+                reclamacaoCompleta: reclamacaoValue,
+                respostaPublica: resposta
+            });
+            aplicarResultadoChanceModeracao({
+                result: apiResult.chanceModeracao.result,
+                motor: apiResult.chanceModeracao.motor,
+                origem: 'pev',
+                executionId: apiResult.executionId || null
+            });
+            atualizarRotuloBotaoChanceModeracao();
+            showSuccessMessage('Resposta gerada com sucesso! Análise de chance de moderação disponível na aba Revisão.');
+        } else {
+            showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
+        }
         
         console.log('Resposta exibida na interface');
         
@@ -292,15 +311,14 @@ async function gerarRespostaOpenAI() {
             dados: dadosResposta,
             resposta: resposta,
             status: 'gerada',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            chanceModeracao: apiResult.chanceModeracao || null
         };
         historicoRespostas.unshift(itemHistorico);
     
     // Recarregar estatísticas globais do servidor
     carregarEstatisticasGlobais();
     
-        showSuccessMessage('Resposta gerada com sucesso pela IA OpenAI!');
-        
     } catch (error) {
         console.error('Erro ao gerar resposta:', error);
         
@@ -352,7 +370,13 @@ async function gerarRespostaRAViaAPI(dadosResposta) {
         
         if (data.success) {
             console.log('✅ Resposta gerada com sucesso pelo servidor');
-            return data.result;
+            return {
+                result: data.result,
+                pipeline: data.pipeline || null,
+                executionId: data.executionId || null,
+                usedFallback: data.usedFallback,
+                chanceModeracao: data.chanceModeracao || null
+            };
         } else {
             // Log detalhado do erro
             console.error('❌ Erro do servidor:', {
@@ -2181,6 +2205,71 @@ function gerarMensagemExplicativa(tema, contexto) {
 
 // ===== FUNÇÕES DE REVISÃO =====
 
+function calcularFingerprintChanceModeracao(reclamacaoCompleta, respostaPublica, consideracaoFinal, historicoModeracao) {
+    const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+    return [
+        norm(reclamacaoCompleta),
+        norm(respostaPublica),
+        norm(consideracaoFinal),
+        norm(historicoModeracao)
+    ].join('\x1e');
+}
+
+function preencherCamposRevisaoChance({ reclamacaoCompleta, respostaPublica }) {
+    const elReclamacao = document.getElementById('reclamacao-completa');
+    const elResposta = document.getElementById('resposta-publica');
+    if (elReclamacao && reclamacaoCompleta) elReclamacao.value = reclamacaoCompleta;
+    if (elResposta && respostaPublica) elResposta.value = respostaPublica;
+}
+
+function aplicarResultadoChanceModeracao({ result, motor, origem, executionId }) {
+    if (!result) return;
+
+    const reclamacaoCompleta = document.getElementById('reclamacao-completa')?.value || '';
+    const respostaPublica = document.getElementById('resposta-publica')?.value || '';
+    const consideracaoFinal = document.getElementById('consideracao-final')?.value || '';
+    const historicoModeracao = document.getElementById('historico-moderacao')?.value || '';
+
+    const analiseFormatada = formatarAnaliseChanceModeracao(result);
+    document.getElementById('analise-chance-moderacao').innerHTML = analiseFormatada;
+    document.getElementById('revisao-resultado').style.display = 'block';
+
+    window.respostaRevisadaModeracao = extrairRespostaRevisada(result);
+    window.analiseCompletaModeracao = result;
+
+    if (window.respostaRevisadaModeracao && window.respostaRevisadaModeracao.trim().length > 0) {
+        document.getElementById('btn-ajuste-manual').style.display = 'inline-block';
+    }
+
+    window.analiseChanceModeracaoCache = {
+        origem: origem || 'manual',
+        fingerprint: calcularFingerprintChanceModeracao(
+            reclamacaoCompleta,
+            respostaPublica,
+            consideracaoFinal,
+            historicoModeracao
+        ),
+        result,
+        motor: motor || null,
+        executionId: executionId || null
+    };
+
+    atualizarRotuloBotaoChanceModeracao();
+}
+
+function atualizarRotuloBotaoChanceModeracao() {
+    const btn = document.getElementById('btn-chance-moderacao');
+    if (!btn) return;
+    const temCache = window.analiseChanceModeracaoCache?.result;
+    const labelSpan = btn.querySelector('.btn-chance-label');
+    const texto = temCache ? 'Reanalisar Chance de Moderação' : 'Analisar Chance de Moderação';
+    if (labelSpan) {
+        labelSpan.textContent = texto;
+    } else {
+        btn.innerHTML = `<i class="fas fa-percentage me-2"></i><span class="btn-chance-label">${texto}</span>`;
+    }
+}
+
 async function analisarChanceModeracao() {
     const reclamacaoCompleta = document.getElementById('reclamacao-completa').value;
     const respostaPublica = document.getElementById('resposta-publica').value;
@@ -2191,12 +2280,33 @@ async function analisarChanceModeracao() {
         showErrorMessage('Por favor, preencha a reclamação completa e a resposta pública da empresa.');
         return;
     }
+
+    const fingerprintAtual = calcularFingerprintChanceModeracao(
+        reclamacaoCompleta,
+        respostaPublica,
+        consideracaoFinal,
+        historicoModeracao
+    );
+    const cache = window.analiseChanceModeracaoCache;
+    if (cache && cache.result && cache.fingerprint === fingerprintAtual) {
+        aplicarResultadoChanceModeracao({
+            result: cache.result,
+            motor: cache.motor,
+            origem: cache.origem,
+            executionId: cache.executionId
+        });
+        const msg = cache.origem === 'pev'
+            ? 'Exibindo análise já calculada pelo pipeline (sem nova requisição).'
+            : 'Exibindo análise em cache (sem nova requisição).';
+        showSuccessMessage(msg);
+        return;
+    }
     
     // Mostrar loading
     showLoadingMessage('Analisando chance de moderação com IA...');
     
     try {
-        // Chamar endpoint do servidor
+        // Chamar endpoint do servidor (transporte)
         const response = await fetch('/api/chance-moderacao', {
             method: 'POST',
             headers: {
@@ -2213,21 +2323,12 @@ async function analisarChanceModeracao() {
         const data = await response.json();
         
         if (data.success) {
-            // Formatar e exibir a análise completa
-            const analiseFormatada = formatarAnaliseChanceModeracao(data.result);
-            
-            document.getElementById('analise-chance-moderacao').innerHTML = analiseFormatada;
-            document.getElementById('revisao-resultado').style.display = 'block';
-            
-            // Armazenar a resposta revisada para cópia separada e ajustes
-            window.respostaRevisadaModeracao = extrairRespostaRevisada(data.result);
-            window.analiseCompletaModeracao = data.result; // Armazenar análise completa para auditoria
-            
-            // Mostrar botão de ajuste manual se houver resposta revisada
-            if (window.respostaRevisadaModeracao && window.respostaRevisadaModeracao.trim().length > 0) {
-                document.getElementById('btn-ajuste-manual').style.display = 'inline-block';
-            }
-            
+            aplicarResultadoChanceModeracao({
+                result: data.result,
+                motor: data.motor,
+                origem: 'manual',
+                executionId: null
+            });
             showSuccessMessage('Análise de chance de moderação concluída!');
         } else {
             showErrorMessage('Erro na análise: ' + data.error);

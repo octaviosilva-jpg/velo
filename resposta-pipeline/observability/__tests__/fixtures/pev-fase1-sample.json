@@ -1,0 +1,23 @@
+{
+  "workflowVersion": "1.0",
+  "executionId": "1730000000001-test-exec-fase1",
+  "timestamp": "2026-07-30T10:00:00.000Z",
+  "pipelineMode": "pev",
+  "insumosPreparados": {
+    "regimeSolucao": "parcial",
+    "rotaExecucao": "complementar_coerentes"
+  },
+  "planoDeResposta": {
+    "modoOperacao": "complementar",
+    "fontePrimaria": "misto",
+    "fatosAutorizados": ["Fato"]
+  },
+  "vereditoGate": { "aprovado": true, "falhas": [] },
+  "executorRetryCount": 0,
+  "usedFallback": false,
+  "telemetria": [
+    { "node": "PLANNER", "totalTokens": 100, "custoEstimado": 0.001, "duracaoMs": 500 },
+    { "node": "EXECUTOR", "totalTokens": 150, "custoEstimado": 0.001, "duracaoMs": 700 }
+  ],
+  "artefatos": []
+}

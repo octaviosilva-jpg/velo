@@ -1,0 +1,59 @@
+{
+  "workflowVersion": "1.0",
+  "executionId": "1730000000000-test-exec-fase4",
+  "timestamp": "2026-07-30T12:00:00.000Z",
+  "idReclamacao": "12345",
+  "pipelineMode": "pev",
+  "insumosPreparados": {
+    "regimeSolucao": "completa",
+    "rotaExecucao": "padrao_completa",
+    "matrizAutoridade": {
+      "lacunasDetectadas": [],
+      "solucaoImplementadaPresente": true,
+      "fatosAutorizados": [{ "origem": "solucao_implementada", "texto": "Cliente contatado." }]
+    },
+    "kitReferencia": { "checklistRA": "" }
+  },
+  "planoDeResposta": {
+    "schemaVersion": "1.0",
+    "modoOperacao": "refinar",
+    "fontePrimaria": "solucao_implementada",
+    "fatosAutorizados": ["Cliente contatado."]
+  },
+  "rascunhoMiolo": { "schemaVersion": "1.0", "conteudo": "Miolo de teste longo o suficiente." },
+  "vereditoGate": { "aprovado": true, "falhas": [] },
+  "vereditoFactual": { "schemaVersion": "1.0", "aprovado": true, "falhas": [], "recomendacaoRetry": "nenhum" },
+  "vereditoEditorial": null,
+  "executorRetryCount": 0,
+  "plannerTechnicalRetryCount": 0,
+  "factualRetryCount": 0,
+  "editorialRetryCount": 0,
+  "factualAuditorSkipped": false,
+  "editorialAuditorSkipped": true,
+  "conditionalAuditEnabled": true,
+  "usedFallback": false,
+  "skipDecisions": [{
+    "policyVersion": "1.0",
+    "alvo": "AUDITOR_EDITORIAL",
+    "executar": false,
+    "codigoMotivo": "skip.editorial.tier1_refinar_completa_sem_checklist",
+    "regraDecisiva": "skip.editorial.tier1_refinar_completa_sem_checklist",
+    "fasePrecedencia": 5,
+    "shadowMode": false
+  }],
+  "artefatos": [
+    { "tipo": "VereditoGate", "node": "DETERMINISTIC_GATE", "payload": { "aprovado": true, "falhas": [] } },
+    { "tipo": "VereditoFactual", "node": "AUDITOR_FACTUAL", "payload": { "aprovado": true, "falhas": [] } },
+    { "tipo": "DecisaoExecucaoAuditor", "node": "AUDITOR_SKIP_POLICY", "payload": {
+      "alvo": "AUDITOR_EDITORIAL", "executar": false, "codigoMotivo": "skip.editorial.tier1_refinar_completa_sem_checklist",
+      "regraDecisiva": "skip.editorial.tier1_refinar_completa_sem_checklist", "fasePrecedencia": 5, "shadowMode": false
+    }}
+  ],
+  "telemetria": [
+    { "node": "PLANNER", "promptTokens": 100, "completionTokens": 80, "totalTokens": 180, "custoEstimado": 0.001, "duracaoMs": 1000 },
+    { "node": "EXECUTOR", "promptTokens": 120, "completionTokens": 90, "totalTokens": 210, "custoEstimado": 0.0012, "duracaoMs": 1500 },
+    { "node": "AUDITOR_FACTUAL", "promptTokens": 100, "completionTokens": 60, "totalTokens": 160, "custoEstimado": 0.0008, "duracaoMs": 800 }
+  ],
+  "decisionLog": [],
+  "_skipSavingsEstimados": { "tokens": 4000, "latenciaMs": 3000, "custo": 0.002 }
+}

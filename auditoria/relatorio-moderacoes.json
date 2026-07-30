@@ -1,0 +1,76 @@
+{
+  "janelaDias": 90,
+  "periodo": {
+    "de": "27/03/2026",
+    "ate": "25/06/2026"
+  },
+  "totaisPlanilha": {
+    "moderacoes": 389,
+    "aceitas": 24,
+    "negadas": 9
+  },
+  "noPeriodo": {
+    "moderacoes": 209,
+    "aceitas": 17,
+    "negadas": 7
+  },
+  "abaModeracoes": {
+    "total": 209,
+    "aprovadas": 98,
+    "pendentes": 111,
+    "comFeedback": 3,
+    "coerentesUtilizaveis": 98,
+    "textoProblematico": 2,
+    "porMotivo": {
+      "nao-violou-direito": 209
+    },
+    "porStatus": {
+      "pendente": 111,
+      "aprovada": 98
+    },
+    "issues": [
+      {
+        "linha": 324,
+        "data": "22/05/2026, 12:22:08",
+        "motivo": "nao-violou-direito",
+        "status": "Pendente",
+        "problemas": "sem_citar_manual",
+        "trecho": "(a ser enviado ao RA)\n\"Prezados,\n\nSolicitamos a moderação da reclamação em questão, tendo em vista que a consideração final do consumidor não condiz c"
+      },
+      {
+        "linha": 367,
+        "data": "17/06/2026, 16:33:01",
+        "motivo": "nao-violou-direito",
+        "status": "Pendente",
+        "problemas": "sem_citar_manual",
+        "trecho": "(a ser enviado ao RA)\n\nPrezados,\n\nSolicitamos a moderação da reclamação em questão, tendo em vista que a consideração final do cliente contém informaç"
+      }
+    ]
+  },
+  "abaAceitas": {
+    "total": 17,
+    "porTema": {
+      "nao-violou-direito": 17
+    },
+    "porMotivo": {
+      "nao-violou-direito": 17
+    },
+    "semManual": 0,
+    "naoPrezados": 0,
+    "issues": []
+  },
+  "abaNegadas": {
+    "total": 7,
+    "porMotivo": {
+      "(vazio)": 7
+    },
+    "comBlocoErro": 0,
+    "comBlocoCorrecao": 0
+  },
+  "aprendizado": {
+    "coerentesNaJanela": 98,
+    "aceitasNaJanela": 17,
+    "negadasNaJanela": 7,
+    "observacao": "Coerentes = Status Aprovada + sem Feedback na aba Moderações (critério do sistema)"
+  }
+}
