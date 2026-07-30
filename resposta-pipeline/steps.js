@@ -133,6 +133,40 @@ const EXECUTOR = {
     }
 };
 
+const EXECUTOR_RA = {
+    id: 'executor-ra',
+    node: NODES.EXECUTOR,
+    actor: ACTORS.LLM,
+    promptRef: 'executor-ra@v1',
+    writes: ['rascunhoMiolo'],
+    model: (deps) => deps.models?.executor || DEFAULTS.models.executor,
+    temperature: (deps) => {
+        if (deps.raExecutorTemperature != null) return deps.raExecutorTemperature;
+        return num(deps.temperatures?.executor, DEFAULTS.temperatures.executor);
+    },
+    maxTokens: (deps) => num(deps.maxTokens?.executor, DEFAULTS.maxTokens.executor),
+    buildCtx(state, deps) {
+        const gateFeedback = deps.gateFeedback || state._gateFeedback || null;
+        const factualFeedback = deps.factualFeedback || state._factualFeedback || null;
+        const editorialFeedback = deps.editorialFeedback || state._editorialFeedback || null;
+        return {
+            promptUsuario: state._raPromptUsuario || deps.raPromptUsuario || '',
+            systemPromptRA: deps.systemPromptRA || null,
+            gateFeedback: formatFeedback(gateFeedback?.falhas || gateFeedback),
+            factualFeedback: formatFeedback(factualFeedback?.falhas || factualFeedback),
+            editorialFeedback: formatFeedback(editorialFeedback?.falhas || editorialFeedback)
+        };
+    },
+    toPartial(parsed) {
+        return {
+            rascunhoMiolo: {
+                schemaVersion: SCHEMA_VERSION,
+                conteudo: parsed.conteudo || parsed.texto || parsed.miolo || ''
+            }
+        };
+    }
+};
+
 const AUDITOR_FACTUAL = {
     id: 'auditor-factual',
     node: NODES.AUDITOR_FACTUAL,
@@ -200,6 +234,7 @@ module.exports = {
     STEPS,
     PLANNER,
     EXECUTOR,
+    EXECUTOR_RA,
     AUDITOR_FACTUAL,
     AUDITOR_EDITORIAL,
     mapPlanoFromParsed,

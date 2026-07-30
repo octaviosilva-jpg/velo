@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { getPipelineMode, isShadowEnabled, isPevPlanExecEnabled, isPevFactualAuditorEnabled, isPevEditorialAuditorEnabled, isPevConditionalAuditEnabled, isPevConditionalAuditShadow, isPevSkipFactualTier1Enabled, isPevChanceModeracaoEnabled } = require('../index');
+const { getPipelineMode, isShadowEnabled, isPevPlanExecEnabled, isPevFactualAuditorEnabled, isPevEditorialAuditorEnabled, isPevConditionalAuditEnabled, isPevConditionalAuditShadow, isPevSkipFactualTier1Enabled, isPevChanceModeracaoEnabled, isPevRaStandardEnabled } = require('../index');
 const { PIPELINE_MODE } = require('../constants');
 
 assert.strictEqual(getPipelineMode({}), PIPELINE_MODE.OFF);
@@ -35,6 +35,10 @@ assert.strictEqual(isPevSkipFactualTier1Enabled({ PEV_SKIP_FACTUAL_TIER1_ENABLED
 assert.strictEqual(isPevChanceModeracaoEnabled({}), false);
 assert.strictEqual(isPevChanceModeracaoEnabled({ PEV_CHANCE_MODERACAO_ENABLED: 'false' }), false);
 assert.strictEqual(isPevChanceModeracaoEnabled({ PEV_CHANCE_MODERACAO_ENABLED: 'true' }), true);
+
+assert.strictEqual(isPevRaStandardEnabled({}), true);
+assert.strictEqual(isPevRaStandardEnabled({ PEV_RA_STANDARD_ENABLED: 'false' }), false);
+assert.strictEqual(isPevRaStandardEnabled({ PEV_RA_STANDARD_ENABLED: 'true' }), true);
 
 const { isPevObservabilityEnabled, isPevObservabilityExportsEnabled } = require('../observability');
 

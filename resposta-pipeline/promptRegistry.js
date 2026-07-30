@@ -13,6 +13,7 @@ const crypto = require('crypto');
  * Responsabilidades:
  * - planner@v1: produz PlanoDeResposta (JSON). NUNCA redige texto ao consumidor.
  * - executor@v1: produz RascunhoMiolo (JSON com conteudo). NUNCA altera estrategia/plano.
+ * - executor-ra@v1: produz RascunhoMiolo alinhado ao script padrao RA (gerarScriptPadraoResposta).
  * - auditor-factual@v1: produz VereditoFactual (JSON). NUNCA redige texto ao consumidor.
  * - auditor-editorial@v1: produz VereditoEditorial (JSON). NUNCA redige texto ao consumidor.
  */
@@ -128,6 +129,47 @@ const REGISTRY = {
             parts.push('- Nunca empurrar cliente para SAC/suporte/central');
             parts.push('- Nao inventar fatos alem da matriz de autoridade');
             parts.push('- Respeitar exclusoes do plano');
+            return { system, user: parts.join('\n') };
+        }
+    },
+
+    'executor-ra@v1': {
+        id: 'executor-ra',
+        version: 'v1',
+        responseFormat: 'json_object',
+        build(ctx = {}) {
+            const { SYSTEM_PROMPT_RA } = require('./shared/raStandardPrompt');
+            const system = ctx.systemPromptRA || SYSTEM_PROMPT_RA;
+            const parts = [
+                ctx.promptUsuario || '',
+                '',
+                'INSTRUCOES DE SAIDA:',
+                '- Redija APENAS o miolo explicativo resolutivo da resposta publica RA.',
+                '- NAO inclua saudacao com nome, apresentacao do agente, rodape institucional nem assinatura (aplicados pelo sistema).',
+                '- Siga ESTRITAMENTE todas as regras, profundidade e fundamentacao do script acima.',
+                '- PROIBIDO resposta enxuta/telegrafica: desenvolva em paragrafos completos conforme o padrao Velotax.'
+            ];
+            if (ctx.gateFeedback) {
+                parts.push('');
+                parts.push('CORRECAO OBRIGATORIA (DeterministicGate reprovou tentativa anterior):');
+                parts.push(ctx.gateFeedback);
+            }
+            if (ctx.factualFeedback) {
+                parts.push('');
+                parts.push('CORRECAO OBRIGATORIA (AuditorFactual reprovou tentativa anterior):');
+                parts.push(ctx.factualFeedback);
+            }
+            if (ctx.editorialFeedback) {
+                parts.push('');
+                parts.push('CORRECAO OBRIGATORIA (AuditorEditorial reprovou tentativa anterior):');
+                parts.push(ctx.editorialFeedback);
+            }
+            parts.push('');
+            parts.push('Retorne EXATAMENTE este JSON (sem texto adicional):');
+            parts.push('{');
+            parts.push('  "schema_version": "1.0",');
+            parts.push('  "conteudo": "..."');
+            parts.push('}');
             return { system, user: parts.join('\n') };
         }
     },

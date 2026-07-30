@@ -6279,7 +6279,9 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
                         executarChanceModeracao,
                         montarChecklistConformidadeRA,
                         montarTextoFallbackRespostaRA,
-                        obterConhecimentoProdutos
+                        obterConhecimentoProdutos,
+                        gerarScriptPadraoResposta,
+                        reformularComConhecimento
                     }
                 );
 

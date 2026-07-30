@@ -17,6 +17,7 @@ const orchestrator = require('./orchestrator');
 const observability = require('./observability');
 const responseBuilder = require('./responseBuilder');
 const chanceModeracao = require('./chanceModeracao');
+const { SYSTEM_PROMPT_RA } = require('./shared/raStandardPrompt');
 
 const { PIPELINE_MODE, NODES, ACTORS } = constants;
 
@@ -97,6 +98,15 @@ function isPevChanceModeracaoEnabled(envVars = {}) {
         || 'false'
     ).toLowerCase().trim();
     return raw === 'true';
+}
+
+function isPevRaStandardEnabled(envVars = {}) {
+    const raw = String(
+        envVars.PEV_RA_STANDARD_ENABLED
+        || process.env.PEV_RA_STANDARD_ENABLED
+        || 'true'
+    ).toLowerCase().trim();
+    return raw !== 'false';
 }
 
 function isPevObservabilityEnabled(envVars = {}) {
@@ -219,6 +229,8 @@ async function runPlanExec(input = {}, deps = {}) {
         conditionalAuditEnabled: isPevConditionalAuditEnabled(deps.envVars || input.envVars || {}),
         conditionalAuditShadow: isPevConditionalAuditShadow(deps.envVars || input.envVars || {}),
         skipFactualTier1Enabled: isPevSkipFactualTier1Enabled(deps.envVars || input.envVars || {}),
+        raStandardExecutorEnabled: isPevRaStandardEnabled(deps.envVars || input.envVars || {}),
+        systemPromptRA: SYSTEM_PROMPT_RA,
         models: {
             planner: deps.envVars?.OPENAI_MODEL || deps.models?.planner,
             executor: deps.envVars?.OPENAI_MODEL || deps.models?.executor,
@@ -268,6 +280,7 @@ module.exports = {
     isPevConditionalAuditShadow,
     isPevSkipFactualTier1Enabled,
     isPevChanceModeracaoEnabled,
+    isPevRaStandardEnabled,
     isPevObservabilityEnabled,
     isPevObservabilityExportsEnabled,
     observability,

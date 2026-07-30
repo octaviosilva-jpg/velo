@@ -6,7 +6,7 @@ const { openaiStep, parseJsonTolerante } = require('./openaiStep');
 const ws = require('./workflowState');
 const { validateMiolo } = require('./deterministicGate');
 const { evaluateSkipFactual, evaluateSkipEditorial } = require('./auditorSkipPolicy');
-const { PLANNER, EXECUTOR, AUDITOR_FACTUAL, AUDITOR_EDITORIAL } = require('./steps');
+const { PLANNER, EXECUTOR, EXECUTOR_RA, AUDITOR_FACTUAL, AUDITOR_EDITORIAL } = require('./steps');
 const {
     isPlanoDeRespostaValid,
     assertFatosSubset,
@@ -17,6 +17,7 @@ const {
 const { mapResult } = require('./resultMapper');
 const preProcessor = require('./preProcessor');
 const responseBuilder = require('./responseBuilder');
+const raStandardPrompt = require('./shared/raStandardPrompt');
 
 function artefatoTipoPrompt(step) {
     if (step.id === 'planner') return 'PlanoDeResposta';
@@ -183,6 +184,100 @@ async function runExecutorWithGateRetry(state, deps) {
 
         if (attempt >= maxRetries) break;
         attempt += 1;
+    }
+
+    return null;
+}
+
+async function runExecutorRaStandardWithRetries(state, deps) {
+    const df = deps.dadosFormulario || state.entradasCruas || {};
+    const basePrompt = raStandardPrompt.buildPromptUsuarioBase(state, deps);
+    const temps = raStandardPrompt.getRaStandardTemperatures();
+    const systemPromptRA = deps.systemPromptRA || raStandardPrompt.SYSTEM_PROMPT_RA;
+
+    const attempts = [
+        { key: 'base', prompt: basePrompt, temperature: temps.base },
+        {
+            key: 'correcao',
+            prompt: raStandardPrompt.buildRetryPromptCorrecao(basePrompt, df),
+            temperature: temps.correcao
+        },
+        {
+            key: 'desenvolvimento',
+            prompt: raStandardPrompt.buildRetryPromptDesenvolvimento(basePrompt, df),
+            temperature: temps.desenvolvimento
+        }
+    ];
+
+    const candidatas = [];
+    let lastVeredito = null;
+
+    for (let i = 0; i < attempts.length; i++) {
+        const attempt = attempts[i];
+        state._raPromptUsuario = attempt.prompt;
+
+        if (i > 0) {
+            state.executorRetryCount = i;
+            ws.reopenForStep(state, EXECUTOR_RA);
+            state._gateFeedback = lastVeredito;
+        }
+
+        await runNode(state, EXECUTOR_RA, {
+            ...deps,
+            raExecutorTemperature: attempt.temperature,
+            systemPromptRA,
+            gateFeedback: i > 0 ? lastVeredito : null
+        });
+
+        if (!isRascunhoMioloValid(state.rascunhoMiolo)) {
+            throw new Error('[orchestrator] Executor RA produziu RascunhoMiolo invalido');
+        }
+
+        const conteudo = state.rascunhoMiolo.conteudo;
+        candidatas.push(conteudo);
+
+        lastVeredito = raStandardPrompt.validateMioloLikeMonolith(conteudo, df);
+        state.vereditoGate = lastVeredito;
+
+        ws.addArtefato(state, {
+            node: NODES.DETERMINISTIC_GATE,
+            tipo: 'VereditoGate',
+            payload: lastVeredito,
+            attempt: i,
+            raStandardMode: true,
+            raAttempt: attempt.key
+        });
+
+        ws.logDecision(state, {
+            node: NODES.DETERMINISTIC_GATE,
+            actor: ACTORS.CODIGO,
+            event: lastVeredito.aprovado ? 'gate.aprovado' : 'gate.reprovado',
+            reason: lastVeredito.falhas.map(f => f.tipo).join(', ') || 'ok',
+            raAttempt: attempt.key
+        });
+
+        if (lastVeredito.aprovado) {
+            return conteudo;
+        }
+    }
+
+    const semSolucao = raStandardPrompt.isSemSolucaoImplementada(df);
+    const melhor = raStandardPrompt.pickBestCandidate(candidatas);
+
+    if (melhor && semSolucao && melhor.length >= 200) {
+        state.rascunhoMiolo = { schemaVersion: '1.0', conteudo: melhor };
+        ws.logDecision(state, {
+            node: NODES.EXECUTOR,
+            actor: ACTORS.CODIGO,
+            event: 'executor.ra_standard_melhor_candidata',
+            reason: 'sem_solucao_implementada'
+        });
+        return melhor;
+    }
+
+    if (melhor && !semSolucao && raStandardPrompt.validateMioloLikeMonolith(melhor, df).aprovado) {
+        state.rascunhoMiolo = { schemaVersion: '1.0', conteudo: melhor };
+        return melhor;
     }
 
     return null;
@@ -563,6 +658,47 @@ async function runPlanExecPipeline(state, deps = {}) {
 
     let conteudoMiolo = null;
 
+    if (deps.raStandardExecutorEnabled) {
+        ws.logDecision(state, {
+            node: NODES.PRE_PROCESSOR,
+            actor: ACTORS.CODIGO,
+            event: 'executor.ra_standard',
+            reason: 'script_padrao_ra — planner omitido'
+        });
+
+        try {
+            conteudoMiolo = await runExecutorRaStandardWithRetries(state, deps);
+        } catch (err) {
+            ws.logDecision(state, {
+                node: NODES.EXECUTOR,
+                actor: ACTORS.CODIGO,
+                event: 'executor.ra_standard.falha',
+                reason: err.message
+            });
+            conteudoMiolo = applyFallback(state, deps);
+            return finalizeWithResponseBuilder(state, deps, {
+                conteudoMiolo,
+                usedFallback: true,
+                metrics: { openaiCallCount: countOpenaiCalls(state), duracaoMs: Date.now() - t0 }
+            });
+        }
+
+        if (!conteudoMiolo) {
+            conteudoMiolo = applyFallback(state, deps);
+            return finalizeWithResponseBuilder(state, deps, {
+                conteudoMiolo,
+                usedFallback: true,
+                metrics: { openaiCallCount: countOpenaiCalls(state), duracaoMs: Date.now() - t0 }
+            });
+        }
+
+        ws.addArtefato(state, {
+            node: NODES.EXECUTOR,
+            tipo: 'RascunhoMiolo',
+            payload: state.rascunhoMiolo,
+            raStandardMode: true
+        });
+    } else {
     try {
         await runPlannerWithTechnicalRetry(state, deps);
     } catch (err) {
@@ -617,6 +753,7 @@ async function runPlanExecPipeline(state, deps = {}) {
         tipo: 'RascunhoMiolo',
         payload: state.rascunhoMiolo
     });
+    }
 
     if (factualEnabled) {
         try {
@@ -713,6 +850,7 @@ module.exports = {
     validatePlannerOutput,
     runPlannerWithTechnicalRetry,
     runExecutorWithGateRetry,
+    runExecutorRaStandardWithRetries,
     runAuditorWithTechnicalRetry,
     runFactualAuditWithRetry,
     runAuditorEditorialWithTechnicalRetry,
