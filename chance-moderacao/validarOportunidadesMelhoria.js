@@ -21,6 +21,10 @@ function validarOportunidadesMelhoria(dto, perfil) {
         return { valido: false, erros };
     }
 
+    if (dto.itens.length === 0) {
+        return { valido: true, erros: [] };
+    }
+
     const criteriosValidos = new Set(Object.keys(perfil?.criterios || {}));
     const idsVistos = new Set();
 

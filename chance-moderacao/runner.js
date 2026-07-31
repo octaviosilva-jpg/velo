@@ -209,7 +209,7 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
         let deltaPorCriterio = null;
         let oportunidadesMelhoria = outAud.oportunidadesMelhoria;
 
-        if (fluxoCompleto) {
+        if (fluxoCompleto && oportunidadesMelhoria?.itens?.length > 0) {
             // D — Reformulador
             const outRef = await reformulador({
                 respostaPublica,

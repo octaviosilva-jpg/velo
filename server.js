@@ -8481,7 +8481,9 @@ app.post('/api/chance-moderacao', async (req, res) => {
         if (!out.sucesso) {
             return res.status(500).json({
                 success: false,
-                error: out.erro || 'Erro interno do servidor na análise de chance de moderação'
+                error: out.erro || 'Erro interno do servidor na análise de chance de moderação',
+                codigoErro: out.codigoErro || null,
+                telemetria: out.telemetria || null
             });
         }
 
