@@ -63,6 +63,14 @@ const MIOLO = 'Cliente contatado. Orientado a acompanhar aplicativo. Detalhes so
     assert.strictEqual(ctx.nomeCliente, 'Pedro Silva');
     assert.strictEqual(ctx.nomeAgente, 'Ana');
 
+    const ctxSemNome = resolveContextoResposta({
+        entradasCruas: {
+            texto_cliente: 'Olá, sou iniciante agora e preciso de ajuda'
+        },
+        userData: { nome: 'Ana Costa' }
+    });
+    assert.strictEqual(ctxSemNome.nomeCliente, null, 'sem heuristica na reclamacao');
+
     const jaFormatada = buildRespostaPublica({
         conteudoMiolo: basica,
         nomeCliente: 'Maria',

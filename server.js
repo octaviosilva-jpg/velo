@@ -1488,21 +1488,11 @@ function extrairNomeCliente(textoReclamacao) {
     return null;
 }
 
-// Extrair nome do cliente e do agente da resposta pública da empresa (para preservar na reformulação)
+// Extrair nome do agente da resposta pública (cliente NÃO é inferido — usar nome_solicitante).
 function extrairNomesDaRespostaPublica(respostaPublica) {
     const out = { nomeCliente: null, nomeAgente: null };
     if (!respostaPublica || typeof respostaPublica !== 'string') return out;
     const texto = respostaPublica.trim();
-
-    // Nome do cliente: "Olá, Nome!" ou "Prezado(a) Nome"
-    const matchCliente = texto.match(/Olá,?\s+([^!?\n]+?)\s*[!?.]?\s*(\n|$)/i)
-        || texto.match(/Prezad[oa](?:\(a\))?\s+([^,!\n]+?)[,!.]?\s*(\n|$)/i);
-    if (matchCliente && matchCliente[1]) {
-        const nome = matchCliente[1].trim();
-        if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'cliente') {
-            out.nomeCliente = nome;
-        }
-    }
 
     // Nome do agente: "Sou [Nome], analista" (ou legado: especialista/atendente)
     const matchAgente = texto.match(/Sou\s+(?:(?:o|a)\s+)?([^,]+),\s*(?:analista|especialista|atendente)/i);
@@ -6358,7 +6348,7 @@ app.post('/api/gerar-resposta', rateLimitMiddleware, async (req, res) => {
             const nomeAgente = obterPrimeiroNomeUsuario(userData);
             const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim())
                 ? String(dadosFormulario.nome_solicitante).trim()
-                : extrairNomeCliente(dadosFormulario.texto_cliente);
+                : null;
 
             const palavrasGenericas = [
                 'situação atual', 'detalhes específicos não foram compartilhados',
@@ -7110,11 +7100,11 @@ INSTRUÇÕES (SEM FEEDBACK ESPECÍFICO DO OPERADOR):
             const data = await response.json();
             let respostaReformulada = data.choices[0].message.content;
             
-            // Nome do cliente: priorizar nome do solicitante do formulário
+            // Nome do cliente: apenas campo explícito do formulário (sem heurística na reclamação)
             const nomeAgente = obterPrimeiroNomeUsuario(userData);
             const nomeCliente = (dadosFormulario.nome_solicitante && String(dadosFormulario.nome_solicitante).trim()) 
                 ? String(dadosFormulario.nome_solicitante).trim() 
-                : extrairNomeCliente(dadosFormulario.texto_cliente);
+                : null;
             
             // Aplicar formatação da resposta RA com a estrutura solicitada (Olá, {nome}!)
             respostaReformulada = formatarRespostaRA(respostaReformulada, nomeCliente, nomeAgente, userData);
@@ -8435,13 +8425,12 @@ async function executarChanceModeracao(input = {}) {
     return runChanceModeracaoPipeline(input, {
         apiKey,
         envVars: vars,
+        debug: !!input.debug,
         formatarRespostaRA,
         montarBlocoChanceModeracao,
         carregarModeracoesAprovadasSimilares,
         montarBlocoCalibracaoHistorica,
         humanizarPontuacaoGerada,
-        extrairNomesDaRespostaPublica,
-        extrairNomeCliente,
         obterPrimeiroNomeUsuario
     });
 }
@@ -8450,14 +8439,15 @@ async function executarChanceModeracao(input = {}) {
 app.post('/api/chance-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/chance-moderacao chamado');
     try {
-        const { reclamacaoCompleta, respostaPublica, consideracaoFinal, historicoModeracao, solucaoImplementada } = req.body;
+        const { reclamacaoCompleta, respostaPublica, consideracaoFinal, historicoModeracao, solucaoImplementada, debug } = req.body;
         const out = await executarChanceModeracao({
             reclamacaoCompleta,
             respostaPublica,
             solucaoImplementada: solucaoImplementada || '',
             consideracaoFinal: consideracaoFinal || '',
             historicoModeracao: historicoModeracao || '',
-            userData: req.user || req.userData || null
+            userData: req.user || req.userData || null,
+            debug: !!debug
         });
 
         if (!out.sucesso && out.erro === 'validacao') {
@@ -8487,7 +8477,7 @@ app.post('/api/chance-moderacao', async (req, res) => {
             });
         }
 
-        return res.json({
+        const payload = {
             success: true,
             result: out.result,
             motor: out.motor,
@@ -8503,7 +8493,14 @@ app.post('/api/chance-moderacao', async (req, res) => {
             oportunidadesMelhoria: out.oportunidadesMelhoria,
             versions: out.versions,
             telemetria: out.telemetria
-        });
+        };
+        if (out.debugAuditora) {
+            payload.debugAuditora = out.debugAuditora;
+            if (out.debugAuditora.auditoraRaw) {
+                console.log(`[chance/auditora] debug raw chars=${String(out.debugAuditora.auditoraRaw).length} hash=${out.debugAuditora.auditoraRawHash || 'n/a'}`);
+            }
+        }
+        return res.json(payload);
     } catch (error) {
         console.error('❌ Erro no transporte /api/chance-moderacao:', error);
         return res.status(500).json({

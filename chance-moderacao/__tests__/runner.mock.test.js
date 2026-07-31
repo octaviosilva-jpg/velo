@@ -136,10 +136,11 @@ async function testFluxoCompletoMock() {
             carregarModeracoesAprovadasSimilares: async () => [],
             montarBlocoChanceModeracao: () => '',
             montarBlocoCalibracaoHistorica: () => '',
-            formatarRespostaRA: (miolo) => `FORMATADO:${miolo}`,
+            formatarRespostaRA: (miolo, nomeCliente) => {
+                const saudacao = nomeCliente && String(nomeCliente).trim() ? nomeCliente : 'cliente';
+                return `Olá, ${saudacao}!\n\nFORMATADO:${miolo}`;
+            },
             humanizarPontuacaoGerada: (t) => t,
-            extrairNomesDaRespostaPublica: () => ({ nomeCliente: 'Cliente', nomeAgente: 'Agente' }),
-            extrairNomeCliente: () => 'Cliente',
             obterPrimeiroNomeUsuario: () => 'Agente'
         }
     );
@@ -150,6 +151,17 @@ async function testFluxoCompletoMock() {
     assert.ok(out.versions);
     assert.ok(['padrao', 'completo'].includes(out.telemetria.fluxo));
     assert.ok(out.telemetria.openaiCallCount === 2 || out.telemetria.openaiCallCount === 4);
+    assert.ok(Array.isArray(out.telemetria.fluxoExecutado));
+    assert.ok(out.telemetria.fluxoExecutado.includes('extrator-1'));
+    assert.ok(out.telemetria.fluxoExecutado.includes('motor-1'));
+    assert.ok(out.telemetria.fluxoExecutado.includes('auditora'));
+    assert.ok(Array.isArray(out.telemetria.etapas));
+    assert.ok(out.telemetria.etapas.some((e) => e.fluxoId === 'sheets_calibracao'));
+    if (out.respostaReformulada) {
+        assert.ok(out.respostaReformulada.includes('Olá, cliente!'), 'saudacao fixa sem heuristica');
+        assert.ok(!out.respostaReformulada.includes('iniciante'));
+    }
+    assert.strictEqual(out.debugAuditora, null);
     console.log(`  runner mock fluxo=${out.telemetria.fluxo} openai=${out.telemetria.openaiCallCount} — OK`);
 }
 

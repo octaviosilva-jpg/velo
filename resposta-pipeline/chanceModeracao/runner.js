@@ -2,10 +2,12 @@
 
 const ws = require('../workflowState');
 const { ACTORS } = require('../constants');
+const { metadadosDebugAuditora } = require('../../chance-moderacao/debug');
 
 /**
  * Adaptador PEV — invoca executarChanceModeracao (dominio) via deps.
  * Nao conhece prompt, OpenAI ou motor-pontuacao.
+ * debugAuditora no WorkflowState: metadados + hash — nunca auditoraRaw.
  */
 async function runChanceModeracao(state, deps = {}) {
     const executar = deps.executarChanceModeracao;
@@ -43,11 +45,14 @@ async function runChanceModeracao(state, deps = {}) {
         solucaoImplementada: state.entradasCruas?.solucao_implementada || '',
         consideracaoFinal: state.entradasCruas?.consideracao_final || '',
         historicoModeracao: state.entradasCruas?.historico_moderacao || '',
-        userData: deps.userData || null
+        userData: deps.userData || null,
+        debug: !!deps.debug
     };
 
     try {
         const out = await executar(input);
+        const debugMeta = metadadosDebugAuditora(out.debugAuditora);
+
         state.chanceModeracao = {
             executada: true,
             sucesso: !!out.sucesso,
@@ -63,6 +68,7 @@ async function runChanceModeracao(state, deps = {}) {
             deltaPorCriterio: out.deltaPorCriterio ?? null,
             oportunidadesMelhoria: out.oportunidadesMelhoria ?? null,
             versions: out.versions ?? null,
+            debugAuditora: debugMeta,
             erro: out.sucesso ? null : (out.erro || null),
             telemetria: out.telemetria || null
         };
@@ -72,7 +78,9 @@ async function runChanceModeracao(state, deps = {}) {
             payload: {
                 sucesso: state.chanceModeracao.sucesso,
                 chanceFinal: out.motor?.chance_final ?? out.motor?.metadados?.chance_final ?? null,
-                fluxo: out.telemetria?.fluxo ?? null
+                fluxo: out.telemetria?.fluxo ?? null,
+                fluxoExecutado: out.telemetria?.fluxoExecutado ?? null,
+                debugAuditora: debugMeta
             }
         });
 

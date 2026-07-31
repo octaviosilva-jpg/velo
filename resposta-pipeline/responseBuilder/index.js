@@ -146,8 +146,9 @@ function extrairMioloRespostaRA(respostaTexto) {
  */
 function resolveContextoResposta({ entradasCruas = {}, userData } = {}) {
     const ec = entradasCruas || {};
+    // Única fonte válida: campo explícito do operador. Sem heurística na reclamação.
     const nomeSolicitante = ec.nome_solicitante && String(ec.nome_solicitante).trim();
-    const nomeCliente = nomeSolicitante || extrairNomeCliente(ec.texto_cliente) || null;
+    const nomeCliente = nomeSolicitante || null;
     const nomeAgente = obterPrimeiroNomeUsuario(userData);
 
     return { nomeCliente, nomeAgente };

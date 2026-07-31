@@ -20,13 +20,21 @@ async function auditora(entrada, deps = {}) {
     const envVars = deps.envVars || {};
     const model = resolverModelo(envVars, 'CHANCE_AUDITORA_MODEL', 'gpt-4o');
     const perfil = deps.perfil;
+    const debug = !!deps.debug;
 
     const prompt = montarPromptAuditora(entrada);
     let ultimoErro = null;
     let ultimaResp = null;
+    const errosPorTentativa = [];
+    const tentativasMeta = [];
+    const t0Auditora = Date.now();
+    let promptTokensTotal = 0;
+    let completionTokensTotal = 0;
+    let custoTotal = 0;
 
     for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
         console.log(`[chance/auditora] tentativa=${tentativa} model=${model}`);
+        const tTent = Date.now();
 
         const resp = await openaiStep({
             apiKey: deps.apiKey,
@@ -41,8 +49,13 @@ async function auditora(entrada, deps = {}) {
         });
 
         ultimaResp = resp;
+        if (resp.usage) {
+            promptTokensTotal += resp.usage.prompt_tokens || 0;
+            completionTokensTotal += resp.usage.completion_tokens || 0;
+        }
+        custoTotal += resp.custoEstimado || 0;
 
-        const { relatorio, jsonRaw } = separarRelatorioEOportunidades(resp.conteudo);
+        const { relatorio } = separarRelatorioEOportunidades(resp.conteudo);
         const validacaoMarkdown = validarSaidaAuditora(relatorio, perfil);
         const oportunidadesMelhoria = parseOportunidadesMelhoria(resp.conteudo);
         const validacaoDto = oportunidadesMelhoria
@@ -53,20 +66,39 @@ async function auditora(entrada, deps = {}) {
             ...(validacaoMarkdown.erros || []),
             ...(validacaoDto.erros || [])
         ];
+        const valida = validacaoMarkdown.valido && validacaoDto.valido;
+        const durTent = Date.now() - tTent;
 
-        if (validacaoMarkdown.valido && validacaoDto.valido) {
+        tentativasMeta.push({ n: tentativa, duracaoMs: durTent, valida });
+
+        if (valida) {
+            if (debug && resp.conteudo) {
+                console.log(`[chance/auditora] raw tentativa=${tentativa} chars=${resp.conteudo.length} preview=${String(resp.conteudo).slice(0, 400)}`);
+            }
+
             const saida = {
                 relatorio,
                 oportunidadesMelhoria,
+                fallback: false,
+                avisoValidacao: null,
+                errosPorTentativa,
+                tentativas: tentativasMeta,
+                auditoraRaw: debug ? resp.conteudo : undefined,
                 telemetriaChamada: {
                     etapa: 'auditora',
                     model,
                     promptVersion: PROMPT_AUDITORA_VERSION,
+                    schemaVersion: PROMPT_AUDITORA_VERSION,
                     invocacao: 1,
-                    tokens: resp.usage,
-                    duracaoMs: resp.duracaoMs,
-                    custoEstimado: resp.custoEstimado,
-                    tentativa
+                    tokens: {
+                        prompt_tokens: promptTokensTotal,
+                        completion_tokens: completionTokensTotal,
+                        total_tokens: promptTokensTotal + completionTokensTotal
+                    },
+                    duracaoMs: Date.now() - t0Auditora,
+                    custoEstimado: custoTotal,
+                    tentativa,
+                    tentativas: tentativasMeta
                 }
             };
             validarSaidaEtapa('auditora', saida);
@@ -74,15 +106,17 @@ async function auditora(entrada, deps = {}) {
         }
 
         ultimoErro = erros.join('; ');
+        errosPorTentativa.push({ tentativa, erro: ultimoErro });
         console.warn(`[chance/auditora] validação falhou (tentativa ${tentativa}): ${ultimoErro}`);
+        if (debug && resp.conteudo) {
+            console.log(`[chance/auditora] raw tentativa=${tentativa} chars=${resp.conteudo.length} preview=${String(resp.conteudo).slice(0, 800)}`);
+        }
         if (tentativa < MAX_TENTATIVAS) {
             prompt.user += `\n\nCORREÇÃO OBRIGATÓRIA (tentativa ${tentativa + 1}): ${ultimoErro}. Inclua todas as seções H2 na ordem A10, bloco ${'<!-- OPORTUNIDADES_MELHORIA_JSON -->'} com schema oportunidades-v1, e use ### [Nome do critério] para cada critério do Motor. Percentual só na seção "Resultado Oficial do Motor" citando o valor oficial.`;
         }
     }
 
-    const err = new Error(`[chance/auditora] validação falhou após ${MAX_TENTATIVAS} tentativas: ${ultimoErro}`);
-    err.codigo = 'validacao_auditora';
-    console.error(err.message);
+    console.error(`[chance/auditora] validação falhou após ${MAX_TENTATIVAS} tentativas: ${ultimoErro}`);
 
     const resultadoMotor = entrada.resultadoMotor;
     const perfilVersao = deps.perfilVersao || 'v1';
@@ -94,20 +128,33 @@ async function auditora(entrada, deps = {}) {
     });
     const oportunidadesMelhoria = montarOportunidadesFallback(resultadoMotor, perfil);
 
+    if (debug && ultimaResp?.conteudo) {
+        console.log(`[chance/auditora] raw fallback chars=${ultimaResp.conteudo.length}`);
+    }
+
     return {
         relatorio,
         oportunidadesMelhoria,
         fallback: true,
         avisoValidacao: ultimoErro,
+        errosPorTentativa,
+        tentativas: tentativasMeta,
+        auditoraRaw: debug ? (ultimaResp?.conteudo || null) : undefined,
         telemetriaChamada: {
             etapa: 'auditora',
             model,
             promptVersion: PROMPT_AUDITORA_VERSION,
+            schemaVersion: PROMPT_AUDITORA_VERSION,
             invocacao: 1,
-            tokens: ultimaResp?.usage || null,
-            duracaoMs: ultimaResp?.duracaoMs || 0,
-            custoEstimado: ultimaResp?.custoEstimado || 0,
+            tokens: {
+                prompt_tokens: promptTokensTotal,
+                completion_tokens: completionTokensTotal,
+                total_tokens: promptTokensTotal + completionTokensTotal
+            },
+            duracaoMs: Date.now() - t0Auditora,
+            custoEstimado: custoTotal,
             tentativa: MAX_TENTATIVAS,
+            tentativas: tentativasMeta,
             fallback: true
         }
     };

@@ -17,7 +17,14 @@ const { montarResultadoFinal } = require('./montarResultadoFinal');
 const { serializarMotor } = require('./serializarMotor');
 const { montarVersions } = require('./montarVersions');
 const { validarContrato } = require('./contratoChamadasOpenAI');
-const { CHANCE_LIMIAR_REFORMULACAO, PERFIL_PADRAO: PERFIL_DEFAULT } = require('./constants');
+const {
+    CHANCE_LIMIAR_REFORMULACAO,
+    PERFIL_PADRAO: PERFIL_DEFAULT,
+    PROMPT_EXTRATOR_VERSION,
+    PROMPT_AUDITORA_VERSION,
+    PROMPT_REFORMULADOR_VERSION
+} = require('./constants');
+const { isChanceDebugEnabled, montarDebugAuditora } = require('./debug');
 
 function executarMotor(extracaoNorm, ctx) {
     const auditoria = { ...extracaoNorm.auditoriaPlana };
@@ -26,14 +33,37 @@ function executarMotor(extracaoNorm, ctx) {
     return motorPontuacao.analisarChance(auditoria, { perfilVersao: ctx.perfilVersao });
 }
 
-function acumularTelemetria(state, chamada) {
-    state.chamadas.push(chamada);
+function registrarEtapa(telemetriaState, registro) {
+    telemetriaState.fluxoExecutado.push(registro.fluxoId || registro.etapa);
+    telemetriaState.etapas.push(registro);
+}
+
+function acumularTelemetriaOpenai(state, chamada) {
     state.openaiCallCount += 1;
+    state.chamadas.push(chamada);
     if (chamada.tokens) {
         state.promptTokens += chamada.tokens.prompt_tokens || 0;
         state.completionTokens += chamada.tokens.completion_tokens || 0;
     }
     state.custoEstimadoTotal += chamada.custoEstimado || 0;
+}
+
+function etapaFromLlmChamada(fluxoId, chamada, extras = {}) {
+    const pt = chamada.tokens?.prompt_tokens || 0;
+    const ct = chamada.tokens?.completion_tokens || 0;
+    return {
+        etapa: chamada.etapa,
+        fluxoId,
+        duracaoMs: chamada.duracaoMs || 0,
+        modelo: chamada.model || null,
+        promptTokens: pt,
+        completionTokens: ct,
+        totalTokens: pt + ct,
+        invocacao: chamada.invocacao || 1,
+        schemaVersion: chamada.schemaVersion || chamada.promptVersion || null,
+        tentativas: chamada.tentativas || undefined,
+        ...extras
+    };
 }
 
 function montarMetadadosMotor(resultadoMotor, norm) {
@@ -46,19 +76,6 @@ function montarMetadadosMotor(resultadoMotor, norm) {
         fundamentos: norm?.fundamentos || null,
         mapa_reclamacao: norm?.mapa_reclamacao || null
     };
-}
-
-function resolverNomes(respostaPublica, reclamacao, userData, deps) {
-    const nomes = deps.extrairNomesDaRespostaPublica?.(respostaPublica) || {};
-    let nomeCliente = nomes.nomeCliente;
-    let nomeAgente = nomes.nomeAgente;
-    if (!nomeCliente?.trim()) {
-        nomeCliente = deps.extrairNomeCliente?.(reclamacao) || 'Cliente';
-    }
-    if (!nomeAgente?.trim()) {
-        nomeAgente = deps.obterPrimeiroNomeUsuario?.(userData) || 'Agente';
-    }
-    return { nomeCliente, nomeAgente };
 }
 
 function tratarErroOpenai(err) {
@@ -88,7 +105,9 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
         promptTokens: 0,
         completionTokens: 0,
         custoEstimadoTotal: 0,
-        chamadas: []
+        chamadas: [],
+        fluxoExecutado: [],
+        etapas: []
     };
 
     const telemetriaBase = (extras = {}) => ({
@@ -98,6 +117,8 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
         duracaoMs: Date.now() - t0,
         custoEstimadoTotal: Number(telemetriaState.custoEstimadoTotal.toFixed(6)),
         chamadas: telemetriaState.chamadas,
+        fluxoExecutado: telemetriaState.fluxoExecutado,
+        etapas: telemetriaState.etapas,
         ...extras
     });
 
@@ -107,8 +128,11 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
         solucaoImplementada = '',
         consideracaoFinal = '',
         historicoModeracao = '',
-        userData = null
+        userData = null,
+        debug: inputDebug = false
     } = input;
+
+    const debug = isChanceDebugEnabled(deps.envVars || {}, inputDebug || deps.debug);
 
     if (!reclamacaoCompleta || !respostaPublica) {
         return {
@@ -138,16 +162,29 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
 
     const stepDeps = {
         ...deps,
+        debug,
         perfil,
         instrucaoEstados,
         montarInstrucaoEstados: motorIntegracao.montarInstrucaoEstados
     };
 
     try {
+        const tSheets = Date.now();
         const casosHistoricos = await deps.carregarModeracoesAprovadasSimilares?.(
             `${reclamacaoCompleta} ${respostaPublica}`,
             5
         ) || [];
+        registrarEtapa(telemetriaState, {
+            etapa: 'sheets_calibracao',
+            fluxoId: 'sheets_calibracao',
+            duracaoMs: Date.now() - tSheets,
+            modelo: null,
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            invocacao: 1,
+            schemaVersion: null
+        });
 
         const baseNormativa = deps.montarBlocoChanceModeracao?.(
             `${reclamacaoCompleta} ${respostaPublica} ${consideracaoFinal}`,
@@ -164,9 +201,26 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
             consideracaoFinal,
             invocacao: 1
         }, stepDeps);
-        acumularTelemetria(telemetriaState, outExt1.telemetriaChamada);
+        acumularTelemetriaOpenai(telemetriaState, outExt1.telemetriaChamada);
+        registrarEtapa(telemetriaState, etapaFromLlmChamada('extrator-1', {
+            ...outExt1.telemetriaChamada,
+            schemaVersion: PROMPT_EXTRATOR_VERSION
+        }));
 
+        const tMot1 = Date.now();
         const motor1 = executarMotor(outExt1.extracao, ctxMotor);
+        registrarEtapa(telemetriaState, {
+            etapa: 'motor',
+            fluxoId: 'motor-1',
+            duracaoMs: Date.now() - tMot1,
+            modelo: null,
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            invocacao: 1,
+            schemaVersion: `motor-${motor1.metadados?.motor_version || 'v1'}`
+        });
+
         if (!motor1.sucesso) {
             return {
                 sucesso: false,
@@ -196,7 +250,13 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
             resultadoMotor: motor1,
             motorSerializado
         }, stepDeps);
-        acumularTelemetria(telemetriaState, outAud.telemetriaChamada);
+        acumularTelemetriaOpenai(telemetriaState, outAud.telemetriaChamada);
+        registrarEtapa(telemetriaState, etapaFromLlmChamada('auditora', {
+            ...outAud.telemetriaChamada,
+            schemaVersion: PROMPT_AUDITORA_VERSION
+        }, { tentativas: outAud.tentativas || outAud.telemetriaChamada?.tentativas }));
+
+        const debugAuditora = debug ? montarDebugAuditora(outAud) : null;
 
         const fluxoCompleto = motor1.chance_final < limiar;
         let respostaReformulada = null;
@@ -210,31 +270,51 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
         let oportunidadesMelhoria = outAud.oportunidadesMelhoria;
 
         if (fluxoCompleto && oportunidadesMelhoria?.itens?.length > 0) {
-            // D — Reformulador
             const outRef = await reformulador({
                 respostaPublica,
                 oportunidadesMelhoria: outAud.oportunidadesMelhoria
             }, stepDeps);
-            acumularTelemetria(telemetriaState, outRef.telemetriaChamada);
+            acumularTelemetriaOpenai(telemetriaState, outRef.telemetriaChamada);
+            registrarEtapa(telemetriaState, etapaFromLlmChamada('reformulador', {
+                ...outRef.telemetriaChamada,
+                schemaVersion: PROMPT_REFORMULADOR_VERSION
+            }));
 
-            const { nomeCliente, nomeAgente } = resolverNomes(respostaPublica, reclamacaoCompleta, userData, deps);
+            // Saudação fixa: nunca inferir nome do cliente (Olá, cliente!).
+            const nomeAgente = deps.obterPrimeiroNomeUsuario?.(userData) || 'Agente';
             respostaReformulada = deps.formatarRespostaRA?.(
                 outRef.mioloReformulado,
-                nomeCliente,
+                null,
                 nomeAgente,
                 userData
             ) || outRef.mioloReformulado;
 
-            // E — Extrator reuso + Motor #2 + Comparador
             const outExt2 = await extrator({
                 reclamacao: reclamacaoCompleta,
                 respostaPublica: respostaReformulada,
                 consideracaoFinal,
                 invocacao: 2
             }, stepDeps);
-            acumularTelemetria(telemetriaState, outExt2.telemetriaChamada);
+            acumularTelemetriaOpenai(telemetriaState, outExt2.telemetriaChamada);
+            registrarEtapa(telemetriaState, etapaFromLlmChamada('extrator-2', {
+                ...outExt2.telemetriaChamada,
+                schemaVersion: PROMPT_EXTRATOR_VERSION
+            }));
 
+            const tMot2 = Date.now();
             motor2 = executarMotor(outExt2.extracao, ctxMotor);
+            registrarEtapa(telemetriaState, {
+                etapa: 'motor',
+                fluxoId: 'motor-2',
+                duracaoMs: Date.now() - tMot2,
+                modelo: null,
+                promptTokens: 0,
+                completionTokens: 0,
+                totalTokens: 0,
+                invocacao: 2,
+                schemaVersion: `motor-${motor2.metadados?.motor_version || 'v1'}`
+            });
+
             if (!motor2.sucesso) {
                 return {
                     sucesso: false,
@@ -242,12 +322,14 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
                     codigoErro: 'motor_contrato',
                     result: null,
                     motor: montarMetadadosMotor(motor1, outExt1.extracao),
+                    debugAuditora,
                     telemetria: telemetriaBase({ fluxo: 'completo' })
                 };
             }
 
             motorReformulado = montarMetadadosMotor(motor2, outExt2.extracao);
 
+            const tCmp = Date.now();
             comparacaoOut = comparador({
                 resultadoMotor1: motor1,
                 resultadoMotor2: motor2,
@@ -256,6 +338,17 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
                 respostaOriginal: respostaPublica,
                 respostaReformulada
             });
+            registrarEtapa(telemetriaState, {
+                etapa: 'comparador',
+                fluxoId: 'comparador',
+                duracaoMs: Date.now() - tCmp,
+                modelo: null,
+                promptTokens: 0,
+                completionTokens: 0,
+                totalTokens: 0,
+                invocacao: 1,
+                schemaVersion: null
+            });
 
             respostaSugerida = comparacaoOut.respostaSugerida;
             reformulacaoAprovada = comparacaoOut.reformulacaoAprovada;
@@ -263,28 +356,53 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
             deltaPorCriterio = comparacaoOut.deltaPorCriterio;
         }
 
-        const fluxo = fluxoCompleto ? 'completo' : 'padrao';
+        // Sem reformulação (limiar ou DTO vazio) → fluxo padrao no contrato A13 (2 OpenAI).
+        const fluxoFinal = respostaReformulada ? 'completo' : 'padrao';
+
+        const tMontar = Date.now();
         const resultRaw = montarResultadoFinal({
             relatorio: outAud.relatorio,
             respostaReformulada,
             secao14: comparacaoOut?.secao14 || null,
-            fluxoCompleto
+            fluxoCompleto: !!respostaReformulada
+        });
+        registrarEtapa(telemetriaState, {
+            etapa: 'montar_resultado_final',
+            fluxoId: 'montar_resultado_final',
+            duracaoMs: Date.now() - tMontar,
+            modelo: null,
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            invocacao: 1,
+            schemaVersion: null
         });
 
         const result = deps.humanizarPontuacaoGerada?.(resultRaw) ?? resultRaw;
-        const versions = montarVersions(fluxo, perfilVersao);
+        const versions = montarVersions(fluxoFinal, perfilVersao);
 
         const contratoCheck = validarContrato({
-            fluxo,
+            fluxo: fluxoFinal,
             openaiCallCount: telemetriaState.openaiCallCount,
             chamadas: telemetriaState.chamadas
         });
+        // Fluxo completo sem reformulação (DTO vazio): 2 chamadas — contrato padrao
+        if (!contratoCheck.atendido && fluxoCompleto && !respostaReformulada) {
+            const checkPadrao = validarContrato({
+                fluxo: 'padrao',
+                openaiCallCount: telemetriaState.openaiCallCount,
+                chamadas: telemetriaState.chamadas
+            });
+            if (checkPadrao.atendido) {
+                Object.assign(contratoCheck, checkPadrao, { atendido: true, violacoes: [] });
+            }
+        }
         if (!contratoCheck.atendido) {
             console.warn('[chance/runner] contrato OpenAI violado:', contratoCheck.violacoes.join('; '));
         }
 
         const telemetria = telemetriaBase({
-            fluxo,
+            fluxo: fluxoFinal,
             contrato: {
                 esperado: contratoCheck.esperado,
                 atendido: contratoCheck.atendido,
@@ -317,6 +435,7 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
             deltaPorCriterio,
             oportunidadesMelhoria,
             versions,
+            debugAuditora,
             telemetria
         };
     } catch (err) {
