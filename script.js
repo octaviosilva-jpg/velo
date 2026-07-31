@@ -2603,6 +2603,158 @@ function escapeHtmlChance(texto) {
         .replace(/\n/g, '<br>');
 }
 
+// Parser Justificativa dos Critérios (espelho de chance-moderacao/justificativaParser.js).
+// Futuro: DTO justificativasCriterios[] — hoje o contrato é markdown ### + labels da Auditora.
+const JUSTIFICATIVA_TEXTO_TETO = 'Não se aplica — critério já está na pontuação máxima.';
+const JUSTIFICATIVA_CAMPOS = [
+    { key: 'classificacao', labels: ['classificação', 'classificacao'] },
+    { key: 'pontuacao', labels: ['pontuação', 'pontuacao'] },
+    { key: 'trechoReclamacao', labels: ['trecho da reclamação', 'trecho da reclamacao'] },
+    { key: 'trechoResposta', labels: ['trecho da resposta'] },
+    { key: 'justificativaTecnica', labels: ['justificativa técnica', 'justificativa tecnica'] },
+    { key: 'oQueReduziu', labels: ['o que reduziu a pontuação', 'o que reduziu a pontuacao'] },
+    { key: 'comoAumentar', labels: ['como aumentar a pontuação', 'como aumentar a pontuacao'] }
+];
+
+function stripMarkdownJustificativa(texto) {
+    return String(texto || '')
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/#{1,6}\s*/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/__/g, '')
+        .replace(/`/g, '')
+        .replace(/^\s*[-*•]\s+/gm, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function isNaTetoJustificativa(valor) {
+    const v = String(valor || '').toLowerCase();
+    if (!v) return false;
+    return (
+        /\bn\/?\s*a\b/.test(v) ||
+        v.includes('pontuação máxima') ||
+        v.includes('pontuacao maxima') ||
+        v.includes('critério já no teto') ||
+        v.includes('criterio ja no teto') ||
+        v.includes('já está na pontuação máxima') ||
+        v.includes('ja esta na pontuacao maxima')
+    );
+}
+
+function humanizarCampoJustificativa(valor) {
+    const limpo = stripMarkdownJustificativa(valor);
+    if (isNaTetoJustificativa(limpo)) return JUSTIFICATIVA_TEXTO_TETO;
+    return limpo;
+}
+
+function extrairCampoJustificativa(bloco, labels) {
+    const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const allLabels = JUSTIFICATIVA_CAMPOS.flatMap((c) => c.labels).map(escapeRe).join('|');
+    for (const label of labels) {
+        const re = new RegExp(
+            `(?:^|\\n)\\s*\\*?\\*?${escapeRe(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*\\*?\\*?(?:${allLabels})\\*?\\*?\\s*[:：])|$)`,
+            'i'
+        );
+        const m = bloco.match(re);
+        if (m) return m[1].trim();
+    }
+    return null;
+}
+
+function parseJustificativaCriterios(markdownSecao) {
+    if (!markdownSecao || typeof markdownSecao !== 'string') return [];
+    const texto = markdownSecao.trim();
+    if (!texto) return [];
+    const comecaComH3 = /^###\s+/m.test(texto);
+    const partes = texto.split(/^###\s+/m).filter((p) => p.trim());
+    if (!comecaComH3 || partes.length === 0) {
+        return [{ nome: 'Justificativa', campos: null, textoBruto: stripMarkdownJustificativa(texto), parcial: true }];
+    }
+    const blocos = [];
+    for (const parte of partes) {
+        const raw = parte.trim();
+        if (!raw) continue;
+        const nl = raw.indexOf('\n');
+        const nome = stripMarkdownJustificativa(nl === -1 ? raw : raw.slice(0, nl));
+        const corpo = nl === -1 ? '' : raw.slice(nl + 1);
+        const campos = {};
+        let reconhecidos = 0;
+        for (const { key, labels } of JUSTIFICATIVA_CAMPOS) {
+            const val = extrairCampoJustificativa(corpo, labels);
+            if (val != null && String(val).trim()) {
+                campos[key] = humanizarCampoJustificativa(val);
+                reconhecidos += 1;
+            } else {
+                campos[key] = null;
+            }
+        }
+        if (reconhecidos === 0) {
+            blocos.push({
+                nome: nome || 'Critério',
+                campos: null,
+                textoBruto: stripMarkdownJustificativa(corpo || raw),
+                parcial: true
+            });
+        } else {
+            blocos.push({
+                nome: nome || 'Critério',
+                campos,
+                textoBruto: stripMarkdownJustificativa(corpo),
+                parcial: reconhecidos < 3
+            });
+        }
+    }
+    return blocos.length
+        ? blocos
+        : [{ nome: 'Justificativa', campos: null, textoBruto: stripMarkdownJustificativa(texto), parcial: true }];
+}
+
+function renderJustificativaCriteriosCards(markdownSecao) {
+    const itens = parseJustificativaCriterios(markdownSecao);
+    if (!itens.length) return '';
+    let html = '<div class="justificativa-criterios">';
+    for (const item of itens) {
+        html += `<div class="card mb-2 border-light shadow-sm"><div class="card-header py-2 bg-light">` +
+            `<strong>${escapeHtmlChance(item.nome).replace(/<br>/g, ' ')}</strong></div><div class="card-body py-2">`;
+        if (!item.campos) {
+            html += `<p class="small mb-0">${escapeHtmlChance(item.textoBruto)}</p>`;
+        } else {
+            const c = item.campos;
+            if (c.classificacao || c.pontuacao) {
+                html += '<p class="mb-2">';
+                if (c.classificacao) {
+                    html += `<span class="badge bg-secondary me-1">${escapeHtmlChance(c.classificacao).replace(/<br>/g, ' ')}</span>`;
+                }
+                if (c.pontuacao) {
+                    html += `<span class="badge bg-primary">${escapeHtmlChance(c.pontuacao).replace(/<br>/g, ' ')}</span>`;
+                }
+                html += '</p>';
+            }
+            if (c.trechoReclamacao) {
+                html += `<div class="mb-2"><div class="text-muted small fw-semibold">Trecho da reclamação</div>` +
+                    `<blockquote class="border-start border-3 border-secondary ps-3 mb-0 small fst-italic">${escapeHtmlChance(c.trechoReclamacao)}</blockquote></div>`;
+            }
+            if (c.trechoResposta) {
+                html += `<div class="mb-2"><div class="text-muted small fw-semibold">Trecho da resposta</div>` +
+                    `<blockquote class="border-start border-3 border-secondary ps-3 mb-0 small fst-italic">${escapeHtmlChance(c.trechoResposta)}</blockquote></div>`;
+            }
+            if (c.justificativaTecnica) {
+                html += `<div class="mb-2"><div class="fw-semibold small">Justificativa técnica</div><div class="small">${escapeHtmlChance(c.justificativaTecnica)}</div></div>`;
+            }
+            if (c.oQueReduziu) {
+                html += `<div class="mb-2"><div class="fw-semibold small">O que reduziu a pontuação</div><div class="small">${escapeHtmlChance(c.oQueReduziu)}</div></div>`;
+            }
+            if (c.comoAumentar) {
+                html += `<div class="mb-2"><div class="fw-semibold small">Como aumentar a pontuação</div><div class="small">${escapeHtmlChance(c.comoAumentar)}</div></div>`;
+            }
+        }
+        html += '</div></div>';
+    }
+    html += '</div>';
+    return html;
+}
+
 function renderCardMotorOficial(motor) {
     if (!motor) return '';
     const chance = motor.chance_final ?? motor.metadados?.chance_final;
@@ -2660,7 +2812,10 @@ function renderSecoesQualitativas(analise) {
         if (titulo === 'Resultado Oficial do Motor') continue;
         const conteudo = secoes[titulo];
         if (!conteudo) continue;
-        html += `<div class="card mb-2"><div class="card-header py-2"><strong>${escapeHtmlChance(titulo)}</strong></div><div class="card-body py-2 small">${escapeHtmlChance(conteudo)}</div></div>`;
+        const corpo = titulo === 'Justificativa dos Critérios do Motor'
+            ? renderJustificativaCriteriosCards(conteudo)
+            : escapeHtmlChance(conteudo);
+        html += `<div class="card mb-2"><div class="card-header py-2"><strong>${escapeHtmlChance(titulo)}</strong></div><div class="card-body py-2 small">${corpo}</div></div>`;
     }
     return html;
 }

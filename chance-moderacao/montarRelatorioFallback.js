@@ -33,7 +33,7 @@ function montarRelatorioFallbackAuditora({ resultadoMotor, perfilVersao, perfil,
         '## Pontos que reduziram a pontuação',
         'Ver critérios com pontuação abaixo do teto na justificativa.',
         '## Como aumentar a pontuação',
-        'Endereçar lacunas nos critérios com menor pontuação.',
+        'Melhorar apenas o que for textual com fatos já presentes na resposta; não inventar comprovantes ou evidências externas.',
         '## Auditoria dos fatos',
         'N/A — fallback.',
         '## Clareza e Fundamentação',
@@ -45,6 +45,20 @@ function montarRelatorioFallbackAuditora({ resultadoMotor, perfilVersao, perfil,
     ].join('\n\n');
 }
 
+function acaoFallbackSegura(criterioId, label) {
+    if (criterioId === 'evidencia_objetiva') {
+        return (
+            'Explicitar na resposta apenas fatos e identificadores já presentes nos inputs; ' +
+            'não inventar comprovante. Se não houver evidência verificável nos registros, apenas esclarecer o relato existente ' +
+            '(dependência de evidência externa — não materializar).'
+        );
+    }
+    return (
+        `Explicitar na resposta pública o enfrentamento do critério ${label}, ` +
+        'usando apenas informações já disponíveis no texto — sem inventar evidência.'
+    );
+}
+
 function montarOportunidadesFallback(resultadoMotor, perfil) {
     const itens = [];
     const detalhe = resultadoMotor.metadados?.detalhe_criterios || {};
@@ -52,16 +66,17 @@ function montarOportunidadesFallback(resultadoMotor, perfil) {
     for (const [criterioId, d] of Object.entries(detalhe)) {
         const peso = d.peso ?? perfil?.criterios?.[criterioId]?.peso;
         if (peso != null && d.pontos >= peso) continue;
+        const label = LABELS[criterioId] || criterioId;
         itens.push({
             id: `melhoria-fallback-${idx++}`,
             criterioId,
-            criterioLabel: LABELS[criterioId] || criterioId,
+            criterioLabel: label,
             diagnostico: `Pontuação ${d.pontos}/${peso} — estado ${d.estado}.`,
-            acao: `Endereçar explicitamente o critério ${LABELS[criterioId] || criterioId} na resposta pública.`,
+            acao: acaoFallbackSegura(criterioId, label),
             criteriosImpactados: [criterioId]
         });
     }
     return { schemaVersion: OPORTUNIDADES_SCHEMA_VERSION, itens };
 }
 
-module.exports = { montarRelatorioFallbackAuditora, montarOportunidadesFallback };
+module.exports = { montarRelatorioFallbackAuditora, montarOportunidadesFallback, acaoFallbackSegura };

@@ -48,8 +48,13 @@ ${ordemSecoes}
    Se pontuação máxima: "N/A — pontuação máxima" e "N/A — critério já no teto".
 
 3. Seções 7 e 8 agregam diagnósticos e ações por critério (A2). Após cada item em "Como aumentar", liste Critérios impactados (A3).
+   Separe melhoria TEXTUAL possível (com o que já está nos inputs) de evidência ADICIONAL necessária mas INDISPONÍVEL.
+   No texto humano é permitido informar que a pontuação poderia subir com evidência verificável SE disponível nos registros.
+   No DTO (campo "acao"): NÃO ordene "Adicionar comprovante/protocolo/documento de X" sem base nos inputs.
+   Prefira ações como "Explicitar na resposta a providência já descrita…" ou "Não inventar comprovante; se não houver nos inputs, apenas esclarecer o relato existente".
 
 4. PROIBIDO: percentuais, faixas estimadas, linguagem especulativa (provavelmente, possivelmente, estima-se, etc.).
+   PROIBIDO no DTO: pedir fabricação de evidência inexistente nos inputs.
 
 5. Ao final, inclua bloco JSON delimitado para o Reformulador (A16) — NÃO interpretável como texto livre:
 ${MARCADOR_OPORTUNIDADES_JSON}
@@ -59,7 +64,9 @@ ${MARCADOR_OPORTUNIDADES_JSON}
 
     return {
         version: PROMPT_AUDITORA_VERSION,
-        system: 'Você é a Auditora Técnica Velotax para moderação do Reclame Aqui. Explique objetivamente as decisões do Motor de Pontuação com evidências ancoradas no texto. Nunca estime probabilidades.',
+        system:
+            'Você é a Auditora Técnica Velotax para moderação do Reclame Aqui. Explique objetivamente as decisões do Motor de Pontuação com evidências ancoradas no texto. ' +
+            'Nunca estime probabilidades. No DTO de oportunidades, não solicite inventar comprovantes ou evidências ausentes nos inputs.',
         user
     };
 }

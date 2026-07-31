@@ -40,13 +40,21 @@ const GUIA = {
         '      . media: pequena divergencia restante.\n' +
         '      . baixa: parte relevante da reclamacao permanece sem resposta.\n' +
         '      . contraditoria: a resposta conflita com a reclamacao ou com a consideracao final.',
+    // Limitação: não há clamp determinístico Extrator #1×#2 em evidencia_objetiva
+    // (reclassificação depende da disciplina deste GUIA + promptExtrator/Reformulador).
     evidencia_objetiva:
-        'Elementos VERIFICAVEIS presentes na resposta (contam-se elementos objetivos: contrato, protocolo, comprovante, print, data, horario, numero de transacao):\n' +
-        '      . documental_conclusiva: SOMENTE com documento(s) verificavel(is) anexado(s)/citado(s) de forma conclusiva.\n' +
-        '      . objetiva_forte: SOMENTE com PELO MENOS DOIS elementos objetivos verificaveis.\n' +
-        '      . objetiva_moderada: apenas UM elemento objetivo verificavel.\n' +
-        '      . declaratoria: apenas afirmacoes da empresa, sem elemento verificavel.\n' +
-        '      . sem_evidencia: nenhum elemento verificavel.',
+        'Natureza factual do elemento quanto ao fato controvertido — NÃO força da redacao:\n' +
+        '      Avalie se o elemento tem RELACAO PROBATORIA/VERIFICAVEL com o fato relevante discutido.\n' +
+        '      Mera presenca de data, horario, numero, linguagem categorica ou descricao detalhada NAO eleva evidencia automaticamente.\n' +
+        '      O elemento so contribui quando INDIVIDUALIZA ou permite VERIFICAR concretamente o fato (ex.: identificador/documento/registro concretamente relacionado a operacao e PRESENTE nos inputs).\n' +
+        '      Reorganizacao ou maior precisao textual da MESMA declaracao NAO constitui nova evidencia.\n' +
+        '      NAO criar regra mecanica so por presenca/ausencia de datas, numeros, protocolos ou documentos.\n' +
+        '      Ex.: "pagamento em 31/07/2026" — a data sozinha NAO transforma declaracao empresarial em comprovacao.\n' +
+        '      . documental_conclusiva: SOMENTE com documento(s) verificavel(is) anexado(s)/citado(s) de forma conclusiva e pertinente ao fato.\n' +
+        '      . objetiva_forte: SOMENTE com PELO MENOS DOIS elementos objetivos com relacao probatoria/verificavel ao fato.\n' +
+        '      . objetiva_moderada: apenas UM elemento objetivo com relacao probatoria/verificavel ao fato.\n' +
+        '      . declaratoria: apenas afirmacoes da empresa, sem elemento com relacao probatoria/verificavel.\n' +
+        '      . sem_evidencia: nenhum elemento verificavel pertinente.',
     cobertura_secundaria:
         'Fatos secundarios (contexto, nao o nucleo):\n' +
         '      . respondido: fatos secundarios enfrentados.\n' +
