@@ -292,8 +292,7 @@ async function gerarRespostaOpenAI() {
             await aplicarChanceModeracaoPosRespostaRA({
                 reclamacaoCompleta: reclamacaoValue,
                 respostaPublica: resposta,
-                result: apiResult.chanceModeracao.result,
-                motor: apiResult.chanceModeracao.motor,
+                ...apiResult.chanceModeracao,
                 origem: 'pev',
                 executionId: apiResult.executionId || null
             });
@@ -2224,7 +2223,8 @@ function preencherCamposRevisaoChance({ reclamacaoCompleta, respostaPublica }) {
     if (elResposta && respostaPublica) elResposta.value = respostaPublica;
 }
 
-function aplicarResultadoChanceModeracaoRA({ result, motor, origem, executionId }) {
+function aplicarResultadoChanceModeracaoRA(payload) {
+    const { result, motor, comparacao, deltaPorCriterio, reformulacaoAprovada, avisoRegressao } = payload || {};
     if (!result) return;
 
     const area = document.getElementById('ra-chance-moderacao-area');
@@ -2233,7 +2233,14 @@ function aplicarResultadoChanceModeracaoRA({ result, motor, origem, executionId 
     if (!area || !elAnalise) return;
 
     elLoading.style.display = 'none';
-    elAnalise.innerHTML = formatarAnaliseChanceModeracao(result);
+    elAnalise.innerHTML = formatarAnaliseChanceModeracao(result, {
+        motor,
+        comparacao,
+        deltaPorCriterio,
+        reformulacaoAprovada,
+        avisoRegressao,
+        respostaReformulada: payload.respostaReformulada
+    });
     area.style.display = 'block';
 }
 
@@ -2252,22 +2259,24 @@ function mostrarLoadingChanceModeracaoRA() {
     if (elAnalise) elAnalise.innerHTML = '';
 }
 
-async function aplicarChanceModeracaoPosRespostaRA({
-    reclamacaoCompleta,
-    respostaPublica,
-    result,
-    motor,
-    origem,
-    executionId
-}) {
+async function aplicarChanceModeracaoPosRespostaRA(payload) {
+    const {
+        reclamacaoCompleta,
+        respostaPublica,
+        result,
+        origem,
+        executionId,
+        ...resto
+    } = payload;
+
     preencherCamposRevisaoChance({ reclamacaoCompleta, respostaPublica });
 
     if (result) {
         aplicarResultadoChanceModeracao({
             result,
-            motor,
             origem: origem || 'pev',
-            executionId: executionId || null
+            executionId: executionId || null,
+            ...resto
         });
         return;
     }
@@ -2280,24 +2289,21 @@ async function aplicarChanceModeracaoPosRespostaRA({
     );
     const cache = window.analiseChanceModeracaoCache;
     if (cache && cache.result && cache.fingerprint === fingerprintAtual) {
-        aplicarResultadoChanceModeracao({
-            result: cache.result,
-            motor: cache.motor,
-            origem: cache.origem,
-            executionId: cache.executionId
-        });
+        aplicarResultadoChanceModeracao({ ...cache });
         return;
     }
 
     mostrarLoadingChanceModeracaoRA();
 
     try {
+        const solucaoImplementada = document.getElementById('solucao-implementada')?.value || '';
         const response = await fetch('/api/chance-moderacao', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 reclamacaoCompleta,
                 respostaPublica,
+                solucaoImplementada,
                 consideracaoFinal: '',
                 historicoModeracao: ''
             })
@@ -2309,6 +2315,16 @@ async function aplicarChanceModeracaoPosRespostaRA({
             aplicarResultadoChanceModeracao({
                 result: data.result,
                 motor: data.motor,
+                motorReformulado: data.motorReformulado,
+                respostaOriginal: data.respostaOriginal,
+                respostaReformulada: data.respostaReformulada,
+                respostaSugerida: data.respostaSugerida,
+                reformulacaoAprovada: data.reformulacaoAprovada,
+                avisoRegressao: data.avisoRegressao,
+                comparacao: data.comparacao,
+                deltaPorCriterio: data.deltaPorCriterio,
+                oportunidadesMelhoria: data.oportunidadesMelhoria,
+                versions: data.versions,
                 origem: origem || 'ra-auto',
                 executionId: null
             });
@@ -2332,7 +2348,24 @@ async function aplicarChanceModeracaoPosRespostaRA({
     }
 }
 
-function aplicarResultadoChanceModeracao({ result, motor, origem, executionId }) {
+function aplicarResultadoChanceModeracao(payload) {
+    const {
+        result,
+        motor,
+        motorReformulado,
+        respostaOriginal,
+        respostaReformulada,
+        respostaSugerida,
+        reformulacaoAprovada,
+        avisoRegressao,
+        comparacao,
+        deltaPorCriterio,
+        oportunidadesMelhoria,
+        versions,
+        origem,
+        executionId
+    } = payload || {};
+
     if (!result) return;
 
     const reclamacaoCompleta = document.getElementById('reclamacao-completa')?.value || '';
@@ -2340,11 +2373,20 @@ function aplicarResultadoChanceModeracao({ result, motor, origem, executionId })
     const consideracaoFinal = document.getElementById('consideracao-final')?.value || '';
     const historicoModeracao = document.getElementById('historico-moderacao')?.value || '';
 
-    const analiseFormatada = formatarAnaliseChanceModeracao(result);
+    const analiseFormatada = formatarAnaliseChanceModeracao(result, {
+        motor,
+        motorReformulado,
+        comparacao,
+        deltaPorCriterio,
+        reformulacaoAprovada,
+        avisoRegressao,
+        respostaReformulada
+    });
     document.getElementById('analise-chance-moderacao').innerHTML = analiseFormatada;
     document.getElementById('revisao-resultado').style.display = 'block';
 
-    window.respostaRevisadaModeracao = extrairRespostaRevisada(result);
+    window.respostaRevisadaModeracao = respostaSugerida || respostaReformulada || extrairRespostaRevisada(result);
+    window.respostaReformuladaAuditoria = respostaReformulada || null;
     window.analiseCompletaModeracao = result;
 
     if (window.respostaRevisadaModeracao && window.respostaRevisadaModeracao.trim().length > 0) {
@@ -2361,11 +2403,21 @@ function aplicarResultadoChanceModeracao({ result, motor, origem, executionId })
         ),
         result,
         motor: motor || null,
+        motorReformulado: motorReformulado || null,
+        respostaOriginal: respostaOriginal || respostaPublica,
+        respostaReformulada: respostaReformulada || null,
+        respostaSugerida: respostaSugerida || null,
+        reformulacaoAprovada: reformulacaoAprovada ?? null,
+        avisoRegressao: avisoRegressao || null,
+        comparacao: comparacao || null,
+        deltaPorCriterio: deltaPorCriterio || null,
+        oportunidadesMelhoria: oportunidadesMelhoria || null,
+        versions: versions || null,
         executionId: executionId || null
     };
 
     atualizarRotuloBotaoChanceModeracao();
-    aplicarResultadoChanceModeracaoRA({ result, motor, origem, executionId });
+    aplicarResultadoChanceModeracaoRA(payload);
 }
 
 function atualizarRotuloBotaoChanceModeracao() {
@@ -2400,12 +2452,7 @@ async function analisarChanceModeracao() {
     );
     const cache = window.analiseChanceModeracaoCache;
     if (cache && cache.result && cache.fingerprint === fingerprintAtual) {
-        aplicarResultadoChanceModeracao({
-            result: cache.result,
-            motor: cache.motor,
-            origem: cache.origem,
-            executionId: cache.executionId
-        });
+        aplicarResultadoChanceModeracao({ ...cache });
         const msg = cache.origem === 'pev'
             ? 'Exibindo análise já calculada pelo pipeline (sem nova requisição).'
             : 'Exibindo análise em cache (sem nova requisição).';
@@ -2417,6 +2464,7 @@ async function analisarChanceModeracao() {
     showLoadingMessage('Analisando chance de moderação com IA...');
     
     try {
+        const solucaoImplementada = document.getElementById('solucao-implementada')?.value || '';
         // Chamar endpoint do servidor (transporte)
         const response = await fetch('/api/chance-moderacao', {
             method: 'POST',
@@ -2426,6 +2474,7 @@ async function analisarChanceModeracao() {
             body: JSON.stringify({
                 reclamacaoCompleta: reclamacaoCompleta,
                 respostaPublica: respostaPublica,
+                solucaoImplementada: solucaoImplementada,
                 consideracaoFinal: consideracaoFinal || '',
                 historicoModeracao: historicoModeracao || ''
             })
@@ -2437,6 +2486,16 @@ async function analisarChanceModeracao() {
             aplicarResultadoChanceModeracao({
                 result: data.result,
                 motor: data.motor,
+                motorReformulado: data.motorReformulado,
+                respostaOriginal: data.respostaOriginal,
+                respostaReformulada: data.respostaReformulada,
+                respostaSugerida: data.respostaSugerida,
+                reformulacaoAprovada: data.reformulacaoAprovada,
+                avisoRegressao: data.avisoRegressao,
+                comparacao: data.comparacao,
+                deltaPorCriterio: data.deltaPorCriterio,
+                oportunidadesMelhoria: data.oportunidadesMelhoria,
+                versions: data.versions,
                 origem: 'manual',
                 executionId: null
             });
@@ -2485,188 +2544,163 @@ function extrairRespostaRevisada(resultado) {
     return '';
 }
 
-// Função para copiar apenas a resposta revisada
+// Função para copiar resposta sugerida (original ou reformulada conforme guardrail A5)
 function copiarRespostaRevisada() {
-    if (!window.respostaRevisadaModeracao) {
-        showErrorMessage('Nenhuma resposta revisada disponível.');
+    const texto = window.respostaRevisadaModeracao || window.analiseChanceModeracaoCache?.respostaSugerida;
+    if (!texto) {
+        showErrorMessage('Nenhuma resposta sugerida disponível.');
         return;
     }
     
-    navigator.clipboard.writeText(window.respostaRevisadaModeracao).then(() => {
-        showSuccessMessage('Resposta revisada copiada para a área de transferência!');
+    navigator.clipboard.writeText(texto).then(() => {
+        showSuccessMessage('Resposta sugerida copiada para a área de transferência!');
     }).catch(err => {
         console.error('Erro ao copiar:', err);
-        showErrorMessage('Erro ao copiar resposta revisada.');
+        showErrorMessage('Erro ao copiar resposta sugerida.');
     });
 }
 
-// Função para formatar a análise de chance de moderação
-function formatarAnaliseChanceModeracao(analise) {
-    if (!analise) return '';
-    
-    let html = '<div class="analise-chance-moderacao">';
-    
-    // Extrair informações de impacto antes de formatar
-    const impactoInfo = extrairImpactoRevisao(analise);
-    
-    // Formatar o conteúdo preservando a estrutura do prompt
-    let conteudoFormatado = analise
-        .replace(/\n\n\n+/g, '\n\n')  // Múltiplas quebras = dupla quebra
-        .replace(/\n\n/g, '</p><p>')  // Dupla quebra = novo parágrafo
-        .replace(/\n/g, '<br>')       // Quebra simples = <br>
-        .replace(/^/, '<p>')          // Iniciar com <p>
-        .replace(/$/, '</p>');        // Terminar com </p>
-    
-    // Destacar seções principais
-    conteudoFormatado = conteudoFormatado
-        .replace(/📊 Análise da chance de moderação/gi, '<h5 class="text-primary mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📊 Chance de moderação (base)</h5>')
-        .replace(/🧠 Fundamentação técnica/gi, '<h5 class="text-info mt-4 mb-3"><i class="fas fa-brain me-2"></i>🧠 Fundamentação técnica</h5>')
-        .replace(/⚠️ Riscos de negativa/gi, '<h5 class="text-warning mt-4 mb-3"><i class="fas fa-exclamation-triangle me-2"></i>⚠️ Riscos de negativa</h5>')
-        .replace(/🎯 Tese principal de moderação/gi, '<h5 class="text-success mt-4 mb-3"><i class="fas fa-bullseye me-2"></i>🎯 Tese principal de moderação</h5>')
-        .replace(/🧩 Teses complementares/gi, '<h5 class="text-secondary mt-4 mb-3"><i class="fas fa-puzzle-piece me-2"></i>🧩 Teses complementares</h5>')
-        .replace(/✍️ Revisão de Textos/gi, '<h5 class="text-dark mt-4 mb-3"><i class="fas fa-edit me-2"></i>✍️ Revisão de Textos (versão estratégica)</h5>')
-        .replace(/📈 Impacto da revisão de texto/gi, '<h5 class="text-success mt-4 mb-3"><i class="fas fa-chart-line me-2"></i>📈 Impacto da revisão de texto</h5>')
-        .replace(/🔍 Auditoria de Consistência da Resposta/gi, '<h5 class="text-warning mt-4 mb-3"><i class="fas fa-search me-2"></i>🔍 Auditoria de Consistência da Resposta</h5>')
-        .replace(/Chance estimada: (\d+%)/gi, '<strong class="text-primary fs-4">Chance estimada: $1</strong>')
-        .replace(/Classificação: (.+?)(<br>|<\/p>)/gi, '<span class="badge bg-info ms-2">$1</span>$2')
-        .replace(/Antes da revisão: (\d+%)/gi, '<strong class="text-secondary">Antes da revisão: $1</strong>')
-        .replace(/Após a revisão: (\d+%)/gi, '<strong class="text-success">Após a revisão: $1</strong>')
-        .replace(/Variação estimada: ([+-]\d+%)/gi, '<strong class="text-primary">Variação estimada: $1</strong>');
-    
-    html += '<div class="alert alert-light border-start border-secondary border-4">';
-    html += conteudoFormatado;
-    html += '</div>';
-    
-    // Adicionar card destacado para o impacto se existir
-    if (impactoInfo.temImpacto) {
-        html += '<div class="card border-success mt-4">';
-        html += '<div class="card-header bg-success text-white">';
-        html += '<h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>📈 Impacto da Revisão de Texto</h6>';
-        html += '</div>';
-        html += '<div class="card-body">';
-        html += `<p class="mb-2"><strong>Chance antes da revisão:</strong> <span class="badge bg-secondary">${impactoInfo.antes}%</span></p>`;
-        html += `<p class="mb-2"><strong>Chance após a revisão:</strong> <span class="badge bg-success">${impactoInfo.depois}%</span></p>`;
-        html += `<p class="mb-3"><strong>Variação estimada:</strong> <span class="badge bg-primary">${impactoInfo.variacao}</span></p>`;
-        if (impactoInfo.justificativa) {
-            html += '<hr>';
-            html += '<h6 class="text-info"><i class="fas fa-brain me-2"></i>🧠 Justificativa técnica</h6>';
-            html += `<p class="text-muted">${impactoInfo.justificativa}</p>`;
-        }
-        html += '</div>';
-        html += '</div>';
+const SECOES_CHANCE_MODERACAO = [
+    'Resultado Oficial do Motor',
+    'Resumo Executivo',
+    'Justificativa dos Critérios do Motor',
+    'Tese Principal',
+    'Teses Complementares',
+    'Fundamentação Técnica',
+    'Pontos que reduziram a pontuação',
+    'Como aumentar a pontuação',
+    'Auditoria dos fatos',
+    'Clareza e Fundamentação',
+    'Calibração Histórica',
+    'Auditoria de Consistência',
+    'Revisão Estratégica da Resposta',
+    'Comparação Motor #1 × Motor #2'
+];
+
+function parseSecoesChanceModeracao(markdown) {
+    if (!markdown) return {};
+    const secoes = {};
+    const regex = /^##\s+(.+)$/gm;
+    const matches = [];
+    let m;
+    while ((m = regex.exec(markdown)) !== null) {
+        matches.push({ titulo: m[1].trim(), index: m.index, headerLen: m[0].length });
     }
-    
-    // Extrair e exibir auditoria de consistência
+    for (let i = 0; i < matches.length; i++) {
+        const cur = matches[i];
+        const inicio = cur.index + cur.headerLen;
+        const fim = i + 1 < matches.length ? matches[i + 1].index : markdown.length;
+        secoes[cur.titulo] = markdown.slice(inicio, fim).trim();
+    }
+    return secoes;
+}
+
+function escapeHtmlChance(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+}
+
+function renderCardMotorOficial(motor) {
+    if (!motor) return '';
+    const chance = motor.chance_final ?? motor.metadados?.chance_final;
+    const faixa = String(motor.faixa_final ?? motor.metadados?.faixa_final ?? '').replace(/_/g, ' ');
+    const detalhe = motor.detalhe_criterios || motor.metadados?.detalhe_criterios || {};
+    let criteriosHtml = '';
+    for (const [id, d] of Object.entries(detalhe)) {
+        criteriosHtml += `<li class="small">${escapeHtmlChance(id)}: ${escapeHtmlChance(d.estado)} (${d.pontos} pts)</li>`;
+    }
+    return `<div class="card border-primary mb-3">
+        <div class="card-header bg-primary text-white"><h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Resultado Oficial do Motor</h6></div>
+        <div class="card-body">
+            <p class="mb-2"><strong>Chance:</strong> <span class="badge bg-primary fs-5">${chance}%</span></p>
+            <p class="mb-2"><strong>Faixa:</strong> <span class="badge bg-info">${escapeHtmlChance(faixa)}</span></p>
+            <ul class="mb-0">${criteriosHtml}</ul>
+        </div>
+    </div>`;
+}
+
+function renderCardComparativoMotor(comparacao, motorReformulado) {
+    if (!comparacao?.executada) return '';
+    const delta = comparacao.delta;
+    const deltaClass = delta >= 0 ? 'text-success' : 'text-danger';
+    return `<div class="card border-info mb-3">
+        <div class="card-header bg-info text-white"><h6 class="mb-0"><i class="fas fa-balance-scale me-2"></i>Comparativo Motor #1 × #2</h6></div>
+        <div class="card-body">
+            <p class="mb-1">Original: <strong>${comparacao.original}%</strong> (${escapeHtmlChance(comparacao.faixaOriginal)})</p>
+            <p class="mb-1">Reformulada: <strong>${comparacao.reformulada}%</strong> (${escapeHtmlChance(comparacao.faixaReformulada || '')})</p>
+            <p class="mb-0 ${deltaClass}">Delta: <strong>${delta >= 0 ? '+' : ''}${delta} p.p.</strong></p>
+        </div>
+    </div>`;
+}
+
+function renderTabelaDeltaPorCriterio(deltaPorCriterio) {
+    if (!deltaPorCriterio || !Object.keys(deltaPorCriterio).length) return '';
+    let rows = '';
+    for (const [id, item] of Object.entries(deltaPorCriterio)) {
+        rows += `<tr>
+            <td>${escapeHtmlChance(id)}</td>
+            <td>${escapeHtmlChance(item.antes.estado)} (${item.antes.pontos})</td>
+            <td>${escapeHtmlChance(item.depois.estado)} (${item.depois.pontos})</td>
+            <td class="${item.deltaPontos >= 0 ? 'text-success' : 'text-danger'}">${item.deltaPontos >= 0 ? '+' : ''}${item.deltaPontos}</td>
+        </tr>`;
+    }
+    return `<div class="card border-secondary mb-3">
+        <div class="card-header"><h6 class="mb-0"><i class="fas fa-table me-2"></i>Delta por critério</h6></div>
+        <div class="card-body p-0"><table class="table table-sm mb-0"><thead><tr><th>Critério</th><th>Motor #1</th><th>Motor #2</th><th>Delta</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+
+function renderSecoesQualitativas(analise) {
+    const secoes = parseSecoesChanceModeracao(analise);
+    let html = '';
+    for (const titulo of SECOES_CHANCE_MODERACAO) {
+        if (titulo === 'Resultado Oficial do Motor') continue;
+        const conteudo = secoes[titulo];
+        if (!conteudo) continue;
+        html += `<div class="card mb-2"><div class="card-header py-2"><strong>${escapeHtmlChance(titulo)}</strong></div><div class="card-body py-2 small">${escapeHtmlChance(conteudo)}</div></div>`;
+    }
+    return html;
+}
+
+// Função para formatar a análise de chance de moderação (Motor-first, Fase 6)
+function formatarAnaliseChanceModeracao(analise, extras = {}) {
+    if (!analise) return '';
+
+    const {
+        motor,
+        comparacao,
+        deltaPorCriterio,
+        reformulacaoAprovada,
+        avisoRegressao,
+        respostaReformulada
+    } = extras;
+
+    let html = '<div class="analise-chance-moderacao">';
+
+    html += renderCardMotorOficial(motor);
+
+    if (reformulacaoAprovada === false && avisoRegressao) {
+        html += `<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>${escapeHtmlChance(avisoRegressao)}</div>`;
+    }
+
+    html += renderCardComparativoMotor(comparacao, extras.motorReformulado);
+    html += renderTabelaDeltaPorCriterio(deltaPorCriterio);
+    html += renderSecoesQualitativas(analise);
+
+    if (respostaReformulada && reformulacaoAprovada === false) {
+        html += `<details class="mt-3"><summary class="fw-bold">Versão reformulada (auditoria)</summary><pre class="small mt-2 p-2 bg-light border">${escapeHtmlChance(respostaReformulada)}</pre></details>`;
+    }
+
     const auditoriaInfo = extrairAuditoriaConsistencia(analise);
     if (auditoriaInfo.temAuditoria) {
         html += formatarAuditoriaConsistencia(auditoriaInfo);
     }
-    
-    html += '</div>';
-    
-    return html;
-}
 
-// Função para extrair informações de impacto da revisão
-function extrairImpactoRevisao(analise) {
-    if (!analise) return { temImpacto: false };
-    
-    const resultado = {
-        temImpacto: false,
-        antes: null,
-        depois: null,
-        variacao: null,
-        justificativa: null
-    };
-    
-    // Procurar pelo bloco de impacto (várias variações possíveis)
-    const marcadoresImpacto = [
-        '📈 Impacto da revisão de texto',
-        'Impacto da revisão de texto',
-        'IMPACTO DA REVISÃO'
-    ];
-    
-    let marcadorImpacto = -1;
-    for (const marcador of marcadoresImpacto) {
-        const index = analise.indexOf(marcador);
-        if (index !== -1) {
-            marcadorImpacto = index;
-            break;
-        }
-    }
-    
-    if (marcadorImpacto === -1) return resultado;
-    
-    resultado.temImpacto = true;
-    
-    // Extrair o texto do bloco de impacto
-    const textoImpacto = analise.substring(marcadorImpacto);
-    
-    // Extrair chance antes (várias variações)
-    const matchAntes = textoImpacto.match(/Antes da revisão:\s*(\d+)%/i) || 
-                       textoImpacto.match(/Chance antes:\s*(\d+)%/i) ||
-                       textoImpacto.match(/Antes:\s*(\d+)%/i);
-    if (matchAntes) {
-        resultado.antes = matchAntes[1];
-    }
-    
-    // Extrair chance depois (várias variações)
-    const matchDepois = textoImpacto.match(/Após a revisão:\s*(\d+)%/i) ||
-                        textoImpacto.match(/Chance após:\s*(\d+)%/i) ||
-                        textoImpacto.match(/Depois:\s*(\d+)%/i) ||
-                        textoImpacto.match(/Após:\s*(\d+)%/i);
-    if (matchDepois) {
-        resultado.depois = matchDepois[1];
-    }
-    
-    // Extrair variação (várias variações)
-    const matchVariacao = textoImpacto.match(/Variação estimada:\s*([+-]\d+%)/i) ||
-                          textoImpacto.match(/Variação:\s*([+-]\d+%)/i) ||
-                          textoImpacto.match(/Diferença:\s*([+-]\d+%)/i);
-    if (matchVariacao) {
-        resultado.variacao = matchVariacao[1];
-    }
-    
-    // Extrair justificativa
-    const marcadoresJustificativa = [
-        '🧠 Justificativa técnica',
-        'Justificativa técnica',
-        'JUSTIFICATIVA TÉCNICA'
-    ];
-    
-    let marcadorJustificativa = -1;
-    for (const marcador of marcadoresJustificativa) {
-        const index = textoImpacto.indexOf(marcador);
-        if (index !== -1) {
-            marcadorJustificativa = index;
-            break;
-        }
-    }
-    
-    if (marcadorJustificativa !== -1) {
-        // Encontrar qual marcador foi usado
-        let marcadorUsado = '';
-        for (const marcador of marcadoresJustificativa) {
-            if (textoImpacto.includes(marcador)) {
-                marcadorUsado = marcador;
-                break;
-            }
-        }
-        let justificativa = textoImpacto.substring(marcadorJustificativa + marcadorUsado.length).trim();
-        // Remover marcadores seguintes
-        const proximosMarcadores = ['🧠', '📊', '⚠️', '🎯', '🧩', '✍️', '📈', '🧭'];
-        for (const marcador of proximosMarcadores) {
-            const index = justificativa.indexOf(marcador);
-            if (index !== -1 && index > 50) { // Só remover se não for no início (pode ser parte do texto)
-                justificativa = justificativa.substring(0, index).trim();
-            }
-        }
-        // Limpar e limitar tamanho
-        justificativa = justificativa.replace(/^\s*[-•]\s*/gm, '').trim();
-        resultado.justificativa = justificativa.substring(0, 800); // Limitar tamanho
-    }
-    
-    return resultado;
+    html += '</div>';
+    return html;
 }
 
 // Função para extrair informações da auditoria de consistência

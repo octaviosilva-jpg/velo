@@ -223,10 +223,39 @@ function montarBlocoOficial(resultado, perfilVersao) {
         `  Gates ativos: ${gates}`,
         `  Validador RA: ${resultado.validador.status}. ${resultado.validador.motivo}`,
         '',
-        'Observacao: a estimativa qualitativa da IA abaixo e apenas referencia (fase de validacao). O valor OFICIAL e o do Motor acima.',
         '============================================================',
         ''
     ].join('\n');
+}
+
+/** Serializa payload completo do Motor para a Auditora Técnica (Fase 6). */
+function serializarMotorParaAuditor(resultadoMotor, perfil, extras = {}) {
+    const m = resultadoMotor.metadados || {};
+    const criterios = Object.entries(m.detalhe_criterios || {}).map(([id, d]) => ({
+        id,
+        label: LABELS[id] || id,
+        estado: d.estado,
+        pontos: d.pontos,
+        peso: d.peso ?? perfil?.criterios?.[id]?.peso,
+        fator: d.fator
+    }));
+
+    return {
+        chance_final: resultadoMotor.chance_final,
+        faixa_final: resultadoMotor.faixa_final,
+        validador: resultadoMotor.validador,
+        criterios,
+        score_base: m.score_base,
+        score_pos_historico: m.score_pos_historico,
+        score_pos_gates: m.score_pos_gates,
+        gates_ativados: m.gates_ativados,
+        historico_aplicado: m.historico_aplicado,
+        estados_consumidos: m.estados_consumidos,
+        motor_version: m.motor_version,
+        perfil_calibracao_version: m.perfil_calibracao_version,
+        fundamentos: extras.fundamentos || null,
+        mapa_reclamacao: extras.mapa_reclamacao || null
+    };
 }
 
 function resultado_motorVersao(metadados) {
@@ -269,4 +298,12 @@ function aplicarRegraSemReformulacao(texto, chanceFinal, perfil) {
     return { texto: `${texto}\n\n${regra.mensagem}\n`, aplicada: true };
 }
 
-module.exports = { montarInstrucaoEstados, derivarCalibracaoHistorica, montarBlocoOficial, aplicarRegraSemReformulacao, normalizarEstados };
+module.exports = {
+    LABELS,
+    montarInstrucaoEstados,
+    derivarCalibracaoHistorica,
+    montarBlocoOficial,
+    aplicarRegraSemReformulacao,
+    normalizarEstados,
+    serializarMotorParaAuditor
+};

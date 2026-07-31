@@ -62,6 +62,8 @@ function resumo(state) {
         chanceFinal: state.chanceModeracao?.motor?.chance_final
             ?? state.chanceModeracao?.motor?.metadados?.chance_final
             ?? null,
+        chanceModeracaoFluxo: state.chanceModeracao?.telemetria?.fluxo ?? null,
+        chanceModeracaoVersions: state.chanceModeracao?.versions ?? null,
         duracaoMs: mono.duracaoMs ?? null,
         promptTokens: telemetria.reduce((s, t) => s + (t.promptTokens || 0), 0) || (mono.promptTokens ?? null),
         completionTokens: telemetria.reduce((s, t) => s + (t.completionTokens || 0), 0) || (mono.completionTokens ?? null),

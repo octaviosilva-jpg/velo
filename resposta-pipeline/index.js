@@ -256,7 +256,18 @@ async function runPlanExec(input = {}, deps = {}) {
         ? {
             success: !!state.chanceModeracao.sucesso,
             result: state.chanceModeracao.result,
-            motor: state.chanceModeracao.motor
+            motor: state.chanceModeracao.motor,
+            motorReformulado: state.chanceModeracao.motorReformulado,
+            respostaOriginal: state.chanceModeracao.respostaOriginal,
+            respostaReformulada: state.chanceModeracao.respostaReformulada,
+            respostaSugerida: state.chanceModeracao.respostaSugerida,
+            reformulacaoAprovada: state.chanceModeracao.reformulacaoAprovada,
+            avisoRegressao: state.chanceModeracao.avisoRegressao,
+            comparacao: state.chanceModeracao.comparacao,
+            deltaPorCriterio: state.chanceModeracao.deltaPorCriterio,
+            oportunidadesMelhoria: state.chanceModeracao.oportunidadesMelhoria,
+            versions: state.chanceModeracao.versions,
+            telemetria: state.chanceModeracao.telemetria
         }
         : null;
 

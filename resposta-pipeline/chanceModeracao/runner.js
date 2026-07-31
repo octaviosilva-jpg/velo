@@ -40,6 +40,7 @@ async function runChanceModeracao(state, deps = {}) {
     const input = {
         reclamacaoCompleta: textoCliente,
         respostaPublica: state.respostaPublica,
+        solucaoImplementada: state.entradasCruas?.solucao_implementada || '',
         consideracaoFinal: state.entradasCruas?.consideracao_final || '',
         historicoModeracao: state.entradasCruas?.historico_moderacao || '',
         userData: deps.userData || null
@@ -52,6 +53,16 @@ async function runChanceModeracao(state, deps = {}) {
             sucesso: !!out.sucesso,
             result: out.result ?? null,
             motor: out.motor ?? null,
+            motorReformulado: out.motorReformulado ?? null,
+            respostaOriginal: out.respostaOriginal ?? null,
+            respostaReformulada: out.respostaReformulada ?? null,
+            respostaSugerida: out.respostaSugerida ?? null,
+            reformulacaoAprovada: out.reformulacaoAprovada ?? null,
+            avisoRegressao: out.avisoRegressao ?? null,
+            comparacao: out.comparacao ?? null,
+            deltaPorCriterio: out.deltaPorCriterio ?? null,
+            oportunidadesMelhoria: out.oportunidadesMelhoria ?? null,
+            versions: out.versions ?? null,
             erro: out.sucesso ? null : (out.erro || null),
             telemetria: out.telemetria || null
         };
@@ -60,7 +71,8 @@ async function runChanceModeracao(state, deps = {}) {
             tipo: 'ChanceModeracao',
             payload: {
                 sucesso: state.chanceModeracao.sucesso,
-                chanceFinal: out.motor?.chance_final ?? out.motor?.metadados?.chance_final ?? null
+                chanceFinal: out.motor?.chance_final ?? out.motor?.metadados?.chance_final ?? null,
+                fluxo: out.telemetria?.fluxo ?? null
             }
         });
 
@@ -68,7 +80,7 @@ async function runChanceModeracao(state, deps = {}) {
             actor: ACTORS.CODIGO,
             event: out.sucesso ? 'chance.executada' : 'chance.falha',
             reason: out.sucesso
-                ? `chance=${out.motor?.chance_final ?? out.motor?.metadados?.chance_final ?? 'n/a'}`
+                ? `chance=${out.motor?.chance_final ?? out.motor?.metadados?.chance_final ?? 'n/a'} fluxo=${out.telemetria?.fluxo ?? 'n/a'}`
                 : (out.erro || 'erro_desconhecido')
         });
 
