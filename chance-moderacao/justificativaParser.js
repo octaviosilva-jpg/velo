@@ -2,8 +2,8 @@
 
 /**
  * Parser da seção Justificativa dos Critérios do Motor (markdown Auditora → cards).
- * Contrato atual: ### Nome + labels. Sem DTO justificativasCriterios[] (melhoria futura).
- * Graceful degradation: bloco sem labels → texto limpo.
+ * Suporta formato multilinha e flat (labels na mesma linha do ###, separados por vírgula).
+ * Sem DTO justificativasCriterios[] (melhoria futura).
  */
 
 const TEXTO_TETO = 'Não se aplica — critério já está na pontuação máxima.';
@@ -54,17 +54,92 @@ function humanizarCampo(valor) {
     return limpo;
 }
 
+/** Alternância de todos os labels estruturais (para lookahead). */
+function allLabelsAlternation() {
+    return CAMPOS.flatMap((c) => c.labels).map(escapeRegex).join('|');
+}
+
+/**
+ * Encontra o primeiro label estrutural no texto (início, após newline ou após vírgula).
+ * @returns {{ index: number, length: number, label: string }|null}
+ */
+function encontrarPrimeiroLabel(texto) {
+    const alt = allLabelsAlternation();
+    const re = new RegExp(
+        `(?:^|[\\n,]\\s*)(\\*?\\*?(?:${alt})\\*?\\*?)\\s*[:：]`,
+        'i'
+    );
+    const m = re.exec(String(texto || ''));
+    if (!m) return null;
+    const labelPart = m[1];
+    const labelOffsetInMatch = m[0].toLowerCase().lastIndexOf(labelPart.toLowerCase());
+    return {
+        index: m.index + Math.max(0, labelOffsetInMatch),
+        length: labelPart.length,
+        label: labelPart.replace(/\*/g, '').trim()
+    };
+}
+
+/**
+ * Separação nome/corpo: multilinha (primeira linha = nome) ou flat (antes do 1º label).
+ */
+function separarNomeECorpo(raw) {
+    const texto = String(raw || '').trim();
+    if (!texto) return { nome: 'Critério', corpo: '' };
+
+    const primeiro = encontrarPrimeiroLabel(texto);
+    if (primeiro && primeiro.index > 0) {
+        const nome = stripMarkdownTokens(texto.slice(0, primeiro.index).replace(/[,\s]+$/, ''));
+        const corpo = texto.slice(primeiro.index).replace(/^,\s*/, '');
+        return { nome: nome || 'Critério', corpo };
+    }
+
+    const nl = texto.indexOf('\n');
+    if (nl === -1) {
+        return { nome: stripMarkdownTokens(texto) || 'Critério', corpo: '' };
+    }
+    return {
+        nome: stripMarkdownTokens(texto.slice(0, nl)) || 'Critério',
+        corpo: texto.slice(nl + 1)
+    };
+}
+
+/**
+ * Extrai valor de um campo; aceita label no início, após newline ou após vírgula.
+ * Delimita pelo próximo label estrutural (não por split de vírgulas genérico).
+ */
 function extrairCampo(bloco, labels) {
-    const allLabels = CAMPOS.flatMap((c) => c.labels).map(escapeRegex).join('|');
+    const alt = allLabelsAlternation();
+    const fonte = String(bloco || '');
     for (const label of labels) {
         const re = new RegExp(
-            `(?:^|\\n)\\s*\\*?\\*?${escapeRegex(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*\\*?\\*?(?:${allLabels})\\*?\\*?\\s*[:：])|$)`,
+            `(?:^|[\\n,]\\s*)\\*?\\*?${escapeRegex(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[\\n,]\\s*\\*?\\*?(?:${alt})\\*?\\*?\\s*[:：])|$)`,
             'i'
         );
-        const m = bloco.match(re);
-        if (m) return m[1].trim();
+        const m = fonte.match(re);
+        if (m) {
+            let val = m[1].trim();
+            // Remove vírgula residual no fim se o próximo campo era o delimitador
+            val = val.replace(/,\s*$/, '').trim();
+            if (val) return val;
+        }
     }
     return null;
+}
+
+function montarCampos(corpo) {
+    const campos = {};
+    let reconhecidos = 0;
+    for (const { key, labels } of CAMPOS) {
+        const val = extrairCampo(corpo, labels);
+        if (val != null && String(val).trim()) {
+            campos[key] = humanizarCampo(val);
+            reconhecidos += 1;
+        } else {
+            campos[key] = null;
+        }
+    }
+    return { campos, reconhecidos };
 }
 
 /**
@@ -80,11 +155,21 @@ function parseJustificativaCriterios(markdownSecao) {
     const partes = texto.split(/^###\s+/m).filter((p) => p.trim());
 
     if (!comecaComH3 || partes.length === 0) {
+        const { nome, corpo } = separarNomeECorpo(texto);
+        const { campos, reconhecidos } = montarCampos(corpo || texto);
+        if (reconhecidos === 0) {
+            return [{
+                nome: 'Justificativa',
+                campos: null,
+                textoBruto: stripMarkdownTokens(texto),
+                parcial: true
+            }];
+        }
         return [{
-            nome: 'Justificativa',
-            campos: null,
-            textoBruto: stripMarkdownTokens(texto),
-            parcial: true
+            nome: nome === 'Critério' ? 'Justificativa' : nome,
+            campos,
+            textoBruto: stripMarkdownTokens(corpo || texto),
+            parcial: reconhecidos < 3
         }];
     }
 
@@ -92,21 +177,10 @@ function parseJustificativaCriterios(markdownSecao) {
     for (const parte of partes) {
         const raw = parte.trim();
         if (!raw) continue;
-        const nl = raw.indexOf('\n');
-        const nome = stripMarkdownTokens(nl === -1 ? raw : raw.slice(0, nl));
-        const corpo = nl === -1 ? '' : raw.slice(nl + 1);
 
-        const campos = {};
-        let reconhecidos = 0;
-        for (const { key, labels } of CAMPOS) {
-            const val = extrairCampo(corpo, labels);
-            if (val != null && String(val).trim()) {
-                campos[key] = humanizarCampo(val);
-                reconhecidos += 1;
-            } else {
-                campos[key] = null;
-            }
-        }
+        const { nome, corpo } = separarNomeECorpo(raw);
+        const fonteCampos = corpo || raw;
+        const { campos, reconhecidos } = montarCampos(fonteCampos);
 
         if (reconhecidos === 0) {
             blocos.push({
@@ -116,10 +190,18 @@ function parseJustificativaCriterios(markdownSecao) {
                 parcial: true
             });
         } else {
+            // Nome limpo: se ainda contiver labels, recortar
+            let nomeFinal = nome;
+            const labNoNome = encontrarPrimeiroLabel(nomeFinal);
+            if (labNoNome && labNoNome.index > 0) {
+                nomeFinal = stripMarkdownTokens(nomeFinal.slice(0, labNoNome.index).replace(/[,\s]+$/, ''));
+            } else if (labNoNome && labNoNome.index === 0) {
+                nomeFinal = 'Critério';
+            }
             blocos.push({
-                nome: nome || 'Critério',
+                nome: nomeFinal || 'Critério',
                 campos,
-                textoBruto: stripMarkdownTokens(corpo),
+                textoBruto: stripMarkdownTokens(fonteCampos),
                 parcial: reconhecidos < 3
             });
         }
@@ -166,7 +248,14 @@ function renderJustificativaCriteriosHtml(markdownSecao) {
             `<strong>${escapeHtml(item.nome)}</strong></div><div class="card-body py-2">`;
 
         if (!item.campos) {
-            html += `<p class="small mb-0">${escapeHtml(item.textoBruto)}</p>`;
+            // Graceful degradation: não repetir o mesmo texto no header e no body
+            const bruto = item.textoBruto || '';
+            if (bruto && bruto !== item.nome) {
+                html += `<p class="small mb-0">${escapeHtml(bruto)}</p>`;
+            } else if (!item.nome || item.nome === 'Critério' || item.nome === 'Justificativa') {
+                html += `<p class="small mb-0">${escapeHtml(bruto)}</p>`;
+            }
+            // se nome === textoBruto, só o <strong> já exibe o conteúdo
         } else {
             const c = item.campos;
             if (c.classificacao || c.pontuacao) {
@@ -185,7 +274,10 @@ function renderJustificativaCriteriosHtml(markdownSecao) {
             html += renderCampoTexto('O que reduziu a pontuação', c.oQueReduziu);
             html += renderCampoTexto('Como aumentar a pontuação', c.comoAumentar);
             if (item.parcial && item.textoBruto && !c.justificativaTecnica) {
-                html += `<p class="small text-muted mb-0">${escapeHtml(item.textoBruto)}</p>`;
+                const bruto = item.textoBruto;
+                if (bruto !== item.nome) {
+                    html += `<p class="small text-muted mb-0">${escapeHtml(bruto)}</p>`;
+                }
             }
         }
         html += '</div></div>';
@@ -200,5 +292,8 @@ module.exports = {
     parseJustificativaCriterios,
     renderJustificativaCriteriosHtml,
     humanizarCampo,
-    isNaTeto
+    isNaTeto,
+    separarNomeECorpo,
+    extrairCampo,
+    encontrarPrimeiroLabel
 };

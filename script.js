@@ -2603,8 +2603,7 @@ function escapeHtmlChance(texto) {
         .replace(/\n/g, '<br>');
 }
 
-// Parser Justificativa dos Critérios (espelho de chance-moderacao/justificativaParser.js).
-// Futuro: DTO justificativasCriterios[] — hoje o contrato é markdown ### + labels da Auditora.
+// Parser Justificativa (espelho de chance-moderacao/justificativaParser.js) — multilinha + flat.
 const JUSTIFICATIVA_TEXTO_TETO = 'Não se aplica — critério já está na pontuação máxima.';
 const JUSTIFICATIVA_CAMPOS = [
     { key: 'classificacao', labels: ['classificação', 'classificacao'] },
@@ -2648,16 +2647,54 @@ function humanizarCampoJustificativa(valor) {
     return limpo;
 }
 
+function justificativaEscapeRe(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function justificativaAllLabelsAlt() {
+    return JUSTIFICATIVA_CAMPOS.flatMap((c) => c.labels).map(justificativaEscapeRe).join('|');
+}
+
+function encontrarPrimeiroLabelJustificativa(texto) {
+    const alt = justificativaAllLabelsAlt();
+    const re = new RegExp(`(?:^|[\\n,]\\s*)(\\*?\\*?(?:${alt})\\*?\\*?)\\s*[:：]`, 'i');
+    const m = re.exec(String(texto || ''));
+    if (!m) return null;
+    const labelPart = m[1];
+    const labelOffsetInMatch = m[0].toLowerCase().lastIndexOf(labelPart.toLowerCase());
+    return { index: m.index + Math.max(0, labelOffsetInMatch), length: labelPart.length };
+}
+
+function separarNomeECorpoJustificativa(raw) {
+    const texto = String(raw || '').trim();
+    if (!texto) return { nome: 'Critério', corpo: '' };
+    const primeiro = encontrarPrimeiroLabelJustificativa(texto);
+    if (primeiro && primeiro.index > 0) {
+        const nome = stripMarkdownJustificativa(texto.slice(0, primeiro.index).replace(/[,\s]+$/, ''));
+        const corpo = texto.slice(primeiro.index).replace(/^,\s*/, '');
+        return { nome: nome || 'Critério', corpo };
+    }
+    const nl = texto.indexOf('\n');
+    if (nl === -1) return { nome: stripMarkdownJustificativa(texto) || 'Critério', corpo: '' };
+    return {
+        nome: stripMarkdownJustificativa(texto.slice(0, nl)) || 'Critério',
+        corpo: texto.slice(nl + 1)
+    };
+}
+
 function extrairCampoJustificativa(bloco, labels) {
-    const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const allLabels = JUSTIFICATIVA_CAMPOS.flatMap((c) => c.labels).map(escapeRe).join('|');
+    const allLabels = justificativaAllLabelsAlt();
+    const fonte = String(bloco || '');
     for (const label of labels) {
         const re = new RegExp(
-            `(?:^|\\n)\\s*\\*?\\*?${escapeRe(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:\\n\\s*\\*?\\*?(?:${allLabels})\\*?\\*?\\s*[:：])|$)`,
+            `(?:^|[\\n,]\\s*)\\*?\\*?${justificativaEscapeRe(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[\\n,]\\s*\\*?\\*?(?:${allLabels})\\*?\\*?\\s*[:：])|$)`,
             'i'
         );
-        const m = bloco.match(re);
-        if (m) return m[1].trim();
+        const m = fonte.match(re);
+        if (m) {
+            const val = m[1].trim().replace(/,\s*$/, '').trim();
+            if (val) return val;
+        }
     }
     return null;
 }
@@ -2675,19 +2712,22 @@ function parseJustificativaCriterios(markdownSecao) {
     for (const parte of partes) {
         const raw = parte.trim();
         if (!raw) continue;
-        const nl = raw.indexOf('\n');
-        const nome = stripMarkdownJustificativa(nl === -1 ? raw : raw.slice(0, nl));
-        const corpo = nl === -1 ? '' : raw.slice(nl + 1);
+        let { nome, corpo } = separarNomeECorpoJustificativa(raw);
+        const fonteCampos = corpo || raw;
         const campos = {};
         let reconhecidos = 0;
         for (const { key, labels } of JUSTIFICATIVA_CAMPOS) {
-            const val = extrairCampoJustificativa(corpo, labels);
+            const val = extrairCampoJustificativa(fonteCampos, labels);
             if (val != null && String(val).trim()) {
                 campos[key] = humanizarCampoJustificativa(val);
                 reconhecidos += 1;
             } else {
                 campos[key] = null;
             }
+        }
+        const labNoNome = encontrarPrimeiroLabelJustificativa(nome);
+        if (labNoNome && labNoNome.index > 0) {
+            nome = stripMarkdownJustificativa(nome.slice(0, labNoNome.index).replace(/[,\s]+$/, ''));
         }
         if (reconhecidos === 0) {
             blocos.push({
@@ -2700,7 +2740,7 @@ function parseJustificativaCriterios(markdownSecao) {
             blocos.push({
                 nome: nome || 'Critério',
                 campos,
-                textoBruto: stripMarkdownJustificativa(corpo),
+                textoBruto: stripMarkdownJustificativa(fonteCampos),
                 parcial: reconhecidos < 3
             });
         }
@@ -2718,7 +2758,12 @@ function renderJustificativaCriteriosCards(markdownSecao) {
         html += `<div class="card mb-2 border-light shadow-sm"><div class="card-header py-2 bg-light">` +
             `<strong>${escapeHtmlChance(item.nome).replace(/<br>/g, ' ')}</strong></div><div class="card-body py-2">`;
         if (!item.campos) {
-            html += `<p class="small mb-0">${escapeHtmlChance(item.textoBruto)}</p>`;
+            const bruto = item.textoBruto || '';
+            if (bruto && bruto !== item.nome) {
+                html += `<p class="small mb-0">${escapeHtmlChance(bruto)}</p>`;
+            } else if (!item.nome || item.nome === 'Critério' || item.nome === 'Justificativa') {
+                html += `<p class="small mb-0">${escapeHtmlChance(bruto)}</p>`;
+            }
         } else {
             const c = item.campos;
             if (c.classificacao || c.pontuacao) {
