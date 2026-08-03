@@ -34,11 +34,18 @@ function stripMarkdownTokens(texto) {
         .trim();
 }
 
+/** Campos em que N/A / teto pode ser humanizado para TEXTO_TETO. */
+const CAMPOS_HUMANIZAR_TETO = new Set(['oQueReduziu', 'comoAumentar']);
+
+/**
+ * Detecta valor N/A / teto (apenas para oQueReduziu / comoAumentar).
+ * Exige "N/A" ou "N / A" com barra — a palavra portuguesa "na" NÃO casa.
+ */
 function isNaTeto(valor) {
-    const v = String(valor || '').toLowerCase();
+    const v = String(valor || '').toLowerCase().trim();
     if (!v) return false;
     return (
-        /\bn\/?\s*a\b/.test(v) ||
+        /\bn\s*\/\s*a\b/.test(v) ||
         v.includes('pontuação máxima') ||
         v.includes('pontuacao maxima') ||
         v.includes('critério já no teto') ||
@@ -51,6 +58,13 @@ function isNaTeto(valor) {
 function humanizarCampo(valor) {
     const limpo = stripMarkdownTokens(valor);
     if (isNaTeto(limpo)) return TEXTO_TETO;
+    return limpo;
+}
+
+/** Strip + humanização N/A só em oQueReduziu / comoAumentar. */
+function valorCampoFinal(key, valor) {
+    const limpo = stripMarkdownTokens(valor);
+    if (CAMPOS_HUMANIZAR_TETO.has(key) && isNaTeto(limpo)) return TEXTO_TETO;
     return limpo;
 }
 
@@ -133,7 +147,7 @@ function montarCampos(corpo) {
     for (const { key, labels } of CAMPOS) {
         const val = extrairCampo(corpo, labels);
         if (val != null && String(val).trim()) {
-            campos[key] = humanizarCampo(val);
+            campos[key] = valorCampoFinal(key, val);
             reconhecidos += 1;
         } else {
             campos[key] = null;

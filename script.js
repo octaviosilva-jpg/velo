@@ -2627,11 +2627,14 @@ function stripMarkdownJustificativa(texto) {
         .trim();
 }
 
+const JUSTIFICATIVA_CAMPOS_HUMANIZAR_TETO = new Set(['oQueReduziu', 'comoAumentar']);
+
+/** Exige "N/A" ou "N / A" com barra — a palavra portuguesa "na" NÃO casa. */
 function isNaTetoJustificativa(valor) {
-    const v = String(valor || '').toLowerCase();
+    const v = String(valor || '').toLowerCase().trim();
     if (!v) return false;
     return (
-        /\bn\/?\s*a\b/.test(v) ||
+        /\bn\s*\/\s*a\b/.test(v) ||
         v.includes('pontuação máxima') ||
         v.includes('pontuacao maxima') ||
         v.includes('critério já no teto') ||
@@ -2644,6 +2647,14 @@ function isNaTetoJustificativa(valor) {
 function humanizarCampoJustificativa(valor) {
     const limpo = stripMarkdownJustificativa(valor);
     if (isNaTetoJustificativa(limpo)) return JUSTIFICATIVA_TEXTO_TETO;
+    return limpo;
+}
+
+function valorCampoFinalJustificativa(key, valor) {
+    const limpo = stripMarkdownJustificativa(valor);
+    if (JUSTIFICATIVA_CAMPOS_HUMANIZAR_TETO.has(key) && isNaTetoJustificativa(limpo)) {
+        return JUSTIFICATIVA_TEXTO_TETO;
+    }
     return limpo;
 }
 
@@ -2719,7 +2730,7 @@ function parseJustificativaCriterios(markdownSecao) {
         for (const { key, labels } of JUSTIFICATIVA_CAMPOS) {
             const val = extrairCampoJustificativa(fonteCampos, labels);
             if (val != null && String(val).trim()) {
-                campos[key] = humanizarCampoJustificativa(val);
+                campos[key] = valorCampoFinalJustificativa(key, val);
                 reconhecidos += 1;
             } else {
                 campos[key] = null;
