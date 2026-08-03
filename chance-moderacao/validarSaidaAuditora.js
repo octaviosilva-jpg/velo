@@ -23,8 +23,29 @@ function textoForaSecaoResultadoMotor(markdown) {
     return markdown.slice(0, start) + markdown.slice(end);
 }
 
+function extrairTitulosH3(conteudo) {
+    const titulos = [];
+    const re = /^###\s+(.+)$/gm;
+    let m;
+    while ((m = re.exec(conteudo)) !== null) {
+        titulos.push(String(m[1] || '').replace(/^\[|\]$/g, '').trim());
+    }
+    return titulos;
+}
+
+function contarHeadingCriterio(titulosH3, criterioId, label) {
+    const idNorm = normalizarTitulo(criterioId);
+    const labelNorm = normalizarTitulo(label);
+    let count = 0;
+    for (const t of titulosH3) {
+        const n = normalizarTitulo(t);
+        if (n === labelNorm || n === idNorm) count += 1;
+    }
+    return count;
+}
+
 /**
- * Valida saída markdown da Auditora Técnica (A1, A4, A10).
+ * Valida saída markdown da Auditora Técnica (A1, A4, A10 + unicidade ###).
  * @returns {{ valido: boolean, erros: string[] }}
  */
 function validarSaidaAuditora(markdown, perfil) {
@@ -57,14 +78,14 @@ function validarSaidaAuditora(markdown, perfil) {
         const secJust = secoes.secoes['justificativa dos critérios do motor'];
         if (secJust) {
             const conteudoJust = secJust.conteudo;
+            const titulosH3 = extrairTitulosH3(conteudoJust);
             for (const criterioId of Object.keys(perfil.criterios)) {
                 const label = LABELS[criterioId] || criterioId;
-                const padraoLabel = new RegExp(`###\\s*\\[?${escapeRegex(label)}\\]?`, 'i');
-                const padraoId = new RegExp(`###\\s*\\[?${escapeRegex(criterioId)}\\]?`, 'i');
-                if (!padraoLabel.test(conteudoJust) && !padraoId.test(conteudoJust)
-                    && !conteudoJust.toLowerCase().includes(label.toLowerCase())
-                    && !conteudoJust.includes(criterioId)) {
+                const count = contarHeadingCriterio(titulosH3, criterioId, label);
+                if (count === 0) {
                     erros.push(`critério ausente na justificativa: ${label}`);
+                } else if (count > 1) {
+                    erros.push(`critério duplicado na justificativa (### repetido): ${label}`);
                 }
             }
         } else if (!secoes.valido) {
@@ -77,8 +98,8 @@ function validarSaidaAuditora(markdown, perfil) {
     return { valido: erros.length === 0, erros };
 }
 
-function escapeRegex(s) {
-    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-module.exports = { validarSaidaAuditora };
+module.exports = {
+    validarSaidaAuditora,
+    extrairTitulosH3,
+    contarHeadingCriterio
+};

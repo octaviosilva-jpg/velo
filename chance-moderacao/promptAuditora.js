@@ -43,30 +43,47 @@ INSTRUÇÕES:
 1. Produza EXATAMENTE as seções markdown H2 na ordem abaixo (seções 1–12):
 ${ordemSecoes}
 
-2. Na seção "## Justificativa dos Critérios do Motor", inclua um bloco ### [NomeCritério] para CADA critério do Motor, inclusive os com pontuação máxima (A7).
+2. Na seção "## Justificativa dos Critérios do Motor", inclua EXATAMENTE UM bloco ### [NomeCritério] para CADA critério do Motor (A7) — nunca repita o mesmo critério.
+   PROIBIDO: reemitir o conjunto de blocos ### dentro da Justificativa; PROIBIDO usar ### de critérios nas seções 7 e 8.
    Cada bloco deve conter: Classificação, Pontuação (pontos/peso), Trecho da reclamação, Trecho da resposta, Justificativa técnica, O que reduziu a pontuação, Como aumentar a pontuação.
-   Se pontuação máxima: "N/A — pontuação máxima" e "N/A — critério já no teto".
+   SEMPRE explique por que o Motor atribuiu aquele estado/pontuação (justificativa da pontuação), inclusive abaixo do teto.
+   Critério abaixo do teto NÃO implica automaticamente oportunidade de melhoria.
 
-3. Seções 7 e 8 agregam diagnósticos e ações por critério (A2). Após cada item em "Como aumentar", liste Critérios impactados (A3).
-   Separe melhoria TEXTUAL possível (com o que já está nos inputs) de evidência ADICIONAL necessária mas INDISPONÍVEL.
-   No texto humano é permitido informar que a pontuação poderia subir com evidência verificável SE disponível nos registros.
-   No DTO (campo "acao"): NÃO ordene "Adicionar comprovante/protocolo/documento de X" sem base nos inputs.
-   Prefira ações como "Explicitar na resposta a providência já descrita…" ou "Não inventar comprovante; se não houver nos inputs, apenas esclarecer o relato existente".
+   Três situações por critério:
+   (1) Critério no teto: em "O que reduziu" e "Como aumentar" use "N/A — pontuação máxima" / "N/A — critério já no teto" (UI: Não se aplica — critério já está na pontuação máxima). NÃO criar item no DTO A16.
+   (2) Critério abaixo do teto + melhoria textual possível com os inputs: explique a perda e, no campo "Como aumentar", descreva a ação concreta. Pode criar item no DTO A16.
+   (3) Critério abaixo do teto + sem ação textual disponível: explique a perda e em "Como aumentar" escreva exatamente: "Sem ação textual disponível com os dados fornecidos." NÃO criar item no DTO A16.
+   No texto humano é permitido esclarecer que evidência adicional externa poderia alterar a classificação, mas isso é situação (3), não oportunidade acionável.
+
+3. Seções 7 e 8 (H2 "## Pontos que reduziram a pontuação" e "## Como aumentar a pontuação") agregam diagnósticos em texto corrido ou listas, SEM blocos ### de critérios.
+   Após cada item acionável em "Como aumentar", liste Critérios impactados (A3).
+   Itens da situação (3) podem aparecer na seção 8 apenas como "Sem ação textual disponível com os dados fornecidos" (com o nome do critério).
 
 4. PROIBIDO: percentuais, faixas estimadas, linguagem especulativa (provavelmente, possivelmente, estima-se, etc.).
-   PROIBIDO no DTO: pedir fabricação de evidência inexistente nos inputs.
+   PROIBIDO no DTO: pedir fabricação de evidência ou qualquer informação inexistente nos inputs.
 
 5. Ao final, inclua bloco JSON delimitado para o Reformulador (A16) — NÃO interpretável como texto livre:
 ${MARCADOR_OPORTUNIDADES_JSON}
 \`\`\`json
 { "schemaVersion": "${OPORTUNIDADES_SCHEMA_VERSION}", "itens": [ { "id": "melhoria-1", "criterioId": "...", "criterioLabel": "...", "diagnostico": "...", "acao": "...", "criteriosImpactados": ["..."] } ] }
-\`\`\``;
+\`\`\`
+   oportunidadesMelhoria.itens[] deve conter SOMENTE melhorias da situação (2) — executáveis pelo Reformulador.
+   Emita um item no DTO SOMENTE se TODAS as condições forem verdadeiras:
+   (a) há informação concreta nos inputs que permite executar a melhoria;
+   (b) a "acao" indica especificamente qual informação existente deve ser utilizada;
+   (c) a "acao" indica como essa informação melhora o critério correspondente;
+   (d) nenhuma informação nova precisa ser presumida, criada ou obtida externamente.
+   Se qualquer condição falhar → situação (3): explique no relatório humano e NÃO inclua o item no DTO.
+   Se não houver nenhuma situação (2), retorne "itens": [].
+   Exemplo situação (2): "A resposta menciona X, mas não relaciona esse fato ao questionamento Y. Explicitar essa relação na resposta usando o trecho já presente sobre X."
+   Exemplo situação (3) (NÃO vai no DTO): pontuação limitada por ausência de elemento objetivo verificável nos inputs — Sem ação textual disponível com os dados fornecidos.`;
 
     return {
         version: PROMPT_AUDITORA_VERSION,
         system:
             'Você é a Auditora Técnica Velotax para moderação do Reclame Aqui. Explique objetivamente as decisões do Motor de Pontuação com evidências ancoradas no texto. ' +
-            'Nunca estime probabilidades. No DTO de oportunidades, não solicite inventar comprovantes ou evidências ausentes nos inputs.',
+            'Nunca estime probabilidades. Justificativa da pontuação é obrigatória; oportunidade no DTO A16 só quando houver melhoria textual executável com informações já presentes nos inputs. ' +
+            'Critério abaixo do teto não gera oportunidade automática. Sem ação textual disponível → não criar item no DTO.',
         user
     };
 }

@@ -42,4 +42,15 @@ const r2 = validarSaidaAuditora(
 assert.strictEqual(r2.valido, false);
 assert.ok(r2.erros.some((e) => e.includes('percentual') || e.includes('estimativa')));
 
+const blocos = Object.keys(perfil.criterios).map((id) => {
+    const label = motorIntegracao.LABELS[id] || id;
+    return `### ${label}\nClassificação: mock\nJustificativa técnica: ok.`;
+}).join('\n\n');
+const rDup = validarSaidaAuditora(
+    buildRelatorioMinimo(72).replace(blocos, `${blocos}\n\n${blocos}`),
+    perfil
+);
+assert.strictEqual(rDup.valido, false);
+assert.ok(rDup.erros.some((e) => e.includes('duplicado')));
+
 console.log('chance-moderacao/__tests__/validarSaidaAuditora.test.js — OK');

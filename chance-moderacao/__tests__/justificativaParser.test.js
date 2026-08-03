@@ -11,7 +11,7 @@ const {
 const FIXTURE_OK = `
 ### Evidência Objetiva
 **Classificação:** declaratoria
-**Pontuação:** 4.8/12
+**Pontuação:** 4.8/16
 **Trecho da reclamação:** Cliente alega não receber o reembolso.
 **Trecho da resposta:** O pagamento foi realizado em 31/07/2026.
 **Justificativa técnica:** Há data, mas sem comprovante verificável.

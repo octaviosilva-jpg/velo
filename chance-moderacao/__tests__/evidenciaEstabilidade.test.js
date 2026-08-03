@@ -90,8 +90,9 @@ function testCasoD_reformuladorAuditoraFallback() {
         motorSerializado: { chance_final: 50 }
     });
     const audText = `${aud.system}\n${aud.user}`;
-    assert.ok(/Adicionar comprovante/i.test(audText) && /NÃO ordene/i.test(audText));
-    assert.ok(/Não inventar comprovante|nao inventar comprovante/i.test(audText));
+    assert.ok(/Sem ação textual disponível com os dados fornecidos/i.test(audText));
+    assert.ok(/informação concreta nos inputs/i.test(audText));
+    assert.ok(/PROIBIDO no DTO: pedir fabricação/i.test(audText));
 
     const motorFake = {
         chance_final: 40,
@@ -100,7 +101,7 @@ function testCasoD_reformuladorAuditoraFallback() {
         metadados: {
             motor_versao: 'test',
             detalhe_criterios: {
-                evidencia_objetiva: { estado: 'declaratoria', pontos: 4.8, peso: 12 },
+                evidencia_objetiva: { estado: 'declaratoria', pontos: 4.8, peso: 16 },
                 clareza: { estado: 'media', pontos: 2, peso: 4 }
             },
             estados_consumidos: { calibracao_historica: 'sem_referencia' },
@@ -112,11 +113,7 @@ function testCasoD_reformuladorAuditoraFallback() {
         }
     };
     const ops = montarOportunidadesFallback(motorFake, perfil);
-    const ev = ops.itens.find((i) => i.criterioId === 'evidencia_objetiva');
-    assert.ok(ev, 'fallback gera item evidencia');
-    assert.ok(!/Adicionar comprovante/i.test(ev.acao));
-    assert.ok(/não inventar comprovante|nao inventar comprovante/i.test(ev.acao));
-    assert.ok(/dependência de evidência externa|dependencia de evidencia externa/i.test(ev.acao));
+    assert.strictEqual(ops.itens.length, 0, 'fallback DTO vazio — sem oportunidades genéricas');
 
     const rel = montarRelatorioFallbackAuditora({
         resultadoMotor: motorFake,
@@ -125,7 +122,7 @@ function testCasoD_reformuladorAuditoraFallback() {
         aviso: 'test'
     });
     assert.ok(!/Endereçar lacunas/i.test(rel));
-    assert.ok(/não inventar comprovantes|nao inventar comprovantes/i.test(rel));
+    assert.ok(/Sem ação textual disponível com os dados fornecidos/i.test(rel));
 }
 
 testCasosAB_guiaEPromptExtrator();
