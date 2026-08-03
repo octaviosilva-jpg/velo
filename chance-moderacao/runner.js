@@ -256,7 +256,7 @@ async function runChanceModeracaoPipeline(input = {}, deps = {}) {
             schemaVersion: PROMPT_AUDITORA_VERSION
         }, { tentativas: outAud.tentativas || outAud.telemetriaChamada?.tentativas }));
 
-        const debugAuditora = debug ? montarDebugAuditora(outAud) : null;
+        const debugAuditora = debug ? montarDebugAuditora(outAud, perfil) : null;
 
         const fluxoCompleto = motor1.chance_final < limiar;
         let respostaReformulada = null;

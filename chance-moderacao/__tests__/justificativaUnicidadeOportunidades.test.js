@@ -79,15 +79,16 @@ function testOpp1_promptSituacoes() {
     const text = `${p.system}\n${p.user}`;
     assert.ok(/Três situações|três situações|\(1\) Critério no teto/i.test(text));
     assert.ok(/Sem ação textual disponível com os dados fornecidos/i.test(text));
-    assert.ok(/informação concreta nos inputs/i.test(text));
-    assert.ok(/indica especificamente qual informação existente/i.test(text));
-    assert.ok(/como essa informação melhora o critério/i.test(text));
-    assert.ok(/nenhuma informação nova precisa ser presumida/i.test(text));
-    assert.ok(/EXATAMENTE UM bloco ###/i.test(text));
-    assert.ok(/itens": \[\]|"itens": \[\]|retorne "itens": \[\]/i.test(text));
-    assert.ok(/não gera oportunidade automática|NÃO implica automaticamente/i.test(text));
-    assert.ok(/âncora no texto|trecho ou característica concreta/i.test(text));
-    assert.ok(/NÃO apenas reproduzir ou parafrasear|Não parafraseie apenas/i.test(text));
+    assert.ok(/info concreta nos inputs|informação concreta nos inputs/i.test(text));
+    assert.ok(/qual informação existente|informação existente/i.test(text));
+    assert.ok(/como melhora o critério/i.test(text));
+    assert.ok(/nada novo a presumir|nenhuma informação nova/i.test(text));
+    assert.ok(/Exatamente UM H3|EXATAMENTE UM/i.test(text));
+    assert.ok(/itens": \[\]|"itens": \[\]/i.test(text));
+    assert.ok(/NÃO implica automaticamente/i.test(text));
+    assert.ok(/trecho\/característica|trechos_utilizados/i.test(text));
+    assert.ok(/parafrasear|NÃO apenas parafrasear/i.test(text));
+    assert.ok(/ÚNICOS headings H3|PROIBIDO: ### Critério —/i.test(text));
     console.log('  Opp-1 prompt situações e condições DTO — OK');
 }
 
@@ -174,11 +175,11 @@ function testExemplosSituacoesNoPrompt() {
         motorSerializado: {}
     });
     // Situação 2 (acionável) e 3 (sem ação) documentadas no prompt
-    assert.ok(p.user.includes('Explicitar essa relação'));
     assert.ok(p.user.includes('Sem ação textual disponível com os dados fornecidos'));
-    assert.ok(p.user.includes('NÃO vai no DTO') || p.user.includes('NÃO criar item no DTO'));
-    assert.ok(/limitação factual\/evidencial|elemento objetivo verificável/i.test(p.user));
-    assert.ok(/âncora/i.test(`${p.system}\n${p.user}`));
+    assert.ok(/situação \(2\)|itens\[\] SOMENTE situação/i.test(p.user));
+    assert.ok(/limitação evidencial|ausência de causa individualizada/i.test(p.user));
+    assert.ok(/trechos_utilizados|fundamentos\[criterioId\]/i.test(p.user));
+    assert.ok(/NÃO significa erro do Motor/i.test(p.user));
     console.log('  Exemplos situação 2 e 3 + âncora no prompt — OK');
 }
 

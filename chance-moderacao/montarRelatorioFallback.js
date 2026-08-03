@@ -7,10 +7,12 @@ const { OPORTUNIDADES_SCHEMA_VERSION } = require('./constants');
 const TEXTO_SEM_ACAO = 'Sem ação textual disponível com os dados fornecidos.';
 const TEXTO_TETO_REDUZIU = 'N/A — pontuação máxima';
 const TEXTO_TETO_AUMENTAR = 'N/A — critério já no teto';
+const TEXTO_SEM_CAUSA_INDIV =
+    'Não há causa textual específica individualizada nos fundamentos disponíveis.';
 
 /**
- * Relatório determinístico mínimo quando a Auditora LLM falha validação (graceful degradation).
- * Fallback não inventa oportunidades: cada critério abaixo do teto fica na situação (3).
+ * Relatório determinístico mínimo quando a Auditora LLM falha validação.
+ * Explica o resultado oficial sem inventar causa nem questionar o Motor.
  */
 function montarRelatorioFallbackAuditora({ resultadoMotor, perfilVersao, perfil, aviso }) {
     const blocoOficial = motorIntegracao.montarBlocoOficial(resultadoMotor, perfilVersao);
@@ -23,15 +25,21 @@ function montarRelatorioFallbackAuditora({ resultadoMotor, perfilVersao, perfil,
             const peso = d.peso ?? perfil?.criterios?.[id]?.peso;
             const noTeto = peso != null && d.pontos >= peso;
             if (!noTeto) abaixoTeto.push(label);
-            const oQueReduziu = noTeto
-                ? TEXTO_TETO_REDUZIU
-                : `Pontuação ${d.pontos}/${peso ?? '?'} (estado ${d.estado}) — abaixo do teto.`;
+
+            const justificativa = noTeto
+                ? `O Motor classificou este critério como '${d.estado}', resultando em ${d.pontos}/${peso ?? '?'} (pontuação máxima). Fallback determinístico — resultado oficial mantido.`
+                : `O Motor classificou este critério como '${d.estado}', resultando em ${d.pontos}/${peso ?? '?'}. ` +
+                  'Fallback determinístico: os dados disponíveis neste relatório simplificado não individualizam uma deficiência ' +
+                  'textual/factual específica responsável pela diferença em relação à pontuação máxima. Isso não questiona a validade do resultado oficial.';
+
+            const oQueReduziu = noTeto ? TEXTO_TETO_REDUZIU : TEXTO_SEM_CAUSA_INDIV;
             const comoAumentar = noTeto ? TEXTO_TETO_AUMENTAR : TEXTO_SEM_ACAO;
+
             return [
                 `### ${label}`,
                 `Classificação: ${d.estado}`,
                 `Pontuação: ${d.pontos}/${peso ?? '?'}`,
-                'Justificativa técnica: resultado oficial do Motor (fallback determinístico).',
+                `Justificativa técnica: ${justificativa}`,
                 `O que reduziu a pontuação: ${oQueReduziu}`,
                 `Como aumentar a pontuação: ${comoAumentar}`
             ].join('\n');
@@ -57,7 +65,7 @@ function montarRelatorioFallbackAuditora({ resultadoMotor, perfilVersao, perfil,
         'Baseada exclusivamente no Motor de Pontuação oficial.',
         '## Pontos que reduziram a pontuação',
         abaixoTeto.length
-            ? `Critérios abaixo do teto: ${abaixoTeto.join(', ')}.`
+            ? `Critérios abaixo do teto: ${abaixoTeto.join(', ')}. ${TEXTO_SEM_CAUSA_INDIV}`
             : 'Nenhum critério abaixo do teto.',
         '## Como aumentar a pontuação',
         secao8,
@@ -72,10 +80,6 @@ function montarRelatorioFallbackAuditora({ resultadoMotor, perfilVersao, perfil,
     ].join('\n\n');
 }
 
-/**
- * Fallback sem LLM: não há como apontar ação textual concreta ancorada nos inputs.
- * DTO vazio → runner não executa Reformulador (fluxo padrao / 2 OpenAI).
- */
 function montarOportunidadesFallback(_resultadoMotor, _perfil) {
     return { schemaVersion: OPORTUNIDADES_SCHEMA_VERSION, itens: [] };
 }
@@ -83,5 +87,6 @@ function montarOportunidadesFallback(_resultadoMotor, _perfil) {
 module.exports = {
     montarRelatorioFallbackAuditora,
     montarOportunidadesFallback,
-    TEXTO_SEM_ACAO
+    TEXTO_SEM_ACAO,
+    TEXTO_SEM_CAUSA_INDIV
 };

@@ -46,6 +46,7 @@ const blocos = Object.keys(perfil.criterios).map((id) => {
     const label = motorIntegracao.LABELS[id] || id;
     return `### ${label}\nClassificação: mock\nJustificativa técnica: ok.`;
 }).join('\n\n');
+
 const rDup = validarSaidaAuditora(
     buildRelatorioMinimo(72).replace(blocos, `${blocos}\n\n${blocos}`),
     perfil
@@ -58,12 +59,19 @@ const rBold = validarSaidaAuditora(
     perfil
 );
 assert.strictEqual(rBold.valido, false);
-assert.ok(rBold.erros.some((e) => e.includes('duplicado')));
+assert.ok(rBold.erros.some((e) => e.includes('duplicado') || e.includes('total de headings')));
 
 const rAux = validarSaidaAuditora(
     buildRelatorioMinimo(72).replace(blocos, `${blocos}\n\n### Resumo auxiliar\nOk.`),
     perfil
 );
-assert.strictEqual(rAux.valido, true, rAux.erros.join('; '));
+assert.strictEqual(rAux.valido, false);
+assert.ok(rAux.erros.some((e) => e.includes('não oficial')));
+
+const rPrefix = validarSaidaAuditora(
+    buildRelatorioMinimo(72).replace(blocos, `${blocos}\n\n### Critério — Evidência objetiva\nX.`),
+    perfil
+);
+assert.strictEqual(rPrefix.valido, false);
 
 console.log('chance-moderacao/__tests__/validarSaidaAuditora.test.js — OK');

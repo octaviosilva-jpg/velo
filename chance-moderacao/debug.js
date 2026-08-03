@@ -1,6 +1,8 @@
 'use strict';
 
 const crypto = require('crypto');
+const { parseSecoes, normalizarTitulo } = require('./secoesV8');
+const { analisarHeadingsJustificativa } = require('./validarSaidaAuditora');
 
 /** Debug habilitado por env CHANCE_DEBUG ou body debug em não-produção / com env. */
 function isChanceDebugEnabled(envVars = {}, bodyDebug = false) {
@@ -29,14 +31,34 @@ function metadadosDebugAuditora(debugAuditora) {
         duracaoMs: debugAuditora.duracaoMs ?? null,
         errosPorTentativa: debugAuditora.errosPorTentativa || [],
         tentativas: debugAuditora.tentativas || [],
-        auditoraRawHash: debugAuditora.auditoraRawHash || null
+        auditoraRawHash: debugAuditora.auditoraRawHash || null,
+        justificativaH3: debugAuditora.justificativaH3
+            ? {
+                totalH3: debugAuditora.justificativaH3.totalH3,
+                totalReconhecidos: debugAuditora.justificativaH3.totalReconhecidos,
+                headingsNormalizados: debugAuditora.justificativaH3.headingsNormalizados
+            }
+            : null
     };
 }
 
-function montarDebugAuditora(outAud) {
+function extrairMetaJustificativaH3(relatorio, perfil) {
+    if (!relatorio || typeof relatorio !== 'string') return null;
+    try {
+        const secoes = parseSecoes(relatorio);
+        const just = secoes[normalizarTitulo('Justificativa dos Critérios do Motor')];
+        if (!just?.conteudo) return null;
+        return analisarHeadingsJustificativa(just.conteudo, perfil || { criterios: {} });
+    } catch (_e) {
+        return null;
+    }
+}
+
+function montarDebugAuditora(outAud, perfil) {
     if (!outAud) return null;
     const raw = outAud.auditoraRaw || null;
     const tel = outAud.telemetriaChamada || {};
+    const justificativaH3 = extrairMetaJustificativaH3(outAud.relatorio, perfil);
     return {
         fallback: !!outAud.fallback,
         motivoValidacao: outAud.avisoValidacao || null,
@@ -49,7 +71,8 @@ function montarDebugAuditora(outAud) {
         schemaVersion: tel.schemaVersion || tel.promptVersion || 'auditora-v1',
         duracaoMs: tel.duracaoMs ?? null,
         errosPorTentativa: outAud.errosPorTentativa || [],
-        tentativas: outAud.tentativas || tel.tentativas || []
+        tentativas: outAud.tentativas || tel.tentativas || [],
+        justificativaH3
     };
 }
 
@@ -57,5 +80,6 @@ module.exports = {
     isChanceDebugEnabled,
     hashConteudo,
     metadadosDebugAuditora,
-    montarDebugAuditora
+    montarDebugAuditora,
+    extrairMetaJustificativaH3
 };

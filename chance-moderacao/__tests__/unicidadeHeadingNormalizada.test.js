@@ -5,13 +5,15 @@ const {
     validarSaidaAuditora,
     normalizarHeadingCriterio,
     contarHeadingCriterio,
-    extrairTitulosH3
+    extrairTitulosH3,
+    analisarHeadingsJustificativa
 } = require('../validarSaidaAuditora');
 const { LABELS } = require('../../motor-pontuacao/integracao');
 const { carregarPerfil } = require('../../motor-pontuacao/perfil');
 
 const perfil = carregarPerfil('v1');
 const IDS = Object.keys(perfil.criterios);
+const N = IDS.length;
 
 function buildRelatorio(blocosJust) {
     return [
@@ -33,94 +35,100 @@ function buildRelatorio(blocosJust) {
     ].join('\n\n');
 }
 
-function bloco(label, extra = '') {
-    return `### ${label}\nClassificação: mock\nJustificativa técnica: ok.${extra ? `\n${extra}` : ''}`;
+function bloco(label) {
+    return `### ${label}\nClassificação: mock\nJustificativa técnica: ok.`;
 }
 
 function blocosOficiais() {
     return IDS.map((id) => bloco(LABELS[id] || id)).join('\n\n');
 }
 
-function testNormalizarEquivalencias() {
-    const a = normalizarHeadingCriterio('Evidencia objetiva');
-    const b = normalizarHeadingCriterio('**Evidencia objetiva**');
-    const c = normalizarHeadingCriterio('Evidência objetiva');
-    const d = normalizarHeadingCriterio('### Evidência objetiva'.replace(/^###\s+/, ''));
-    assert.strictEqual(a, b);
-    assert.strictEqual(a, c);
-    assert.strictEqual(a, d);
-    assert.strictEqual(a, normalizarHeadingCriterio(LABELS.evidencia_objetiva));
-    console.log('  normalizarHeadingCriterio equivalências — OK');
-}
-
-function testBoldDupInvalido() {
-    const just = `${blocosOficiais()}\n\n${bloco('**Evidencia objetiva**')}`;
-    const r = validarSaidaAuditora(buildRelatorio(just), perfil);
-    assert.strictEqual(r.valido, false);
-    assert.ok(r.erros.some((e) => e.includes('duplicado') && /Evidencia/i.test(e)), r.erros.join('; '));
-    console.log('  ### Label + ### **Label** → inválido — OK');
-}
-
-function testAcentoDupInvalido() {
-    const just = `${blocosOficiais()}\n\n${bloco('Evidência objetiva')}`;
-    const r = validarSaidaAuditora(buildRelatorio(just), perfil);
-    assert.strictEqual(r.valido, false);
-    assert.ok(r.erros.some((e) => e.includes('duplicado') && /Evidencia/i.test(e)), r.erros.join('; '));
-    console.log('  ### Evidencia + ### Evidência → inválido — OK');
-}
-
-function testMixMarkdownAcentoInvalido() {
-    const just = `${blocosOficiais()}\n\n${bloco('**Evidência objetiva**')}`;
-    const r = validarSaidaAuditora(buildRelatorio(just), perfil);
-    assert.strictEqual(r.valido, false);
-    assert.ok(r.erros.some((e) => e.includes('duplicado')), r.erros.join('; '));
-    console.log('  markdown + acento → inválido — OK');
-}
-
-function testUmPorCriterioValido() {
+// U1
+function testU1() {
     const r = validarSaidaAuditora(buildRelatorio(blocosOficiais()), perfil);
     assert.strictEqual(r.valido, true, r.erros.join('; '));
-    console.log('  exatamente um heading por critério → válido — OK');
+    const a = analisarHeadingsJustificativa(blocosOficiais(), perfil);
+    assert.strictEqual(a.totalH3, N);
+    assert.strictEqual(a.totalReconhecidos, N);
+    console.log('  U1 9 oficiais → válido — OK');
 }
 
-function testHeadingAuxiliarNaoInvalida() {
-    const just = `${blocosOficiais()}\n\n### Resumo auxiliar\nTexto auxiliar.`;
-    const r = validarSaidaAuditora(buildRelatorio(just), perfil);
-    assert.strictEqual(r.valido, true, r.erros.join('; '));
-    const titulos = extrairTitulosH3(just);
-    assert.ok(titulos.length > IDS.length);
-    const countEv = contarHeadingCriterio(titulos, 'evidencia_objetiva', LABELS.evidencia_objetiva);
-    assert.strictEqual(countEv, 1);
-    console.log('  9 oficiais + ### auxiliar → válido — OK');
+// U2
+function testU2() {
+    const r = validarSaidaAuditora(buildRelatorio(`${blocosOficiais()}\n\n${blocosOficiais()}`), perfil);
+    assert.strictEqual(r.valido, false);
+    assert.ok(r.erros.some((e) => e.includes('duplicado')));
+    assert.ok(r.erros.some((e) => e.includes('total de headings H3')));
+    console.log('  U2 18 idênticos → inválido — OK');
 }
 
-function testAusenteNaoCompensadoPorAuxiliar() {
-    const semClareza = IDS.filter((id) => id !== 'clareza')
-        .map((id) => bloco(LABELS[id] || id))
-        .join('\n\n');
-    const just = `${semClareza}\n\n### Resumo auxiliar\nNão é Clareza.`;
+// U3
+function testU3() {
+    const rBold = validarSaidaAuditora(
+        buildRelatorio(`${blocosOficiais()}\n\n${bloco('**Evidencia objetiva**')}`),
+        perfil
+    );
+    assert.strictEqual(rBold.valido, false);
+    const rAccent = validarSaidaAuditora(
+        buildRelatorio(`${blocosOficiais()}\n\n${bloco('Evidência objetiva')}`),
+        perfil
+    );
+    assert.strictEqual(rAccent.valido, false);
+    console.log('  U3 bold/acento → inválido — OK');
+}
+
+// U4
+function testU4() {
+    const just = `${blocosOficiais()}\n\n${bloco('Critério — Evidência objetiva')}`;
     const r = validarSaidaAuditora(buildRelatorio(just), perfil);
     assert.strictEqual(r.valido, false);
-    assert.ok(r.erros.some((e) => e.includes('ausente') && /Clareza/i.test(e)), r.erros.join('; '));
-    assert.ok(!r.erros.some((e) => e.includes('Resumo')), 'auxiliar não gera erro próprio');
-    console.log('  8 oficiais + auxiliar → ausente (não compensa) — OK');
+    assert.ok(
+        r.erros.some((e) => e.includes('não oficial') || e.includes('total de headings')),
+        r.erros.join('; ')
+    );
+    console.log('  U4 Critério — + oficial → inválido — OK');
 }
 
-function testDesconhecidoNaoContaComoOficial() {
-    // Só headings desconhecidos — todos oficiais ausentes
-    const just = '### Resumo auxiliar\nX.\n\n### Outro bloco\nY.';
-    const r = validarSaidaAuditora(buildRelatorio(just), perfil);
+// U5
+function testU5() {
+    const r = validarSaidaAuditora(
+        buildRelatorio(`${blocosOficiais()}\n\n### Resumo\nAux.`),
+        perfil
+    );
     assert.strictEqual(r.valido, false);
-    assert.ok(r.erros.filter((e) => e.includes('ausente')).length >= IDS.length - 1);
-    console.log('  headings desconhecidos não contam como oficiais — OK');
+    assert.ok(r.erros.some((e) => e.includes('não oficial') && /Resumo/i.test(e)));
+    console.log('  U5 9 + ### Resumo → inválido — OK');
 }
 
-testNormalizarEquivalencias();
-testBoldDupInvalido();
-testAcentoDupInvalido();
-testMixMarkdownAcentoInvalido();
-testUmPorCriterioValido();
-testHeadingAuxiliarNaoInvalida();
-testAusenteNaoCompensadoPorAuxiliar();
-testDesconhecidoNaoContaComoOficial();
+// U6
+function testU6() {
+    const r = validarSaidaAuditora(
+        buildRelatorio(`${blocosOficiais()}\n\n### Diagnóstico\nX.`),
+        perfil
+    );
+    assert.strictEqual(r.valido, false);
+    assert.ok(r.erros.some((e) => e.includes('não oficial')));
+    console.log('  U6 H3 desconhecido → inválido — OK');
+}
+
+// U7
+function testU7() {
+    const a = analisarHeadingsJustificativa(blocosOficiais(), perfil);
+    assert.strictEqual(a.totalH3, N);
+    assert.strictEqual(
+        normalizarHeadingCriterio('Evidência objetiva'),
+        normalizarHeadingCriterio(LABELS.evidencia_objetiva)
+    );
+    const titulos = extrairTitulosH3(blocosOficiais());
+    assert.strictEqual(contarHeadingCriterio(titulos, 'clareza', LABELS.clareza), 1);
+    console.log('  U7 totalH3 === N — OK');
+}
+
+testU1();
+testU2();
+testU3();
+testU4();
+testU5();
+testU6();
+testU7();
 console.log('unicidadeHeadingNormalizada.test.js — OK');

@@ -91,8 +91,9 @@ function testCasoD_reformuladorAuditoraFallback() {
     });
     const audText = `${aud.system}\n${aud.user}`;
     assert.ok(/Sem ação textual disponível com os dados fornecidos/i.test(audText));
-    assert.ok(/informação concreta nos inputs/i.test(audText));
+    assert.ok(/info concreta nos inputs|informação concreta nos inputs/i.test(audText));
     assert.ok(/PROIBIDO no DTO: pedir fabricação/i.test(audText));
+    assert.ok(/PROIBIDO causalidade cruzada/i.test(audText));
 
     const motorFake = {
         chance_final: 40,
