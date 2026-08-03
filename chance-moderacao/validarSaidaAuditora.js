@@ -23,29 +23,80 @@ function textoForaSecaoResultadoMotor(markdown) {
     return markdown.slice(0, start) + markdown.slice(end);
 }
 
+/**
+ * Normaliza heading ### / label / criterioId para comparação tipograficamente estável.
+ * Remove markdown simples, diacríticos, colapsa espaços e pontuação tipográfica irrelevante.
+ */
+function normalizarHeadingCriterio(texto) {
+    return String(texto || '')
+        .replace(/^\[|\]$/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/__/g, '')
+        .replace(/`+/g, '')
+        .replace(/^\*+|\*+$/g, '')
+        .replace(/^_+|_+$/g, '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[\u2018\u2019\u201a\u201b\u2032]/g, "'")
+        .replace(/[\u201c\u201d\u201e\u201f\u2033]/g, '"')
+        .replace(/[\u2010-\u2015\u2212]/g, '-')
+        .replace(/[^\w\s\-x]/gi, ' ') // mantém letras/dígitos/_/hífen; "x" de "reclamacao x resposta"
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function extrairTitulosH3(conteudo) {
     const titulos = [];
     const re = /^###\s+(.+)$/gm;
     let m;
     while ((m = re.exec(conteudo)) !== null) {
-        titulos.push(String(m[1] || '').replace(/^\[|\]$/g, '').trim());
+        titulos.push(String(m[1] || '').trim());
     }
     return titulos;
 }
 
+function chavesOficiaisCriterio(criterioId, label) {
+    const keys = new Set();
+    const idN = normalizarHeadingCriterio(criterioId);
+    const labelN = normalizarHeadingCriterio(label);
+    if (idN) keys.add(idN);
+    if (labelN) keys.add(labelN);
+    return keys;
+}
+
 function contarHeadingCriterio(titulosH3, criterioId, label) {
-    const idNorm = normalizarTitulo(criterioId);
-    const labelNorm = normalizarTitulo(label);
+    const oficiais = chavesOficiaisCriterio(criterioId, label);
     let count = 0;
     for (const t of titulosH3) {
-        const n = normalizarTitulo(t);
-        if (n === labelNorm || n === idNorm) count += 1;
+        const n = normalizarHeadingCriterio(t);
+        if (oficiais.has(n)) count += 1;
     }
     return count;
 }
 
 /**
- * Valida saída markdown da Auditora Técnica (A1, A4, A10 + unicidade ###).
+ * Conta headings reconhecidos como algum critério oficial (após normalização).
+ * Headings auxiliares/desconhecidos são ignorados (não invalidam sozinhos).
+ */
+function contarHeadingsReconhecidos(titulosH3, perfil) {
+    const mapaOficial = new Map(); // normKey -> criterioId
+    for (const criterioId of Object.keys(perfil.criterios || {})) {
+        const label = LABELS[criterioId] || criterioId;
+        for (const k of chavesOficiaisCriterio(criterioId, label)) {
+            mapaOficial.set(k, criterioId);
+        }
+    }
+    let total = 0;
+    for (const t of titulosH3) {
+        const n = normalizarHeadingCriterio(t);
+        if (mapaOficial.has(n)) total += 1;
+    }
+    return total;
+}
+
+/**
+ * Valida saída markdown da Auditora Técnica (A1, A4, A10 + unicidade ### tipográfica).
  * @returns {{ valido: boolean, erros: string[] }}
  */
 function validarSaidaAuditora(markdown, perfil) {
@@ -79,14 +130,28 @@ function validarSaidaAuditora(markdown, perfil) {
         if (secJust) {
             const conteudoJust = secJust.conteudo;
             const titulosH3 = extrairTitulosH3(conteudoJust);
-            for (const criterioId of Object.keys(perfil.criterios)) {
+            const criteriosIds = Object.keys(perfil.criterios);
+            const nEsperado = criteriosIds.length;
+            let totalReconhecidos = 0;
+
+            for (const criterioId of criteriosIds) {
                 const label = LABELS[criterioId] || criterioId;
                 const count = contarHeadingCriterio(titulosH3, criterioId, label);
+                totalReconhecidos += count;
                 if (count === 0) {
                     erros.push(`critério ausente na justificativa: ${label}`);
                 } else if (count > 1) {
                     erros.push(`critério duplicado na justificativa (### repetido): ${label}`);
                 }
+            }
+
+            // totalReconhecidos === soma dos counts oficiais; deve ser exatamente N.
+            // Headings desconhecidos não entram na soma e não invalidam sozinhos.
+            if (totalReconhecidos !== nEsperado) {
+                erros.push(
+                    `quantidade de headings de critérios reconhecidos (${totalReconhecidos}) ` +
+                    `diferente do perfil (${nEsperado})`
+                );
             }
         } else if (!secoes.valido) {
             // seção justificativa ausente já reportada acima
@@ -101,5 +166,7 @@ function validarSaidaAuditora(markdown, perfil) {
 module.exports = {
     validarSaidaAuditora,
     extrairTitulosH3,
-    contarHeadingCriterio
+    contarHeadingCriterio,
+    normalizarHeadingCriterio,
+    contarHeadingsReconhecidos
 };

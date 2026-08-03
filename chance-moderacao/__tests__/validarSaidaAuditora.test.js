@@ -53,4 +53,17 @@ const rDup = validarSaidaAuditora(
 assert.strictEqual(rDup.valido, false);
 assert.ok(rDup.erros.some((e) => e.includes('duplicado')));
 
+const rBold = validarSaidaAuditora(
+    buildRelatorioMinimo(72).replace(blocos, `${blocos}\n\n### **Evidencia objetiva**\nClassificação: x`),
+    perfil
+);
+assert.strictEqual(rBold.valido, false);
+assert.ok(rBold.erros.some((e) => e.includes('duplicado')));
+
+const rAux = validarSaidaAuditora(
+    buildRelatorioMinimo(72).replace(blocos, `${blocos}\n\n### Resumo auxiliar\nOk.`),
+    perfil
+);
+assert.strictEqual(rAux.valido, true, rAux.erros.join('; '));
+
 console.log('chance-moderacao/__tests__/validarSaidaAuditora.test.js — OK');

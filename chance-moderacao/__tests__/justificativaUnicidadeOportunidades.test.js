@@ -86,6 +86,8 @@ function testOpp1_promptSituacoes() {
     assert.ok(/EXATAMENTE UM bloco ###/i.test(text));
     assert.ok(/itens": \[\]|"itens": \[\]|retorne "itens": \[\]/i.test(text));
     assert.ok(/não gera oportunidade automática|NÃO implica automaticamente/i.test(text));
+    assert.ok(/âncora no texto|trecho ou característica concreta/i.test(text));
+    assert.ok(/NÃO apenas reproduzir ou parafrasear|Não parafraseie apenas/i.test(text));
     console.log('  Opp-1 prompt situações e condições DTO — OK');
 }
 
@@ -175,7 +177,9 @@ function testExemplosSituacoesNoPrompt() {
     assert.ok(p.user.includes('Explicitar essa relação'));
     assert.ok(p.user.includes('Sem ação textual disponível com os dados fornecidos'));
     assert.ok(p.user.includes('NÃO vai no DTO') || p.user.includes('NÃO criar item no DTO'));
-    console.log('  Exemplos situação 2 e 3 no prompt — OK');
+    assert.ok(/limitação factual\/evidencial|elemento objetivo verificável/i.test(p.user));
+    assert.ok(/âncora/i.test(`${p.system}\n${p.user}`));
+    console.log('  Exemplos situação 2 e 3 + âncora no prompt — OK');
 }
 
 testDup1_rejeitaDuplicata();
