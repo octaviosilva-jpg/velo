@@ -4,6 +4,19 @@
 
 const { faixaDoScore, ordemFaixa } = require('./motor');
 
+/**
+ * Compressao linear continua V4 (evidencia fraca).
+ * score <= x0 => inalterado; score > x0 => x0 + (teto - x0) * (score - x0) / (ref - x0)
+ */
+function aplicarV4CompressaoContinua(chance, perfil) {
+    const cfg = perfil.validador;
+    const x0 = cfg.v4_x0_inicio;
+    const teto = cfg.v4_teto_saida;
+    const ref = cfg.v4_score_referencia_max;
+    if (chance <= x0) return chance;
+    return x0 + (teto - x0) * (chance - x0) / (ref - x0);
+}
+
 function todosEstadosEm(estados, mapa) {
     return Object.entries(mapa).every(([criterio, permitidos]) => permitidos.includes(estados[criterio]));
 }
@@ -31,8 +44,6 @@ function validar(estados, resultadoMotor, perfil) {
     const notas = [];
     let status = 'coerente';
 
-    // V2/V3 (rede de seguranca): estados fracos nunca deveriam alcancar faixa >= boa.
-    // Se ocorrer, houve falha de gate/parsing: rebaixa e alerta.
     if (fraco && ordemFaixa(faixa, perfil) >= ordemFaixa('boa', perfil)) {
         const alvo = resultadoMotor.metadados.faixa_permitida;
         const [lo, hi] = perfil.faixas.limites[alvo];
@@ -42,7 +53,6 @@ function validar(estados, resultadoMotor, perfil) {
         status = 'alerta';
     }
 
-    // V1: estados fortes + sem gate legitimo, mas chance abaixo do piso => eleva ao piso.
     if (forte && !gateAtivo && chance < v.piso_estados_fortes) {
         chance = +v.piso_estados_fortes.toFixed(2);
         faixa = faixaDoScore(chance, perfil);
@@ -50,11 +60,22 @@ function validar(estados, resultadoMotor, perfil) {
         status = status === 'alerta' ? 'alerta' : 'ajustado';
     }
 
-    // V4: faixa Alta sem lastro objetivo de evidencia => teto.
-    if (evidenciaFraca && ordemFaixa(faixa, perfil) >= ordemFaixa('alta', perfil)) {
-        chance = +Math.min(chance, v.teto_alta_sem_evidencia).toFixed(2);
+    if (evidenciaFraca && v.v4_modo === 'compressao_continua') {
+        const chancePreV4 = chance;
+        chance = +aplicarV4CompressaoContinua(chance, perfil).toFixed(2);
+        if (chance !== chancePreV4) {
+            faixa = faixaDoScore(chance, perfil);
+            notas.push(
+                `V4: evidencia objetiva insuficiente; chance comprimida de ${chancePreV4}% para ${chance}% ` +
+                `(compressao_continua x0=${v.v4_x0_inicio}, teto=${v.v4_teto_saida}).`
+            );
+            status = status === 'alerta' ? 'alerta' : 'ajustado';
+        }
+    } else if (evidenciaFraca && ordemFaixa(faixa, perfil) >= ordemFaixa('alta', perfil)) {
+        const teto = v.v4_teto_saida ?? v.teto_alta_sem_evidencia;
+        chance = +Math.min(chance, teto).toFixed(2);
         faixa = faixaDoScore(chance, perfil);
-        notas.push(`V4: faixa Alta sem evidencia objetiva suficiente; limitada a ${v.teto_alta_sem_evidencia}%.`);
+        notas.push(`V4: faixa Alta sem evidencia objetiva suficiente; limitada a ${teto}%.`);
         status = status === 'alerta' ? 'alerta' : 'ajustado';
     }
 
@@ -66,4 +87,4 @@ function validar(estados, resultadoMotor, perfil) {
     };
 }
 
-module.exports = { validar };
+module.exports = { validar, aplicarV4CompressaoContinua };
