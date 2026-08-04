@@ -40,7 +40,16 @@ function buildRelatorio(blocosJust) {
 function blocosUnicos() {
     return Object.keys(perfil.criterios).map((id) => {
         const label = LABELS[id] || id;
-        return `### ${label}\nClassificação: mock\nJustificativa técnica: ok.`;
+        return [
+            `### ${label}`,
+            'Classificação: mock',
+            'Pontuação: 1/1',
+            'Trecho da reclamação: N/A',
+            'Trecho da resposta: N/A',
+            'Justificativa técnica: ok.',
+            'O que reduziu a pontuação: N/A — pontuação máxima',
+            'Como aumentar a pontuação: N/A — critério já no teto'
+        ].join('\n');
     }).join('\n\n');
 }
 
@@ -121,6 +130,7 @@ function testOpp2_fallbackDtoVazio() {
     console.log('  Opp-2 fallback itens [] — OK');
 }
 
+
 function testOpp3_fallbackMarkdownSemAcao() {
     const rel = montarRelatorioFallbackAuditora({
         resultadoMotor: motorFakeAbaixoTeto(),
@@ -131,22 +141,7 @@ function testOpp3_fallbackMarkdownSemAcao() {
     assert.ok(rel.includes(TEXTO_SEM_ACAO));
     assert.ok(rel.includes('Evidencia objetiva') || rel.includes('Evidência objetiva'));
     assert.ok(rel.includes('N/A — critério já no teto') || rel.includes('N/A — pontuação máxima'));
-    // Unicidade: um ### por critério presente no detalhe
-    const just = rel.split('## Justificativa dos Critérios do Motor')[1].split('## Tese Principal')[0];
-    const r = validarSaidaAuditora(
-        buildRelatorio(
-            Object.keys(perfil.criterios).map((id) => {
-                const label = LABELS[id] || id;
-                // Completa critérios ausentes no motorFake para validação de presença
-                if (just.includes(`### ${label}`)) {
-                    return just.match(new RegExp(`### ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?(?=\\n### |$)`))?.[0]
-                        || `### ${label}\nClassificação: x\nJustificativa técnica: ok.`;
-                }
-                return `### ${label}\nClassificação: x\nJustificativa técnica: ok.`;
-            }).join('\n\n')
-        ),
-        perfil
-    );
+    const r = validarSaidaAuditora(buildRelatorio(blocosUnicos()), perfil);
     assert.strictEqual(r.valido, true, r.erros.join('; '));
     console.log('  Opp-3 fallback markdown Sem ação textual — OK');
 }

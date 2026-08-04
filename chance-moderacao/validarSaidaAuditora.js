@@ -3,6 +3,46 @@
 const { LINGUAGEM_ESPECULATIVA_PROIBIDA } = require('./constants');
 const { validarSecoesAuditora, normalizarTitulo } = require('./secoesV8');
 const { LABELS } = require('../motor-pontuacao/integracao');
+const { parseJustificativaCriterios } = require('./justificativaParser');
+
+/** Labels para mensagens de erro de campos obrigatórios por H3. */
+const NOMES_CAMPOS_JUSTIFICATIVA = {
+    classificacao: 'Classificação',
+    pontuacao: 'Pontuação',
+    trechoReclamacao: 'Trecho da reclamação',
+    trechoResposta: 'Trecho da resposta',
+    justificativaTecnica: 'Justificativa técnica',
+    oQueReduziu: 'O que reduziu a pontuação',
+    comoAumentar: 'Como aumentar a pontuação'
+};
+
+const CHAVES_CAMPOS_OBRIGATORIOS = Object.keys(NOMES_CAMPOS_JUSTIFICATIVA);
+
+/**
+ * Valida presença dos 7 campos internos em cada H3 (multilinha e flat via parser).
+ * Aceita aliases já suportados pelo parser; não completa nem altera markdown.
+ */
+function validarCamposInternosJustificativa(conteudoJust) {
+    const erros = [];
+    const partes = String(conteudoJust || '').split(/^###\s+/m).filter((p) => p.trim());
+    for (const parte of partes) {
+        const itens = parseJustificativaCriterios('### ' + parte.trim());
+        if (!itens.length) continue;
+        const item = itens[0];
+        const nomeCrit = item.nome || 'critério';
+        if (!item.campos) {
+            erros.push(`campos obrigatórios ausentes ou ilegíveis em ${nomeCrit}`);
+            continue;
+        }
+        for (const key of CHAVES_CAMPOS_OBRIGATORIOS) {
+            const val = item.campos[key];
+            if (val == null || String(val).trim() === '') {
+                erros.push(`campo obrigatório ausente em ${nomeCrit}: ${NOMES_CAMPOS_JUSTIFICATIVA[key]}`);
+            }
+        }
+    }
+    return erros;
+}
 
 /** Proíbe estimativa de chance; permite citação do valor oficial na seção 1. */
 const REGEX_CHANCE_ESTIMADA = /chance\s*(estimada|provável|provavel)/i;
@@ -181,6 +221,8 @@ function validarSaidaAuditora(markdown, perfil) {
                     `diferente do perfil (${nEsperado})`
                 );
             }
+
+            erros.push(...validarCamposInternosJustificativa(secJust.conteudo));
         } else if (!secoes.valido) {
             // já reportado
         } else {
@@ -193,9 +235,11 @@ function validarSaidaAuditora(markdown, perfil) {
 
 module.exports = {
     validarSaidaAuditora,
+    validarCamposInternosJustificativa,
     extrairTitulosH3,
     contarHeadingCriterio,
     normalizarHeadingCriterio,
     contarHeadingsReconhecidos,
-    analisarHeadingsJustificativa
+    analisarHeadingsJustificativa,
+    NOMES_CAMPOS_JUSTIFICATIVA
 };

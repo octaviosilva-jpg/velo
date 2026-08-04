@@ -63,10 +63,42 @@ function testJ4() {
 
 function testJ5() {
     const t = promptText();
-    assert.ok(/Nunca preencher "O que reduziu" só porque pontos < peso/i.test(t));
+    assert.ok(/Nunca preencher .*O que reduziu.* só porque pontos < peso/i.test(t));
+    assert.ok(/CAMPO "O que reduziu" continua OBRIGATÓRIO|continua OBRIGATÓRIO/i.test(t));
     assert.ok(/EVITAR:.*Não foi possível justificar|EVITAR:.*Motor não apresentou fundamento/i.test(t));
     assert.ok(/NÃO questione|não questionar a validade/i.test(t));
-    console.log('  J5 sem inventar motivo + não questionar Motor — OK');
+    console.log('  J5 sem inventar motivo + campo obrigatório — OK');
+}
+
+function testJ1EvidenciaProibida() {
+    const t = promptText();
+    assert.ok(/estado ou pontuação de evidencia_objetiva, isoladamente/i.test(t));
+    assert.ok(/NÃO pode ser usado como explicação causal para adequacao_hipotese/i.test(t));
+    assert.ok(/Adequação perdeu pontos porque Evidência objetiva/i.test(t));
+    console.log('  J1 Adequação × Evidência proibida (prompt) — OK');
+}
+
+function testJ2FundamentoProprio() {
+    const t = promptText();
+    assert.ok(/fundamentos\.adequacao_hipotese estabelecerem explicitamente/i.test(t));
+    assert.ok(/requisito interno da Adequação/i.test(t));
+    console.log('  J2 Adequação com fundamento próprio — OK');
+}
+
+function testJ3InexistenteTeto() {
+    const t = promptText();
+    assert.ok(/ESTADO "INEXISTENTE" COM PONTUAÇÃO MÁXIMA/i.test(t));
+    assert.ok(/inexistente.*NÃO representa deficiência|NÃO representa deficiência/i.test(t));
+    assert.ok(/inaplicabilidade/i.test(t));
+    assert.ok(/Não foram identificados fatos secundários/i.test(t));
+    console.log('  J3 inexistente = teto positivo — OK');
+}
+
+function testCamposObrigatoriosPrompt() {
+    const t = promptText();
+    assert.ok(/CAMPOS OBRIGATÓRIOS \(7\)/i.test(t));
+    assert.ok(/NENHUM campo pode ser omitido/i.test(t));
+    console.log('  Prompt 7 campos obrigatórios — OK');
 }
 
 function testFallbackCausal() {
@@ -113,6 +145,10 @@ testJ2();
 testJ3();
 testJ4();
 testJ5();
+testJ1EvidenciaProibida();
+testJ2FundamentoProprio();
+testJ3InexistenteTeto();
+testCamposObrigatoriosPrompt();
 testFallbackCausal();
 testEstruturaH3Prompt();
 console.log('justificativaCausalPrompt.test.js — OK');

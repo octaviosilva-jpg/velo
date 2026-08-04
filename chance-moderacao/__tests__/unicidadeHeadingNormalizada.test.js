@@ -36,7 +36,16 @@ function buildRelatorio(blocosJust) {
 }
 
 function bloco(label) {
-    return `### ${label}\nClassificação: mock\nJustificativa técnica: ok.`;
+    return [
+        `### ${label}`,
+        'Classificação: mock',
+        'Pontuação: 1/1',
+        'Trecho da reclamação: N/A',
+        'Trecho da resposta: N/A',
+        'Justificativa técnica: ok.',
+        'O que reduziu a pontuação: N/A — pontuação máxima',
+        'Como aumentar a pontuação: N/A — critério já no teto'
+    ].join('\n');
 }
 
 function blocosOficiais() {
