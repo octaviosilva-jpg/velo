@@ -4,6 +4,7 @@ const { LINGUAGEM_ESPECULATIVA_PROIBIDA } = require('./constants');
 const { validarSecoesAuditora, normalizarTitulo } = require('./secoesV8');
 const { LABELS } = require('../motor-pontuacao/integracao');
 const { parseJustificativaCriterios, isNaTeto } = require('./justificativaParser');
+const { validarSemanticaJustificativa } = require('./validarSemanticaAuditora');
 
 /** Labels para mensagens de erro de campos obrigatórios por H3. */
 const NOMES_CAMPOS_JUSTIFICATIVA = {
@@ -226,7 +227,7 @@ function analisarHeadingsJustificativa(conteudoJust, perfil) {
  * @param {object} [motorSerializado] - payload oficial (criterios[] com pontos/peso) para coerência
  * @returns {{ valido: boolean, erros: string[] }}
  */
-function validarSaidaAuditora(markdown, perfil, motorSerializado) {
+function validarSaidaAuditora(markdown, perfil, motorSerializado, contextoCaso) {
     const erros = [];
     if (!markdown || typeof markdown !== 'string' || !markdown.trim()) {
         return { valido: false, erros: ['relatório vazio'] };
@@ -291,6 +292,7 @@ function validarSaidaAuditora(markdown, perfil, motorSerializado) {
             erros.push(...validarCamposInternosJustificativa(secJust.conteudo));
             if (motorSerializado) {
                 erros.push(...validarCoerenciaPontuacaoTeto(secJust.conteudo, motorSerializado, perfil));
+                erros.push(...validarSemanticaJustificativa(secJust.conteudo, motorSerializado, perfil, contextoCaso));
             }
         } else if (!secoes.valido) {
             // já reportado
@@ -314,5 +316,6 @@ module.exports = {
     normalizarHeadingCriterio,
     contarHeadingsReconhecidos,
     analisarHeadingsJustificativa,
+    mapaOficialNormParaId,
     NOMES_CAMPOS_JUSTIFICATIVA
 };

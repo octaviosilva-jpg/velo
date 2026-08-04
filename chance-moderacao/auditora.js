@@ -10,13 +10,34 @@ const { montarRelatorioFallbackAuditora, montarOportunidadesFallback } = require
 
 const MAX_TENTATIVAS = 3;
 
+const REGEX_ADEQUACAO_EVIDENCIA = /adequacao_evidencia_sem_fundamento/i;
+const REGEX_EVIDENCIA_ANCORA = /evidencia_(acao|dto)_sem_ancora|incoerencia_sem_acao_markdown_dto/i;
+
 const REGEX_CAMPOS_ILEGIVEIS = /campos obrigatórios ausentes ou ilegíveis em/i;
 
 const ORIENTACAO_FORMATO_JUSTIFICATIVA =
     ' Os campos internos da Justificativa não foram reconhecidos. Em cada ### critério, use exatamente o formato `Label: valor`, um campo por linha, sem bullets ou numeração antes dos labels. Todos os 7 campos são obrigatórios: Classificação, Pontuação, Trecho da reclamação, Trecho da resposta, Justificativa técnica, O que reduziu a pontuação, Como aumentar a pontuação.';
 
+function montarContextoCasoAuditora(entrada) {
+    return {
+        reclamacao: entrada.reclamacao,
+        respostaPublica: entrada.respostaPublica,
+        solucaoImplementada: entrada.solucaoImplementada,
+        consideracaoFinal: entrada.consideracaoFinal,
+        historicoModeracao: entrada.historicoModeracao,
+        mapa_reclamacao: entrada.extracao?.mapa_reclamacao ?? entrada.motorSerializado?.mapa_reclamacao,
+        fundamentos: entrada.extracao?.fundamentos ?? entrada.motorSerializado?.fundamentos
+    };
+}
+
 function montarInstrucaoCorrecaoRetry(ultimoErro, proximaTentativa) {
     let msg = `\n\nCORREÇÃO OBRIGATÓRIA (tentativa ${proximaTentativa}): ${ultimoErro}. Inclua todas as seções H2 na ordem A10, bloco ${'<!-- OPORTUNIDADES_MELHORIA_JSON -->'} com schema oportunidades-v1, e use ### [Nome do critério] para cada critério do Motor. Percentual só na seção "Resultado Oficial do Motor" citando o valor oficial.`;
+    if (REGEX_ADEQUACAO_EVIDENCIA.test(ultimoErro)) {
+        msg += ' Não atribua deficiência de evidência ao critério Adequação da hipótese sem suporte explícito no fundamento do próprio critério.';
+    }
+    if (REGEX_EVIDENCIA_ANCORA.test(ultimoErro)) {
+        msg += ' Não proponha inclusão de evidência/documento/comprovante inexistente nos dados fornecidos. Se não houver ação textual executável, use "Sem ação textual disponível com os dados fornecidos." e não gere oportunidade A16 para evidencia_objetiva.';
+    }
     if (REGEX_CAMPOS_ILEGIVEIS.test(ultimoErro)) {
         msg += ORIENTACAO_FORMATO_JUSTIFICATIVA;
     }
@@ -69,10 +90,11 @@ async function auditora(entrada, deps = {}) {
         custoTotal += resp.custoEstimado || 0;
 
         const { relatorio } = separarRelatorioEOportunidades(resp.conteudo);
-        const validacaoMarkdown = validarSaidaAuditora(relatorio, perfil, entrada.motorSerializado);
+        const contextoCaso = montarContextoCasoAuditora(entrada);
+        const validacaoMarkdown = validarSaidaAuditora(relatorio, perfil, entrada.motorSerializado, contextoCaso);
         const oportunidadesMelhoria = parseOportunidadesMelhoria(resp.conteudo);
         const validacaoDto = oportunidadesMelhoria
-            ? validarOportunidadesMelhoria(oportunidadesMelhoria, perfil, entrada.motorSerializado)
+            ? validarOportunidadesMelhoria(oportunidadesMelhoria, perfil, entrada.motorSerializado, relatorio, contextoCaso)
             : { valido: false, erros: ['DTO oportunidadesMelhoria ausente'] };
 
         const erros = [
@@ -173,4 +195,4 @@ async function auditora(entrada, deps = {}) {
     };
 }
 
-module.exports = { auditora, montarInstrucaoCorrecaoRetry };
+module.exports = { auditora, montarInstrucaoCorrecaoRetry, montarContextoCasoAuditora };

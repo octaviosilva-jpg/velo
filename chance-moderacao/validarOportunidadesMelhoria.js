@@ -1,6 +1,8 @@
 'use strict';
 
 const { OPORTUNIDADES_SCHEMA_VERSION } = require('./constants');
+const { validarSemanticaOportunidades } = require('./validarSemanticaAuditora');
+const { validarSecoesAuditora } = require('./secoesV8');
 
 /**
  * Valida DTO oportunidadesMelhoria contra schema e critérios do perfil Motor.
@@ -9,7 +11,7 @@ const { OPORTUNIDADES_SCHEMA_VERSION } = require('./constants');
  * @param {object} [motorSerializado] - criterios[] oficiais (pontos/peso) para rejeitar itens no teto
  * @returns {{ valido: boolean, erros: string[] }}
  */
-function validarOportunidadesMelhoria(dto, perfil, motorSerializado) {
+function validarOportunidadesMelhoria(dto, perfil, motorSerializado, conteudoJustificativa, contextoCaso) {
     const erros = [];
     if (!dto || typeof dto !== 'object') {
         return { valido: false, erros: ['DTO ausente ou inválido'] };
@@ -68,6 +70,15 @@ function validarOportunidadesMelhoria(dto, perfil, motorSerializado) {
         if (/%\s*\d|\d\s*%/.test(textoItem)) {
             erros.push(`${prefix}: percentuais proibidos no DTO`);
         }
+    }
+
+    if (motorSerializado && conteudoJustificativa) {
+        let just = conteudoJustificativa;
+        if (/^##\s+/m.test(String(conteudoJustificativa))) {
+            const secoes = validarSecoesAuditora(conteudoJustificativa);
+            just = secoes.secoes['justificativa dos critérios do motor']?.conteudo || conteudoJustificativa;
+        }
+        erros.push(...validarSemanticaOportunidades(dto, motorSerializado, just, perfil, contextoCaso));
     }
 
     return { valido: erros.length === 0, erros };
