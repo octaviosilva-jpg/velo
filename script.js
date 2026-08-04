@@ -2611,8 +2611,14 @@ const JUSTIFICATIVA_CAMPOS = [
     { key: 'trechoReclamacao', labels: ['trecho da reclamação', 'trecho da reclamacao'] },
     { key: 'trechoResposta', labels: ['trecho da resposta'] },
     { key: 'justificativaTecnica', labels: ['justificativa técnica', 'justificativa tecnica'] },
-    { key: 'oQueReduziu', labels: ['o que reduziu a pontuação', 'o que reduziu a pontuacao'] },
-    { key: 'comoAumentar', labels: ['como aumentar a pontuação', 'como aumentar a pontuacao'] }
+    {
+        key: 'oQueReduziu',
+        labels: ['o que reduziu a pontuação', 'o que reduziu a pontuacao', 'o que reduziu']
+    },
+    {
+        key: 'comoAumentar',
+        labels: ['como aumentar a pontuação', 'como aumentar a pontuacao', 'como aumentar']
+    }
 ];
 
 function stripMarkdownJustificativa(texto) {
