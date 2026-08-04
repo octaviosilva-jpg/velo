@@ -4,7 +4,7 @@ const { LINGUAGEM_ESPECULATIVA_PROIBIDA } = require('./constants');
 const { validarSecoesAuditora, normalizarTitulo } = require('./secoesV8');
 const { LABELS } = require('../motor-pontuacao/integracao');
 const { parseJustificativaCriterios, isNaTeto } = require('./justificativaParser');
-const { validarSemanticaJustificativa } = require('./validarSemanticaAuditora');
+const { validarSemanticaJustificativa, validarSemanticaMacro } = require('./validarSemanticaAuditora');
 
 /** Labels para mensagens de erro de campos obrigatórios por H3. */
 const NOMES_CAMPOS_JUSTIFICATIVA = {
@@ -293,6 +293,7 @@ function validarSaidaAuditora(markdown, perfil, motorSerializado, contextoCaso) 
             if (motorSerializado) {
                 erros.push(...validarCoerenciaPontuacaoTeto(secJust.conteudo, motorSerializado, perfil));
                 erros.push(...validarSemanticaJustificativa(secJust.conteudo, motorSerializado, perfil, contextoCaso));
+                erros.push(...validarSemanticaMacro(markdown, secJust.conteudo, motorSerializado, perfil, contextoCaso));
             }
         } else if (!secoes.valido) {
             // já reportado

@@ -12,6 +12,7 @@ const MAX_TENTATIVAS = 3;
 
 const REGEX_ADEQUACAO_EVIDENCIA = /adequacao_evidencia_sem_fundamento/i;
 const REGEX_EVIDENCIA_ANCORA = /evidencia_(acao|dto)_sem_ancora|incoerencia_sem_acao_markdown_dto/i;
+const REGEX_MACRO = /macro_(acao|causalidade|clareza)/i;
 
 const REGEX_CAMPOS_ILEGIVEIS = /campos obrigatórios ausentes ou ilegíveis em/i;
 
@@ -37,6 +38,9 @@ function montarInstrucaoCorrecaoRetry(ultimoErro, proximaTentativa) {
     }
     if (REGEX_EVIDENCIA_ANCORA.test(ultimoErro)) {
         msg += ' Não proponha inclusão de evidência/documento/comprovante inexistente nos dados fornecidos. Se não houver ação textual executável, use "Sem ação textual disponível com os dados fornecidos." e não gere oportunidade A16 para evidencia_objetiva.';
+    }
+    if (REGEX_MACRO.test(ultimoErro)) {
+        msg += ' As seções "Pontos que reduziram", "Como aumentar a pontuação" e "Clareza e Fundamentação" devem apenas resumir os cards H3 validados — não invente ação, causalidade ou melhoria de evidência que os cards não sustentem.';
     }
     if (REGEX_CAMPOS_ILEGIVEIS.test(ultimoErro)) {
         msg += ORIENTACAO_FORMATO_JUSTIFICATIVA;

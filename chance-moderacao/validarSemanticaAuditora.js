@@ -1,6 +1,6 @@
 'use strict';
 
-const { TEXTO_SEM_ACAO } = require('./montarRelatorioFallback');
+const { TEXTO_SEM_ACAO, TEXTO_SEM_CAUSA_INDIV } = require('./montarRelatorioFallback');
 const { parseJustificativaCriterios, isNaTeto } = require('./justificativaParser');
 const { validarSecoesAuditora } = require('./secoesV8');
 const { LABELS } = require('../motor-pontuacao/integracao');
@@ -48,12 +48,17 @@ const ERRO_ADEQUACAO_EVIDENCIA = 'adequacao_evidencia_sem_fundamento';
 const ERRO_EVIDENCIA_SEM_ANCORA = 'evidencia_acao_sem_ancora';
 const ERRO_EVIDENCIA_DTO_SEM_ANCORA = 'evidencia_dto_sem_ancora';
 const ERRO_INCOERENCIA_SEM_ACAO_DTO = 'incoerencia_sem_acao_markdown_dto';
+const ERRO_MACRO_ACAO_INCOERENTE = 'macro_acao_incoerente_h3';
+const ERRO_MACRO_CAUSALIDADE = 'macro_causalidade_indevida';
+const ERRO_MACRO_CLAREZA_EVIDENCIA = 'macro_clareza_evidencia_indevida';
 
 function normalizarSemAcento(texto) {
     return String(texto || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function textoMencionaEvidencia(texto) {
@@ -86,33 +91,80 @@ function fundamentoAdequacaoAutorizaEvidencia(fundamentos) {
     return false;
 }
 
+/** Padrões causais sobre evidência — aplicados em texto normalizado sem acentos. */
 const PADROES_EVIDENCIA_CAUSAL = [
-    /evidenc\w*\s+objetiv/i,
-    /evidencia_objetiva/i,
-    /\b(?:nao|sem|falta(?:m|de)?|ausencia)\b[^.\n;]{0,55}\bevidenc/i,
-    /\bevidenc\w*[^.\n;]{0,35}\b(?:objetiv\w*|comprov\w*|document\w*|verific\w*)/i,
-    /\bnao\s+apresentou\b[^.\n;]{0,35}\bevidenc/i,
-    /\b(?:porque|pois|devido\s+a)\b[^.\n;]{0,65}\bevidenc/i,
-    /\bfalt(?:aram|ou)\b[^.\n;]{0,35}\bevidenc/i
+    /evidenc\w*\s+objetiv/,
+    /evidencia_objetiva/,
+    /\b(?:nao|sem|falta(?:m|de)?|ausencia)\b[^.\n;]{0,55}\bevidenc/,
+    /\bevidenc\w*[^.\n;]{0,35}\b(?:objetiv\w*|comprov\w*|document\w*|verific\w*)/,
+    /\bnao\s+apresentou\b[^.\n;]{0,35}\bevidenc/,
+    /\b(?:porque|pois|devido\s+a)\b[^.\n;]{0,65}\bevidenc/,
+    /\bfalt(?:aram|ou)\b[^.\n;]{0,35}\bevidenc/
 ];
 
 function textoUsaEvidenciaCausalmente(texto) {
-    const t = String(texto || '').trim();
-    if (!t) return false;
-    return PADROES_EVIDENCIA_CAUSAL.some((re) => re.test(t));
+    const n = normalizarSemAcento(String(texto || '').trim());
+    if (!n) return false;
+    return PADROES_EVIDENCIA_CAUSAL.some((re) => re.test(n));
 }
 
-const PADROES_PEDIDO_INCLUSAO = [
-    /\b(?:incluir|inserir|adicionar|apresentar|anexar)\b[^.\n;]{0,45}\b(?:evidenc\w*|comprov\w*|document\w*)/i,
-    /\b(?:incluir|inserir|adicionar|apresentar|anexar)\b[^.\n;]{0,45}\b(?:protocol\w*|registro\w*)/i,
-    /\b(?:cit(?:ar|e)|mencionar)\b[^.\n;]{0,45}\b(?:comprov\w*|document\w*|protocol\w*)/i,
-    /\bevidenc\w*\s+objetiv\w*[^.\n;]{0,25}\b(?:na resposta|que sustent)/i
-];
+const VERBOS_PEDIDO =
+    '(?:incluir|inclusao|inserir|adicionar|fornecer|apresentar|anexar|cit(?:ar|e)|mencionar|informar)';
+const OBJETOS_VERIFICAVEIS =
+    '(?:evidenc\\w*|comprov\\w*|document\\w*|protocol\\w*|registro\\w*|elementos?\\s+(?:objetivos?\\s+)?verific\\w*|detalhes?\\s+verific\\w*|informac\\w+\\s+verific\\w*)';
+
+/** Marcadores de sugestão/recomendação — não tratar como enunciado descritivo. */
+function isEnunciadoRecomendatorio(texto) {
+    const n = normalizarSemAcento(texto);
+    if (!n) return false;
+    return /\b(?:poderia|deveria|seria recomendavel|recomenda(?:r|-se)|sugere(?:r|-se)|convém|convem|necessitaria|precisaria)\b/.test(n)
+        || /\b(?:poderia|deveria)\s+(?:ser\s+)?melhorad/.test(n)
+        || /\b(?:melhorar|melhorada)\s+(?:com|ao|se)\b/.test(n)
+        || /\bpara\s+(?:aumentar|melhorar)\b/.test(n);
+}
+
+/**
+ * Enunciado descritivo do conteúdo atual (não imperativo/recomendatório).
+ * Distingue "A resposta fornece detalhes..." de "A resposta poderia ser melhorada fornecendo...".
+ */
+function isEnunciadoDescritivo(texto) {
+    const n = normalizarSemAcento(texto);
+    if (!n) return false;
+    if (isEnunciadoRecomendatorio(texto)) return false;
+    if (/\b(?:a resposta|o texto|a empresa|resposta publica)\s+(?:fornece|apresenta|informa|esclarece|descreve|detalha)\b/.test(n)) {
+        return true;
+    }
+    if (/\b(?:foi|esta|e)\s+(?:clara|claro|bem fundamentad|compreensiv)/.test(n)) {
+        return true;
+    }
+    if (/\b(?:fornece|apresenta)\s+(?:detalhes|elementos)\s+sobre\b/.test(n)) {
+        return true;
+    }
+    if (/\bapresenta\s+de\s+forma\s+clara\b/.test(n)) {
+        return true;
+    }
+    return false;
+}
+
+function montarPadroesPedidoInclusao() {
+    return [
+        new RegExp(`\\b${VERBOS_PEDIDO}\\b[^.;]{0,60}\\b${OBJETOS_VERIFICAVEIS}\\b`),
+        new RegExp(`\\b(?:melhorar|melhorada|melhorar com)\\b[^.;]{0,45}\\b(?:a\\s+)?inclusao\\b[^.;]{0,40}\\b${OBJETOS_VERIFICAVEIS}\\b`),
+        new RegExp(`\\binclusao\\s+(?:de\\s+)?${OBJETOS_VERIFICAVEIS}\\b`),
+        new RegExp(`\\b${VERBOS_PEDIDO}\\b[^.;]{0,60}\\b(?:detalhes?|elementos?)\\s+verific\\w+\\b`),
+        new RegExp(`\\b${VERBOS_PEDIDO}\\b[^.;]{0,60}\\b(?:detalhes?|elementos?)\\s+objetivos?\\s+verific\\w+\\b`),
+        new RegExp(`\\b(?:poderia|deveria)\\s+(?:ser\\s+)?melhorad\\w+[^.;]{0,40}\\b${VERBOS_PEDIDO}\\b[^.;]{0,40}\\b${OBJETOS_VERIFICAVEIS}\\b`),
+        new RegExp(`\\b(?:poderia|deveria)\\s+(?:ser\\s+)?melhorad\\w+[^.;]{0,50}\\b(?:detalhes?|elementos?)\\s+(?:objetivos?\\s+)?verific\\w+\\b`)
+    ];
+}
+
+const PADROES_PEDIDO_INCLUSAO = montarPadroesPedidoInclusao();
 
 function pedidoInclusaoEvidencia(texto) {
-    const t = String(texto || '').trim();
-    if (!t) return false;
-    return PADROES_PEDIDO_INCLUSAO.some((re) => re.test(t));
+    const bruto = String(texto || '').trim();
+    if (!bruto || isEnunciadoDescritivo(bruto)) return false;
+    const n = normalizarSemAcento(bruto);
+    return PADROES_PEDIDO_INCLUSAO.some((re) => re.test(n));
 }
 
 function extrairDigitosSignificativos(texto) {
@@ -174,6 +226,14 @@ function isSemAcaoTextual(valor) {
     return isNaTeto(v);
 }
 
+function isSemCausaTextual(valor) {
+    const v = String(valor || '').trim();
+    if (!v) return false;
+    if (v === TEXTO_SEM_CAUSA_INDIV) return true;
+    const n = normalizarSemAcento(v);
+    return n.includes('nao ha causa textual especifica individualizada');
+}
+
 function coletarTextoFundamentos(fundamentos) {
     const partes = [];
     if (!fundamentos || typeof fundamentos !== 'object') return partes;
@@ -222,6 +282,24 @@ function extrairConteudoJustificativa(input) {
     return input;
 }
 
+function indexarCardsH3(conteudoJust, perfil, motorSerializado) {
+    const cards = {};
+    for (const item of parseJustificativaCriterios(conteudoJust || '')) {
+        if (!item.campos) continue;
+        const criterioId = resolverCriterioId(item.nome, perfil);
+        if (!criterioId) continue;
+        const oficial = criterioOficial(motorSerializado, criterioId);
+        cards[criterioId] = {
+            oQueReduziu: item.campos.oQueReduziu,
+            comoAumentar: item.campos.comoAumentar,
+            semCausa: isSemCausaTextual(item.campos.oQueReduziu),
+            semAcao: isSemAcaoTextual(item.campos.comoAumentar),
+            noTeto: criterioNoTeto(oficial)
+        };
+    }
+    return cards;
+}
+
 function campoComoAumentarEvidencia(conteudoJust, perfil) {
     for (const item of parseJustificativaCriterios(conteudoJust)) {
         if (resolverCriterioId(item.nome, perfil) === 'evidencia_objetiva' && item.campos) {
@@ -229,6 +307,26 @@ function campoComoAumentarEvidencia(conteudoJust, perfil) {
         }
     }
     return null;
+}
+
+function validarAcaoEvidenciaSemAncora(texto, ancoras) {
+    return pedidoInclusaoEvidencia(texto) && !acaoReferenciaAncora(texto, ancoras);
+}
+
+function macroAtribuiEvidenciaAAdequacao(texto) {
+    const n = normalizarSemAcento(texto);
+    if (!n) return false;
+    const mencionaAdeq = /\b(?:adequacao|hipotese|enquadramento)\b/.test(n);
+    if (!mencionaAdeq) return false;
+    if (textoUsaEvidenciaCausalmente(texto)) return true;
+    return /\bevidenc/.test(n) && /\b(?:reduz|impact|limit|prejudic|falta|ausencia|sem)\b/.test(n);
+}
+
+function secaoSugereMelhoriaEvidencia(texto) {
+    if (!texto || !String(texto).trim()) return false;
+    if (pedidoInclusaoEvidencia(texto)) return true;
+    const n = normalizarSemAcento(texto);
+    return /\b(?:melhorar|melhorada|poderia ser melhorada)\b[^.;]{0,50}\bevidenc/.test(n);
 }
 
 function validarSemanticaJustificativa(conteudoJust, motorSerializado, perfil, contextoCaso) {
@@ -252,11 +350,53 @@ function validarSemanticaJustificativa(conteudoJust, motorSerializado, perfil, c
             if (criterioNoTeto(oficial)) continue;
             const como = item.campos.comoAumentar;
             if (!como || isSemAcaoTextual(como)) continue;
-            if (pedidoInclusaoEvidencia(como) && !acaoReferenciaAncora(como, ancoras)) {
+            if (validarAcaoEvidenciaSemAncora(como, ancoras)) {
                 erros.push(`${ERRO_EVIDENCIA_SEM_ANCORA}: N\u00e3o proponha inclus\u00e3o de evid\u00eancia/documento/comprovante inexistente nos dados fornecidos; use "${TEXTO_SEM_ACAO}" se n\u00e3o houver a\u00e7\u00e3o execut\u00e1vel.`);
             }
         }
     }
+    return erros;
+}
+
+/**
+ * Valida coerência das seções macro de risco com os cards H3 (SSoT qualitativo).
+ */
+function validarSemanticaMacro(markdown, conteudoJust, motorSerializado, perfil, contextoCaso) {
+    const erros = [];
+    if (!markdown || !motorSerializado?.criterios?.length) return erros;
+
+    const secoes = validarSecoesAuditora(markdown).secoes;
+    const secComo = secoes['como aumentar a pontuação']?.conteudo || '';
+    const secPontos = secoes['pontos que reduziram a pontuação']?.conteudo || '';
+    const secClareza = secoes['clareza e fundamentação']?.conteudo || '';
+
+    const cards = indexarCardsH3(conteudoJust, perfil, motorSerializado);
+    const ancoras = extrairAncorasConcretas(coletarCorpusInputs(motorSerializado, contextoCaso));
+    const fundamentos = motorSerializado.fundamentos || contextoCaso?.fundamentos || null;
+    const autorizaAdeq = fundamentoAdequacaoAutorizaEvidencia(fundamentos);
+
+    const evCard = cards.evidencia_objetiva;
+    const adeqCard = cards.adequacao_hipotese;
+    const clarezaCard = cards.clareza;
+    const qfCard = cards.qualidade_fundamentacao;
+
+    if (secComo && validarAcaoEvidenciaSemAncora(secComo, ancoras)) {
+        erros.push(`${ERRO_MACRO_ACAO_INCOERENTE}: A se\u00e7\u00e3o "Como aumentar a pontua\u00e7\u00e3o" n\u00e3o pode sugerir inclus\u00e3o de evid\u00eancia/comprovante sem \u00e2ncora quando os cards H3 indicam "${TEXTO_SEM_ACAO}".`);
+    }
+    if (evCard?.semAcao && secComo && secaoSugereMelhoriaEvidencia(secComo)) {
+        erros.push(`${ERRO_MACRO_ACAO_INCOERENTE}: A se\u00e7\u00e3o "Como aumentar a pontua\u00e7\u00e3o" contradiz o card evidencia_objetiva (${TEXTO_SEM_ACAO}).`);
+    }
+
+    if (secPontos && !autorizaAdeq && adeqCard?.semCausa && macroAtribuiEvidenciaAAdequacao(secPontos)) {
+        erros.push(`${ERRO_MACRO_CAUSALIDADE}: A se\u00e7\u00e3o "Pontos que reduziram a pontua\u00e7\u00e3o" n\u00e3o pode atribuir defici\u00eancia de evid\u00eancia \u00e0 Adequa\u00e7\u00e3o quando o card correspondente indica aus\u00eancia de causa individualizada.`);
+    }
+
+    const clarezaSemDeficiencia = clarezaCard?.semCausa && clarezaCard?.semAcao;
+    const qfNoTeto = qfCard?.noTeto;
+    if (secClareza && clarezaSemDeficiencia && qfNoTeto && secaoSugereMelhoriaEvidencia(secClareza)) {
+        erros.push(`${ERRO_MACRO_CLAREZA_EVIDENCIA}: A se\u00e7\u00e3o "Clareza e Fundamenta\u00e7\u00e3o" n\u00e3o pode sugerir inclus\u00e3o de evid\u00eancias objetivas quando Clareza est\u00e1 sem causa/a\u00e7\u00e3o individualizada e Qualidade da fundamenta\u00e7\u00e3o est\u00e1 no teto.`);
+    }
+
     return erros;
 }
 
@@ -271,7 +411,7 @@ function validarSemanticaOportunidades(dto, motorSerializado, conteudoJust, perf
     }
     for (const item of itensEvid) {
         const textoItem = `${item.diagnostico || ''} ${item.acao || ''}`;
-        if (pedidoInclusaoEvidencia(textoItem) && !acaoReferenciaAncora(textoItem, ancoras)) {
+        if (validarAcaoEvidenciaSemAncora(textoItem, ancoras)) {
             erros.push(`${ERRO_EVIDENCIA_DTO_SEM_ANCORA}: Oportunidade de evidencia_objetiva pede inclus\u00e3o de material sem \u00e2ncora concreta nos inputs.`);
         }
     }
@@ -283,13 +423,20 @@ module.exports = {
     ERRO_EVIDENCIA_SEM_ANCORA,
     ERRO_EVIDENCIA_DTO_SEM_ANCORA,
     ERRO_INCOERENCIA_SEM_ACAO_DTO,
+    ERRO_MACRO_ACAO_INCOERENTE,
+    ERRO_MACRO_CAUSALIDADE,
+    ERRO_MACRO_CLAREZA_EVIDENCIA,
     fundamentoAdequacaoAutorizaEvidencia,
     textoUsaEvidenciaCausalmente,
     pedidoInclusaoEvidencia,
+    isEnunciadoDescritivo,
+    isEnunciadoRecomendatorio,
     extrairAncorasConcretas,
     acaoReferenciaAncora,
     isSemAcaoTextual,
+    isSemCausaTextual,
     coletarCorpusInputs,
     validarSemanticaJustificativa,
+    validarSemanticaMacro,
     validarSemanticaOportunidades
 };

@@ -130,12 +130,14 @@ ${ordemSecoes}
    (3) Abaixo do teto sem ação textual segura (inclui ausência de causa individualizada ou limitação evidencial): "Sem ação textual disponível com os dados fornecidos." Sem item no DTO.
    Critério abaixo do teto NÃO implica automaticamente oportunidade. A regra "Nunca preencher 'O que reduziu' só porque pontos < peso" significa NÃO INVENTAR uma causa apenas porque pontos < peso — o CAMPO "O que reduziu" continua OBRIGATÓRIO; se não houver causa segura, use "Não há causa textual específica individualizada nos fundamentos disponíveis."
 
-5. Seções 7 e 8 agregam em texto/listas SEM blocos ### de critérios. Após item acionável, liste Critérios impactados (A3).
+5. Seções 7, 8 e 10 ("Pontos que reduziram", "Como aumentar a pontuação", "Clareza e Fundamentação") RESUMEM os cards H3 — não inventem ação, causalidade ou melhoria de evidência que os cards não sustentem. Se evidencia_objetiva estiver com "Sem ação textual disponível", a macro não pode sugerir inclusão de evidências/comprovantes.
 
-6. PROIBIDO: percentuais fora do Resultado Oficial, faixas estimadas, linguagem especulativa (provavelmente, possivelmente, estima-se, etc.).
+6. Seções 7 e 8 agregam em texto/listas SEM blocos ### de critérios. Após item acionável, liste Critérios impactados (A3).
+
+7. PROIBIDO: percentuais fora do Resultado Oficial, faixas estimadas, linguagem especulativa (provavelmente, possivelmente, estima-se, etc.).
    PROIBIDO no DTO: pedir fabricação de evidência ou informação inexistente nos inputs.
 
-7. Ao final, bloco JSON delimitado (A16):
+8. Ao final, bloco JSON delimitado (A16):
 ${MARCADOR_OPORTUNIDADES_JSON}
 \`\`\`json
 { "schemaVersion": "${OPORTUNIDADES_SCHEMA_VERSION}", "itens": [ { "id": "melhoria-1", "criterioId": "...", "criterioLabel": "...", "diagnostico": "...", "acao": "...", "criteriosImpactados": ["..."] } ] }
