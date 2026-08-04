@@ -98,7 +98,10 @@ function testCamposObrigatoriosPrompt() {
     const t = promptText();
     assert.ok(/CAMPOS OBRIGATÓRIOS \(7\)/i.test(t));
     assert.ok(/NENHUM campo pode ser omitido/i.test(t));
-    console.log('  Prompt 7 campos obrigatórios — OK');
+    assert.ok(/Pontuação: \{pontos\}\/\{peso\}/.test(t));
+    assert.ok(/REGRA GLOBAL DE TETO/i.test(t));
+    assert.ok(/pontos === peso/i.test(t));
+    console.log('  Prompt 7 campos + Pontuação x/y + teto — OK');
 }
 
 function testFallbackCausal() {

@@ -3,7 +3,7 @@
 const { LINGUAGEM_ESPECULATIVA_PROIBIDA } = require('./constants');
 const { validarSecoesAuditora, normalizarTitulo } = require('./secoesV8');
 const { LABELS } = require('../motor-pontuacao/integracao');
-const { parseJustificativaCriterios } = require('./justificativaParser');
+const { parseJustificativaCriterios, isNaTeto } = require('./justificativaParser');
 
 /** Labels para mensagens de erro de campos obrigatórios por H3. */
 const NOMES_CAMPOS_JUSTIFICATIVA = {
@@ -38,6 +38,71 @@ function validarCamposInternosJustificativa(conteudoJust) {
             const val = item.campos[key];
             if (val == null || String(val).trim() === '') {
                 erros.push(`campo obrigatório ausente em ${nomeCrit}: ${NOMES_CAMPOS_JUSTIFICATIVA[key]}`);
+            }
+        }
+    }
+    return erros;
+}
+
+/** Formato oficial Pontuação: {pontos}/{peso} do Motor. */
+function formatPontuacaoOficial(pontos, peso) {
+    return `${pontos}/${peso}`;
+}
+
+function isCriterioNoTeto(pontos, peso) {
+    if (pontos == null || peso == null) return false;
+    return Number(pontos) === Number(peso);
+}
+
+function valorRepresentaTeto(valor) {
+    return isNaTeto(String(valor || ''));
+}
+
+/**
+ * Cruza Justificativa com motorSerializado.criterios[] (pontos/peso oficiais).
+ * Requer motorSerializado; não infere peso pelo markdown.
+ */
+function validarCoerenciaPontuacaoTeto(conteudoJust, motorSerializado, perfil) {
+    const erros = [];
+    if (!motorSerializado?.criterios?.length || !perfil?.criterios) return erros;
+
+    const oficialPorId = new Map(
+        motorSerializado.criterios.map((c) => [c.id, c])
+    );
+    const mapaNormParaId = mapaOficialNormParaId(perfil);
+
+    const partes = String(conteudoJust || '').split(/^###\s+/m).filter((p) => p.trim());
+    for (const parte of partes) {
+        const itens = parseJustificativaCriterios('### ' + parte.trim());
+        if (!itens.length || !itens[0].campos) continue;
+
+        const item = itens[0];
+        const criterioId = mapaNormParaId.get(normalizarHeadingCriterio(item.nome));
+        if (!criterioId) continue;
+
+        const oficial = oficialPorId.get(criterioId);
+        if (!oficial || oficial.pontos == null || oficial.peso == null) continue;
+
+        const nomeCrit = item.nome || criterioId;
+        const esperado = formatPontuacaoOficial(oficial.pontos, oficial.peso);
+        const pontuacaoEmitida = String(item.campos.pontuacao || '').trim();
+
+        if (pontuacaoEmitida !== esperado) {
+            erros.push(
+                `Pontuação incorreta em ${nomeCrit}: esperado "${esperado}" (Motor), obtido "${pontuacaoEmitida}"`
+            );
+        }
+
+        if (isCriterioNoTeto(oficial.pontos, oficial.peso)) {
+            if (!valorRepresentaTeto(item.campos.oQueReduziu)) {
+                erros.push(
+                    `critério no teto em ${nomeCrit}: O que reduziu deve ser N/A (pontuação máxima)`
+                );
+            }
+            if (!valorRepresentaTeto(item.campos.comoAumentar)) {
+                erros.push(
+                    `critério no teto em ${nomeCrit}: Como aumentar deve ser N/A (critério no teto)`
+                );
             }
         }
     }
@@ -158,9 +223,10 @@ function analisarHeadingsJustificativa(conteudoJust, perfil) {
 
 /**
  * Valida saída markdown da Auditora (A1/A4/A10 + unicidade estrutural de H3).
+ * @param {object} [motorSerializado] - payload oficial (criterios[] com pontos/peso) para coerência
  * @returns {{ valido: boolean, erros: string[] }}
  */
-function validarSaidaAuditora(markdown, perfil) {
+function validarSaidaAuditora(markdown, perfil, motorSerializado) {
     const erros = [];
     if (!markdown || typeof markdown !== 'string' || !markdown.trim()) {
         return { valido: false, erros: ['relatório vazio'] };
@@ -223,6 +289,9 @@ function validarSaidaAuditora(markdown, perfil) {
             }
 
             erros.push(...validarCamposInternosJustificativa(secJust.conteudo));
+            if (motorSerializado) {
+                erros.push(...validarCoerenciaPontuacaoTeto(secJust.conteudo, motorSerializado, perfil));
+            }
         } else if (!secoes.valido) {
             // já reportado
         } else {
@@ -236,6 +305,10 @@ function validarSaidaAuditora(markdown, perfil) {
 module.exports = {
     validarSaidaAuditora,
     validarCamposInternosJustificativa,
+    validarCoerenciaPontuacaoTeto,
+    formatPontuacaoOficial,
+    isCriterioNoTeto,
+    valorRepresentaTeto,
     extrairTitulosH3,
     contarHeadingCriterio,
     normalizarHeadingCriterio,

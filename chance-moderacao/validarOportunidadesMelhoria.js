@@ -6,9 +6,10 @@ const { OPORTUNIDADES_SCHEMA_VERSION } = require('./constants');
  * Valida DTO oportunidadesMelhoria contra schema e critérios do perfil Motor.
  * @param {object} dto
  * @param {object} perfil - perfil de calibração carregado
+ * @param {object} [motorSerializado] - criterios[] oficiais (pontos/peso) para rejeitar itens no teto
  * @returns {{ valido: boolean, erros: string[] }}
  */
-function validarOportunidadesMelhoria(dto, perfil) {
+function validarOportunidadesMelhoria(dto, perfil, motorSerializado) {
     const erros = [];
     if (!dto || typeof dto !== 'object') {
         return { valido: false, erros: ['DTO ausente ou inválido'] };
@@ -27,6 +28,9 @@ function validarOportunidadesMelhoria(dto, perfil) {
 
     const criteriosValidos = new Set(Object.keys(perfil?.criterios || {}));
     const idsVistos = new Set();
+    const oficialPorId = motorSerializado?.criterios?.length
+        ? new Map(motorSerializado.criterios.map((c) => [c.id, c]))
+        : null;
 
     for (const [i, item] of dto.itens.entries()) {
         const prefix = `itens[${i}]`;
@@ -41,6 +45,13 @@ function validarOportunidadesMelhoria(dto, perfil) {
         }
         if (item.criterioId && !criteriosValidos.has(item.criterioId)) {
             erros.push(`${prefix}.criterioId desconhecido: ${item.criterioId}`);
+        }
+        if (item.criterioId && oficialPorId) {
+            const oficial = oficialPorId.get(item.criterioId);
+            if (oficial && oficial.pontos != null && oficial.peso != null
+                && Number(oficial.pontos) === Number(oficial.peso)) {
+                erros.push(`${prefix}: critério no teto (${item.criterioId}) não pode gerar oportunidade no DTO`);
+            }
         }
         if (item.id && idsVistos.has(item.id)) {
             erros.push(`${prefix}.id duplicado: ${item.id}`);

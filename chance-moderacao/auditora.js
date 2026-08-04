@@ -69,10 +69,10 @@ async function auditora(entrada, deps = {}) {
         custoTotal += resp.custoEstimado || 0;
 
         const { relatorio } = separarRelatorioEOportunidades(resp.conteudo);
-        const validacaoMarkdown = validarSaidaAuditora(relatorio, perfil);
+        const validacaoMarkdown = validarSaidaAuditora(relatorio, perfil, entrada.motorSerializado);
         const oportunidadesMelhoria = parseOportunidadesMelhoria(resp.conteudo);
         const validacaoDto = oportunidadesMelhoria
-            ? validarOportunidadesMelhoria(oportunidadesMelhoria, perfil)
+            ? validarOportunidadesMelhoria(oportunidadesMelhoria, perfil, entrada.motorSerializado)
             : { valido: false, erros: ['DTO oportunidadesMelhoria ausente'] };
 
         const erros = [

@@ -7,11 +7,34 @@ const motorIntegracao = require('../../motor-pontuacao/integracao');
 
 const perfilMock = carregarPerfil('v1');
 
+function estadosPlanoMock() {
+    const estados = {};
+    for (const [id, cfg] of Object.entries(perfilMock.criterios)) {
+        const keys = Object.keys(cfg.estados);
+        estados[id] = id === 'clareza' ? 'media' : keys[Math.min(1, keys.length - 1)];
+    }
+    return estados;
+}
+
 function buildRelatorioMock() {
+    const estadosPlano = estadosPlanoMock();
     const blocosCriterios = Object.entries(perfilMock.criterios).map(([id, cfg]) => {
         const label = motorIntegracao.LABELS[id] || id;
-        const estado = Object.keys(cfg.estados)[0];
-        return `### ${label}\nClassificação: ${estado}\nPontuação: 0/${cfg.peso}\nTrecho da reclamação: "trecho"\nTrecho da resposta: "trecho"\nJustificativa técnica: mock\nO que reduziu: lacuna\nComo aumentar: ação. Critérios impactados: ${id}`;
+        const estado = estadosPlano[id];
+        const pontos = +(cfg.peso * cfg.estados[estado]).toFixed(4);
+        const noTeto = pontos === cfg.peso;
+        const reduziu = noTeto ? 'N/A — pontuação máxima' : 'Não há causa textual específica individualizada nos fundamentos disponíveis.';
+        const aumentar = noTeto ? 'N/A — critério já no teto' : 'Sem ação textual disponível com os dados fornecidos.';
+        return [
+            `### ${label}`,
+            `Classificação: ${estado}`,
+            `Pontuação: ${pontos}/${cfg.peso}`,
+            'Trecho da reclamação: "trecho"',
+            'Trecho da resposta: "trecho"',
+            'Justificativa técnica: mock explicativo.',
+            `O que reduziu a pontuação: ${reduziu}`,
+            `Como aumentar a pontuação: ${aumentar}`
+        ].join('\n');
     }).join('\n\n');
 
     return [
@@ -69,10 +92,10 @@ function estadosExtracao() {
 let openaiCallIndex = 0;
 
 function buildEstadosMock() {
+    const estadosPlano = estadosPlanoMock();
     const estados = {};
     for (const [id, cfg] of Object.entries(perfilMock.criterios)) {
-        const keys = Object.keys(cfg.estados);
-        const estado = id === 'clareza' ? 'media' : keys[Math.min(1, keys.length - 1)];
+        const estado = estadosPlano[id];
         estados[id] = { estado, fundamento: 'mock', trechos_utilizados: { reclamacao: ['trecho'], resposta: ['trecho'] } };
     }
     return estados;

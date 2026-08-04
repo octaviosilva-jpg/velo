@@ -61,13 +61,27 @@ ${ordemSecoes}
    7. Como aumentar a pontuação (aceito também: Como aumentar a pontuacao / Como aumentar)
 
    Quando não houver conteúdo aplicável, preencha explicitamente — nunca deixe o campo de fora:
-   - Critério no teto → O que reduziu: "N/A — pontuação máxima" ou "N/A — critério já no teto"; Como aumentar: "N/A — critério já no teto" ou "N/A — pontuação máxima".
-   - Abaixo do teto sem causa individualizada → O que reduziu: "Não há causa textual específica individualizada nos fundamentos disponíveis."; Como aumentar: "Sem ação textual disponível com os dados fornecidos."
+   - Critério no teto (pontos === peso) → O que reduziu: "N/A — pontuação máxima" ou "N/A — critério já no teto"; Como aumentar: "N/A — critério já no teto" ou "N/A — pontuação máxima". Justificativa técnica continua obrigatória e explicativa.
+   - Abaixo do teto (pontos < peso) sem causa individualizada → O que reduziu: "Não há causa textual específica individualizada nos fundamentos disponíveis."; Como aumentar: "Sem ação textual disponível com os dados fornecidos."
    - Trecho inexistente/inaplicável → Trecho da reclamação: "N/A"; Trecho da resposta: "N/A".
+
+   CAMPO PONTUAÇÃO (OBRIGATÓRIO — formato fixo):
+   Para cada critério, copie EXATAMENTE pontos e peso de motorSerializado.criterios[] (mesmo id):
+   Pontuação: {pontos}/{peso}
+   NÃO calcule, NÃO arredonde, NÃO infira, NÃO use só o numerador.
+   Exemplos: boa 4/5 → Pontuação: 4/5 | forte 15.3/18 → Pontuação: 15.3/18 | respondido_diretamente 28/28 → Pontuação: 28/28
+
+   REGRA GLOBAL DE TETO (determinística):
+   SE pontos === peso, o critério está na pontuação máxima — independentemente do nome do estado (boa, alta, respondido_diretamente, inexistente, sem_riscos, etc.).
+   Nesses casos é PROIBIDO usar em O que reduziu / Como aumentar:
+   - "Não há causa textual específica individualizada nos fundamentos disponíveis."
+   - "Sem ação textual disponível com os dados fornecidos."
+   - qualquer diagnóstico de perda ou oportunidade de melhoria no DTO A16 para esse critério.
+   Use apenas N/A conforme critério no teto (ver acima). Justificativa técnica permanece obrigatória.
 
    FORMATO DE SAÍDA dos 7 campos (dentro de cada H3 — preferencialmente um campo por linha):
    Classificação: valor
-   Pontuação: valor
+   Pontuação: {pontos}/{peso}
    Trecho da reclamação: valor
    Trecho da resposta: valor
    Justificativa técnica: valor
@@ -111,7 +125,7 @@ ${ordemSecoes}
    O que reduziu / Como aumentar: N/A conforme critério no teto.
 
 4. Três situações em "Como aumentar" / DTO:
-   (1) Critério no teto: "N/A — pontuação máxima" / "N/A — critério já no teto". Sem item no DTO.
+   (1) Critério no teto (pontos === peso): "N/A — pontuação máxima" / "N/A — critério já no teto". Sem item no DTO para esse critério.
    (2) Abaixo do teto + melhoria textual executável com inputs (âncora concreta): ação específica; pode criar item no DTO A16.
    (3) Abaixo do teto sem ação textual segura (inclui ausência de causa individualizada ou limitação evidencial): "Sem ação textual disponível com os dados fornecidos." Sem item no DTO.
    Critério abaixo do teto NÃO implica automaticamente oportunidade. A regra "Nunca preencher 'O que reduziu' só porque pontos < peso" significa NÃO INVENTAR uma causa apenas porque pontos < peso — o CAMPO "O que reduziu" continua OBRIGATÓRIO; se não houver causa segura, use "Não há causa textual específica individualizada nos fundamentos disponíveis."
