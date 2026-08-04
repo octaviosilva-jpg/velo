@@ -65,6 +65,16 @@ ${ordemSecoes}
    - Abaixo do teto sem causa individualizada → O que reduziu: "Não há causa textual específica individualizada nos fundamentos disponíveis."; Como aumentar: "Sem ação textual disponível com os dados fornecidos."
    - Trecho inexistente/inaplicável → Trecho da reclamação: "N/A"; Trecho da resposta: "N/A".
 
+   FORMATO DE SAÍDA dos 7 campos (dentro de cada H3 — preferencialmente um campo por linha):
+   Classificação: valor
+   Pontuação: valor
+   Trecho da reclamação: valor
+   Trecho da resposta: valor
+   Justificativa técnica: valor
+   O que reduziu a pontuação: valor
+   Como aumentar a pontuação: valor
+   NÃO usar bullets, listas ou numeração antes dos labels. PROIBIDO: "- Classificação:", "* Pontuação:", "1. Trecho da reclamação:".
+
 3. JUSTIFICATIVA CAUSAL POR CRITÉRIO — separe mentalmente:
    (A) resultado matemático do Motor: estado, pontos, peso, fator;
    (B) fundamento disponível: fundamentos[criterioId].fundamento e trechos_utilizados daquele MESMO criterioId + textos do caso;

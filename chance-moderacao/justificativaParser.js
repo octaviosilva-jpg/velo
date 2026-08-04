@@ -80,6 +80,9 @@ function allLabelsAlternation() {
     return CAMPOS.flatMap((c) => c.labels).map(escapeRegex).join('|');
 }
 
+/** Prefixo opcional de lista markdown antes de um label (`-`, `*`, `•`, `1.` …). */
+const PREFIXO_LISTA_LABEL_REGEX = '(?:[-*•]\\s+|\\d+\\.\\s+)?';
+
 /**
  * Encontra o primeiro label estrutural no texto (início, após newline ou após vírgula).
  * @returns {{ index: number, length: number, label: string }|null}
@@ -87,7 +90,7 @@ function allLabelsAlternation() {
 function encontrarPrimeiroLabel(texto) {
     const alt = allLabelsAlternation();
     const re = new RegExp(
-        `(?:^|[\\n,]\\s*)(\\*?\\*?(?:${alt})\\*?\\*?)\\s*[:：]`,
+        `(?:^|[\\n,]\\s*)${PREFIXO_LISTA_LABEL_REGEX}(\\*?\\*?(?:${alt})\\*?\\*?)\\s*[:：]`,
         'i'
     );
     const m = re.exec(String(texto || ''));
@@ -134,7 +137,7 @@ function extrairCampo(bloco, labels) {
     const fonte = String(bloco || '');
     for (const label of labels) {
         const re = new RegExp(
-            `(?:^|[\\n,]\\s*)\\*?\\*?${escapeRegex(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[\\n,]\\s*\\*?\\*?(?:${alt})\\*?\\*?\\s*[:：])|$)`,
+            `(?:^|[\\n,]\\s*)${PREFIXO_LISTA_LABEL_REGEX}\\*?\\*?${escapeRegex(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[\\n,]\\s*${PREFIXO_LISTA_LABEL_REGEX}\\*?\\*?(?:${alt})\\*?\\*?\\s*[:：])|$)`,
             'i'
         );
         const m = fonte.match(re);
@@ -309,6 +312,7 @@ function renderJustificativaCriteriosHtml(markdownSecao) {
 
 module.exports = {
     TEXTO_TETO,
+    PREFIXO_LISTA_LABEL_REGEX,
     stripMarkdownTokens,
     parseJustificativaCriterios,
     renderJustificativaCriteriosHtml,

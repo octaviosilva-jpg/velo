@@ -2672,9 +2672,15 @@ function justificativaAllLabelsAlt() {
     return JUSTIFICATIVA_CAMPOS.flatMap((c) => c.labels).map(justificativaEscapeRe).join('|');
 }
 
+/** Prefixo opcional de lista markdown antes de um label (`-`, `*`, `•`, `1.` …). */
+const JUSTIFICATIVA_PREFIXO_LISTA_REGEX = '(?:[-*•]\\s+|\\d+\\.\\s+)?';
+
 function encontrarPrimeiroLabelJustificativa(texto) {
     const alt = justificativaAllLabelsAlt();
-    const re = new RegExp(`(?:^|[\\n,]\\s*)(\\*?\\*?(?:${alt})\\*?\\*?)\\s*[:：]`, 'i');
+    const re = new RegExp(
+        `(?:^|[\\n,]\\s*)${JUSTIFICATIVA_PREFIXO_LISTA_REGEX}(\\*?\\*?(?:${alt})\\*?\\*?)\\s*[:：]`,
+        'i'
+    );
     const m = re.exec(String(texto || ''));
     if (!m) return null;
     const labelPart = m[1];
@@ -2704,7 +2710,7 @@ function extrairCampoJustificativa(bloco, labels) {
     const fonte = String(bloco || '');
     for (const label of labels) {
         const re = new RegExp(
-            `(?:^|[\\n,]\\s*)\\*?\\*?${justificativaEscapeRe(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[\\n,]\\s*\\*?\\*?(?:${allLabels})\\*?\\*?\\s*[:：])|$)`,
+            `(?:^|[\\n,]\\s*)${JUSTIFICATIVA_PREFIXO_LISTA_REGEX}\\*?\\*?${justificativaEscapeRe(label)}\\*?\\*?\\s*[:：]\\s*([\\s\\S]*?)(?=(?:[\\n,]\\s*${JUSTIFICATIVA_PREFIXO_LISTA_REGEX}\\*?\\*?(?:${allLabels})\\*?\\*?\\s*[:：])|$)`,
             'i'
         );
         const m = fonte.match(re);

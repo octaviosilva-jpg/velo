@@ -10,6 +10,19 @@ const { montarRelatorioFallbackAuditora, montarOportunidadesFallback } = require
 
 const MAX_TENTATIVAS = 3;
 
+const REGEX_CAMPOS_ILEGIVEIS = /campos obrigatórios ausentes ou ilegíveis em/i;
+
+const ORIENTACAO_FORMATO_JUSTIFICATIVA =
+    ' Os campos internos da Justificativa não foram reconhecidos. Em cada ### critério, use exatamente o formato `Label: valor`, um campo por linha, sem bullets ou numeração antes dos labels. Todos os 7 campos são obrigatórios: Classificação, Pontuação, Trecho da reclamação, Trecho da resposta, Justificativa técnica, O que reduziu a pontuação, Como aumentar a pontuação.';
+
+function montarInstrucaoCorrecaoRetry(ultimoErro, proximaTentativa) {
+    let msg = `\n\nCORREÇÃO OBRIGATÓRIA (tentativa ${proximaTentativa}): ${ultimoErro}. Inclua todas as seções H2 na ordem A10, bloco ${'<!-- OPORTUNIDADES_MELHORIA_JSON -->'} com schema oportunidades-v1, e use ### [Nome do critério] para cada critério do Motor. Percentual só na seção "Resultado Oficial do Motor" citando o valor oficial.`;
+    if (REGEX_CAMPOS_ILEGIVEIS.test(ultimoErro)) {
+        msg += ORIENTACAO_FORMATO_JUSTIFICATIVA;
+    }
+    return msg;
+}
+
 /**
  * Auditora Técnica LLM — interpreta resultado oficial do Motor (seções 1–12 + DTO A16).
  */
@@ -112,7 +125,7 @@ async function auditora(entrada, deps = {}) {
             console.log(`[chance/auditora] raw tentativa=${tentativa} chars=${resp.conteudo.length} preview=${String(resp.conteudo).slice(0, 800)}`);
         }
         if (tentativa < MAX_TENTATIVAS) {
-            prompt.user += `\n\nCORREÇÃO OBRIGATÓRIA (tentativa ${tentativa + 1}): ${ultimoErro}. Inclua todas as seções H2 na ordem A10, bloco ${'<!-- OPORTUNIDADES_MELHORIA_JSON -->'} com schema oportunidades-v1, e use ### [Nome do critério] para cada critério do Motor. Percentual só na seção "Resultado Oficial do Motor" citando o valor oficial.`;
+            prompt.user += montarInstrucaoCorrecaoRetry(ultimoErro, tentativa + 1);
         }
     }
 
@@ -160,4 +173,4 @@ async function auditora(entrada, deps = {}) {
     };
 }
 
-module.exports = { auditora };
+module.exports = { auditora, montarInstrucaoCorrecaoRetry };
