@@ -36,35 +36,9 @@ const SITE_EMPRESA = 'https://www.velotax.com.br';
 let historicoStats = [];
 const HISTORICO_KEY = 'velotax_historico_stats';
 
-// Estatísticas globais do servidor
-let estatisticasGlobais = {
-    respostas_geradas: 0,
-    respostas_coerentes: 0,
-    moderacoes_geradas: 0,
-    moderacoes_coerentes: 0,
-    revisoes_texto: 0,
-    explicacoes_geradas: 0
-};
-
-// Carregar estatísticas globais do servidor
+// Atualiza o card de Estatísticas (dados reais do dia, vindos da planilha)
 async function carregarEstatisticasGlobais() {
-    try {
-        console.log('📊 Carregando estatísticas globais do servidor...');
-        const response = await fetch('/api/estatisticas-globais');
-        const data = await response.json();
-        
-        if (data.success) {
-            console.log('📊 Dados recebidos do servidor:', data);
-            estatisticasGlobais = data.estatisticas;
-            console.log('✅ Estatísticas globais carregadas:', estatisticasGlobais);
-            console.log('📅 Última atualização:', data.lastUpdated);
-            atualizarEstatisticasNaInterface();
-        } else {
-            console.error('❌ Erro ao carregar estatísticas globais:', data.error);
-        }
-    } catch (error) {
-        console.error('❌ Erro ao carregar estatísticas globais:', error);
-    }
+    await atualizarEstatisticasNaInterface();
 }
 
 // Atualizar estatísticas na interface (dados do dia em tempo real - aba Estatísticas)
@@ -80,12 +54,18 @@ async function atualizarEstatisticasNaInterface() {
                 respostas_coerentes: data.respostas_coerentes ?? 0,
                 moderacoes_coerentes: data.moderacoes_coerentes ?? 0,
                 moderacoes_aprovadas: data.moderacoes_aprovadas ?? 0,
-                moderacoes_negadas: data.moderacoes_negadas ?? 0
+                moderacoes_negadas: data.moderacoes_negadas ?? 0,
+                moderacoes_pendentes: data.moderacoes_pendentes ?? 0
             };
             document.querySelectorAll('.stat-value[data-stat]').forEach(el => {
                 const key = el.getAttribute('data-stat');
                 if (stats[key] !== undefined) el.textContent = stats[key];
             });
+            const elPendentes = document.getElementById('badge-moderacoes-pendentes');
+            if (elPendentes) {
+                elPendentes.classList.toggle('d-none', !stats.moderacoes_pendentes);
+                elPendentes.textContent = stats.moderacoes_pendentes;
+            }
             const elUpdated = document.getElementById('estatisticas-last-updated');
             if (elUpdated) elUpdated.textContent = 'Atualizado: ' + (data.lastUpdated || '—');
             console.log('✅ Estatísticas do dia:', data.data, stats);

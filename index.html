@@ -246,8 +246,9 @@
                                 Estatísticas
                             </h6>
                             <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-info" onclick="abrirModalSolicitacoes()" title="Ver Todas as Solicitações">
+                                <button class="btn btn-sm btn-outline-info position-relative" onclick="abrirModalSolicitacoes()" title="Ver Todas as Solicitações">
                                     <i class="fas fa-list"></i>
+                                    <span id="badge-moderacoes-pendentes" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" title="Moderações sem resultado (Aceita/Negada) registrado">0</span>
                                 </button>
                             </div>
                         </div>
@@ -267,6 +268,10 @@
                             <div class="stat-item">
                                 <span class="stat-label">Mod. Negadas</span>
                                 <span class="stat-value" data-stat="moderacoes_negadas">0</span>
+                            </div>
+                            <div class="stat-item" title="Moderações sem resultado (Aceita/Negada) registrado, desde sempre">
+                                <span class="stat-label">Pendentes de Resultado</span>
+                                <span class="stat-value text-danger fw-bold" data-stat="moderacoes_pendentes">0</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1">
                                 <small class="text-muted" id="estatisticas-last-updated" title="Última atualização">—</small>
