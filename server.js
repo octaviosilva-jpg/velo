@@ -9595,7 +9595,8 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         let moderacoes_pendentes = 0;
         let quotaOuErroLeitura = false;
 
-        if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
+        const sheetsPronto = await ensureGoogleSheetsReady();
+        if (sheetsPronto) {
             try {
                 const inicio = new Date(hoje);
                 inicio.setDate(inicio.getDate() - ESTATISTICAS_JANELA_DIAS);
