@@ -36,12 +36,12 @@ const SITE_EMPRESA = 'https://www.velotax.com.br';
 let historicoStats = [];
 const HISTORICO_KEY = 'velotax_historico_stats';
 
-// Atualiza o card de Estatísticas (dados reais do dia, vindos da planilha)
+// Atualiza o card de Estatísticas (janela móvel de confiabilidade, vinda da planilha)
 async function carregarEstatisticasGlobais() {
     await atualizarEstatisticasNaInterface();
 }
 
-// Atualizar estatísticas na interface (dados do dia em tempo real - aba Estatísticas)
+// Atualizar estatísticas na interface (janela móvel dos últimos N dias - mesma janela da auditoria)
 async function atualizarEstatisticasNaInterface() {
     console.log('🔄 Atualizando interface com estatísticas do dia');
     
@@ -67,8 +67,8 @@ async function atualizarEstatisticasNaInterface() {
                 elPendentes.textContent = stats.moderacoes_pendentes;
             }
             const elUpdated = document.getElementById('estatisticas-last-updated');
-            if (elUpdated) elUpdated.textContent = 'Atualizado: ' + (data.lastUpdated || '—');
-            console.log('✅ Estatísticas do dia:', data.data, stats);
+            if (elUpdated) elUpdated.textContent = `Últimos ${data.janelaDias ?? 90} dias · Atualizado: ${data.lastUpdated || '—'}`;
+            console.log('✅ Estatísticas (janela):', data.janelaDias, stats);
             console.log('📅 Última atualização:', data.lastUpdated || '—');
         } else {
             console.warn('⚠️ Resposta estatísticas-hoje sem success');

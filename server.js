@@ -8907,62 +8907,6 @@ app.post('/api/validateGoogleToken', async (req, res) => {
 
 // ===== ENDPOINTS DE ESTATÍSTICAS GLOBAIS =====
 
-// Função simplificada para verificar se a data é hoje (usada pelo endpoint estatísticas-hoje e fallback).
-function verificarDataHojeSimples(dataStr, dataHojeBR, dataHojeISO) {
-    if (!dataStr) return false;
-    const dataLimpa = String(dataStr).trim();
-    let dataParte = dataLimpa.split(' ')[0];
-    if (dataParte.includes('/')) {
-        const partes = dataParte.split('/');
-        if (partes.length === 3) {
-            const [dia, mes, ano] = partes;
-            const dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-            return dataFormatada === dataHojeISO;
-        }
-    }
-    if (dataParte.includes('-')) {
-        const partes = dataParte.split('-');
-        if (partes.length >= 3) {
-            const dataFormatada = `${partes[0]}-${partes[1].padStart(2, '0')}-${partes[2].padStart(2, '0')}`;
-            return dataFormatada === dataHojeISO;
-        }
-    }
-    const [diaHoje, mesHoje, anoHoje] = dataHojeBR.split('/');
-    if (dataLimpa.includes(diaHoje) && dataLimpa.includes(mesHoje) && dataLimpa.includes(anoHoje)) return true;
-    return false;
-}
-
-// Conta registros onde coluna A = data do dia (pula cabeçalho). Usado para Moderações Negadas (sem filtro de status).
-function contarRegistrosDataHoje(rows, dataHojeBR, dataHojeISO) {
-    if (!rows || !Array.isArray(rows)) return 0;
-    let count = 0;
-    for (let i = 1; i < rows.length; i++) {
-        const cell = rows[i] && rows[i][0];
-        if (cell != null && String(cell).trim() && verificarDataHojeSimples(cell, dataHojeBR, dataHojeISO)) {
-            count++;
-        }
-    }
-    return count;
-}
-
-// Conta registros onde coluna A = data do dia E coluna de status = "Aprovada" (pula cabeçalho).
-// statusColIndex: K=10 (Respostas Coerentes), M=12 (Moderações e Moderações Aceitas).
-function contarRegistrosDataHojeComStatusAprovada(rows, dataHojeBR, dataHojeISO, statusColIndex) {
-    if (!rows || !Array.isArray(rows)) return 0;
-    let count = 0;
-    const aprovada = 'aprovada';
-    for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row) continue;
-        const cellData = row[0];
-        const status = String((row[statusColIndex] != null ? row[statusColIndex] : '')).trim().toLowerCase();
-        if (cellData != null && String(cellData).trim() && verificarDataHojeSimples(cellData, dataHojeBR, dataHojeISO) && status === aprovada) {
-            count++;
-        }
-    }
-    return count;
-}
-
 // Cache simples para /api/estatisticas-hoje (reduz quota do Google Sheets; TTL 90s).
 let cacheEstatisticasHoje = { data: null, dataISO: null, timestamp: 0 };
 const CACHE_ESTATISTICAS_TTL_MS = 90 * 1000;
@@ -9615,6 +9559,8 @@ app.get('/api/cron/lembrete-marcacoes', async (req, res) => {
     }
 });
 
+const ESTATISTICAS_JANELA_DIAS = 90; // Mesma janela de confiabilidade usada na auditoria (audit:moderacoes/audit:planilha)
+
 app.get('/api/estatisticas-hoje', async (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
     try {
@@ -9631,6 +9577,7 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
             return res.json({
                 success: true,
                 data: dataHojeBR,
+                janelaDias: ESTATISTICAS_JANELA_DIAS,
                 respostas_coerentes: c.respostas_coerentes,
                 moderacoes_coerentes: c.moderacoes_coerentes,
                 moderacoes_aprovadas: c.moderacoes_aprovadas,
@@ -9647,88 +9594,68 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
         let moderacoes_negadas = 0;
         let moderacoes_pendentes = 0;
         let quotaOuErroLeitura = false;
-        let rowsModParaPendencia = null;
-        let rowsAceitasParaPendencia = null;
-        let rowsNegadasParaPendencia = null;
 
         if (googleSheetsConfig && googleSheetsConfig.isInitialized()) {
-            // Respostas coerentes: aba "Respostas Coerentes", col. A = data do dia, col. K = Status aprovação "Aprovada"
             try {
-                const rowsRC = await googleSheetsConfig.readData('Respostas Coerentes!A1:K5000');
-                respostas_coerentes = contarRegistrosDataHojeComStatusAprovada(rowsRC, dataHojeBR, dataHojeISO, 10); // K = índice 10
-                console.log(`📊 Respostas Coerentes (col. A = ${dataHojeBR}, col. K = Aprovada): ${respostas_coerentes}`);
-            } catch (err) {
-                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
-                console.warn('⚠️ Erro ao ler aba Respostas Coerentes:', err.message);
-            }
-            // Moderações coerentes: aba "Moderações", col. A = data do dia, col. M = Status aprovação "Aprovada"
-            try {
-                const rowsMod = await googleSheetsConfig.readData('Moderações!A1:M5000');
-                rowsModParaPendencia = rowsMod;
-                moderacoes_coerentes = contarRegistrosDataHojeComStatusAprovada(rowsMod, dataHojeBR, dataHojeISO, 12); // M = índice 12
-                console.log(`📊 Moderações (col. A = ${dataHojeBR}, col. M = Aprovada): ${moderacoes_coerentes}`);
-            } catch (err) {
-                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
-                console.warn('⚠️ Erro ao ler aba Moderações:', err.message);
-            }
-            // Moderações aceitas: aba "Moderações Aceitas", col. A = data do dia (resultado real do RA — sem exigir curadoria "Aprovada" à parte)
-            try {
-                const rowsAceitas = await googleSheetsConfig.readData('Moderações Aceitas!A1:B5000');
-                rowsAceitasParaPendencia = rowsAceitas;
-                moderacoes_aprovadas = contarRegistrosDataHoje(rowsAceitas, dataHojeBR, dataHojeISO);
-                console.log(`📊 Moderações Aceitas (col. A = ${dataHojeBR}): ${moderacoes_aprovadas}`);
-            } catch (err) {
-                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
-                console.warn('⚠️ Erro ao ler aba Moderações Aceitas:', err.message);
-            }
-            // Moderações negadas: aba "Moderações Negadas", col. A = data do registro (qualquer registro do dia conta)
-            try {
-                const rowsNegadas = await googleSheetsConfig.readData('Moderações Negadas!A1:B5000');
-                rowsNegadasParaPendencia = rowsNegadas;
-                moderacoes_negadas = contarRegistrosDataHoje(rowsNegadas, dataHojeBR, dataHojeISO);
-                console.log(`📊 Moderações Negadas (col. A = ${dataHojeBR}): ${moderacoes_negadas}`);
-            } catch (err) {
-                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
-                console.warn('⚠️ Erro ao ler aba Moderações Negadas:', err.message);
-            }
-            // Moderações pendentes: total acumulado (não só hoje) sem resultado (Aceita/Negada) registrado do RA
-            try {
+                const inicio = new Date(hoje);
+                inicio.setDate(inicio.getDate() - ESTATISTICAS_JANELA_DIAS);
+                inicio.setHours(0, 0, 0, 0);
+                const fim = new Date(hoje);
+                fim.setHours(23, 59, 59, 999);
+                const dentroDaJanela = (rows) => (rows || []).filter(r => r._data && r._data >= inicio && r._data <= fim);
+                const statusAprovada = (r) => String(r['Status Aprovação'] || '').trim().toLowerCase() === 'aprovada';
+
+                const [coerentesAll, modAll, aceitasAll, negadasAll] = await Promise.all([
+                    _audLerAba('Respostas Coerentes'),
+                    _audLerAba('Moderações'),
+                    _audLerAba('Moderações Aceitas'),
+                    _audLerAba('Moderações Negadas')
+                ]);
+
+                // Respostas/moderações coerentes: aprovadas (curadoria interna) e criadas dentro da janela de 90 dias
+                respostas_coerentes = dentroDaJanela(coerentesAll).filter(statusAprovada).length;
+                moderacoes_coerentes = dentroDaJanela(modAll).filter(statusAprovada).length;
+
+                // Aceitas/Negadas: resultado real do RA, registrado dentro da janela de 90 dias (sem exigir curadoria "Aprovada" à parte)
+                moderacoes_aprovadas = dentroDaJanela(aceitasAll).length;
+                moderacoes_negadas = dentroDaJanela(negadasAll).length;
+
+                // Pendentes: moderações CRIADAS dentro da janela de 90 dias que ainda não têm Aceita/Negada
+                // registrada (busca o resultado em todo o histórico, não só na janela, para não perder um
+                // resultado registrado com atraso; só a moderação em si precisa ser recente para não acumular
+                // pendências de casos antigos/obsoletos que nunca serão fechados).
                 const idsComResultado = new Set();
-                (rowsAceitasParaPendencia || []).slice(1).forEach(row => {
-                    const id = normalizarId(row && row[1]);
-                    if (id) idsComResultado.add(id);
-                });
-                (rowsNegadasParaPendencia || []).slice(1).forEach(row => {
-                    const id = normalizarId(row && row[1]);
-                    if (id) idsComResultado.add(id);
-                });
-                (rowsModParaPendencia || []).slice(1).forEach(row => {
-                    const id = normalizarId(row && row[1]);
-                    if (id && !idsComResultado.has(id)) moderacoes_pendentes++;
-                });
-                console.log(`📊 Moderações pendentes de resultado RA (acumulado): ${moderacoes_pendentes}`);
+                (aceitasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.add(id); });
+                (negadasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.add(id); });
+                moderacoes_pendentes = dentroDaJanela(modAll).filter(r => {
+                    const id = normalizarId(r['ID']);
+                    return id && !idsComResultado.has(id);
+                }).length;
+
+                console.log(`📊 Estatísticas (janela ${ESTATISTICAS_JANELA_DIAS}d): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}, mod_pendentes=${moderacoes_pendentes}`);
             } catch (err) {
-                console.warn('⚠️ Erro ao calcular moderações pendentes:', err.message);
+                if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
+                console.warn('⚠️ Erro ao calcular estatísticas da planilha:', err.message);
             }
-            console.log(`📊 Estatísticas do dia ${dataHojeBR} (planilha): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}, mod_pendentes=${moderacoes_pendentes}`);
         }
 
-        // Fallback: quota excedida, erro de leitura ou todos zerados → usar histórico local
+        // Fallback: quota excedida, erro de leitura ou todos zerados → aproximar com histórico local (até 30 dias)
         if (quotaOuErroLeitura || (respostas_coerentes === 0 && moderacoes_coerentes === 0 && moderacoes_aprovadas === 0 && moderacoes_negadas === 0)) {
             const estatisticas = loadEstatisticasGlobais();
-            const entradaHoje = estatisticas.historico_diario && estatisticas.historico_diario.find(e => e.data === dataHojeISO);
-            if (entradaHoje) {
-                respostas_coerentes = entradaHoje.respostas_coerentes || 0;
-                moderacoes_coerentes = entradaHoje.moderacoes_coerentes || 0;
-                moderacoes_aprovadas = entradaHoje.moderacoes_aprovadas || 0;
-                moderacoes_negadas = entradaHoje.moderacoes_negadas || 0;
-                console.log(`📊 Estatísticas do dia ${dataHojeBR} (histórico local${quotaOuErroLeitura ? ' - quota/erro de leitura' : ''}): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
+            const historico = estatisticas.historico_diario || [];
+            if (historico.length) {
+                respostas_coerentes = historico.reduce((s, e) => s + (e.respostas_coerentes || 0), 0);
+                moderacoes_coerentes = historico.reduce((s, e) => s + (e.moderacoes_coerentes || 0), 0);
+                moderacoes_aprovadas = historico.reduce((s, e) => s + (e.moderacoes_aprovadas || 0), 0);
+                moderacoes_negadas = historico.reduce((s, e) => s + (e.moderacoes_negadas || 0), 0);
+                console.log(`📊 Estatísticas (histórico local, ${historico.length}d disponíveis${quotaOuErroLeitura ? ' - quota/erro de leitura' : ''}): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}`);
             }
         }
 
         const payload = {
             success: true,
             data: dataHojeBR,
+            janelaDias: ESTATISTICAS_JANELA_DIAS,
             respostas_coerentes,
             moderacoes_coerentes,
             moderacoes_aprovadas,
