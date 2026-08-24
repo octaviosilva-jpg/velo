@@ -9621,14 +9621,16 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                 moderacoes_aprovadas = dentroDaJanela(aceitasAll).length;
                 moderacoes_negadas = dentroDaJanela(negadasAll).length;
 
-                // Pendentes: moderações CRIADAS dentro da janela de 90 dias que ainda não têm Aceita/Negada
-                // registrada (busca o resultado em todo o histórico, não só na janela, para não perder um
-                // resultado registrado com atraso; só a moderação em si precisa ser recente para não acumular
+                // Pendentes: moderações efetivamente UTILIZADAS (Status Aprovação = "Aprovada" — as demais
+                // ficam "Pendente" para sempre por serem rascunhos/tentativas descartadas, nunca chegam a ir
+                // pro RA) e CRIADAS dentro da janela de 90 dias, que ainda não têm Aceita/Negada registrada
+                // (busca o resultado em todo o histórico, não só na janela, para não perder um resultado
+                // registrado com atraso; só a moderação em si precisa ser recente para não acumular
                 // pendências de casos antigos/obsoletos que nunca serão fechados).
                 const idsComResultado = new Set();
                 (aceitasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.add(id); });
                 (negadasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.add(id); });
-                moderacoes_pendentes = dentroDaJanela(modAll).filter(r => {
+                moderacoes_pendentes = dentroDaJanela(modAll).filter(statusAprovada).filter(r => {
                     const id = normalizarId(r['ID']);
                     return id && !idsComResultado.has(id);
                 }).length;
