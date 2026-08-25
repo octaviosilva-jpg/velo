@@ -54,8 +54,11 @@ function makeMock() {
             // Confere que o contexto da negativa real chegou no prompt renderizado.
             assert.ok(user.includes('CO06'), 'prompt de decisao-reformulacao deve conter o codigo da negativa');
             assert.ok(user.includes('hipotese-fraca-anterior'), 'prompt deve conter a hipotese anterior');
-            assert.ok(user.includes('NAO e a mesma regra'), 'teseBateu=false deve gerar o sinal de troca de tese');
+            assert.ok(user.includes('esbarra na regra AENV'), 'teseBateu=false deve gerar o sinal de troca de tese');
+            assert.ok(user.includes('CRITERIO DE VALIDACAO'), 'prompt deve deixar claro que a regra AENV nao e uma hipotese selecionavel');
 
+            // A hipotese selecionada e um item real do UNIVERSO DE HIPOTESES (Manual de Bancos),
+            // NUNCA o titulo da regra AENV citada pelo RA (essa e so o criterio de validacao).
             return jsonResp({
                 analise_holistica: {
                     nucleo_reclamacao: 'Divergencia sobre informacao previa dos juros',
@@ -64,24 +67,24 @@ function makeMock() {
                     ],
                     leitura_consideracao_final: 'Cliente contesta ter recebido o contrato, ponto novo nao tratado antes'
                 },
-                hipoteses_candidatas: [{ hipotese: 'sem-divergencia', score: 0.85, aderencia: 'alta' }],
+                hipoteses_candidatas: [{ hipotese: 'inadimplencia-juros', score: 0.85, aderencia: 'alta' }],
                 hipoteses_descartadas: [
-                    { hipotese: 'hipotese-fraca-anterior', score: 0.3, evidenciasFavoraveis: [], evidenciasContrarias: ['nao e a regra citada pelo RA'], trechos: [], motivoDescarte: 'RA citou CO06, essa hipotese nao trata de divergencia de informacoes' }
+                    { hipotese: 'hipotese-fraca-anterior', score: 0.3, evidenciasFavoraveis: [], evidenciasContrarias: ['nao evita a regra AENV citada pelo RA'], trechos: [], motivoDescarte: 'RA citou CO06 (divergencia de informacoes); essa hipotese nao demonstra fato objetivo que afaste a divergencia' }
                 ],
-                hipotese_selecionada: { id: 'sem-divergencia', titulo: 'Nao pode haver divergencia de informacoes', manual: 'Manual Geral', comoCitar: 'conforme Manual Geral, divergencia de informacoes' },
-                justificativa: 'O cliente nega ter recebido o contrato enquanto a empresa demonstra o envio, configurando divergencia direta de versoes',
-                trechos_sustentam: [{ trecho: 'Cliente afirma cobranca de juros abusivos', origem: 'reclamacao' }],
+                hipotese_selecionada: { id: 'inadimplencia-juros', titulo: 'Cliente inadimplente que questiona juros', manual: 'Manual de Bancos', comoCitar: 'conforme o Manual de Moderacao de Bancos (tema: cliente inadimplente que menciona juros)' },
+                justificativa: 'O contrato assinado eletronicamente comprova de forma objetiva os juros informados, afastando a divergencia apontada pelo RA sem depender da versao do cliente',
+                trechos_sustentam: [{ trecho: 'Os juros foram informados no contrato assinado eletronicamente', origem: 'resposta' }],
                 confianca: 0.82,
-                onde_a_tentativa_anterior_falhou: 'A tese anterior nao tratava da divergencia sobre o recebimento do contrato, que e o ponto central levantado na consideracao final',
+                onde_a_tentativa_anterior_falhou: 'A tese anterior nao apresentava fato objetivo que afastasse a divergencia entre as versoes, exatamente o ponto que o RA citou (CO06)',
                 forca_da_nova_tentativa: 'forte',
-                forca_justificativa: 'A nova tese ataca exatamente o motivo citado pelo RA (CO06), com trecho literal da consideracao final'
+                forca_justificativa: 'A nova tese ataca exatamente o motivo citado pelo RA (CO06), com trecho literal e objetivo da resposta publica'
             });
         }
 
         if (sys.includes('DOCUMENTO DE FUNDAMENTACAO')) {
             return jsonResp({
-                linha_raciocinio: 'Auditoria de reformulacao trocou a tese para divergencia de informacoes, aderente ao motivo real da negativa.',
-                texto_final: 'Prezada equipe de moderacao do Reclame Aqui,\n\nEntendemos que a reclamacao se enquadra na hipotese de divergencia de informacoes prevista no Manual Geral.\n\nA resposta publica demonstra o envio do contrato, o que diverge diretamente da alegacao do consumidor.\n\nDiante do exposto, solicitamos a moderacao da reclamacao.'
+                linha_raciocinio: 'Auditoria de reformulacao trocou a tese para inadimplencia/juros informados em contrato, aderente ao motivo real da negativa.',
+                texto_final: 'Prezada equipe de moderacao do Reclame Aqui,\n\nEntendemos que a reclamacao se enquadra na hipotese prevista no Manual de Bancos sobre cliente que questiona juros informados em contrato.\n\nA resposta publica demonstra de forma objetiva o envio do contrato com os juros informados, o que afasta a divergencia apontada.\n\nDiante do exposto, solicitamos a moderacao da reclamacao.'
             });
         }
 
@@ -120,7 +123,22 @@ async function cenarioTrocaDeTese() {
     await orchestrator.runPipelineReformulacao(state, deps);
 
     assert.ok(state.hipoteseSelecionada, 'hipotese selecionada');
-    assert.strictEqual(state.hipoteseSelecionada.id, 'sem-divergencia', 'trocou para a hipotese que bate com o codigo real do RA');
+    assert.strictEqual(state.hipoteseSelecionada.id, 'inadimplencia-juros', 'trocou para uma hipotese real do universo, nao pra tese anterior');
+
+    // Guard-rail contra a classe de bug relatada pelo usuario: a hipotese selecionada NUNCA pode
+    // ser o titulo/id de uma regra AENV (regrasAENV sao criterio de validacao, nao hipotese).
+    const TITULOS_REGRAS_AENV = [
+        'Resposta publica condiz com o pedido de moderacao',
+        'Nao pode haver falha no atendimento',
+        'Nao pode haver divergencia de informacoes',
+        'Nao exigir analise de merito',
+        'Nao se apoiar em interpretacao de clausula/termos',
+        'Ter resolvido o problema nao e, por si, motivo de moderacao'
+    ];
+    const IDS_REGRAS_AENV = ['resposta-condizente', 'sem-falha-atendimento', 'sem-divergencia', 'sem-analise-merito', 'sem-clausula-contratual', 'problema-resolvido-nao-qualifica'];
+    assert.ok(!IDS_REGRAS_AENV.includes(state.hipoteseSelecionada.id), `hipotese_selecionada.id "${state.hipoteseSelecionada.id}" nao pode ser o id de uma regra AENV`);
+    assert.ok(!TITULOS_REGRAS_AENV.includes(state.hipoteseSelecionada.titulo), `hipotese_selecionada.titulo "${state.hipoteseSelecionada.titulo}" nao pode ser o titulo de uma regra AENV`);
+
     assert.ok(state.ondeATentativaAnteriorFalhou, 'diagnostico de onde a tentativa anterior falhou preenchido');
     assert.strictEqual(state.forcaDaTentativa, 'forte', 'forca da tentativa classificada');
     assert.ok(state.textoFinal.startsWith('Prezada equipe de moderacao'), 'texto final dirigido a equipe de moderacao (nao "Prezados,")');

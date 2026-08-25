@@ -216,24 +216,27 @@ const REGISTRY = {
                 + '(principal e secundarios); (2) determinar o NUCLEO da reclamacao; (3) verificar, para CADA conflito, se foi '
                 + 'efetivamente respondido pela empresa e com qual evidencia; (4) avaliar a consideracao final do consumidor; '
                 + '(5) diagnosticar EXATAMENTE por que a tentativa anterior falhou, usando o motivo/codigo real citado pelo RA '
-                + '(nao suposicao); (6) SO ENTAO selecionar a hipotese do Manual que melhor representa o caso — mantendo a anterior '
-                + 'e reforcando evidencias apenas se ela genuinamente for a mesma regra que o RA citou como motivo da negativa, ou '
-                + 'trocando por uma hipotese diferente e mais forte quando a anterior nao for essa regra ou nao resistir a nova analise. '
-                + 'A existencia de um assunto NAO determina a hipotese por si so; pondere reclamacao, resposta publica e consideracao '
-                + 'final. A BASE NORMATIVA e apenas um recorte por palavra-chave (pode estar incompleta); use TAMBEM o UNIVERSO DE '
-                + 'HIPOTESES. Escolha pelos FATOS, nao pelo motivo sugerido nem por hipoteses de tentativas anteriores por si so. '
-                + 'NAO redija o texto de moderacao. Responda SOMENTE com JSON valido.';
+                + '(nao suposicao); (6) SO ENTAO selecionar, do UNIVERSO DE HIPOTESES, a hipotese do Manual que melhor representa '
+                + 'o caso — mantendo a hipotese anterior e reforcando evidencias apenas se ela genuinamente evitar esbarrar na regra '
+                + 'AENV que o RA citou, ou trocando por uma hipotese diferente e mais forte quando a anterior esbarrar nessa regra '
+                + 'ou nao resistir a nova analise. IMPORTANTE: a regra AENV citada pelo RA na negativa (ex.: "Nao pode haver '
+                + 'divergencia de informacoes") e um CRITERIO DE VALIDACAO que toda hipotese da categoria AENV precisa satisfazer, '
+                + 'NUNCA e ela propria uma hipotese selecionavel — hipotese_selecionada tem que ser sempre um item do UNIVERSO DE '
+                + 'HIPOTESES, nunca o titulo de uma regra AENV. A existencia de um assunto NAO determina a hipotese por si so; '
+                + 'pondere reclamacao, resposta publica e consideracao final. A BASE NORMATIVA e apenas um recorte por palavra-chave '
+                + '(pode estar incompleta); use TAMBEM o UNIVERSO DE HIPOTESES. Escolha pelos FATOS, nao pelo motivo sugerido nem '
+                + 'por hipoteses de tentativas anteriores por si so. NAO redija o texto de moderacao. Responda SOMENTE com JSON valido.';
             const linhasNegativa = [
                 '📌 NEGATIVA REAL DO RA (extraida do e-mail colado pelo agente, nao e suposicao):',
                 `- Motivo oficial citado pelo RA: ${nr.motivoOficial || '(nao encontrado no texto colado)'}`,
                 `- Codigo RA: ${nr.codigo || 'nao identificado'}`,
-                nr.regraTitulo ? `- Regra correspondente do manual: "${nr.regraTitulo}"` : '- Codigo ainda nao mapeado no manual interno; baseie-se apenas no motivo oficial acima.',
+                nr.regraTitulo ? `- Regra AENV correspondente (CRITERIO DE VALIDACAO, NAO e uma hipotese selecionavel): "${nr.regraTitulo}"` : '- Codigo ainda nao mapeado no manual interno; baseie-se apenas no motivo oficial acima.',
                 nr.regraOQueVerifica ? `  O que essa regra verifica: ${nr.regraOQueVerifica}` : null,
                 nr.regraReprovaQuando ? `  Reprova quando: ${nr.regraReprovaQuando}` : null,
                 nr.regraOrientacao ? `  Diretriz oficial para corrigir: ${nr.regraOrientacao}` : null,
                 `- Hipotese usada na tentativa anterior (auditoria interna anterior): ${nr.hipoteseAnterior || '(nao registrada)'}`,
-                nr.teseBateu === false ? '- ⚠️ SINAL: a hipotese anterior NAO e a mesma regra que o RA citou. Forte indicio de que a TESE estava errada, nao so a redacao.' : null,
-                nr.teseBateu === true ? '- ✅ SINAL: a hipotese anterior JA e a mesma regra que o RA citou. Forte indicio de que o problema foi de EXECUCAO (evidencia/redacao), nao de tese.' : null
+                nr.teseBateu === false ? '- ⚠️ SINAL: a hipotese anterior esbarra na regra AENV que o RA citou (nao evitava esse problema). Forte indicio de que a TESE estava errada, nao so a redacao.' : null,
+                nr.teseBateu === true ? '- ✅ SINAL: a hipotese anterior JA evitava esbarrar na regra AENV que o RA citou. Forte indicio de que o problema foi de EXECUCAO (evidencia/redacao), nao de tese.' : null
             ].filter(l => l !== null);
 
             const user = [
@@ -266,6 +269,8 @@ const REGISTRY = {
                 '- Aponte, com base nos fatos e na negativa real acima, exatamente ONDE a tentativa anterior falhou (tese errada? faltou trecho literal que sustentasse? ignorou um conflito relevante? a resposta publica genuinamente nao sustenta nenhuma tese?).',
                 '- Classifique a FORCA da nova tentativa: "forte" (a negativa decorreu principalmente de tese ruim e voce corrigiu o fundamento), "media" (existe tese defensavel mas ha divergencia factual real ou lacuna na resposta publica), ou "fraca" (a resposta publica realmente nao sustenta a moderacao, ha divergencia factual direta ou informacao relevante nao respondida). Isto e avaliacao qualitativa sua, nao estatistica do RA.',
                 '- Mesmo classificando como "fraca", voce DEVE selecionar a hipotese mais forte disponivel e preencher todos os campos normalmente — a classificacao e um alerta interno, nunca motivo para deixar de decidir.',
+                '',
+                '⚠️ ATENCAO CRITICA SOBRE O CAMPO "hipotese_selecionada": ele tem que ser, sempre, um dos itens listados em UNIVERSO DE HIPOTESES acima (com id/titulo/manual/comoCitar tirados de la). A "Regra AENV correspondente" mostrada em NEGATIVA REAL DO RA (ex.: "Nao pode haver divergencia de informacoes", "Resposta publica condiz com o pedido de moderacao") e apenas um CRITERIO que a categoria AENV exige, igual aos outros criterios do RECORTE AUTOMATICO — nunca copie o titulo dessa regra AENV para "hipotese_selecionada". Se nenhuma hipotese do universo evitar claramente essa regra, escolha a mais proxima e sustentavel do universo mesmo assim, registrando a limitacao em "justificativa".',
                 '',
                 'Retorne EXATAMENTE este JSON (sem texto adicional):',
                 '{',
