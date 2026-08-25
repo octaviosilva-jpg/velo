@@ -10293,7 +10293,7 @@ app.post('/api/sync-estatisticas', async (req, res) => {
 app.post('/api/save-modelo-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/save-modelo-moderacao chamado');
     try {
-        const { idReclamacao, dadosModeracao, linhaRaciocinio, textoModeracao } = req.body;
+        const { idReclamacao, dadosModeracao, linhaRaciocinio, textoModeracao, auditoriaHipotese } = req.body;
         
         // Validar ID da reclamação
         if (!idReclamacao || !idReclamacao.trim()) {
@@ -10333,13 +10333,14 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 tipo: 'moderacao',
                 dadosModeracao: dadosModeracao,
                 linhaRaciocinio: linhaRaciocinio,
+                auditoriaHipotese: auditoriaHipotese || '',
                 textoModeracao: textoModeracao,
                 textoFinal: textoModeracao,
                 userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
                 userName: req.userData?.nome || 'N/A',
                 userEmail: req.userData?.email || 'N/A'
             };
-            
+
             console.log('📋 Dados da moderação para Google Sheets:', {
                 id: moderacaoData.id,
                 tipo: moderacaoData.tipo,

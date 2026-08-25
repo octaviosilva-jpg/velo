@@ -932,6 +932,16 @@ class GoogleSheetsIntegration {
             } catch (error) {
                 console.warn('⚠️ Não foi possível ler cabeçalhos, usando estrutura padrão:', error.message);
             }
+
+            // Garantir o cabeçalho da coluna P (índice 15) — Hipótese Utilizada. Best-effort:
+            // se a planilha ainda não tiver esse cabeçalho, escreve uma vez; não bloqueia o salvamento.
+            if (!headersAtuais || !headersAtuais[15]) {
+                try {
+                    await googleSheetsConfig.updateRow('Moderações!P1', ['Hipótese Utilizada']);
+                } catch (error) {
+                    console.warn('⚠️ Não foi possível garantir o cabeçalho da coluna P (Hipótese Utilizada):', error.message);
+                }
+            }
             
             // Criar perfil do usuário para a coluna ID
             const userProfile = moderacaoData.userProfile || 
@@ -956,7 +966,8 @@ class GoogleSheetsIntegration {
                 moderacaoData.linhaRaciocinio || '', // [11] Linha Raciocínio
                 moderacaoData.statusAprovacao || 'Pendente', // [12] Status Aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
                 moderacaoData.nomeSolicitante || moderacaoData.observacoesInternas || '', // [13] Nome do solicitante
-                '' // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
+                '', // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
+                moderacaoData.auditoriaHipotese || '' // [15] Hipótese Utilizada (auditoria interna que embasou o pedido)
             ];
 
             // Validar que todos os dados estão nas posições corretas
@@ -976,7 +987,8 @@ class GoogleSheetsIntegration {
                 '[11] Linha Raciocínio': row[11] ? 'Preenchido' : 'Vazio',
                 '[12] Status Aprovação': row[12] || 'ERRO: VAZIO!',
                 '[13] Nome do solicitante': row[13] || 'Vazio',
-                '[14] Resultado da Moderação': row[14] || 'Vazio (esperado)'
+                '[14] Resultado da Moderação': row[14] || 'Vazio (esperado)',
+                '[15] Hipótese Utilizada': row[15] ? 'Preenchido' : 'Vazio'
             });
 
             // Garantir que Status Aprovação não esteja vazio
@@ -986,7 +998,7 @@ class GoogleSheetsIntegration {
             }
 
             console.log('💾 Salvando moderação com Status Aprovação:', row[12], 'na coluna M (índice 12)');
-            await googleSheetsConfig.appendRow('Moderações!A:O', row); // Usar A:O para garantir que salva nas 15 colunas corretas
+            await googleSheetsConfig.appendRow('Moderações!A:P', row); // Usar A:P para garantir que salva nas 16 colunas corretas
             console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
             console.log('✅ Status Aprovação confirmado salvo:', row[12]);
             

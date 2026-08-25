@@ -3989,6 +3989,8 @@ async function salvarModeracaoComoModelo() {
         
         const linhaRaciocinio = document.getElementById('linha-raciocinio').innerText;
         const textoModeracao = document.getElementById('texto-moderacao').innerText;
+        const elAuditoriaHipotese = document.getElementById('auditoria-hipotese');
+        const auditoriaHipotese = elAuditoriaHipotese ? elAuditoriaHipotese.innerText.trim() : '';
         
         // Validar ID da reclamação
         if (!idReclamacao) {
@@ -4042,6 +4044,7 @@ async function salvarModeracaoComoModelo() {
                     consideracaoFinal: consideracaoFinal
                 },
                 linhaRaciocinio: linhaRaciocinio,
+                auditoriaHipotese: auditoriaHipotese,
                 textoModeracao: textoModeracao
             })
         });
