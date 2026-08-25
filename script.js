@@ -4414,6 +4414,11 @@ function abrirModalSolicitacoes() {
 }
 
 // Buscar solicitações da planilha
+// Cache das últimas solicitações buscadas no modal "Todas as Solicitações", indexado por
+// solicitacaoId — usado por carregarModeracaoParaReformular() pra recuperar o objeto completo
+// sem precisar serializar tudo dentro do onclick do botão.
+let solicitacoesCache = {};
+
 async function buscarSolicitacoes() {
     const dataInicio = document.getElementById('filtroDataInicio').value;
     const dataFim = document.getElementById('filtroDataFim').value;
@@ -4464,8 +4469,10 @@ async function buscarSolicitacoes() {
                 `;
             } else {
                 // Preencher tabela com estrutura expansível
+                solicitacoesCache = {};
                 tabela.innerHTML = solicitacoes.map((solicitacao, index) => {
                     const solicitacaoId = `solicitacao-${solicitacao.tipo}-${solicitacao.id || index}`;
+                    solicitacoesCache[solicitacaoId] = solicitacao;
                     const tipoBadge = solicitacao.tipo === 'resposta' 
                         ? '<span class="badge bg-success">Resposta</span>'
                         : '<span class="badge bg-warning">Moderação</span>';
@@ -4604,6 +4611,12 @@ async function buscarSolicitacoes() {
                                         Limpar Resultado
                                     </button>
                                     ` : ''}
+                                    ${solicitacao.resultadoModeracao !== 'Aceita' ? `
+                                    <button class="btn btn-outline-danger btn-sm" onclick="carregarModeracaoParaReformular('${solicitacaoId}')" title="Traz essa moderação de volta pro formulário principal para reformular">
+                                        <i class="fas fa-file-import me-2"></i>
+                                        Carregar pra Reformular
+                                    </button>
+                                    ` : ''}
                                 </div>
                                 ${solicitacao.resultadoModeracao === 'Negada' ? `
                                 <div class="mt-3">
@@ -4695,6 +4708,53 @@ async function corrigirModeracoes() {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
+}
+
+// Traz uma moderação já buscada no modal "Todas as Solicitações" de volta pro formulário
+// principal, permitindo reformular um caso antigo (não só o gerado na sessão atual).
+function carregarModeracaoParaReformular(solicitacaoId) {
+    const solicitacao = solicitacoesCache[solicitacaoId];
+    if (!solicitacao || solicitacao.tipo !== 'moderacao') {
+        showErrorMessage('Não foi possível carregar essa moderação. Busque novamente e tente de novo.');
+        return;
+    }
+
+    switchTool('moderacao');
+
+    const campoIdReclamacao = document.getElementById('id-reclamacao-moderacao');
+    if (campoIdReclamacao) campoIdReclamacao.value = solicitacao.idReclamacao || '';
+
+    const campoSolicitacao = document.getElementById('solicitacao-cliente');
+    if (campoSolicitacao) campoSolicitacao.value = solicitacao.solicitacaoCliente && solicitacao.solicitacaoCliente !== 'N/A' ? solicitacao.solicitacaoCliente : '';
+
+    const campoResposta = document.getElementById('resposta-empresa');
+    if (campoResposta) campoResposta.value = solicitacao.respostaEmpresa && solicitacao.respostaEmpresa !== 'N/A' ? solicitacao.respostaEmpresa : '';
+
+    const campoMotivo = document.getElementById('motivo-moderacao');
+    if (campoMotivo && solicitacao.motivoModeracao) campoMotivo.value = solicitacao.motivoModeracao;
+
+    const campoConsideracao = document.getElementById('consideracao-final-moderacao');
+    if (campoConsideracao) campoConsideracao.value = solicitacao.consideracaoFinal && solicitacao.consideracaoFinal !== 'N/A' ? solicitacao.consideracaoFinal : '';
+
+    const elTexto = document.getElementById('texto-moderacao');
+    if (elTexto) elTexto.innerHTML = solicitacao.textoModeracao && solicitacao.textoModeracao !== 'N/A' ? solicitacao.textoModeracao : '';
+
+    const elLinhaRaciocinio = document.getElementById('linha-raciocinio');
+    if (elLinhaRaciocinio) elLinhaRaciocinio.innerHTML = solicitacao.linhaRaciocinio || '';
+
+    const elAuditoria = document.getElementById('auditoria-hipotese');
+    if (elAuditoria) {
+        elAuditoria.innerHTML = '<small class="text-muted"><i class="fas fa-info-circle me-1"></i>Hipótese original não registrada para esta moderação (recurso adicionado depois deste caso).</small>';
+    }
+
+    const resultadoDiv = document.getElementById('moderacao-resultado');
+    if (resultadoDiv) resultadoDiv.style.display = 'block';
+
+    const modalEl = document.getElementById('modalSolicitacoes');
+    const modalInstance = modalEl && bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+
+    showSuccessMessage('Moderação carregada. Use "Reformular após Negativa" para reformular com base no motivo real.');
 }
 
 // Função para registrar resultado da moderação

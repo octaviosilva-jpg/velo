@@ -7416,30 +7416,32 @@ app.get('/api/solicitacoes', async (req, res) => {
                             id: moderacao[1] || moderacao.ID || moderacao.id,
                             status: moderacao['Status Aprovação'] || moderacao[12]
                         });
-                        // Buscar Texto Moderação Reformulado na coluna J (índice 9)
-                        // A coluna J é o índice 9 (A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9)
-                        const textoModeracaoFinal = moderacao[9] !== undefined && moderacao[9] !== null && moderacao[9] !== ''
-                            ? moderacao[9]
-                            : (moderacao['Texto Moderação Reformulado'] || 
-                               moderacao['Texto Moderação'] || 
+                        // Buscar Texto Moderação Reformulado na coluna K (índice 10)
+                        // Schema atualizado: A=0 Data/Hora, B=1 ID, C=2 ID da Reclamação, D=3 Tipo, E=4 Solicitação Cliente,
+                        // F=5 Resposta Empresa, G=6 Consideração Final, H=7 Motivo Moderação, I=8 Texto Moderação Anterior,
+                        // J=9 Feedback, K=10 Texto Moderação Reformulado, L=11 Linha Raciocínio, M=12 Status Aprovação.
+                        const textoModeracaoFinal = moderacao[10] !== undefined && moderacao[10] !== null && moderacao[10] !== ''
+                            ? moderacao[10]
+                            : (moderacao['Texto Moderação Reformulado'] ||
+                               moderacao['Texto Moderação'] ||
                                moderacao.textoModeracao || '');
-                        
-                        // Buscar Solicitação Cliente na coluna D (índice 3)
-                        const solicitacaoCliente = moderacao[3] !== undefined && moderacao[3] !== null && moderacao[3] !== ''
-                            ? moderacao[3]
-                            : (moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '');
-                        
-                        // Buscar Resposta Empresa na coluna E (índice 4)
-                        const respostaEmpresa = moderacao[4] !== undefined && moderacao[4] !== null && moderacao[4] !== ''
+
+                        // Buscar Solicitação Cliente na coluna E (índice 4)
+                        const solicitacaoCliente = moderacao[4] !== undefined && moderacao[4] !== null && moderacao[4] !== ''
                             ? moderacao[4]
+                            : (moderacao['Solicitação Cliente'] || moderacao.solicitacaoCliente || '');
+
+                        // Buscar Resposta Empresa na coluna F (índice 5)
+                        const respostaEmpresa = moderacao[5] !== undefined && moderacao[5] !== null && moderacao[5] !== ''
+                            ? moderacao[5]
                             : (moderacao['Resposta Empresa'] || moderacao.respostaEmpresa || '');
-                        
+
                         console.log('🔍 DEBUG Moderação:', {
                             id: moderacao.ID || moderacao.id,
-                            colunaJ: moderacao[9],
+                            colunaK: moderacao[10],
                             textoModeracaoFinal: textoModeracaoFinal,
-                            colunaD: moderacao[3],
-                            colunaE: moderacao[4]
+                            colunaE: moderacao[4],
+                            colunaF: moderacao[5]
                         });
                         
                         // Buscar resultado da moderação nas páginas "Moderações Aceitas" ou "Moderações Negadas"
@@ -7457,10 +7459,10 @@ app.get('/api/solicitacoes', async (req, res) => {
                             data: moderacao['Data/Hora'] || moderacao.data || '',
                             id: moderacao[1] || moderacao.ID || moderacao.id || '', // Usar índice [1] primeiro (coluna B)
                             idReclamacao: modIdReclamacao,
-                            solicitacaoCliente: solicitacaoCliente || 'N/A', // Solicitação completa do cliente da coluna D
-                            respostaEmpresa: respostaEmpresa || 'N/A', // Resposta da empresa da coluna E
+                            solicitacaoCliente: solicitacaoCliente || 'N/A', // Solicitação completa do cliente da coluna E
+                            respostaEmpresa: respostaEmpresa || 'N/A', // Resposta da empresa da coluna F
                             motivoModeracao: moderacao['Motivo Moderação'] || moderacao.motivoModeracao || '',
-                            textoModeracao: textoModeracaoFinal || 'N/A', // Texto final aprovado da coluna J
+                            textoModeracao: textoModeracaoFinal || 'N/A', // Texto final aprovado da coluna K
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
