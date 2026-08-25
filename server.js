@@ -7253,8 +7253,9 @@ app.get('/api/solicitacoes', async (req, res) => {
     try {
         const { dataInicio, dataFim, tipo, idReclamacao } = req.query;
         const idReclamacaoFiltro = (idReclamacao || '').toString().trim();
-        
-        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+
+        const sheetsPronto = await ensureGoogleSheetsReady();
+        if (!sheetsPronto || !googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
             return res.status(200).json({
                 success: true,
                 message: 'Google Sheets não configurado',
