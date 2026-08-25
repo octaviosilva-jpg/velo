@@ -4727,7 +4727,13 @@ async function buscarSolicitacoes() {
                         // quando a reclamação tem múltiplas tentativas — ver toggleDetalhesSolicitacao).
                         solicitacoesCache[solicitacaoId] = { ...solicitacao, _grupoId: grupoId };
 
-                        const numero = solicitacao.numeroTentativa || (i + 1);
+                        // Usar a posição no grupo já ordenado (não o campo numeroTentativa cru): a API
+                        // sempre devolve numeroTentativa >= 1 (nunca vazio), então reclamações com 2+
+                        // tentativas de ANTES desse recurso existir (sem a coluna Q preenchida) cairiam
+                        // todas em "1" e apareceriam como "1ª tentativa" duplicado. A ordenação por
+                        // numeroTentativa (com empate resolvido por ordem cronológica, JS sort é estável)
+                        // já deixa o array na ordem certa — a posição em si é o rótulo certo.
+                        const numero = i + 1;
                         const ordinalLabel = numero === 1 ? '1ª tentativa' : `${numero}ª tentativa (Reformulação)`;
                         const tentativaStatusBadge = solicitacao.resultadoModeracao === 'Aceita'
                             ? '<span class="badge bg-success">✅ Aceita</span>'
