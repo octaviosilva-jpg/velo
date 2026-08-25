@@ -107,6 +107,74 @@ const DECISAO = {
     }
 };
 
+// Mesmo no logico da DECISAO (Chamada 2), so que com promptRef/contexto/campos de saida
+// adaptados pra reformulacao apos negativa real do RA. Usada por runPipelineReformulacao
+// no lugar de DECISAO (COMPREENSAO e REDACAO sao reaproveitados sem alteracao).
+const DECISAO_REFORMULACAO = {
+    id: 'DECISAO_REFORMULACAO',
+    node: NODES.DECISAO,
+    etapas: [ETAPAS.E4_HIPOTESE, ETAPAS.E5_AUTOAUDITORIA],
+    promptRef: 'decisao-reformulacao@v1',
+    actor: 'llm',
+    writes: [
+        'analiseDecisao', 'hipotesesCandidatas', 'hipotesesDescartadas', 'hipoteseSelecionada',
+        'justificativa', 'trechosSustentam', 'confianca',
+        'ondeATentativaAnteriorFalhou', 'forcaDaTentativa', 'forcaJustificativa'
+    ],
+    model: (deps) => deps.models?.decisao || DEFAULTS.models.decisao,
+    temperature: (deps) => num(deps.temperatures?.decisao, DEFAULTS.temperatures.decisao),
+    maxTokens: (deps) => deps.maxTokens?.decisaoReformulacao || deps.maxTokens?.decisao || DEFAULTS.maxTokens.decisao,
+    async buildCtx(state, deps) {
+        return {
+            compreensao: {
+                fatos: state.fatos, pedidos: state.pedidos, acusacoes: state.acusacoes,
+                fatosResposta: state.fatosResposta, solucoes: state.solucoes,
+                consideracaoTipo: state.consideracaoTipo,
+                conflitoPrincipal: state.conflitoPrincipal, conflitosSecundarios: state.conflitosSecundarios,
+                coberturaResposta: state.coberturaResposta
+            },
+            solicitacao: state.entradasCruas.solicitacao,
+            resposta: state.entradasCruas.resposta,
+            consideracao: state.entradasCruas.consideracao,
+            manualBloco: deps.buildManualBloco ? await deps.buildManualBloco(state) : '',
+            universoHipoteses: deps.buildUniversoHipoteses ? await deps.buildUniversoHipoteses(state) : '',
+            negativaReal: state.negativaReal || {}
+        };
+    },
+    toPartial(parsed) {
+        parsed = parsed || {};
+        const ah = parsed.analise_holistica || null;
+        return {
+            analiseDecisao: ah ? {
+                nucleoReclamacao: ah.nucleo_reclamacao || '',
+                conflitos: arr(ah.conflitos).map(c => ({
+                    conflito: c.conflito || '',
+                    tipo: c.tipo === 'principal' || c.tipo === 'secundario' ? c.tipo : 'secundario',
+                    respondidoPelaEmpresa: c.respondido_pela_empresa,
+                    evidencia: c.evidencia || ''
+                })),
+                leituraConsideracaoFinal: ah.leitura_consideracao_final || ''
+            } : null,
+            hipotesesCandidatas: arr(parsed.hipoteses_candidatas),
+            hipotesesDescartadas: arr(parsed.hipoteses_descartadas).map(h => ({
+                hipotese: h.hipotese || h.titulo || '',
+                score: num(h.score, null),
+                evidenciasFavoraveis: arr(h.evidenciasFavoraveis),
+                evidenciasContrarias: arr(h.evidenciasContrarias),
+                trechos: arr(h.trechos),
+                motivoDescarte: h.motivoDescarte || ''
+            })),
+            hipoteseSelecionada: parsed.hipotese_selecionada || null,
+            justificativa: parsed.justificativa || null,
+            trechosSustentam: arr(parsed.trechos_sustentam),
+            confianca: num(parsed.confianca, null),
+            ondeATentativaAnteriorFalhou: parsed.onde_a_tentativa_anterior_falhou || '',
+            forcaDaTentativa: ['forte', 'media', 'fraca'].includes(parsed.forca_da_nova_tentativa) ? parsed.forca_da_nova_tentativa : null,
+            forcaJustificativa: parsed.forca_justificativa || ''
+        };
+    }
+};
+
 const REDACAO = {
     id: 'REDACAO',
     node: NODES.REDACAO,
@@ -143,4 +211,8 @@ function num(v, def) {
     return Number.isFinite(n) ? n : def;
 }
 
-module.exports = { COMPREENSAO, DECISAO, REDACAO, STEPS: [COMPREENSAO, DECISAO, REDACAO] };
+module.exports = {
+    COMPREENSAO, DECISAO, REDACAO, DECISAO_REFORMULACAO,
+    STEPS: [COMPREENSAO, DECISAO, REDACAO],
+    STEPS_REFORMULACAO: [COMPREENSAO, DECISAO_REFORMULACAO, REDACAO]
+};

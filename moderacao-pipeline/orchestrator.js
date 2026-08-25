@@ -6,7 +6,7 @@ const { openaiStep, parseJsonTolerante } = require('./openaiStep');
 const ws = require('./workflowState');
 const { buildEvidenceMap } = require('./evidenceMap');
 const { validate } = require('./validationGate');
-const { STEPS } = require('./steps');
+const { STEPS, STEPS_REFORMULACAO } = require('./steps');
 
 /**
  * Executa um no (uma chamada ao modelo) e aplica o resultado ao estado.
@@ -126,6 +126,65 @@ async function runPipeline(state, deps = {}) {
     return state;
 }
 
+/**
+ * Variante do pipeline para REFORMULAÇÃO apos negativa real do RA: mesma State Machine
+ * (COMPREENSAO -> DECISAO -> [GATE] -> (re-DECISAO max 1x) -> REDACAO), trocando apenas o
+ * no de DECISAO pelo DECISAO_REFORMULACAO (mesmo contrato de campos + negativa real como
+ * contexto extra + diagnostico de onde a tentativa anterior falhou + forca da nova tentativa).
+ * REDACAO e reaproveitada sem alteracao: a hipotese ja decidida (nova ou reforcada) e imutavel
+ * pra ela, entao ela nao precisa saber se e uma reformulacao.
+ */
+async function runPipelineReformulacao(state, deps = {}) {
+    const confLimiar = num(deps.confLimiar, DEFAULTS.confLimiar);
+    const maxBackedges = Number.isInteger(deps.maxBackedges) ? deps.maxBackedges : DEFAULTS.maxBackedges;
+
+    const compreensao = STEPS_REFORMULACAO.find(s => s.node === NODES.COMPREENSAO);
+    const decisao = STEPS_REFORMULACAO.find(s => s.id === 'DECISAO_REFORMULACAO');
+    const redacao = STEPS_REFORMULACAO.find(s => s.node === NODES.REDACAO);
+
+    const t0 = Date.now();
+
+    await runNode(state, compreensao, deps);
+    await runNode(state, decisao, deps);
+
+    rebuildEvidenceMap(state);
+    let gate = validate(state, { confLimiar });
+    ws.logDecision(state, {
+        node: NODES.GATE, actor: ACTORS.CODIGO, event: 'gate.check',
+        reason: gate.ok ? 'ok' : gate.reasons.join('; '), confDepois: state.confianca
+    });
+
+    let backedges = 0;
+    while (!gate.ok && backedges < maxBackedges) {
+        backedges++;
+        const confAntes = state.confianca;
+        ws.reopenForStep(state, decisao);
+        ws.logDecision(state, {
+            node: NODES.GATE, actor: ACTORS.CODIGO, event: 'gate.backedge',
+            from: NODES.GATE, to: NODES.DECISAO, reason: gate.reasons.join('; '), confAntes
+        });
+        await runNode(state, decisao, deps);
+        rebuildEvidenceMap(state);
+        gate = validate(state, { confLimiar });
+        ws.logDecision(state, {
+            node: NODES.GATE, actor: ACTORS.CODIGO, event: 'gate.recheck',
+            reason: gate.ok ? 'ok' : gate.reasons.join('; '), confDepois: state.confianca
+        });
+    }
+
+    if (!gate.ok) {
+        ws.logDecision(state, {
+            node: NODES.GATE, actor: ACTORS.CODIGO, event: 'gate.alerta',
+            reason: `prosseguindo com confianca baixa: ${gate.reasons.join('; ')}`
+        });
+    }
+
+    await runNode(state, redacao, deps);
+
+    state.telemetria.push({ node: 'TOTAL', duracaoMs: Date.now() - t0, backedges });
+    return state;
+}
+
 function rebuildEvidenceMap(state) {
     const evidenceMap = buildEvidenceMap({
         compreensao: {
@@ -145,4 +204,4 @@ function num(v, def) {
     return Number.isFinite(n) ? n : def;
 }
 
-module.exports = { runPipeline, runNode };
+module.exports = { runPipeline, runPipelineReformulacao, runNode };

@@ -7,6 +7,9 @@ const crypto = require('crypto');
  *  - compreensao@v1: extrair fatos + conflito + cobertura (JSON). NAO decide hipotese.
  *  - decisao@v1: escolher UMA hipotese com autoauditoria adversarial (JSON). NAO redige.
  *  - decisao@v3: decisao@v2 + ponderacao de insumos concorrentes (JSON). NAO redige.
+ *  - decisao-reformulacao@v1: decisao@v3 + negativa real do RA (motivo/codigo/regra/hipotese
+ *    anterior) — diagnostica onde a tentativa anterior falhou e decide manter ou trocar de tese
+ *    (JSON). NAO redige.
  *  - redacao@v1: redigir linha de raciocinio + texto final (JSON). NAO reabre decisao.
  *
  * Os builders recebem blocos ja renderizados (manualBloco, universoHipoteses,
@@ -195,6 +198,91 @@ const REGISTRY = {
                 '  "justificativa": "...",',
                 '  "trechos_sustentam": [ { "trecho": "...", "origem": "reclamacao|resposta|consideracao" } ],',
                 '  "confianca": 0.0',
+                '}'
+            ].join('\n');
+            return { system, user };
+        }
+    },
+
+    'decisao-reformulacao@v1': {
+        id: 'decisao-reformulacao',
+        version: 'v1',
+        responseFormat: 'json_object',
+        build(ctx = {}) {
+            const nr = ctx.negativaReal || {};
+            const system = 'Voce e um AUDITOR de moderacao do Reclame Aqui investigando por que um pedido JA FOI NEGADO e decidindo '
+                + 'se a hipotese precisa mudar. NAO e uma redacao com "palavras melhores": e uma nova decisao. ANTES de escolher a '
+                + 'hipotese, e OBRIGATORIO analisar a reclamacao COMO UM TODO, nesta ordem: (1) identificar TODOS os conflitos '
+                + '(principal e secundarios); (2) determinar o NUCLEO da reclamacao; (3) verificar, para CADA conflito, se foi '
+                + 'efetivamente respondido pela empresa e com qual evidencia; (4) avaliar a consideracao final do consumidor; '
+                + '(5) diagnosticar EXATAMENTE por que a tentativa anterior falhou, usando o motivo/codigo real citado pelo RA '
+                + '(nao suposicao); (6) SO ENTAO selecionar a hipotese do Manual que melhor representa o caso — mantendo a anterior '
+                + 'e reforcando evidencias apenas se ela genuinamente for a mesma regra que o RA citou como motivo da negativa, ou '
+                + 'trocando por uma hipotese diferente e mais forte quando a anterior nao for essa regra ou nao resistir a nova analise. '
+                + 'A existencia de um assunto NAO determina a hipotese por si so; pondere reclamacao, resposta publica e consideracao '
+                + 'final. A BASE NORMATIVA e apenas um recorte por palavra-chave (pode estar incompleta); use TAMBEM o UNIVERSO DE '
+                + 'HIPOTESES. Escolha pelos FATOS, nao pelo motivo sugerido nem por hipoteses de tentativas anteriores por si so. '
+                + 'NAO redija o texto de moderacao. Responda SOMENTE com JSON valido.';
+            const linhasNegativa = [
+                '📌 NEGATIVA REAL DO RA (extraida do e-mail colado pelo agente, nao e suposicao):',
+                `- Motivo oficial citado pelo RA: ${nr.motivoOficial || '(nao encontrado no texto colado)'}`,
+                `- Codigo RA: ${nr.codigo || 'nao identificado'}`,
+                nr.regraTitulo ? `- Regra correspondente do manual: "${nr.regraTitulo}"` : '- Codigo ainda nao mapeado no manual interno; baseie-se apenas no motivo oficial acima.',
+                nr.regraOQueVerifica ? `  O que essa regra verifica: ${nr.regraOQueVerifica}` : null,
+                nr.regraReprovaQuando ? `  Reprova quando: ${nr.regraReprovaQuando}` : null,
+                nr.regraOrientacao ? `  Diretriz oficial para corrigir: ${nr.regraOrientacao}` : null,
+                `- Hipotese usada na tentativa anterior (auditoria interna anterior): ${nr.hipoteseAnterior || '(nao registrada)'}`,
+                nr.teseBateu === false ? '- ⚠️ SINAL: a hipotese anterior NAO e a mesma regra que o RA citou. Forte indicio de que a TESE estava errada, nao so a redacao.' : null,
+                nr.teseBateu === true ? '- ✅ SINAL: a hipotese anterior JA e a mesma regra que o RA citou. Forte indicio de que o problema foi de EXECUCAO (evidencia/redacao), nao de tese.' : null
+            ].filter(l => l !== null);
+
+            const user = [
+                'FATOS EXTRAIDOS (Chamada 1):',
+                JSON.stringify(ctx.compreensao || {}, null, 2),
+                '',
+                'TEXTOS CRUS (para citar trechos literais):',
+                `- Solicitacao: ${ctx.solicitacao || ''}`,
+                `- Resposta: ${ctx.resposta || ''}`,
+                `- Consideracao final: ${ctx.consideracao || '(nao informada)'}`,
+                '',
+                'RECORTE AUTOMATICO DO MANUAL (nao vinculante):',
+                ctx.manualBloco || '(base normativa indisponivel)',
+                '',
+                'UNIVERSO DE HIPOTESES:',
+                ctx.universoHipoteses || '(universo indisponivel)',
+                '',
+                ...linhasNegativa,
+                '',
+                'No campo "respondido_pela_empresa" use true, false ou a string "parcial". O campo "tipo" deve ser "principal" ou "secundario".',
+                'A "justificativa" deve relacionar a hipotese selecionada a TODOS os conflitos identificados (nao apenas ao primeiro tema).',
+                '',
+                'PONDERACAO DE INSUMOS CONCORRENTES (quando apontarem para conflitos diferentes):',
+                '- Os TEXTOS CRUS (reclamacao, resposta publica, consideracao final) constituem a principal base para a analise dos fatos.',
+                '- Os dados estruturados da Compreensao auxiliam a organizar a analise, mas nao vinculam a classificacao.',
+                '- O Recorte Automatico e referencia auxiliar, nao vincula a classificacao.',
+                '- Quando houver mais de um conflito plausivel, escolha como principal aquele que melhor representa o objeto central da reclamacao, considerando fatos, pedidos, acusacoes, resposta da empresa e consideracao final.',
+                '',
+                'DIAGNOSTICO OBRIGATORIO DA TENTATIVA ANTERIOR:',
+                '- Aponte, com base nos fatos e na negativa real acima, exatamente ONDE a tentativa anterior falhou (tese errada? faltou trecho literal que sustentasse? ignorou um conflito relevante? a resposta publica genuinamente nao sustenta nenhuma tese?).',
+                '- Classifique a FORCA da nova tentativa: "forte" (a negativa decorreu principalmente de tese ruim e voce corrigiu o fundamento), "media" (existe tese defensavel mas ha divergencia factual real ou lacuna na resposta publica), ou "fraca" (a resposta publica realmente nao sustenta a moderacao, ha divergencia factual direta ou informacao relevante nao respondida). Isto e avaliacao qualitativa sua, nao estatistica do RA.',
+                '- Mesmo classificando como "fraca", voce DEVE selecionar a hipotese mais forte disponivel e preencher todos os campos normalmente — a classificacao e um alerta interno, nunca motivo para deixar de decidir.',
+                '',
+                'Retorne EXATAMENTE este JSON (sem texto adicional):',
+                '{',
+                '  "analise_holistica": {',
+                '    "nucleo_reclamacao": "...",',
+                '    "conflitos": [ { "conflito": "...", "tipo": "principal", "respondido_pela_empresa": true, "evidencia": "..." } ],',
+                '    "leitura_consideracao_final": "..."',
+                '  },',
+                '  "hipoteses_candidatas": [ { "hipotese": "...", "score": 0.0, "aderencia": "alta|media|baixa" } ],',
+                '  "hipoteses_descartadas": [ { "hipotese": "...", "score": 0.0, "evidenciasFavoraveis": ["..."], "evidenciasContrarias": ["..."], "trechos": ["..."], "motivoDescarte": "..." } ],',
+                '  "hipotese_selecionada": { "id": "...", "titulo": "...", "manual": "...", "comoCitar": "..." },',
+                '  "justificativa": "...",',
+                '  "trechos_sustentam": [ { "trecho": "...", "origem": "reclamacao|resposta|consideracao" } ],',
+                '  "confianca": 0.0,',
+                '  "onde_a_tentativa_anterior_falhou": "...",',
+                '  "forca_da_nova_tentativa": "forte|media|fraca",',
+                '  "forca_justificativa": "..."',
                 '}'
             ].join('\n');
             return { system, user };

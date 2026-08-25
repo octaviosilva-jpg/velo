@@ -48,8 +48,43 @@ async function runPipelineV2(input = {}, deps = {}) {
     return { mapped, state: serialize(state), persistResult };
 }
 
+/**
+ * Variante de runPipelineV2 para REFORMULAÇÃO apos negativa real do RA.
+ * input.negativaReal: { motivoOficial, codigo, regraTitulo, regraOQueVerifica, regraReprovaQuando,
+ *                        regraOrientacao, hipoteseAnterior, teseBateu }
+ * Uso:
+ *   const { runReformulacaoV2 } = require('./moderacao-pipeline');
+ *   const { mapped } = await runReformulacaoV2({ idReclamacao, dadosModeracao, negativaReal }, deps);
+ */
+async function runReformulacaoV2(input = {}, deps = {}) {
+    const dados = input.dadosModeracao || {};
+    const state = createWorkflowState({
+        idReclamacao: input.idReclamacao,
+        entradasCruas: {
+            solicitacao: dados.solicitacaoCliente || '',
+            resposta: dados.respostaEmpresa || '',
+            consideracao: dados.consideracaoFinal || '',
+            motivoHint: dados.motivoModeracao || ''
+        },
+        negativaReal: input.negativaReal || null
+    });
+
+    await orchestrator.runPipelineReformulacao(state, deps);
+
+    let persistResult = null;
+    try {
+        persistResult = await persistence.persistWorkflow(state, deps);
+    } catch (e) {
+        console.error('[pipelineV2/reformulacao] persistencia falhou (nao bloqueante):', e.message);
+    }
+
+    const mapped = resultMapper.mapReformulacaoToLegacyContract(state, { confLimiar: deps.confLimiar });
+    return { mapped, state: serialize(state), persistResult };
+}
+
 module.exports = {
     runPipelineV2,
+    runReformulacaoV2,
     constants,
     // reexports uteis para testes/harness
     createWorkflowState,

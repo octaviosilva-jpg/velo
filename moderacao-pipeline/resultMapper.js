@@ -76,4 +76,35 @@ function mapToLegacyContract(state, { confLimiar = DEFAULTS.confLimiar } = {}) {
     };
 }
 
-module.exports = { mapToLegacyContract, construirAuditoria };
+/**
+ * Igual a mapToLegacyContract, mas para o resultado de runPipelineReformulacao: inclui o
+ * diagnostico de onde a tentativa anterior falhou e a classificacao de forca da nova tentativa
+ * no bloco de auditoria, e expoe forcaDaTentativa/ondeATentativaAnteriorFalhou separadamente
+ * pra UI poder destacar o aviso (ex.: "nao recomendamos reenviar") quando for fraca.
+ */
+function mapReformulacaoToLegacyContract(state, { confLimiar = DEFAULTS.confLimiar } = {}) {
+    const base = mapToLegacyContract(state, { confLimiar });
+
+    const rotuloForca = { forte: '🟢 Forte', media: '🟡 Média', fraca: '🔴 Fraca' };
+    const linhasExtra = [];
+    if (state.ondeATentativaAnteriorFalhou) {
+        linhasExtra.push('', `Onde a tentativa anterior falhou: ${state.ondeATentativaAnteriorFalhou}`);
+    }
+    if (state.forcaDaTentativa) {
+        linhasExtra.push(`Força da nova tentativa: ${rotuloForca[state.forcaDaTentativa] || state.forcaDaTentativa}${state.forcaJustificativa ? ` — ${state.forcaJustificativa}` : ''}`);
+    }
+
+    const auditoriaHipotese = base.auditoriaHipotese + linhasExtra.join('\n');
+    const resultAtualizado = base.result.replace(base.auditoriaHipotese, auditoriaHipotese);
+
+    return {
+        ...base,
+        auditoriaHipotese,
+        result: resultAtualizado,
+        ondeATentativaAnteriorFalhou: state.ondeATentativaAnteriorFalhou || '',
+        forcaDaTentativa: state.forcaDaTentativa || null,
+        forcaJustificativa: state.forcaJustificativa || ''
+    };
+}
+
+module.exports = { mapToLegacyContract, mapReformulacaoToLegacyContract, construirAuditoria };

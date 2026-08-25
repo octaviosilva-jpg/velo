@@ -13,7 +13,7 @@ const { WORKFLOW_VERSION, ACTORS } = require('./constants');
  *  - rastreabilidade: decisionLog append-only (com actor: 'llm' | 'codigo'), artefatos,
  *    telemetria e evidenceMap.
  */
-function createWorkflowState({ idReclamacao, entradasCruas } = {}) {
+function createWorkflowState({ idReclamacao, entradasCruas, negativaReal } = {}) {
     const e = entradasCruas || {};
     return {
         workflowVersion: WORKFLOW_VERSION,
@@ -27,6 +27,10 @@ function createWorkflowState({ idReclamacao, entradasCruas } = {}) {
             consideracao: e.consideracao || '',
             motivoHint: e.motivoHint || ''
         },
+
+        // Só presente no fluxo de REFORMULAÇÃO (após negativa real do RA). Entrada fixa,
+        // definida na criação do estado, nunca escrita por um step (sem write-guard).
+        negativaReal: negativaReal || null, // { motivoOficial, codigo, regraTitulo, regraOQueVerifica, regraReprovaQuando, regraOrientacao, hipoteseAnterior, teseBateu }
 
         // COMPREENSAO (E1..E3)
         fatos: [],
@@ -48,6 +52,10 @@ function createWorkflowState({ idReclamacao, entradasCruas } = {}) {
         justificativa: null,
         trechosSustentam: [],
         confianca: null, // numero 0.0..1.0
+        // Só preenchidos no fluxo de REFORMULAÇÃO (etapa DECISAO_REFORMULACAO)
+        ondeATentativaAnteriorFalhou: null,
+        forcaDaTentativa: null, // 'forte' | 'media' | 'fraca'
+        forcaJustificativa: null,
 
         // REDACAO (E6..E7)
         linhaRaciocinio: null,

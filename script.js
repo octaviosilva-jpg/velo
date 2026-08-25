@@ -4543,43 +4543,75 @@ async function buscarSolicitacoes() {
                             ` : ''}
                         `;
                     } else {
+                        // Campos brutos do caso em acordeão (fechados por padrão) — eram exibidos
+                        // todos abertos de uma vez, o que ficava muito poluído numa lista grande.
                         detalhesExpandidos = `
-                            <div class="campo-detalhe" style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-bottom: 15px;">
-                                <div class="campo-label" style="font-size: 1.1rem; color: #856404;">
-                                    <i class="fas fa-file-alt me-2"></i>Texto de Moderação (Essencial):
+                            <div class="accordion mb-3" id="acc-mod-${solicitacaoId}">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-texto-${solicitacaoId}">
+                                            <i class="fas fa-file-alt me-2"></i>Texto de Moderação
+                                        </button>
+                                    </h2>
+                                    <div id="acc-texto-${solicitacaoId}" class="accordion-collapse collapse">
+                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.textoModeracao || 'N/A'}</div>
+                                    </div>
                                 </div>
-                                <div class="campo-valor" style="margin-top: 10px; font-weight: 500;">
-                                    ${solicitacao.textoModeracao || 'N/A'}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-resposta-${solicitacaoId}">
+                                            <i class="fas fa-building me-2"></i>Resposta da Empresa
+                                        </button>
+                                    </h2>
+                                    <div id="acc-resposta-${solicitacaoId}" class="accordion-collapse collapse">
+                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.respostaEmpresa || 'N/A'}</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="campo-detalhe" style="background-color: #d1ecf1; padding: 15px; border-left: 4px solid #0dcaf0; margin-bottom: 15px;">
-                                <div class="campo-label" style="font-size: 1.1rem; color: #055160;">
-                                    <i class="fas fa-building me-2"></i>Resposta da Empresa (Essencial):
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-motivo-${solicitacaoId}">
+                                            Motivo da Moderação
+                                        </button>
+                                    </h2>
+                                    <div id="acc-motivo-${solicitacaoId}" class="accordion-collapse collapse">
+                                        <div class="accordion-body">${solicitacao.motivoModeracao || 'N/A'}</div>
+                                    </div>
                                 </div>
-                                <div class="campo-valor" style="margin-top: 10px; font-weight: 500;">
-                                    ${solicitacao.respostaEmpresa || 'N/A'}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-solicitacao-${solicitacaoId}">
+                                            Solicitação do Cliente
+                                        </button>
+                                    </h2>
+                                    <div id="acc-solicitacao-${solicitacaoId}" class="accordion-collapse collapse">
+                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.solicitacaoCliente || 'N/A'}</div>
+                                    </div>
                                 </div>
+                                ${solicitacao.consideracaoFinal ? `
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-consideracao-${solicitacaoId}">
+                                            Consideração Final
+                                        </button>
+                                    </h2>
+                                    <div id="acc-consideracao-${solicitacaoId}" class="accordion-collapse collapse">
+                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.consideracaoFinal}</div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                ${solicitacao.linhaRaciocinio ? `
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-linha-${solicitacaoId}">
+                                            Linha de Raciocínio
+                                        </button>
+                                    </h2>
+                                    <div id="acc-linha-${solicitacaoId}" class="accordion-collapse collapse">
+                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.linhaRaciocinio}</div>
+                                    </div>
+                                </div>
+                                ` : ''}
                             </div>
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Motivo da Moderação:</div>
-                                <div class="campo-valor">${solicitacao.motivoModeracao || 'N/A'}</div>
-                            </div>
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Solicitação do Cliente:</div>
-                                <div class="campo-valor">${solicitacao.solicitacaoCliente || 'N/A'}</div>
-                            </div>
-                            ${solicitacao.consideracaoFinal ? `
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Consideração Final:</div>
-                                <div class="campo-valor">${solicitacao.consideracaoFinal}</div>
-                            </div>
-                            ` : ''}
-                            ${solicitacao.linhaRaciocinio ? `
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Linha de Raciocínio:</div>
-                                <div class="campo-valor">${solicitacao.linhaRaciocinio}</div>
-                            </div>
-                            ` : ''}
                             <div class="campo-detalhe" style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #0d6efd; margin-top: 20px;">
                                 <div class="campo-label" style="font-size: 1.1rem; color: #0d6efd; margin-bottom: 15px;">
                                     <i class="fas fa-clipboard-check me-2"></i>Resultado da Moderação:
@@ -4591,7 +4623,7 @@ async function buscarSolicitacoes() {
                                                 <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
                                             </div>
                                             ${solicitacao.resultadoModeracao === 'Negada' ? `
-                                                <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Ver análise completa - Clique para ver os 3 blocos de análise">
+                                                <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Abre a análise completa com IA sobre por que essa negativa aconteceu">
                                                     <i class="fas fa-search me-1"></i>
                                                     Ver Análise Completa
                                                 </button>
@@ -4626,14 +4658,6 @@ async function buscarSolicitacoes() {
                                     </button>
                                     ` : ''}
                                 </div>
-                                ${solicitacao.resultadoModeracao === 'Negada' ? `
-                                <div class="mt-3">
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Análise Completa Disponível:</strong> Clique no botão "Ver Análise Completa" acima para ver a análise detalhada com os 3 blocos (motivo da negativa, onde errou e como corrigir).
-                                    </div>
-                                </div>
-                                ` : ''}
                             </div>
                         `;
                     }
@@ -4985,154 +5009,66 @@ async function verAnaliseCompletaNegada(moderacaoId) {
         const mod = data.moderacao;
         const tipo = data.tipo;
         const aprendizado = data.aprendizadoAplicado;
-        
+
+        // Cabeçalho mínimo (ID/reclamação/resultado/data) — os dados brutos do caso (texto
+        // enviado, solicitação, resposta, consideração, linha de raciocínio antiga) não se
+        // repetem mais aqui: a análise da IA abaixo já os referencia dentro do raciocínio dela.
         let html = `
-            <div class="mb-4">
-                <h5 class="text-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Moderação Negada - Análise Completa (FASE 2)
+            <div class="mb-3">
+                <h5 class="${tipo === 'negada' ? 'text-danger' : 'text-success'} mb-2">
+                    <i class="fas ${tipo === 'negada' ? 'fa-exclamation-triangle' : 'fa-check-circle'} me-2"></i>
+                    Moderação ${tipo === 'negada' ? 'Negada' : 'Aceita'} — Análise Completa
                 </h5>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Dados Gerais</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>ID da Moderação:</strong> ${mod.idModeracao || 'N/A'}</p>
-                            <p><strong>ID da Reclamação:</strong> ${mod.idReclamacao || 'N/A'}</p>
-                            <p><strong>Tema:</strong> ${mod.tema || 'N/A'}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Motivo:</strong> ${mod.motivo || 'N/A'}</p>
-                            <p><strong>Resultado:</strong> <span class="badge bg-danger">${mod.resultado || 'Negada'}</span></p>
-                            <p><strong>Data do Registro:</strong> ${mod.dataRegistro || 'N/A'}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-file-alt me-2"></i>Texto da Moderação Enviada</h6>
-                </div>
-                <div class="card-body">
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px;">${mod.textoModeracao || 'N/A'}</pre>
-                </div>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-comments me-2"></i>Contexto</h6>
-                </div>
-                <div class="card-body">
-                    <p><strong>Solicitação do Cliente:</strong></p>
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">${mod.solicitacaoCliente || 'N/A'}</pre>
-                    <p><strong>Resposta da Empresa:</strong></p>
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">${mod.respostaEmpresa || 'N/A'}</pre>
-                    <p><strong>Consideração Final:</strong></p>
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px;">${mod.consideracaoFinal || 'N/A'}</pre>
-                </div>
-            </div>
-            
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="fas fa-brain me-2"></i>Linha de Raciocínio Interna</h6>
-                </div>
-                <div class="card-body">
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 15px; border-radius: 5px;">${mod.linhaRaciocinio || 'N/A'}</pre>
+                <div class="text-muted small">
+                    ID Moderação: ${mod.idModeracao || 'N/A'} &middot;
+                    ID Reclamação: ${mod.idReclamacao || 'N/A'} &middot;
+                    Registrado em: ${mod.dataRegistro || 'N/A'}
                 </div>
             </div>
         `;
-        
-        // Análise FASE 2 (se negada)
-        if (tipo === 'negada') {
+
+        if (aprendizado) {
             html += `
-                <div class="card mb-3 border-danger">
-                    <div class="card-header bg-danger text-white">
-                        <h6 class="mb-0">
-                            <i class="fas fa-times-circle me-2"></i>
-                            🔴 BLOCO 1 – MOTIVO DA NEGATIVA (BASE MANUAL)
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <p style="white-space: pre-wrap; word-wrap: break-word;">${mod.motivoNegativa || 'N/A'}</p>
-                    </div>
-                </div>
-                
-                <div class="card mb-3 border-warning">
-                    <div class="card-header bg-warning text-dark">
-                        <h6 class="mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            🟡 BLOCO 2 – ONDE A SOLICITAÇÃO ERROU
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <p style="white-space: pre-wrap; word-wrap: break-word;">${mod.ondeErrou || 'N/A'}</p>
-                    </div>
-                </div>
-                
-                <div class="card mb-3 border-success">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0">
-                            <i class="fas fa-check-circle me-2"></i>
-                            🟢 BLOCO 3 – COMO CORRIGIR EM PRÓXIMAS SOLICITAÇÕES
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <p style="white-space: pre-wrap; word-wrap: break-word;">${mod.comoCorrigir || 'N/A'}</p>
-                    </div>
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="fas fa-book me-2"></i>${aprendizado.mensagem || 'Esta moderação reforçou um modelo positivo existente.'}
+                    ${aprendizado.pesoModelo ? ` (peso do modelo: ${aprendizado.pesoModelo.toFixed(2)})` : ''}
                 </div>
             `;
+        }
 
-            // Os 3 blocos acima são o resumo real (motivo/código/orientação), mas rasos. Botão
-            // abaixo roda a auditoria completa (divergências fato a fato, base normativa, nova
-            // tese) sob demanda — só quando o e-mail real da negativa foi capturado (pós-feature).
-            if (mod.textoCompletoNegativa) {
-                html += `
-                <div class="card mb-3 border-primary" id="card-analise-completa-ia">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><i class="fas fa-robot me-2"></i>Análise Completa com IA</h6>
-                        <button class="btn btn-light btn-sm" onclick="gerarAnaliseCompletaIA('${String(moderacaoId).replace(/'/g, "\\'")}')">
-                            <i class="fas fa-magic me-1"></i>Gerar Análise Completa
-                        </button>
-                    </div>
-                    <div class="card-body" id="analise-completa-ia-corpo">
-                        <p class="text-muted mb-0">Roda a auditoria completa (onde a tese anterior falhou, divergências cliente x empresa fato a fato, lacunas da resposta pública, nova estratégia e força da tentativa) usando a negativa real e os manuais de moderação. Clique no botão acima para gerar.</p>
-                    </div>
+        if (tipo === 'negada' && mod.textoCompletoNegativa) {
+            // Área onde a análise completa com IA carrega automaticamente (sem precisar de botão).
+            html += `<div id="analise-completa-ia-corpo"></div>`;
+        } else if (tipo === 'negada') {
+            // Registro antigo (pré-captura do e-mail real da negativa): sem dado suficiente pra
+            // rodar a auditoria com IA. Mostra o que existia da análise antiga, se houver.
+            html += `
+                <div class="alert alert-secondary">
+                    <i class="fas fa-info-circle me-2"></i>Esta negativa foi registrada antes da captura do e-mail real do RA — não há dado suficiente para rodar a análise completa com IA.
                 </div>
+            `;
+            if (mod.motivoNegativa || mod.ondeErrou || mod.comoCorrigir) {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-header bg-light"><h6 class="mb-0">Análise registrada na época</h6></div>
+                        <div class="card-body">
+                            <p><strong>Motivo da negativa:</strong> ${mod.motivoNegativa || 'N/A'}</p>
+                            <p><strong>Onde a solicitação errou:</strong> ${mod.ondeErrou || 'N/A'}</p>
+                            <p class="mb-0"><strong>Como corrigir:</strong> ${mod.comoCorrigir || 'N/A'}</p>
+                        </div>
+                    </div>
                 `;
             }
         }
-        
-        // Histórico de aprendizado aplicado
-        if (aprendizado) {
-            html += `
-                <div class="card mb-3 border-info">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0">
-                            <i class="fas fa-book me-2"></i>
-                            📚 Histórico de Aprendizado Aplicado
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <p>Esta moderação foi baseada em:</p>
-                        <ul>
-                            <li>${tipo === 'aceita' ? '✅ Moderações aceitas (FASE 3)' : '📖 Moderações coerentes'}</li>
-                            ${tipo === 'negada' ? '<li>🔴 Ajustes por aprendizado negativo (FASE 2)</li>' : ''}
-                        </ul>
-                        ${aprendizado.mensagem ? `<p class="mt-2"><em>${aprendizado.mensagem}</em></p>` : ''}
-                        ${aprendizado.pesoModelo ? `<p class="mt-2"><strong>Peso do modelo:</strong> ${aprendizado.pesoModelo.toFixed(2)}</p>` : ''}
-                        ${aprendizado.quantidadeAceites ? `<p><strong>Quantidade de aceites que reforçaram este modelo:</strong> ${aprendizado.quantidadeAceites}</p>` : ''}
-                    </div>
-                </div>
-            `;
-        }
-        
+
         modalBody.innerHTML = html;
-        
+
+        // Roda a análise completa com IA automaticamente (sem exigir clique em botão) quando há
+        // e-mail real da negativa. Feita depois de setar innerHTML pra #analise-completa-ia-corpo já existir.
+        if (tipo === 'negada' && mod.textoCompletoNegativa) {
+            gerarAnaliseCompletaIA(moderacaoId);
+        }
+
     } catch (error) {
         console.error('❌ Erro ao carregar análise completa:', error);
         modalBody.innerHTML = `
@@ -5145,8 +5081,8 @@ async function verAnaliseCompletaNegada(moderacaoId) {
 }
 
 // Roda a auditoria completa (IA) sobre uma moderação já negada, reaproveitando o e-mail real da
-// negativa e a hipótese original já salvos — não pede pra colar nada de novo. Chamado pelo botão
-// "Gerar Análise Completa" dentro do modal "Ver análise completa".
+// negativa e a hipótese original já salvos — não pede pra colar nada de novo. Chamada
+// automaticamente ao abrir o modal "Ver análise completa" (sem precisar de botão).
 async function gerarAnaliseCompletaIA(moderacaoId) {
     const corpo = document.getElementById('analise-completa-ia-corpo');
     if (!corpo) return;
@@ -5170,7 +5106,12 @@ async function gerarAnaliseCompletaIA(moderacaoId) {
         }
 
         let html = '';
-        if (data.confiancaBaixa) {
+        if (data.avisoNaoReenviar) {
+            html += `<div class="alert alert-danger border-start border-danger border-4 mb-3">
+                <h6 class="alert-heading"><i class="fas fa-ban me-2"></i>Não recomendamos reenviar este caso</h6>
+                <p class="mb-0">A auditoria classificou a força da nova tentativa como <strong>🔴 Fraca</strong>${data.forcaJustificativa ? `: ${data.forcaJustificativa}` : '.'} A sugestão abaixo é só pra consulta.</p>
+            </div>`;
+        } else if (data.confiancaBaixa) {
             html += '<div class="alert alert-warning border-start border-warning border-4 mb-3"><strong><i class="fas fa-exclamation-triangle me-2"></i>Confiança baixa</strong> na nova tese — revise com atenção antes de usar.</div>';
         }
         html += formatarAuditoriaHipotese(data.auditoriaHipotese, data.confiancaBaixa);
@@ -5541,14 +5482,34 @@ async function processarReformulacaoAposNegativa(textoNegativaRAParam) {
             const textoModeracao = document.getElementById('texto-moderacao');
             textoModeracao.innerHTML = formatarTextoModeracao(textoFinalBruto);
 
+            // Quando a força da nova tentativa sai Fraca, o pedido ainda é gerado (pra não
+            // esconder informação), mas com um aviso difícil de ignorar: reenviar um caso sem
+            // sustentação real só gasta cota diária e reforça negativas.
+            const avisoExistente = document.getElementById('aviso-nao-reenviar');
+            if (avisoExistente) avisoExistente.remove();
+            if (data.avisoNaoReenviar) {
+                const aviso = document.createElement('div');
+                aviso.id = 'aviso-nao-reenviar';
+                aviso.className = 'alert alert-danger border-start border-danger border-4 mt-3 mb-0';
+                aviso.innerHTML = `
+                    <h6 class="alert-heading"><i class="fas fa-ban me-2"></i>Não recomendamos reenviar este caso</h6>
+                    <p class="mb-0">A auditoria classificou a força da nova tentativa como <strong>🔴 Fraca</strong>${data.forcaJustificativa ? `: ${data.forcaJustificativa}` : '.'} O texto abaixo foi gerado mesmo assim para consulta, mas reenviar um caso sem sustentação real tende a gastar cota diária de moderação sem mudar o resultado.</p>
+                `;
+                textoModeracao.insertAdjacentElement('afterend', aviso);
+            }
+
             // Esconde uma caixa de "Análise de Feedback" de uma ação anterior (Dar Feedback), se
             // estiver visível — não é dessa ação e só teria confundido com conteúdo desatualizado.
             const feedbackSectionAntiga = document.getElementById('feedback-moderacao');
             if (feedbackSectionAntiga) feedbackSectionAntiga.style.display = 'none';
 
-            showSuccessMessage(confiancaBaixa
-                ? 'Pedido reformulado. Atenção: a auditoria sinalizou confiança baixa na nova tese, revise antes de enviar.'
-                : 'Pedido de moderação reformulado — confira a auditoria e o novo texto logo abaixo.');
+            if (data.avisoNaoReenviar) {
+                showErrorMessage('Pedido reformulado, mas com força Fraca — não recomendamos reenviar. Veja o aviso abaixo do texto.');
+            } else if (confiancaBaixa) {
+                showSuccessMessage('Pedido reformulado. Atenção: a auditoria sinalizou confiança baixa na nova tese, revise antes de enviar.');
+            } else {
+                showSuccessMessage('Pedido de moderação reformulado — confira a auditoria e o novo texto logo abaixo.');
+            }
 
             // Garante que o pedido novo fique visível na tela, não só o topo do formulário.
             const resultadoDiv = document.getElementById('moderacao-resultado');
