@@ -815,6 +815,7 @@ class GoogleSheetsIntegration {
             return false;
         }
 
+        let row;
         try {
             console.log('🔍 [DEBUG] Verificando status da API...');
             // Verificar status da API antes de tentar registrar
@@ -827,15 +828,15 @@ class GoogleSheetsIntegration {
 
             // Rate limiting para operações de escrita
             await this.waitForRateLimit();
-            
+
             // Invalidar cache relacionado para forçar atualização
             this.invalidateCache(['feedbacks_moderacoes']);
-            
+
             // Criar perfil do usuário para a coluna ID
-            const userProfile = feedbackData.userProfile || 
+            const userProfile = feedbackData.userProfile ||
                 (feedbackData.userEmail ? `${feedbackData.userName || 'Usuário'} (${feedbackData.userEmail})` : 'N/A');
 
-            const row = [
+            row = [
                 new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
                 feedbackData.id || '', // Coluna B: ID
                 feedbackData.idReclamacao || '', // Coluna C: ID da Reclamação
@@ -860,8 +861,8 @@ class GoogleSheetsIntegration {
         } catch (error) {
             console.error('❌ Erro ao registrar feedback de moderação no Google Sheets:', error.message);
             
-            // Se for erro de socket hang up, tentar novamente uma vez
-            if (error.message.includes('socket hang up') || error.message.includes('timeout')) {
+            // Se for erro de socket hang up, tentar novamente uma vez (só se a linha já foi montada)
+            if (row && (error.message.includes('socket hang up') || error.message.includes('timeout'))) {
                 console.log('🔄 Tentando novamente após erro de conectividade...');
                 try {
                     await new Promise(resolve => setTimeout(resolve, 2000)); // Aguardar 2 segundos
