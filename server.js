@@ -5004,36 +5004,65 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
                     
                     console.log(`🔍 Índices encontrados em Moderações Negadas - Tema: ${temaIndex} (esperado: 3), Erro: ${erroIndex} (esperado: 8), Correção: ${correcaoIndex} (esperado: 9), Data: ${dataIndex} (esperado: 0)`);
                     
+                    // Reclamações cuja negativa já foi corrigida e aceita numa tentativa posterior não devem
+                    // continuar servindo de "padrão a evitar" — o que vale pra aprendizado é a tentativa aceita.
+                    // Mapear ID da Reclamação -> maior Número da Tentativa aceito (coluna O, índice 14).
+                    const idReclamacaoComAceiteMap = new Map();
+                    try {
+                        const aceitasParaFiltro = await googleSheetsConfig.readData('Moderações Aceitas!A1:P10000');
+                        if (aceitasParaFiltro && aceitasParaFiltro.length > 1) {
+                            for (let i = 1; i < aceitasParaFiltro.length; i++) {
+                                const rowAceita = aceitasParaFiltro[i];
+                                if (!rowAceita || rowAceita.length < 3) continue;
+                                const idReclAceita = normalizarId(rowAceita[2]);
+                                if (!idReclAceita) continue;
+                                const tentativaAceita = parseInt(rowAceita[14], 10) || 1;
+                                const atual = idReclamacaoComAceiteMap.get(idReclAceita) || 0;
+                                if (tentativaAceita > atual) idReclamacaoComAceiteMap.set(idReclAceita, tentativaAceita);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Não foi possível ler "Moderações Aceitas" para filtrar negativas superadas:', error.message);
+                    }
+
                     // Filtrar negativas do mesmo tema
                     const negativasRelevantes = [];
                     for (let i = 1; i < negativasData.length; i++) {
                         const row = negativasData[i];
                         if (!row || row.length < 10) continue;
-                        
+
                         // Buscar tema usando índice dinâmico ou fallback para índice fixo
-                        const temaNegativa = (temaIndex >= 0 && row[temaIndex] !== undefined 
-                            ? row[temaIndex] 
+                        const temaNegativa = (temaIndex >= 0 && row[temaIndex] !== undefined
+                            ? row[temaIndex]
                             : (row[3] || '')).toString().toLowerCase().trim();
                         const temaAtualLower = temaAtual.toString().toLowerCase().trim();
-                        
+
                         // Verificar se o tema corresponde
-                        if (temaNegativa === temaAtualLower || 
-                            temaNegativa.includes(temaAtualLower) || 
+                        if (temaNegativa === temaAtualLower ||
+                            temaNegativa.includes(temaAtualLower) ||
                             temaAtualLower.includes(temaNegativa)) {
+                            // Pular esta negativa se a mesma reclamação (coluna C, índice 2) já tem uma
+                            // tentativa aceita mais recente — a negativa foi corrigida, não é mais um padrão a evitar.
+                            const idReclNegada = normalizarId(row[2]);
+                            const numeroTentativaNegada = parseInt(row[20], 10) || 1; // Coluna U
+                            const maiorTentativaAceita = idReclNegada ? (idReclamacaoComAceiteMap.get(idReclNegada) || 0) : 0;
+                            if (maiorTentativaAceita > numeroTentativaNegada) {
+                                continue;
+                            }
                             negativasRelevantes.push({
-                                erro: (erroIndex >= 0 && row[erroIndex] !== undefined 
-                                    ? row[erroIndex] 
+                                erro: (erroIndex >= 0 && row[erroIndex] !== undefined
+                                    ? row[erroIndex]
                                     : (row[8] || '')).toString().trim(), // Bloco 2 - Onde a Solicitação Errou
-                                correcao: (correcaoIndex >= 0 && row[correcaoIndex] !== undefined 
-                                    ? row[correcaoIndex] 
+                                correcao: (correcaoIndex >= 0 && row[correcaoIndex] !== undefined
+                                    ? row[correcaoIndex]
                                     : (row[9] || '')).toString().trim(), // Bloco 3 - Como Corrigir em Próximas Solicitações
-                                dataRegistro: (dataIndex >= 0 && row[dataIndex] !== undefined 
-                                    ? row[dataIndex] 
+                                dataRegistro: (dataIndex >= 0 && row[dataIndex] !== undefined
+                                    ? row[dataIndex]
                                     : (row[0] || '')).toString().trim() // Data para ordenação
                             });
                         }
                     }
-                    
+
                     if (negativasRelevantes.length > 0) {
                         console.log(`📊 Encontradas ${negativasRelevantes.length} negativas relevantes para aprendizado negativo`);
                         
@@ -7541,6 +7570,15 @@ app.get('/api/solicitacoes', async (req, res) => {
                         const modIdReclamacao = (moderacao[2] !== undefined && moderacao[2] !== null && moderacao[2] !== ''
                             ? moderacao[2]
                             : (moderacao['ID da Reclamação'] || moderacao.idReclamacao || '')).toString().trim();
+                        // Colunas Q/R (índices 16/17): encadeamento de tentativa — 1ª moderação vs reformulações
+                        // subsequentes da mesma reclamação (ver "Fechar o ciclo da reformulação").
+                        const numeroTentativaRaw = moderacao[16] !== undefined && moderacao[16] !== null && moderacao[16] !== ''
+                            ? moderacao[16]
+                            : (moderacao['Número da Tentativa'] || 1);
+                        const numeroTentativa = parseInt(numeroTentativaRaw, 10) || 1;
+                        const idModeracaoAnterior = (moderacao[17] !== undefined && moderacao[17] !== null
+                            ? moderacao[17]
+                            : (moderacao['ID Moderação Anterior'] || '')).toString().trim();
                         todasSolicitacoes.push({
                             tipo: 'moderacao',
                             data: moderacao['Data/Hora'] || moderacao.data || '',
@@ -7555,7 +7593,9 @@ app.get('/api/solicitacoes', async (req, res) => {
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
                             resultadoModeracao: resultadoModeracao, // Resultado da página "Resultados da Moderação"
                             hipoteseUtilizada: (moderacao[15] || moderacao['Hipótese Utilizada'] || '').toString().trim(), // Coluna P
-                            textoNegativaRA: resultadoEncontrado ? (resultadoEncontrado.textoCompletoNegativa || '') : '' // E-mail real já registrado, se "Negada"
+                            textoNegativaRA: resultadoEncontrado ? (resultadoEncontrado.textoCompletoNegativa || '') : '', // E-mail real já registrado, se "Negada"
+                            numeroTentativa: numeroTentativa, // Coluna Q — 1 = tentativa original, 2+ = reformulação encadeada
+                            idModeracaoAnterior: idModeracaoAnterior // Coluna R — id da tentativa que esta reformula (vazio na 1ª)
                         });
                     });
                     
@@ -9960,7 +10000,27 @@ app.get('/api/estatisticas-moderacoes', async (req, res) => {
         } catch (error) {
             console.error('⚠️ Erro ao buscar moderações negadas:', error.message);
         }
-        
+
+        // Uma reclamação negada e depois corrigida/aceita numa tentativa posterior não deve contar
+        // como negativa "em aberto" nessas estatísticas — só a tentativa aceita mais recente vale.
+        // Mesmo critério aplicado no aprendizado negativo (FASE 2): comparar Número da Tentativa
+        // (coluna O/índice 14 em Aceitas, coluna U/índice 20 em Negadas) por ID da Reclamação (índice 2).
+        const idReclamacaoComAceiteMapStats = new Map();
+        aceitasData.forEach(row => {
+            const idReclAceita = normalizarId(row[2]);
+            if (!idReclAceita) return;
+            const tentativaAceita = parseInt(row[14], 10) || 1;
+            const atual = idReclamacaoComAceiteMapStats.get(idReclAceita) || 0;
+            if (tentativaAceita > atual) idReclamacaoComAceiteMapStats.set(idReclAceita, tentativaAceita);
+        });
+        negadasData = negadasData.filter(row => {
+            const idReclNegada = normalizarId(row[2]);
+            if (!idReclNegada) return true;
+            const numeroTentativaNegada = parseInt(row[20], 10) || 1;
+            const maiorTentativaAceita = idReclamacaoComAceiteMapStats.get(idReclNegada) || 0;
+            return maiorTentativaAceita <= numeroTentativaNegada;
+        });
+
         // Processar dados
         const totalAceitas = aceitasData.length;
         const totalNegadas = negadasData.length;
@@ -10382,8 +10442,8 @@ app.post('/api/sync-estatisticas', async (req, res) => {
 app.post('/api/save-modelo-moderacao', async (req, res) => {
     console.log('🎯 Endpoint /api/save-modelo-moderacao chamado');
     try {
-        const { idReclamacao, dadosModeracao, linhaRaciocinio, textoModeracao, auditoriaHipotese } = req.body;
-        
+        const { idReclamacao, dadosModeracao, linhaRaciocinio, textoModeracao, auditoriaHipotese, idModeracaoAnterior } = req.body;
+
         // Validar ID da reclamação
         if (!idReclamacao || !idReclamacao.trim()) {
             return res.status(400).json({
@@ -10391,7 +10451,7 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 error: 'ID da Reclamação (Reclame Aqui) é obrigatório'
             });
         }
-        
+
         // Validar se o ID contém apenas números
         if (!/^\d+$/.test(idReclamacao.trim())) {
             return res.status(400).json({
@@ -10399,17 +10459,41 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 error: 'ID da Reclamação deve conter apenas números'
             });
         }
-        
+
         if (!dadosModeracao || !linhaRaciocinio || !textoModeracao) {
             return res.status(400).json({
                 success: false,
                 error: 'Dados de moderação, linha de raciocínio e texto de moderação são obrigatórios'
             });
         }
-        
+
         // Registrar o ID da reclamação para rastreabilidade
         console.log(`📋 ID da Reclamação registrado no modelo: ${idReclamacao}`);
-        
+
+        // Se veio de uma reformulação (idModeracaoAnterior presente), encadear o número da tentativa:
+        // buscar a tentativa anterior em "Moderações" e usar numeroTentativa + 1. Sem isso, é a 1ª tentativa.
+        let numeroTentativa = 1;
+        const idModeracaoAnteriorTrim = (idModeracaoAnterior || '').toString().trim();
+        if (idModeracaoAnteriorTrim && googleSheetsConfig && googleSheetsConfig.isInitialized()) {
+            try {
+                const anteriorNormalized = normalizarId(idModeracaoAnteriorTrim);
+                const dataModeracoes = await googleSheetsConfig.readData('Moderações!A1:R10000');
+                if (dataModeracoes && dataModeracoes.length > 1) {
+                    for (let i = 1; i < dataModeracoes.length; i++) {
+                        const row = dataModeracoes[i];
+                        if (!row || row.length < 2) continue;
+                        if (normalizarId(row[1]) === anteriorNormalized) {
+                            const tentativaAnterior = parseInt(row[16], 10);
+                            numeroTentativa = (Number.isFinite(tentativaAnterior) && tentativaAnterior > 0 ? tentativaAnterior : 1) + 1;
+                            break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Não foi possível encadear a tentativa a partir de idModeracaoAnterior (seguindo como tentativa 1):', error.message);
+            }
+        }
+
         // Salvar como modelo de moderação aprovada
         const modelo = await addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
         
@@ -10425,6 +10509,8 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 auditoriaHipotese: auditoriaHipotese || '',
                 textoModeracao: textoModeracao,
                 textoFinal: textoModeracao,
+                numeroTentativa: numeroTentativa,
+                idModeracaoAnterior: idModeracaoAnteriorTrim || '',
                 userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
                 userName: req.userData?.nome || 'N/A',
                 userEmail: req.userData?.email || 'N/A'
@@ -10466,7 +10552,8 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 id: modelo.id,
                 timestamp: modelo.timestamp,
                 motivoModeracao: modelo.motivoModeracao
-            }
+            },
+            numeroTentativa: numeroTentativa
         });
         
     } catch (error) {
@@ -10731,6 +10818,8 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const statusAprovacao = moderacaoRow[12] || '';
         const nomeSolicitante = moderacaoRow[13] || ''; // Coluna N: Nome do solicitante (antes Observações Internas)
         const hipoteseUtilizada = moderacaoRow[15] || ''; // Coluna P: Hipótese Utilizada na tentativa original
+        const numeroTentativa = moderacaoRow[16] || 1; // Coluna Q: Número da Tentativa (1 = original; planilhas antigas sem a coluna caem no default)
+        const idModeracaoAnteriorTentativa = moderacaoRow[17] || ''; // Coluna R: ID Moderação Anterior (vazio na 1ª tentativa)
 
         // Identificar tema da moderação (pode ser extraído do motivo ou inferido)
         // Por enquanto, usar o motivo como tema, pode ser refinado depois
@@ -10795,7 +10884,9 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 linhaRaciocinio || '',                 // [10] Linha de Raciocínio
                 dataHoraModeracao || '',               // [11] Data/Hora da Moderação Original
                 statusAprovacao || '',                 // [12] Status Aprovação
-                nomeSolicitante || ''                  // [13] Nome do solicitante
+                nomeSolicitante || '',                 // [13] Nome do solicitante
+                numeroTentativa,                       // [14] Número da Tentativa
+                idModeracaoAnteriorTentativa || ''     // [15] ID Moderação Anterior
             ];
             
             // Validar que temos pelo menos os campos essenciais
@@ -10820,14 +10911,25 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                     'Linha de Raciocínio',
                     'Data/Hora da Moderação Original',
                     'Status Aprovação',
-                    'Nome do solicitante'
+                    'Nome do solicitante',
+                    'Número da Tentativa',
+                    'ID Moderação Anterior'
                 ]);
                 console.log(`✅ Cabeçalhos da aba "Moderações Aceitas" verificados/criados`);
             } catch (ensureError) {
                 console.error(`⚠️ Erro ao garantir cabeçalhos da aba "Moderações Aceitas":`, ensureError.message);
                 // Continuar mesmo assim, pode ser que os cabeçalhos já existam
             }
-            
+            // A aba pode já existir com o cabeçalho antigo (14 colunas, sem tentativa) — completa O/P se faltarem.
+            try {
+                const headerAceitasAtual = await googleSheetsConfig.readData('Moderações Aceitas!A1:P1');
+                if (!headerAceitasAtual || !headerAceitasAtual[0] || !headerAceitasAtual[0][15]) {
+                    await googleSheetsConfig.updateRow('Moderações Aceitas!O1:P1', ['Número da Tentativa', 'ID Moderação Anterior']);
+                }
+            } catch (headerError) {
+                console.warn('⚠️ Não foi possível garantir cabeçalhos O/P (tentativa) de "Moderações Aceitas":', headerError.message);
+            }
+
             console.log(`💾 Salvando na página "Moderações Aceitas"`);
             console.log(`📋 Dados a serem salvos (${novaLinhaAceitas.length} colunas):`);
             console.log(`   [0] Data do Registro: ${novaLinhaAceitas[0]}`);
@@ -10875,7 +10977,9 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 negativaParse.codigo || '',      // [16] Código RA (ex: CO06)
                 negativaParse.regraId || '',     // [17] Regra Correspondente (id do manual, vazio se código não mapeado)
                 hipoteseUtilizada,                // [18] Hipótese Utilizada na tentativa original
-                teseBateu === null ? 'Desconhecido' : (teseBateu ? 'Sim' : 'Não') // [19] Tese Bateu com a Hipótese
+                teseBateu === null ? 'Desconhecido' : (teseBateu ? 'Sim' : 'Não'), // [19] Tese Bateu com a Hipótese
+                numeroTentativa,                  // [20] Número da Tentativa
+                idModeracaoAnteriorTentativa || '' // [21] ID Moderação Anterior
             ];
 
             try {
@@ -10884,14 +10988,18 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                     'Texto da Moderação Enviada', 'Resultado', 'Motivo da Negativa', 'Erro Identificado',
                     'Orientação de Correção', 'Solicitação do Cliente', 'Resposta da Empresa', 'Consideração Final',
                     'Linha de Raciocínio', 'Data/Hora da Moderação Original', 'Texto Completo da Negativa',
-                    'Código RA', 'Regra Correspondente', 'Hipótese Utilizada', 'Tese Bateu com a Hipótese'
+                    'Código RA', 'Regra Correspondente', 'Hipótese Utilizada', 'Tese Bateu com a Hipótese',
+                    'Número da Tentativa', 'ID Moderação Anterior'
                 ];
                 await googleSheetsIntegration.ensureSheetExists('Moderações Negadas', cabecalhosEsperados);
-                // A aba pode já existir com o cabeçalho antigo (15 colunas) — completa as novas (P a T) se faltarem.
+                // A aba pode já existir com um cabeçalho antigo (15 ou 20 colunas) — completa as novas se faltarem.
                 try {
-                    const headerAtual = await googleSheetsConfig.readData('Moderações Negadas!A1:T1');
+                    const headerAtual = await googleSheetsConfig.readData('Moderações Negadas!A1:V1');
                     if (!headerAtual || !headerAtual[0] || !headerAtual[0][19]) {
-                        await googleSheetsConfig.updateRow('Moderações Negadas!P1:T1', cabecalhosEsperados.slice(15));
+                        await googleSheetsConfig.updateRow('Moderações Negadas!P1:T1', cabecalhosEsperados.slice(15, 20));
+                    }
+                    if (!headerAtual || !headerAtual[0] || !headerAtual[0][21]) {
+                        await googleSheetsConfig.updateRow('Moderações Negadas!U1:V1', cabecalhosEsperados.slice(20, 22));
                     }
                 } catch (headerError) {
                     console.warn('⚠️ Não foi possível garantir cabeçalhos novos de "Moderações Negadas":', headerError.message);

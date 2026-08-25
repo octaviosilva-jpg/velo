@@ -1529,9 +1529,11 @@ function formatarTextoModeracao(texto) {
 }
 
 async function gerarModeracao() {
-    // Nova geração: qualquer negativa/hipótese de um caso carregado anteriormente não vale mais.
+    // Nova geração: qualquer negativa/hipótese/encadeamento de tentativa de um caso carregado
+    // anteriormente não vale mais — essa é uma moderação nova e independente.
     window._textoNegativaRAAtual = '';
     window._hipoteseUtilizadaAtual = '';
+    window._moderacaoIdAnterior = '';
 
     const idReclamacao = document.getElementById('id-reclamacao-moderacao').value.trim();
     const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
@@ -4050,17 +4052,25 @@ async function salvarModeracaoComoModelo() {
                 },
                 linhaRaciocinio: linhaRaciocinio,
                 auditoriaHipotese: auditoriaHipotese,
-                textoModeracao: textoModeracao
+                textoModeracao: textoModeracao,
+                // Presente quando este texto veio de "Carregar pra Reformular": encadeia como 2ª+ tentativa
+                // da mesma reclamação em vez de contar como uma moderação nova e desconectada.
+                idModeracaoAnterior: window._moderacaoIdAnterior || undefined
             })
         });
-        
+
         console.log('📡 Resposta do servidor:', response.status, response.statusText);
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
-            showSuccessMessage('✅ Moderação salva como modelo para futuras solicitações!');
-            console.log('📝 Modelo de moderação salvo:', data.modelo);
+            const eraReformulacao = !!window._moderacaoIdAnterior;
+            showSuccessMessage(eraReformulacao
+                ? `✅ Reformulação salva como coerente (${data.numeroTentativa}ª tentativa)! Veja em "Todas as Solicitações" pra registrar o resultado quando o RA responder.`
+                : '✅ Moderação salva como modelo para futuras solicitações!');
+            console.log('📝 Modelo de moderação salvo:', data.modelo, 'numeroTentativa:', data.numeroTentativa);
+            // Limpar o encadeamento após o uso, pra não grudar numa próxima moderação sem relação.
+            window._moderacaoIdAnterior = null;
         } else {
             showErrorMessage('Erro ao salvar modelo: ' + data.error);
         }
@@ -4476,192 +4486,195 @@ async function buscarSolicitacoes() {
                     </tr>
                 `;
             } else {
-                // Preencher tabela com estrutura expansível
+                // Preencher tabela com estrutura expansível.
+                // Moderações da MESMA reclamação (idReclamacao) são agrupadas em 1 card só —
+                // 1ª tentativa (negada) e 2ª+ tentativa (reformulação) ficam juntas, deixando visível
+                // que é a mesma reclamação em tentativas diferentes (ver [[project-negativa-real-feature]]).
                 solicitacoesCache = {};
-                tabela.innerHTML = solicitacoes.map((solicitacao, index) => {
+
+                // Gera o bloco de detalhes (acordeão de campos brutos + resultado/ações) de UMA
+                // tentativa de moderação — reaproveitado tanto sozinho (reclamação com 1 tentativa)
+                // quanto empilhado dentro de um card de grupo (reclamação com 2+ tentativas).
+                const renderDetalhesModeracao = (solicitacao, solicitacaoId, options) => {
+                    const permitirReformular = options && options.permitirReformular;
+                    return `
+                        <div class="accordion mb-3" id="acc-mod-${solicitacaoId}">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-texto-${solicitacaoId}">
+                                        <i class="fas fa-file-alt me-2"></i>Texto de Moderação
+                                    </button>
+                                </h2>
+                                <div id="acc-texto-${solicitacaoId}" class="accordion-collapse collapse">
+                                    <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.textoModeracao || 'N/A'}</div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-resposta-${solicitacaoId}">
+                                        <i class="fas fa-building me-2"></i>Resposta da Empresa
+                                    </button>
+                                </h2>
+                                <div id="acc-resposta-${solicitacaoId}" class="accordion-collapse collapse">
+                                    <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.respostaEmpresa || 'N/A'}</div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-motivo-${solicitacaoId}">
+                                        Motivo da Moderação
+                                    </button>
+                                </h2>
+                                <div id="acc-motivo-${solicitacaoId}" class="accordion-collapse collapse">
+                                    <div class="accordion-body">${solicitacao.motivoModeracao || 'N/A'}</div>
+                                </div>
+                            </div>
+                            ${solicitacao.consideracaoFinal ? `
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-consideracao-${solicitacaoId}">
+                                        Consideração Final
+                                    </button>
+                                </h2>
+                                <div id="acc-consideracao-${solicitacaoId}" class="accordion-collapse collapse">
+                                    <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.consideracaoFinal}</div>
+                                </div>
+                            </div>
+                            ` : ''}
+                            ${solicitacao.linhaRaciocinio ? `
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-linha-${solicitacaoId}">
+                                        Linha de Raciocínio
+                                    </button>
+                                </h2>
+                                <div id="acc-linha-${solicitacaoId}" class="accordion-collapse collapse">
+                                    <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.linhaRaciocinio}</div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="campo-detalhe" style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #0d6efd; margin-top: 20px;">
+                            <div class="campo-label" style="font-size: 1.1rem; color: #0d6efd; margin-bottom: 15px;">
+                                <i class="fas fa-clipboard-check me-2"></i>Resultado da Moderação:
+                            </div>
+                            ${solicitacao.resultadoModeracao && (solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
+                                <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                        <div>
+                                            <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
+                                        </div>
+                                        ${solicitacao.resultadoModeracao === 'Negada' ? `
+                                            <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Abre a análise completa com IA sobre por que essa negativa aconteceu">
+                                                <i class="fas fa-search me-1"></i>
+                                                Ver Análise Completa
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="alert alert-warning" style="margin-bottom: 15px;">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Nenhum resultado registrado.</strong> Por favor, registre o resultado final da moderação no Reclame Aqui.
+                                </div>
+                            `}
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-success" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Aceita', '${solicitacaoId}')" ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? 'disabled' : ''}>
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Moderação Aceita
+                                </button>
+                                <button class="btn btn-danger" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Negada', '${solicitacaoId}')" ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? 'disabled' : ''}>
+                                    <i class="fas fa-times-circle me-2"></i>
+                                    Moderação Negada
+                                </button>
+                                ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
+                                <button class="btn btn-warning btn-sm" onclick="limparResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', '${solicitacaoId}')" title="Limpar resultado para testar novamente">
+                                    <i class="fas fa-undo me-2"></i>
+                                    Limpar Resultado
+                                </button>
+                                ` : ''}
+                                ${(permitirReformular && solicitacao.resultadoModeracao !== 'Aceita') ? `
+                                <button class="btn btn-outline-danger btn-sm" onclick="carregarModeracaoParaReformular('${solicitacaoId}')" title="Traz essa moderação de volta pro formulário principal para reformular">
+                                    <i class="fas fa-file-import me-2"></i>
+                                    Carregar pra Reformular
+                                </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                };
+
+                const respostas = solicitacoes.filter(s => s.tipo === 'resposta');
+                const moderacoes = solicitacoes.filter(s => s.tipo === 'moderacao');
+
+                // Agrupar moderações por ID da Reclamação (ID do RA) e ordenar tentativas dentro do
+                // grupo pela coluna Q ("Número da Tentativa"; fallback pra data em registros antigos
+                // sem essa coluna, onde tudo cai como 1ª tentativa).
+                const gruposModeracaoMap = new Map();
+                moderacoes.forEach((solicitacao, index) => {
+                    const chave = (solicitacao.idReclamacao || `sem-id-${index}`).toString().trim();
+                    if (!gruposModeracaoMap.has(chave)) gruposModeracaoMap.set(chave, []);
+                    gruposModeracaoMap.get(chave).push(solicitacao);
+                });
+                const gruposModeracao = Array.from(gruposModeracaoMap.entries()).map(([idReclamacao, itens]) => {
+                    itens.sort((a, b) => (a.numeroTentativa || 1) - (b.numeroTentativa || 1));
+                    return { idReclamacao, itens };
+                });
+
+                const linhasResposta = respostas.map((solicitacao, index) => {
                     const solicitacaoId = `solicitacao-${solicitacao.tipo}-${solicitacao.id || index}`;
                     solicitacoesCache[solicitacaoId] = solicitacao;
-                    const tipoBadge = solicitacao.tipo === 'resposta' 
+                    const tipoBadge = solicitacao.tipo === 'resposta'
                         ? '<span class="badge bg-success">Resposta</span>'
                         : '<span class="badge bg-warning">Moderação</span>';
-                    
+
                     const statusBadge = solicitacao.status === 'Aprovada'
                         ? '<span class="badge bg-success">Aprovada</span>'
                         : '<span class="badge bg-secondary">' + (solicitacao.status || 'N/A') + '</span>';
-                    
-                    let detalhesResumo = '';
-                    if (solicitacao.tipo === 'resposta') {
-                        detalhesResumo = `
-                            <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
-                            <strong>ID da Reclamação:</strong> ${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}<br>
-                            <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
-                        `;
-                    } else {
-                        detalhesResumo = `
-                            <strong>Motivo:</strong> ${solicitacao.motivoModeracao || 'N/A'}<br>
-                            <small class="text-muted">${(solicitacao.solicitacaoCliente || '').substring(0, 100)}${solicitacao.solicitacaoCliente && solicitacao.solicitacaoCliente.length > 100 ? '...' : ''}</small>
-                        `;
-                    }
-                    
-                    // Criar conteúdo de detalhes expandidos
-                    let detalhesExpandidos = '';
-                    if (solicitacao.tipo === 'resposta') {
-                        detalhesExpandidos = `
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Tipo de Solicitação:</div>
-                                <div class="campo-valor">${solicitacao.tipoSolicitacao || 'N/A'}</div>
-                            </div>
-                            <div class="campo-detalhe">
-                                <div class="campo-label">ID da Reclamação:</div>
-                                <div class="campo-valor">${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}</div>
-                            </div>
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Texto do Cliente:</div>
-                                <div class="campo-valor">${solicitacao.textoCliente || 'N/A'}</div>
-                            </div>
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Resposta Aprovada:</div>
-                                <div class="campo-valor">${solicitacao.resposta || 'N/A'}</div>
-                            </div>
-                            ${solicitacao.solucaoImplementada ? `
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Solução Implementada:</div>
-                                <div class="campo-valor">${solicitacao.solucaoImplementada}</div>
-                            </div>
-                            ` : ''}
-                            ${solicitacao.historicoAtendimento ? `
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Histórico de Atendimento:</div>
-                                <div class="campo-valor">${solicitacao.historicoAtendimento}</div>
-                            </div>
-                            ` : ''}
-                            ${(solicitacao.nomeSolicitante || solicitacao.observacoesInternas) ? `
-                            <div class="campo-detalhe">
-                                <div class="campo-label">Nome do solicitante:</div>
-                                <div class="campo-valor">${solicitacao.nomeSolicitante || solicitacao.observacoesInternas}</div>
-                            </div>
-                            ` : ''}
-                        `;
-                    } else {
-                        // Campos brutos do caso em acordeão (fechados por padrão) — eram exibidos
-                        // todos abertos de uma vez, o que ficava muito poluído numa lista grande.
-                        detalhesExpandidos = `
-                            <div class="accordion mb-3" id="acc-mod-${solicitacaoId}">
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-texto-${solicitacaoId}">
-                                            <i class="fas fa-file-alt me-2"></i>Texto de Moderação
-                                        </button>
-                                    </h2>
-                                    <div id="acc-texto-${solicitacaoId}" class="accordion-collapse collapse">
-                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.textoModeracao || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-resposta-${solicitacaoId}">
-                                            <i class="fas fa-building me-2"></i>Resposta da Empresa
-                                        </button>
-                                    </h2>
-                                    <div id="acc-resposta-${solicitacaoId}" class="accordion-collapse collapse">
-                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.respostaEmpresa || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-motivo-${solicitacaoId}">
-                                            Motivo da Moderação
-                                        </button>
-                                    </h2>
-                                    <div id="acc-motivo-${solicitacaoId}" class="accordion-collapse collapse">
-                                        <div class="accordion-body">${solicitacao.motivoModeracao || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-solicitacao-${solicitacaoId}">
-                                            Solicitação do Cliente
-                                        </button>
-                                    </h2>
-                                    <div id="acc-solicitacao-${solicitacaoId}" class="accordion-collapse collapse">
-                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.solicitacaoCliente || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                ${solicitacao.consideracaoFinal ? `
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-consideracao-${solicitacaoId}">
-                                            Consideração Final
-                                        </button>
-                                    </h2>
-                                    <div id="acc-consideracao-${solicitacaoId}" class="accordion-collapse collapse">
-                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.consideracaoFinal}</div>
-                                    </div>
-                                </div>
-                                ` : ''}
-                                ${solicitacao.linhaRaciocinio ? `
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#acc-linha-${solicitacaoId}">
-                                            Linha de Raciocínio
-                                        </button>
-                                    </h2>
-                                    <div id="acc-linha-${solicitacaoId}" class="accordion-collapse collapse">
-                                        <div class="accordion-body" style="white-space: pre-wrap;">${solicitacao.linhaRaciocinio}</div>
-                                    </div>
-                                </div>
-                                ` : ''}
-                            </div>
-                            <div class="campo-detalhe" style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #0d6efd; margin-top: 20px;">
-                                <div class="campo-label" style="font-size: 1.1rem; color: #0d6efd; margin-bottom: 15px;">
-                                    <i class="fas fa-clipboard-check me-2"></i>Resultado da Moderação:
-                                </div>
-                                ${solicitacao.resultadoModeracao && (solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
-                                    <div class="alert ${solicitacao.resultadoModeracao === 'Aceita' ? 'alert-success' : 'alert-danger'}" style="margin-bottom: 15px;">
-                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                            <div>
-                                                <strong>Status:</strong> ${solicitacao.resultadoModeracao === 'Aceita' ? '✅ Moderação Aceita' : '❌ Moderação Negada'}
-                                            </div>
-                                            ${solicitacao.resultadoModeracao === 'Negada' ? `
-                                                <button class="btn btn-sm btn-warning" onclick="verAnaliseCompletaNegada('${String(solicitacao.id || '').replace(/'/g, "\\'")}')" title="Abre a análise completa com IA sobre por que essa negativa aconteceu">
-                                                    <i class="fas fa-search me-1"></i>
-                                                    Ver Análise Completa
-                                                </button>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                ` : `
-                                    <div class="alert alert-warning" style="margin-bottom: 15px;">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                        <strong>Nenhum resultado registrado.</strong> Por favor, registre o resultado final da moderação no Reclame Aqui.
-                                    </div>
-                                `}
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <button class="btn btn-success" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Aceita', '${solicitacaoId}')" ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? 'disabled' : ''}>
-                                        <i class="fas fa-check-circle me-2"></i>
-                                        Moderação Aceita
-                                    </button>
-                                    <button class="btn btn-danger" onclick="registrarResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', 'Negada', '${solicitacaoId}')" ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? 'disabled' : ''}>
-                                        <i class="fas fa-times-circle me-2"></i>
-                                        Moderação Negada
-                                    </button>
-                                    ${(solicitacao.resultadoModeracao === 'Aceita' || solicitacao.resultadoModeracao === 'Negada') ? `
-                                    <button class="btn btn-warning btn-sm" onclick="limparResultadoModeracao('${String(solicitacao.id || '').replace(/'/g, "\\'")}', '${solicitacaoId}')" title="Limpar resultado para testar novamente">
-                                        <i class="fas fa-undo me-2"></i>
-                                        Limpar Resultado
-                                    </button>
-                                    ` : ''}
-                                    ${solicitacao.resultadoModeracao !== 'Aceita' ? `
-                                    <button class="btn btn-outline-danger btn-sm" onclick="carregarModeracaoParaReformular('${solicitacaoId}')" title="Traz essa moderação de volta pro formulário principal para reformular">
-                                        <i class="fas fa-file-import me-2"></i>
-                                        Carregar pra Reformular
-                                    </button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
+
+                    const detalhesResumo = `
+                        <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
+                        <strong>ID da Reclamação:</strong> ${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}<br>
+                        <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
+                    `;
+
+                    const detalhesExpandidos = `
+                        <div class="campo-detalhe">
+                            <div class="campo-label">Tipo de Solicitação:</div>
+                            <div class="campo-valor">${solicitacao.tipoSolicitacao || 'N/A'}</div>
+                        </div>
+                        <div class="campo-detalhe">
+                            <div class="campo-label">ID da Reclamação:</div>
+                            <div class="campo-valor">${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}</div>
+                        </div>
+                        <div class="campo-detalhe">
+                            <div class="campo-label">Texto do Cliente:</div>
+                            <div class="campo-valor">${solicitacao.textoCliente || 'N/A'}</div>
+                        </div>
+                        <div class="campo-detalhe">
+                            <div class="campo-label">Resposta Aprovada:</div>
+                            <div class="campo-valor">${solicitacao.resposta || 'N/A'}</div>
+                        </div>
+                        ${solicitacao.solucaoImplementada ? `
+                        <div class="campo-detalhe">
+                            <div class="campo-label">Solução Implementada:</div>
+                            <div class="campo-valor">${solicitacao.solucaoImplementada}</div>
+                        </div>
+                        ` : ''}
+                        ${solicitacao.historicoAtendimento ? `
+                        <div class="campo-detalhe">
+                            <div class="campo-label">Histórico de Atendimento:</div>
+                            <div class="campo-valor">${solicitacao.historicoAtendimento}</div>
+                        </div>
+                        ` : ''}
+                        ${(solicitacao.nomeSolicitante || solicitacao.observacoesInternas) ? `
+                        <div class="campo-detalhe">
+                            <div class="campo-label">Nome do solicitante:</div>
+                            <div class="campo-valor">${solicitacao.nomeSolicitante || solicitacao.observacoesInternas}</div>
+                        </div>
+                        ` : ''}
+                    `;
+
                     return `
                         <tr>
                             <td>
@@ -4683,7 +4696,86 @@ async function buscarSolicitacoes() {
                             </td>
                         </tr>
                     `;
-                }).join('');
+                });
+
+                // Um card por ID da Reclamação — dentro dele, um bloco por tentativa (1ª negada,
+                // 2ª+ reformulação), cada um com seu próprio acordeão e botões de ação.
+                const linhasModeracao = gruposModeracao.map((grupo, grupoIndex) => {
+                    const grupoId = `grupo-moderacao-${grupo.idReclamacao || grupoIndex}`;
+                    const ultimaTentativa = grupo.itens[grupo.itens.length - 1];
+                    const temMultiplasTentativas = grupo.itens.length > 1;
+
+                    const statusBadge = ultimaTentativa.resultadoModeracao === 'Aceita'
+                        ? '<span class="badge bg-success">Aceita</span>'
+                        : ultimaTentativa.resultadoModeracao === 'Negada'
+                            ? '<span class="badge bg-danger">Negada</span>'
+                            : '<span class="badge bg-secondary">Aguardando resultado</span>';
+
+                    const tipoBadge = temMultiplasTentativas
+                        ? `<span class="badge bg-warning">Moderação</span> <span class="badge bg-info text-dark">${grupo.itens.length} tentativas</span>`
+                        : '<span class="badge bg-warning">Moderação</span>';
+
+                    const detalhesResumo = `
+                        <strong>Motivo:</strong> ${ultimaTentativa.motivoModeracao || 'N/A'}<br>
+                        <small class="text-muted">${(ultimaTentativa.solicitacaoCliente || '').substring(0, 100)}${ultimaTentativa.solicitacaoCliente && ultimaTentativa.solicitacaoCliente.length > 100 ? '...' : ''}</small>
+                    `;
+
+                    const blocosTentativas = grupo.itens.map((solicitacao, i) => {
+                        const solicitacaoId = `solicitacao-moderacao-${solicitacao.id || `${grupoIndex}-${i}`}`;
+                        // _grupoId aponta pra linha da tabela que precisa ser reaberta depois de
+                        // registrar um resultado (a tentativa em si não é mais uma <tr> própria
+                        // quando a reclamação tem múltiplas tentativas — ver toggleDetalhesSolicitacao).
+                        solicitacoesCache[solicitacaoId] = { ...solicitacao, _grupoId: grupoId };
+
+                        const numero = solicitacao.numeroTentativa || (i + 1);
+                        const ordinalLabel = numero === 1 ? '1ª tentativa' : `${numero}ª tentativa (Reformulação)`;
+                        const tentativaStatusBadge = solicitacao.resultadoModeracao === 'Aceita'
+                            ? '<span class="badge bg-success">✅ Aceita</span>'
+                            : solicitacao.resultadoModeracao === 'Negada'
+                                ? '<span class="badge bg-danger">❌ Negada</span>'
+                                : '<span class="badge bg-secondary">⏳ Aguardando resultado</span>';
+
+                        // Só a tentativa mais recente pode virar ponto de partida pra uma nova
+                        // reformulação — evita reformular em cima de uma tentativa já superada.
+                        const ehUltima = i === grupo.itens.length - 1;
+
+                        return `
+                            <div class="border rounded p-3 mb-3 ${temMultiplasTentativas ? 'bg-white' : ''}">
+                                ${temMultiplasTentativas ? `
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0"><i class="fas fa-arrow-right me-2 text-muted"></i>${ordinalLabel}</h6>
+                                    ${tentativaStatusBadge}
+                                </div>
+                                ` : ''}
+                                ${renderDetalhesModeracao(solicitacao, solicitacaoId, { permitirReformular: ehUltima })}
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <tr>
+                            <td>
+                                <button class="btn-expandir" onclick="toggleDetalhesSolicitacao('${grupoId}')" title="Expandir/Colapsar detalhes">
+                                    <i class="fas fa-chevron-down" id="icon-${grupoId}"></i>
+                                </button>
+                            </td>
+                            <td>${ultimaTentativa.data || 'N/A'}</td>
+                            <td>${tipoBadge}</td>
+                            <td><small>ID Reclamação: ${grupo.idReclamacao || 'N/A'}</small></td>
+                            <td><small>${detalhesResumo}</small></td>
+                            <td>${statusBadge}</td>
+                        </tr>
+                        <tr id="${grupoId}" class="detalhes-expandidos">
+                            <td colspan="6">
+                                <div class="detalhes-content">
+                                    ${blocosTentativas}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tabela.innerHTML = linhasResposta.join('') + linhasModeracao.join('');
             }
         } else {
             throw new Error(data.error || 'Erro ao buscar solicitações');
@@ -4789,6 +4881,10 @@ function carregarModeracaoParaReformular(solicitacaoId) {
     // Se essa moderação já foi registrada como "Negada", o e-mail real do RA já foi colado
     // naquele momento (fluxo do botão "Negada") — reaproveita em vez de pedir de novo.
     window._textoNegativaRAAtual = solicitacao.textoNegativaRA || '';
+
+    // Guarda o id desta tentativa pra, se o agente marcar "Solicitação Coerente" sobre o texto
+    // reformulado, a nova linha entrar encadeada como 2ª+ tentativa da mesma reclamação (não solta).
+    window._moderacaoIdAnterior = solicitacao.id || '';
 
     const modalEl = document.getElementById('modalSolicitacoes');
     const modalInstance = modalEl && bootstrap.Modal.getInstance(modalEl);
@@ -4925,11 +5021,13 @@ async function executarRegistroResultado(moderacaoId, resultado, solicitacaoId, 
         // Atualizar estatísticas do dia (Mod. Aprovadas / Mod. Negadas) na planilha e no modal
         carregarEstatisticasGlobais();
 
-        // Re-expandir a linha que foi atualizada
+        // Re-expandir a linha que foi atualizada (se a reclamação tem várias tentativas, é a linha
+        // do grupo — a tentativa em si não é mais uma <tr> própria; ver _grupoId no cache).
+        const idParaReabrir = (solicitacoesCache[solicitacaoId] && solicitacoesCache[solicitacaoId]._grupoId) || solicitacaoId;
         setTimeout(() => {
-            const detalhesRow = document.getElementById(solicitacaoId);
+            const detalhesRow = document.getElementById(idParaReabrir);
             if (detalhesRow && !detalhesRow.classList.contains('show')) {
-                toggleDetalhesSolicitacao(solicitacaoId);
+                toggleDetalhesSolicitacao(idParaReabrir);
             }
         }, 500);
 
@@ -5009,6 +5107,17 @@ async function verAnaliseCompletaNegada(moderacaoId) {
         const mod = data.moderacao;
         const tipo = data.tipo;
         const aprendizado = data.aprendizadoAplicado;
+
+        // Dados do caso original, pra "Salvar Reformulação como Coerente" poder montar o registro
+        // da 2ª+ tentativa sem precisar que o agente volte pro formulário principal.
+        window._analiseCompletaCasoAtual = {
+            moderacaoIdAnterior: moderacaoId,
+            idReclamacao: mod.idReclamacao || '',
+            solicitacaoCliente: mod.solicitacaoCliente || '',
+            respostaEmpresa: mod.respostaEmpresa || '',
+            motivo: mod.motivo || mod.motivoUtilizado || '',
+            consideracaoFinal: mod.consideracaoFinal || ''
+        };
 
         // Cabeçalho mínimo (ID/reclamação/resultado/data) — os dados brutos do caso (texto
         // enviado, solicitação, resposta, consideração, linha de raciocínio antiga) não se
@@ -5120,10 +5229,91 @@ async function gerarAnaliseCompletaIA(moderacaoId) {
         html += '<h6 class="text-muted mb-2"><i class="fas fa-lightbulb me-2"></i>Sugestão de novo pedido (revise antes de usar em "Reformular após Negativa"):</h6>';
         html += formatarTextoModeracao(data.textoModeracaoSugerido);
 
+        // Guarda os dados brutos da reformulação (strings, não o HTML formatado acima) pra
+        // "Salvar Reformulação como Coerente" registrar exatamente o que a IA gerou.
+        window._analiseCompletaReformulacao = {
+            moderacaoIdAnterior: moderacaoId,
+            textoModeracao: data.textoModeracaoSugerido || '',
+            linhaRaciocinio: data.linhaRaciocinio || '',
+            auditoriaHipotese: data.auditoriaHipotese || ''
+        };
+
+        if (!data.avisoNaoReenviar && data.textoModeracaoSugerido) {
+            html += `
+                <div class="mt-3 pt-3 border-top">
+                    <button id="btn-salvar-reformulacao-coerente" class="btn btn-success" onclick="salvarReformulacaoComoCoerente('${String(moderacaoId).replace(/'/g, "\\'")}')">
+                        <i class="fas fa-check-circle me-2"></i>Salvar Reformulação como Coerente
+                    </button>
+                    <div class="form-text">Registra este texto como a próxima tentativa dessa reclamação (encadeada à negativa acima). Depois, marque Aceita/Negada em "Todas as Solicitações" quando o RA responder.</div>
+                </div>
+            `;
+        }
+
         corpo.innerHTML = html;
     } catch (error) {
         console.error('Erro ao gerar análise completa:', error);
         corpo.innerHTML = `<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>${error.message || 'Erro ao gerar análise completa.'}</div>`;
+    }
+}
+
+// Salva o texto reformulado (gerado em "Ver Análise Completa") como coerente, encadeando-o como
+// a tentativa seguinte da mesma reclamação — sem exigir que o agente copie tudo de volta pro
+// formulário principal via "Carregar pra Reformular".
+async function salvarReformulacaoComoCoerente(moderacaoIdAnterior) {
+    const caso = window._analiseCompletaCasoAtual;
+    const reformulacao = window._analiseCompletaReformulacao;
+
+    if (!caso || caso.moderacaoIdAnterior !== moderacaoIdAnterior || !reformulacao || reformulacao.moderacaoIdAnterior !== moderacaoIdAnterior) {
+        showErrorMessage('Não foi possível identificar os dados dessa reformulação. Feche e reabra a análise completa.');
+        return;
+    }
+    if (!reformulacao.textoModeracao || !reformulacao.linhaRaciocinio) {
+        showErrorMessage('A reformulação ainda não terminou de carregar.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-salvar-reformulacao-coerente');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+    }
+
+    try {
+        const response = await fetch('/api/save-modelo-moderacao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                idReclamacao: caso.idReclamacao,
+                dadosModeracao: {
+                    solicitacaoCliente: caso.solicitacaoCliente,
+                    respostaEmpresa: caso.respostaEmpresa,
+                    motivoModeracao: caso.motivo,
+                    consideracaoFinal: caso.consideracaoFinal
+                },
+                linhaRaciocinio: reformulacao.linhaRaciocinio,
+                auditoriaHipotese: reformulacao.auditoriaHipotese,
+                textoModeracao: reformulacao.textoModeracao,
+                idModeracaoAnterior: moderacaoIdAnterior
+            })
+        });
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao salvar a reformulação como coerente.');
+        }
+
+        if (btn) {
+            btn.innerHTML = `<i class="fas fa-check-circle me-2"></i>Salva como ${data.numeroTentativa}ª tentativa`;
+        }
+        showSuccessMessage(`✅ Reformulação salva como coerente (${data.numeroTentativa}ª tentativa)! Abra "Todas as Solicitações" pra registrar Aceita/Negada quando o RA responder.`);
+        carregarEstatisticasGlobais();
+    } catch (error) {
+        console.error('Erro ao salvar reformulação como coerente:', error);
+        showErrorMessage(error.message || 'Erro ao salvar a reformulação como coerente.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
     }
 }
 
@@ -5168,15 +5358,16 @@ async function limparResultadoModeracao(moderacaoId, solicitacaoId) {
         
         // Recarregar as solicitações
         await buscarSolicitacoes();
-        
-        // Re-expandir a linha
+
+        // Re-expandir a linha (linha do grupo, se a reclamação tem várias tentativas — ver _grupoId)
+        const idParaReabrir = (solicitacoesCache[solicitacaoId] && solicitacoesCache[solicitacaoId]._grupoId) || solicitacaoId;
         setTimeout(() => {
-            const detalhesRow = document.getElementById(solicitacaoId);
+            const detalhesRow = document.getElementById(idParaReabrir);
             if (detalhesRow && !detalhesRow.classList.contains('show')) {
-                toggleDetalhesSolicitacao(solicitacaoId);
+                toggleDetalhesSolicitacao(idParaReabrir);
             }
         }, 500);
-        
+
         showSuccessMessage('Resultado da moderação limpo com sucesso! Agora você pode testar novamente.');
         
     } catch (error) {

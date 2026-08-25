@@ -448,7 +448,9 @@ class GoogleSheetsIntegration {
                 'Linha de Raciocínio',
                 'Data/Hora da Moderação Original',
                 'Status Aprovação',
-                'Nome do solicitante'
+                'Nome do solicitante',
+                'Número da Tentativa',
+                'ID Moderação Anterior'
             ]);
 
             await this.ensureSheetExists('Moderações Negadas', [
@@ -942,7 +944,18 @@ class GoogleSheetsIntegration {
                     console.warn('⚠️ Não foi possível garantir o cabeçalho da coluna P (Hipótese Utilizada):', error.message);
                 }
             }
-            
+
+            // Garantir cabeçalho das colunas Q/R (índices 16/17) — Número da Tentativa / ID Moderação
+            // Anterior, que encadeiam uma reformulação (2ª+ tentativa) à tentativa que ela substitui.
+            // Best-effort, mesmo padrão da coluna P acima.
+            if (!headersAtuais || !headersAtuais[16] || !headersAtuais[17]) {
+                try {
+                    await googleSheetsConfig.updateRow('Moderações!Q1:R1', ['Número da Tentativa', 'ID Moderação Anterior']);
+                } catch (error) {
+                    console.warn('⚠️ Não foi possível garantir os cabeçalhos das colunas Q/R (tentativa):', error.message);
+                }
+            }
+
             // Criar perfil do usuário para a coluna ID
             const userProfile = moderacaoData.userProfile || 
                 (moderacaoData.userEmail ? `${moderacaoData.userName || 'Usuário'} (${moderacaoData.userEmail})` : 'N/A');
@@ -967,7 +980,9 @@ class GoogleSheetsIntegration {
                 moderacaoData.statusAprovacao || 'Pendente', // [12] Status Aprovação ('Aprovada' quando marcada como coerente, 'Pendente' quando apenas gerada)
                 moderacaoData.nomeSolicitante || moderacaoData.observacoesInternas || '', // [13] Nome do solicitante
                 '', // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
-                moderacaoData.auditoriaHipotese || '' // [15] Hipótese Utilizada (auditoria interna que embasou o pedido)
+                moderacaoData.auditoriaHipotese || '', // [15] Hipótese Utilizada (auditoria interna que embasou o pedido)
+                moderacaoData.numeroTentativa || 1, // [16] Número da Tentativa (1 = original; 2+ = reformulação encadeada)
+                moderacaoData.idModeracaoAnterior || '' // [17] ID Moderação Anterior (id da tentativa que esta reformula; vazio na 1ª)
             ];
 
             // Validar que todos os dados estão nas posições corretas
@@ -998,7 +1013,7 @@ class GoogleSheetsIntegration {
             }
 
             console.log('💾 Salvando moderação com Status Aprovação:', row[12], 'na coluna M (índice 12)');
-            await googleSheetsConfig.appendRow('Moderações!A:P', row); // Usar A:P para garantir que salva nas 16 colunas corretas
+            await googleSheetsConfig.appendRow('Moderações!A:R', row); // A:R para incluir as 18 colunas (inclui Q/R de tentativa)
             console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
             console.log('✅ Status Aprovação confirmado salvo:', row[12]);
             
