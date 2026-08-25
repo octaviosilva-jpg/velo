@@ -1590,6 +1590,7 @@ async function gerarModeracao() {
 
             const elAuditoria = document.getElementById('auditoria-hipotese');
             if (elAuditoria) elAuditoria.innerHTML = formatarAuditoriaHipotese(auditoria, confiancaBaixa);
+            window._hipoteseUtilizadaAtual = auditoria || '';
 
             // O pedido é SEMPRE gerado; a auditoria apenas melhora o enquadramento
             const linhaRaciocinio = formatarLinhaRaciocinioServidor(linhaRaciocinioBruta);
@@ -4745,9 +4746,13 @@ function carregarModeracaoParaReformular(solicitacaoId) {
     const elLinhaRaciocinio = document.getElementById('linha-raciocinio');
     if (elLinhaRaciocinio) elLinhaRaciocinio.innerHTML = solicitacao.linhaRaciocinio || '';
 
+    window._hipoteseUtilizadaAtual = solicitacao.hipoteseUtilizada || '';
+
     const elAuditoria = document.getElementById('auditoria-hipotese');
     if (elAuditoria) {
-        elAuditoria.innerHTML = '<small class="text-muted"><i class="fas fa-info-circle me-1"></i>Hipótese original não registrada para esta moderação (recurso adicionado depois deste caso).</small>';
+        elAuditoria.innerHTML = solicitacao.hipoteseUtilizada
+            ? formatarAuditoriaHipotese(solicitacao.hipoteseUtilizada, false)
+            : '<small class="text-muted"><i class="fas fa-info-circle me-1"></i>Hipótese original não registrada para esta moderação (recurso adicionado depois deste caso).</small>';
     }
 
     const resultadoDiv = document.getElementById('moderacao-resultado');
@@ -5313,15 +5318,15 @@ window.velotaxConfig = {
 // Função para reformular moderação após negativa
 function reformularAposNegativa() {
     console.log('🔄 Iniciando reformulação após negativa...');
-    
+
     // Verificar se há texto de moderação gerado
     const textoModeracao = document.getElementById('texto-moderacao');
     if (!textoModeracao || !textoModeracao.innerText.trim()) {
         showErrorMessage('Nenhuma solicitação de moderação foi gerada ainda. Gere uma solicitação primeiro.');
         return;
     }
-    
-    // Mostrar modal para solicitar motivo da negativa
+
+    // Mostrar modal exigindo o e-mail real de negativa do RA — o sistema não adivinha mais o motivo.
     const modalHtml = `
         <div class="modal fade" id="negativaModal" tabindex="-1" aria-labelledby="negativaModalLabel" aria-hidden="true">
             <div class="modal-dialog">
@@ -5335,19 +5340,17 @@ function reformularAposNegativa() {
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="motivo-negativa" class="form-label">
-                                <strong>Motivo da Negativa pelo Reclame Aqui:</strong>
+                            <label for="texto-negativa-reformular" class="form-label">
+                                <strong>Cole aqui o e-mail de negativa completo enviado pelo Reclame Aqui:</strong> <span class="text-danger">*</span>
                             </label>
-                            <textarea 
-                                class="form-control" 
-                                id="motivo-negativa" 
-                                rows="4" 
-                                placeholder="Ex: Resposta não condizente com os fatos, tom inadequado, sem relação com a solicitação, etc."
+                            <textarea
+                                class="form-control"
+                                id="texto-negativa-reformular"
+                                rows="8"
+                                placeholder="Cole o e-mail inteiro, incluindo o 'Motivo principal da negativa' e o código no final (ex: -CO06)..."
                                 required
                             ></textarea>
-                            <div class="form-text">
-                                Descreva o motivo específico pelo qual o RA negou a moderação para que possamos reformular adequadamente.
-                            </div>
+                            <div id="negativa-reformular-preview" class="mt-2"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -5361,16 +5364,28 @@ function reformularAposNegativa() {
             </div>
         </div>
     `;
-    
+
     // Remover modal anterior se existir
     const modalAnterior = document.getElementById('negativaModal');
     if (modalAnterior) {
         modalAnterior.remove();
     }
-    
+
     // Adicionar modal ao DOM
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
+
+    const campoTexto = document.getElementById('texto-negativa-reformular');
+    campoTexto.addEventListener('input', function () {
+        const preview = document.getElementById('negativa-reformular-preview');
+        const matchCodigo = this.value.match(/-\s*(CO\d+)\s*$/i) || this.value.match(/[-–]\s*(CO\d+)\b/i);
+        const matchMotivo = this.value.match(/Motivo principal da negativa:\s*([^\n\r]+)/i);
+        if (matchCodigo || matchMotivo) {
+            preview.innerHTML = `<small class="text-muted"><i class="fas fa-info-circle me-1"></i>Detectado: ${matchCodigo ? matchCodigo[1].toUpperCase() : '(código não encontrado)'}${matchMotivo ? ' — ' + matchMotivo[1].trim() : ''}</small>`;
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+
     // Mostrar modal
     const modal = new bootstrap.Modal(document.getElementById('negativaModal'));
     modal.show();
@@ -5378,20 +5393,20 @@ function reformularAposNegativa() {
 
 // Função para processar reformulação após negativa
 async function processarReformulacaoAposNegativa() {
-    const motivoNegativa = document.getElementById('motivo-negativa').value.trim();
-    
-    if (!motivoNegativa) {
-        showErrorMessage('Por favor, informe o motivo da negativa pelo RA.');
+    const textoNegativaRA = document.getElementById('texto-negativa-reformular').value.trim();
+
+    if (!textoNegativaRA) {
+        showErrorMessage('Cole o e-mail de negativa do RA antes de reformular.');
         return;
     }
-    
+
     // Fechar modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('negativaModal'));
     modal.hide();
-    
+
     // Mostrar loading
-    showLoadingMessage('Reformulando solicitação de moderação com base no motivo da negativa...');
-    
+    showLoadingMessage('Reformulando solicitação de moderação com base na negativa real do RA...');
+
     try {
         // Obter dados da moderação atual
         const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
@@ -5399,7 +5414,8 @@ async function processarReformulacaoAposNegativa() {
         const motivoModeracao = document.getElementById('motivo-moderacao').value;
         const consideracaoFinal = (document.getElementById('consideracao-final-moderacao') || {}).value || '';
         const textoNegado = document.getElementById('texto-moderacao').innerText;
-        
+        const hipoteseUtilizada = window._hipoteseUtilizadaAtual || '';
+
         // Chamar o endpoint do servidor para reformulação
         const response = await fetch('/api/reformulate-moderation', {
             method: 'POST',
@@ -5408,36 +5424,37 @@ async function processarReformulacaoAposNegativa() {
             },
             body: JSON.stringify({
                 textoNegado: textoNegado,
-                motivoNegativa: motivoNegativa,
+                textoNegativaRA: textoNegativaRA,
                 dadosModeracao: {
                     solicitacaoCliente: solicitacaoCliente,
                     respostaEmpresa: respostaEmpresa,
                     motivoModeracao: motivoModeracao,
-                    consideracaoFinal: consideracaoFinal
+                    consideracaoFinal: consideracaoFinal,
+                    hipoteseUtilizada: hipoteseUtilizada
                 }
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             // Atualizar o texto de moderação com a versão reformulada
             const textoModeracao = document.getElementById('texto-moderacao');
             textoModeracao.innerHTML = data.result;
-            
+
             // Atualizar linha de raciocínio para indicar reformulação
             const linhaRaciocinio = document.getElementById('linha-raciocinio');
             linhaRaciocinio.innerHTML = gerarLinhaRaciocinioModeracaoReformulada(
-                motivoModeracao, 
-                solicitacaoCliente, 
-                respostaEmpresa, 
-                motivoNegativa
+                motivoModeracao,
+                solicitacaoCliente,
+                respostaEmpresa,
+                textoNegativaRA
             );
-            
+
             // Mostrar seção de feedback
             const feedbackSection = document.getElementById('feedback-moderacao');
             feedbackSection.style.display = 'block';
-            
+
             // Atualizar conteúdo do feedback
             const feedbackContent = feedbackSection.querySelector('.response-box');
             if (feedbackContent) {
@@ -5447,14 +5464,15 @@ async function processarReformulacaoAposNegativa() {
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             Reformulação Realizada
                         </h6>
-                        <p class="mb-2"><strong>Motivo da Negativa:</strong> ${motivoNegativa}</p>
-                        <p class="mb-0">A solicitação foi reformulada com base no feedback do Reclame Aqui para melhor adequação às regras de moderação.</p>
+                        <p class="mb-2"><strong>E-mail de negativa do RA:</strong></p>
+                        <pre style="white-space: pre-wrap; word-wrap: break-word;">${textoNegativaRA}</pre>
+                        <p class="mb-0">A solicitação foi reformulada com base no motivo real citado pelo Reclame Aqui.</p>
                     </div>
                 `;
             }
-            
+
             showSuccessMessage('Solicitação de moderação reformulada com sucesso!');
-            
+
             // Limpar modal
             setTimeout(() => {
                 const modal = document.getElementById('negativaModal');
@@ -5462,11 +5480,11 @@ async function processarReformulacaoAposNegativa() {
                     modal.remove();
                 }
             }, 500);
-            
+
         } else {
             showErrorMessage(data.error || 'Erro ao reformular solicitação de moderação.');
         }
-        
+
     } catch (error) {
         console.error('Erro ao reformular moderação:', error);
         showErrorMessage('Erro ao conectar com o servidor. Verifique sua conexão.');

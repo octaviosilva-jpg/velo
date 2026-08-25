@@ -6622,20 +6622,62 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
             });
         }
         
-        const { motivoNegativa, textoNegado, dadosModeracao } = req.body;
-        
-        if (!motivoNegativa || !textoNegado) {
+        const { motivoNegativa, textoNegativaRA, textoNegado, dadosModeracao } = req.body;
+
+        // A negativa real do RA (e-mail colado) é obrigatória — o sistema não adivinha mais
+        // o motivo via texto livre. motivoNegativa (texto livre) só é aceito como fallback
+        // para o fluxo de feedback interno (não uma negativa real do RA).
+        if (!textoNegativaRA && !motivoNegativa) {
             return res.status(400).json({
                 success: false,
-                error: 'Motivo da negativa e texto negado são obrigatórios'
+                error: 'Motivo da negativa é obrigatório'
             });
         }
-        
+        if (!textoNegado) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texto negado é obrigatório'
+            });
+        }
+
+        let blocoNegativaReal = '';
+        let motivoParaAprendizado = motivoNegativa || '';
+
+        if (textoNegativaRA) {
+            const negativaParse = parseNegativaRA(textoNegativaRA);
+            const regra = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
+            const hipoteseUtilizada = (dadosModeracao && dadosModeracao.hipoteseUtilizada) || '';
+            const teseBateu = hipoteseBateuComRegra(hipoteseUtilizada, regra);
+
+            motivoParaAprendizado = negativaParse.motivoOficial || `Código ${negativaParse.codigo || 'não identificado'}`;
+
+            blocoNegativaReal = '\n📌 NEGATIVA REAL DO RA (extraída do e-mail colado pelo agente, não é suposição):\n';
+            blocoNegativaReal += `- Motivo oficial citado pelo RA: ${negativaParse.motivoOficial || '(não encontrado no texto colado)'}\n`;
+            blocoNegativaReal += `- Código RA: ${negativaParse.codigo || 'não identificado'}\n`;
+
+            if (regra) {
+                blocoNegativaReal += `- Regra correspondente do manual: "${regra.titulo}"\n`;
+                blocoNegativaReal += `  O que essa regra verifica: ${regra.oQueVerifica}\n`;
+                blocoNegativaReal += `  Reprova quando: ${regra.reprovaQuando}\n`;
+                blocoNegativaReal += `  Diretriz oficial para corrigir: ${regra.regraRespostaRA}\n`;
+            } else {
+                blocoNegativaReal += '- Código ainda não mapeado no nosso manual interno; baseie-se apenas no motivo oficial acima.\n';
+            }
+
+            if (teseBateu === false) {
+                blocoNegativaReal += `\n⚠️ A hipótese usada na tentativa anterior ("${hipoteseUtilizada}") NÃO é a mesma regra que o RA citou na negativa. `;
+                blocoNegativaReal += 'NÃO insista na mesma tese: troque de fundamentação para a regra correta indicada acima.\n';
+            } else if (teseBateu === true) {
+                blocoNegativaReal += `\n✅ A hipótese usada na tentativa anterior ("${hipoteseUtilizada}") já é a mesma regra que o RA citou. `;
+                blocoNegativaReal += 'O problema não foi a tese, foi a execução: mantenha a mesma fundamentação, mas reforce com fatos mais concretos e objetivos conforme a diretriz oficial acima.\n';
+            }
+        }
+
         // Obter feedbacks relevantes para melhorar a reformulação de moderação
         const feedbacksRelevantes = getRelevantFeedbacks('moderacao', {
-            motivoNegativa: motivoNegativa
+            motivoNegativa: motivoParaAprendizado
         });
-        
+
         let conhecimentoFeedback = '';
         if (feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
@@ -6645,16 +6687,16 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
             });
             conhecimentoFeedback += 'Use este conhecimento para evitar erros similares e melhorar a qualidade da reformulação de moderação.\n';
         }
-        
+
         const prompt = `
 📌 REFORMULAÇÃO DE TEXTO DE MODERAÇÃO NEGADO PELO RA
 
 Você é responsável por reformular textos de moderação negados pelo Reclame Aqui seguindo o script estruturado.
 
 DADOS DE ENTRADA:
-- Motivo da negativa: ${motivoNegativa}
+- Motivo da negativa: ${motivoParaAprendizado}
 - Texto de moderação negado: ${textoNegado}
-
+${blocoNegativaReal}
 ${conhecimentoFeedback || ''}
 
 ⚙️ FLUXO DE REFORMULAÇÃO OBRIGATÓRIO:
@@ -6782,7 +6824,7 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
             const textoReformulado = humanizarPontuacaoGerada(data.choices[0].message.content);
             
             // Salvar feedback para aprendizado futuro
-            addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado, dadosModeracao, req.userData);
+            addModeracaoFeedback(textoNegado, motivoParaAprendizado, textoReformulado, dadosModeracao, req.userData);
             
             res.json({
                 success: true,
@@ -7511,7 +7553,8 @@ app.get('/api/solicitacoes', async (req, res) => {
                             linhaRaciocinio: moderacao['Linha Raciocínio'] || moderacao.linhaRaciocinio || '',
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
-                            resultadoModeracao: resultadoModeracao // Resultado da página "Resultados da Moderação"
+                            resultadoModeracao: resultadoModeracao, // Resultado da página "Resultados da Moderação"
+                            hipoteseUtilizada: (moderacao[15] || moderacao['Hipótese Utilizada'] || '').toString().trim() // Coluna P
                         });
                     });
                     
