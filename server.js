@@ -6664,6 +6664,12 @@ async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNe
 
 Você perdeu esta moderação. Sua tarefa NÃO é reescrever o texto anterior com palavras mais bonitas, é investigar por que o RA rejeitou e, se for o caso, mudar de tese.
 
+🔎 PAPEL OBRIGATÓRIO: Atue como AUDITOR crítico, decidindo entre manter e reforçar a tese anterior ou trocá-la por uma mais forte, e NÃO como mero redator tentando deixar o mesmo texto mais bonito. A auditoria serve para melhorar o enquadramento e a assertividade, ela NUNCA impede a geração do pedido: mesmo quando a força da nova tentativa for classificada como Fraca (etapa 8), o texto final de moderação deve SEMPRE ser produzido, registrando a ressalva apenas como alerta interno na auditoria.
+
+🚫 REGRA SOBRE HIPÓTESES: Nunca adapte os fatos para fazer o caso caber numa hipótese do Manual. Adapte a hipótese aos fatos, escolhendo aquela que melhor os representa. Se nenhuma hipótese for perfeita, selecione a MAIS PRÓXIMA e sustentável, registre a ressalva como alerta interno, e ainda assim gere o pedido.
+
+🔒 REGRA DE VALIDAÇÃO FACTUAL: Prefira sempre afirmações ancoradas em trechos. Ao afirmar "informação incorreta", "omissão", "solução aplicada", "fato divergente", "cláusula contratual" ou "violação do Manual", aponte, quando possível, o TRECHO LITERAL (da solicitação, resposta ou consideração final) que sustenta a conclusão. Se para a nova tese não houver trecho que a sustente, prefira outra tese mais bem sustentada; havendo apenas teses fracas, escolha a mais forte entre elas e registre a limitação como alerta interno.
+
 DADOS DO CASO:
 - Solicitação do cliente: ${dc.solicitacaoCliente || ''}
 - Resposta pública da empresa: ${dc.respostaEmpresa || ''}
@@ -6703,6 +6709,10 @@ ${conhecimentoFeedback}
 - Não escolha hipótese só porque parece relacionada ao assunto, ela precisa ser sustentada por trecho literal.
 - "Cliente continua insatisfeito" não significa automaticamente que a resposta foi inadequada; "empresa respondeu" não significa automaticamente que a resposta foi condizente.
 - Você não está tentando enganar o critério do RA, está buscando a melhor interpretação legítima do caso, nunca maquiando uma inconsistência real.
+- Nunca peça moderação por motivo frágil ("não gostei do comentário" não basta): só sustente o pedido se houver violação de regra do RA, desacordo com fato comprovável, solução omitida ou quebra de diretriz contratual clara.
+- Sempre que possível, cite o manual e a regra específica pelo nome no texto final (ex.: "conforme o Manual Geral de Moderação, categoria X"), isso mostra base sólida e aumenta a chance de aprovação.
+- 🎯 TRIPÉ DA MODERAÇÃO, presente na nova tese: registre fatos + aponte a divergência + fundamente em manual/contrato.
+- SEMPRE gere o texto final de moderação (bloco 3), mesmo quando a força da tentativa (etapa 8) for Fraca. A classificação é alerta interno para o time revisar, nunca motivo para deixar de produzir o pedido.
 
 FORMATO DE SAÍDA OBRIGATÓRIO (sempre os três blocos, nesta ordem):
 
@@ -6741,7 +6751,7 @@ Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme re
             messages: [
                 {
                     role: 'system',
-                    content: 'Você é um analista sênior de moderação de conteúdo do Reclame Aqui, investigando por que um pedido de moderação foi negado e decidindo se a tese precisa mudar. Nunca minimiza divergência real nem inventa fatos. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
+                    content: 'Você é um analista sênior de moderação de conteúdo do Reclame Aqui, investigando por que um pedido de moderação foi negado e decidindo se a tese precisa mudar. Atue como AUDITOR crítico, mas SEMPRE gere o pedido de moderação ao final (a auditoria é interna e não impede a geração, mesmo com força Fraca). Nunca minimiza divergência real nem inventa fatos. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                 },
                 {
                     role: 'user',
