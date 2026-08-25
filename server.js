@@ -6610,18 +6610,194 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
 });
 
 // Rota para reformular texto de moderação após negativa
+/**
+ * Análise completa de reformulação após negativa real do RA. Não é "reescrever com palavras
+ * melhores": investiga por que a moderação perdeu (motivo exato + código), audita onde a tese
+ * anterior errou, compara fato a fato cliente x empresa usando a base normativa real dos manuais,
+ * e só então decide manter a tese (reforçando fatos) ou trocar de tese. Usado tanto por
+ * /api/reformulate-moderation (fluxo ativo, gera o novo pedido) quanto por
+ * /api/moderacao/:idModeracao/analise-completa (fluxo somente-leitura, sobre um caso já negado).
+ */
+async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNegativaRA, envVars, apiKey }) {
+    const negativaParse = parseNegativaRA(textoNegativaRA);
+    const regra = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
+    const dc = dadosModeracao || {};
+    const hipoteseUtilizada = dc.hipoteseUtilizada || '';
+    const teseBateu = hipoteseBateuComRegra(hipoteseUtilizada, regra);
+    const motivoParaAprendizado = negativaParse.motivoOficial || `Código ${negativaParse.codigo || 'não identificado'}`;
+
+    let blocoNegativaReal = '\n📌 NEGATIVA REAL DO RA (extraída do e-mail colado pelo agente, não é suposição):\n';
+    blocoNegativaReal += `- Motivo oficial citado pelo RA: ${negativaParse.motivoOficial || '(não encontrado no texto colado)'}\n`;
+    blocoNegativaReal += `- Código RA: ${negativaParse.codigo || 'não identificado'}\n`;
+    if (regra) {
+        blocoNegativaReal += `- Regra correspondente do manual: "${regra.titulo}"\n`;
+        blocoNegativaReal += `  O que essa regra verifica: ${regra.oQueVerifica}\n`;
+        blocoNegativaReal += `  Reprova quando: ${regra.reprovaQuando}\n`;
+        blocoNegativaReal += `  Diretriz oficial para corrigir: ${regra.regraRespostaRA}\n`;
+    } else {
+        blocoNegativaReal += '- Código ainda não mapeado no nosso manual interno; baseie o diagnóstico apenas no motivo oficial acima.\n';
+    }
+    if (teseBateu === false) {
+        blocoNegativaReal += `\n⚠️ SINAL IMPORTANTE: a hipótese usada na tentativa anterior ("${hipoteseUtilizada}") NÃO é a mesma regra que o RA citou. Forte indício de que a TESE estava errada, não só a redação.\n`;
+    } else if (teseBateu === true) {
+        blocoNegativaReal += `\n✅ SINAL IMPORTANTE: a hipótese usada na tentativa anterior ("${hipoteseUtilizada}") já é a mesma regra que o RA citou. Forte indício de que o problema foi de EXECUÇÃO (redação/evidência), não de tese.\n`;
+    }
+
+    const baseNormativaManuais = montarBlocoManuaisModeracao(
+        `${dc.solicitacaoCliente || ''} ${dc.respostaEmpresa || ''} ${dc.consideracaoFinal || ''}`,
+        dc.motivoModeracao
+    );
+    const listaHipotesesAuditoria = montarListaHipotesesAuditoria();
+
+    const feedbacksRelevantes = getRelevantFeedbacks('moderacao', { motivoNegativa: motivoParaAprendizado });
+    let conhecimentoFeedback = '';
+    if (feedbacksRelevantes.length > 0) {
+        conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
+        feedbacksRelevantes.forEach((fb, index) => {
+            conhecimentoFeedback += `${index + 1}. Motivo negativa: "${fb.motivoNegativa}"\n`;
+            conhecimentoFeedback += `   Texto reformulado: "${fb.textoReformulado.substring(0, 200)}..."\n\n`;
+        });
+    }
+
+    const prompt = `
+📌 REFORMULAÇÃO DE PEDIDO DE MODERAÇÃO NEGADO PELO RA — ANÁLISE COMPLETA
+
+Você perdeu esta moderação. Sua tarefa NÃO é reescrever o texto anterior com palavras mais bonitas, é investigar por que o RA rejeitou e, se for o caso, mudar de tese.
+
+DADOS DO CASO:
+- Solicitação do cliente: ${dc.solicitacaoCliente || ''}
+- Resposta pública da empresa: ${dc.respostaEmpresa || ''}
+- Consideração final do consumidor: ${dc.consideracaoFinal || ''}
+- Motivo/hipótese sugerido originalmente: ${dc.motivoModeracao || ''}
+- Hipótese realmente usada na 1ª tentativa (auditoria interna anterior): ${hipoteseUtilizada || '(não registrada)'}
+- Texto da 1ª moderação (negado): ${textoNegado}
+${blocoNegativaReal}
+
+📚 BASE NORMATIVA REAL DOS MANUAIS DO RA (use para validar a nova tese, não invente regra):
+${baseNormativaManuais}
+${listaHipotesesAuditoria}
+${conhecimentoFeedback}
+
+⚙️ PROCESSO OBRIGATÓRIO (siga as etapas, sem pular nenhuma):
+
+1. Separe as peças do caso: releia a reclamação original, a resposta pública, a réplica/consideração final e o motivo exato da negativa. A moderação não se decide só pela reclamação, o que importa é o que mudou entre cliente → empresa → cliente de novo.
+
+2. Identifique o motivo EXATO da negativa (não trate códigos diferentes como a mesma coisa): para CO06 pergunte "onde exatamente consumidor e empresa apresentam versões incompatíveis?"; para CO07 pergunte "qual parte relevante da reclamação não foi efetivamente respondida?"; para outros códigos, adapte a pergunta ao que a regra do manual acima realmente verifica.
+
+3. Compare fato por fato: monte mentalmente uma tabela cliente x empresa (valor, data, negociação, atendimento, o que foi dito x o que foi feito) e marque cada linha como 🟢 alinhado, 🟡 precisa análise ou 🔴 divergência real. Falar sobre o mesmo assunto NÃO significa apresentar a mesma versão dos fatos, não caia nessa armadilha.
+
+4. Analise a consideração final separadamente: ela trouxe um FATO NOVO e específico (ex.: "paguei dia 03 e até dia 06 continuava negativado"), ou é só opinião/insatisfação genérica (ex.: "péssimo atendimento")? Isso muda a análise.
+
+5. Volte para a resposta pública e pergunte: a empresa respondeu o que o consumidor REALMENTE alegou, ou só tocou em palavras relacionadas ao assunto sem esclarecer objetivamente? "Tema abordado" não é o mesmo que "questão efetivamente esclarecida".
+
+6. Audite a primeira moderação: qual hipótese foi escolhida, qual argumento foi usado, esse argumento é sustentado pela resposta pública, a tentativa ignorou algum ponto relevante, e a negativa do RA atacou exatamente essa hipótese ou outro aspecto do caso? Às vezes a moderação não perde porque o caso é impossível, perde porque a TESE escolhida estava errada.
+
+7. Só agora construa a nova tese: se o RA já rejeitou a linha argumentativa anterior, reescrever com "palavras mais bonitas" NÃO é uma nova tentativa. Mude a linha argumentativa sempre que os fatos permitirem uma tese diferente e mais forte. Use o sinal de tese-bateu acima: se a hipótese anterior já batia com a regra citada, o problema foi de execução (reforce fatos/evidências, mantendo a tese); se não batia, troque de tese.
+
+8. Classifique a força da nova tentativa: 🟢 Forte (a negativa decorreu principalmente de tese ruim e você corrigiu o fundamento), 🟡 Média (existe tese defensável mas há divergência factual real ou lacuna na resposta pública), ou 🔴 Fraca (a resposta pública realmente não sustenta a moderação, há divergência factual direta ou informação relevante não respondida). É avaliação qualitativa sua, não estatística do RA.
+
+⚠️ REGRAS INQUEBRÁVEIS:
+- Não invente informação que não está na resposta pública nem presuma que um documento foi enviado se não foi.
+- Não transforme opinião do consumidor em fato, nem fato divergente em "sem divergência".
+- Não ignore a réplica/consideração final por ser desfavorável.
+- Não escolha hipótese só porque parece relacionada ao assunto, ela precisa ser sustentada por trecho literal.
+- "Cliente continua insatisfeito" não significa automaticamente que a resposta foi inadequada; "empresa respondeu" não significa automaticamente que a resposta foi condizente.
+- Você não está tentando enganar o critério do RA, está buscando a melhor interpretação legítima do caso, nunca maquiando uma inconsistência real.
+
+FORMATO DE SAÍDA OBRIGATÓRIO (sempre os três blocos, nesta ordem):
+
+(1) AUDITORIA DA HIPÓTESE (uso interno — NÃO enviar ao RA)
+Estruture EXATAMENTE assim, com esses títulos:
+🔎 Diagnóstico da negativa: [motivo/código informado pelo RA e o que ele realmente significa neste caso]
+⚠️ Onde a primeira moderação falhou: [erro exato da tese anterior]
+🔴 Divergências reais (cliente x empresa, fato por fato): [liste cada fato relevante e classifique 🟢/🟡/🔴]
+🟡 Lacunas da resposta pública: [o que a empresa não esclareceu ou não demonstrou]
+🟢 Pontos favoráveis à nova tentativa: [o que efetivamente sustenta uma nova moderação]
+🎯 Nova estratégia: [a tese escolhida agora, e por que ela é diferente/mais forte que a anterior, com trecho literal que a sustenta e a regra do manual que a fundamenta]
+📊 Força da tentativa: [🟢 Forte / 🟡 Média / 🔴 Fraca, com a justificativa qualitativa]
+
+(2) LINHA DE RACIOCÍNIO INTERNA (explicação do processo)
+[Resumo consequente da auditoria acima: fatos reais comprovados, divergência/violação identificada, hipótese selecionada e por quê, base normativa (manual + regra específica)]
+
+(3) TEXTO FINAL DE MODERAÇÃO (a ser enviado ao RA)
+"Prezados,
+
+Solicitamos a moderação da reclamação em questão, tendo em vista que [motivo objetivo baseado na NOVA tese escolhida na auditoria].
+
+Conforme registros internos e documentação de suporte, [fatos corretos que sustentam a nova tese]. Ressaltamos que [parte do conteúdo que diverge dos fatos], enquadrando-se na hipótese de moderação prevista no [manual/regra aplicável específico].
+
+Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
+
+⚠️ IMPORTANTE: o texto final DEVE seguir EXATAMENTE essa estrutura de 3 parágrafos, começando com "Prezados,". NÃO cite os dados de entrada literalmente no texto final (a auditoria interna pode e deve citar trechos literais; o texto final não).`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: envVars.OPENAI_MODEL || 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Você é um analista sênior de moderação de conteúdo do Reclame Aqui, investigando por que um pedido de moderação foi negado e decidindo se a tese precisa mudar. Nunca minimiza divergência real nem inventa fatos. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7,
+            // A auditoria completa (8 etapas + tabela de divergências) aumenta muito a saída: piso de 4000 tokens
+            max_tokens: Math.max(
+                parseInt(envVars.OPENAI_MAX_TOKENS_MODERACAO) || 0,
+                parseInt(envVars.OPENAI_MAX_TOKENS) || 0,
+                4000
+            )
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.text();
+        const errorResponse = tratarErroOpenAI(response, errorData);
+        const err = new Error(errorResponse.error || 'Erro ao chamar OpenAI');
+        err.payload = errorResponse;
+        throw err;
+    }
+
+    const data = await response.json();
+    const respostaBruta = humanizarPontuacaoGerada(data.choices[0].message.content);
+    const partes = separarBlocosModeracao(respostaBruta);
+
+    return {
+        resultadoBruto: respostaBruta,
+        auditoriaHipotese: partes.auditoriaHipotese || '',
+        linhaRaciocinio: partes.linhaRaciocinio || '',
+        textoModeracao: partes.textoModeracao || respostaBruta,
+        confiancaBaixa: partes.validacaoFalhou === true,
+        motivoParaAprendizado,
+        negativaInfo: {
+            motivoOficial: negativaParse.motivoOficial || '',
+            codigo: negativaParse.codigo || '',
+            regraTitulo: regra ? regra.titulo : '',
+            teseBateu
+        }
+    };
+}
+
 app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) => {
     try {
         const envVars = loadEnvFile();
         const apiKey = envVars.OPENAI_API_KEY;
-        
+
         if (!validateApiKey(apiKey)) {
             return res.status(400).json({
                 success: false,
                 error: 'Chave da API não configurada ou inválida'
             });
         }
-        
+
         const { motivoNegativa, textoNegativaRA, textoNegado, dadosModeracao } = req.body;
 
         // A negativa real do RA (e-mail colado) é obrigatória — o sistema não adivinha mais
@@ -6640,51 +6816,34 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
             });
         }
 
-        let blocoNegativaReal = '';
-        let motivoParaAprendizado = motivoNegativa || '';
-        let negativaInfo = null; // resumo estruturado devolvido ao front, pra não precisar reexibir o e-mail inteiro
-
+        // Fluxo principal: negativa real do RA colada → análise investigativa completa
+        // (auditoria de hipótese, divergências fato a fato, base normativa dos manuais).
         if (textoNegativaRA) {
-            const negativaParse = parseNegativaRA(textoNegativaRA);
-            const regra = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
-            const hipoteseUtilizada = (dadosModeracao && dadosModeracao.hipoteseUtilizada) || '';
-            const teseBateu = hipoteseBateuComRegra(hipoteseUtilizada, regra);
+            try {
+                const analise = await gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNegativaRA, envVars, apiKey });
 
-            motivoParaAprendizado = negativaParse.motivoOficial || `Código ${negativaParse.codigo || 'não identificado'}`;
-            negativaInfo = {
-                motivoOficial: negativaParse.motivoOficial || '',
-                codigo: negativaParse.codigo || '',
-                regraTitulo: regra ? regra.titulo : '',
-                teseBateu
-            };
+                addModeracaoFeedback(textoNegado, analise.motivoParaAprendizado, analise.textoModeracao, dadosModeracao, req.userData);
 
-            blocoNegativaReal = '\n📌 NEGATIVA REAL DO RA (extraída do e-mail colado pelo agente, não é suposição):\n';
-            blocoNegativaReal += `- Motivo oficial citado pelo RA: ${negativaParse.motivoOficial || '(não encontrado no texto colado)'}\n`;
-            blocoNegativaReal += `- Código RA: ${negativaParse.codigo || 'não identificado'}\n`;
-
-            if (regra) {
-                blocoNegativaReal += `- Regra correspondente do manual: "${regra.titulo}"\n`;
-                blocoNegativaReal += `  O que essa regra verifica: ${regra.oQueVerifica}\n`;
-                blocoNegativaReal += `  Reprova quando: ${regra.reprovaQuando}\n`;
-                blocoNegativaReal += `  Diretriz oficial para corrigir: ${regra.regraRespostaRA}\n`;
-            } else {
-                blocoNegativaReal += '- Código ainda não mapeado no nosso manual interno; baseie-se apenas no motivo oficial acima.\n';
-            }
-
-            if (teseBateu === false) {
-                blocoNegativaReal += `\n⚠️ A hipótese usada na tentativa anterior ("${hipoteseUtilizada}") NÃO é a mesma regra que o RA citou na negativa. `;
-                blocoNegativaReal += 'NÃO insista na mesma tese: troque de fundamentação para a regra correta indicada acima.\n';
-            } else if (teseBateu === true) {
-                blocoNegativaReal += `\n✅ A hipótese usada na tentativa anterior ("${hipoteseUtilizada}") já é a mesma regra que o RA citou. `;
-                blocoNegativaReal += 'O problema não foi a tese, foi a execução: mantenha a mesma fundamentação, mas reforce com fatos mais concretos e objetivos conforme a diretriz oficial acima.\n';
+                return res.json({
+                    success: true,
+                    result: analise.textoModeracao,
+                    auditoriaHipotese: analise.auditoriaHipotese,
+                    linhaRaciocinio: analise.linhaRaciocinio,
+                    textoModeracao: analise.textoModeracao,
+                    confiancaBaixa: analise.confiancaBaixa,
+                    negativaInfo: analise.negativaInfo
+                });
+            } catch (err) {
+                if (err.payload) {
+                    return res.status(err.payload.statusCode || 500).json(err.payload);
+                }
+                throw err;
             }
         }
 
-        // Obter feedbacks relevantes para melhorar a reformulação de moderação
-        const feedbacksRelevantes = getRelevantFeedbacks('moderacao', {
-            motivoNegativa: motivoParaAprendizado
-        });
-
+        // Fallback legado: só feedback interno em texto livre (fluxo "Dar Feedback", não é uma
+        // negativa real do RA) — mantém o comportamento simples anterior, sem auditoria completa.
+        const feedbacksRelevantes = getRelevantFeedbacks('moderacao', { motivoNegativa });
         let conhecimentoFeedback = '';
         if (feedbacksRelevantes.length > 0) {
             conhecimentoFeedback = '\n\nCONHECIMENTO BASEADO EM FEEDBACKS ANTERIORES DE MODERAÇÃO:\n';
@@ -6695,113 +6854,27 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
             conhecimentoFeedback += 'Use este conhecimento para evitar erros similares e melhorar a qualidade da reformulação de moderação.\n';
         }
 
-        const prompt = `
-📌 REFORMULAÇÃO DE TEXTO DE MODERAÇÃO NEGADO PELO RA
+        const promptLegado = `
+📌 REFORMULAÇÃO DE TEXTO DE MODERAÇÃO COM BASE EM FEEDBACK INTERNO
 
-Você é responsável por reformular textos de moderação negados pelo Reclame Aqui seguindo o script estruturado.
+Você é responsável por reformular textos de moderação do Reclame Aqui seguindo o script estruturado, com base no feedback interno recebido (não é uma negativa real do RA).
 
 DADOS DE ENTRADA:
-- Motivo da negativa: ${motivoParaAprendizado}
-- Texto de moderação negado: ${textoNegado}
-${blocoNegativaReal}
+- Feedback interno: ${motivoNegativa}
+- Texto de moderação a ajustar: ${textoNegado}
 ${conhecimentoFeedback || ''}
 
-⚙️ FLUXO DE REFORMULAÇÃO OBRIGATÓRIO:
-
-1. ANÁLISE DA NEGATIVA:
-- Identifique por que o RA negou (ex.: "Resposta não condizente", "sem relação com os fatos", "tom inadequado")
-- Analise o conteúdo original (solicitação, resposta, consideração) que gerou a negativa
-- Compare com os manuais de moderação e detecte onde o texto falhou
-- Identifique os pontos problemáticos na análise anterior
-
-2. CONSULTA AOS MANUAIS:
-Sempre verificar os manuais oficiais do RA aplicáveis:
-- Manual Geral de Moderação
-- Manual de Moderação – Bancos, Instituições Financeiras e Meios
-
-3. REFORMULAÇÃO ESTRUTURADA:
-- Ajuste apenas o necessário para alinhar ao motivo da negativa
-- Reforce com base no manual aplicável (sempre citar)
-- Mantenha texto objetivo, técnico e impessoal
-- Direcione sempre ao RA (não ao consumidor)
-
-4. MODELO FIXO OBRIGATÓRIO PARA REFORMULAÇÃO - USE EXATAMENTE ESTA ESTRUTURA:
+MODELO FIXO OBRIGATÓRIO PARA REFORMULAÇÃO - USE EXATAMENTE ESTA ESTRUTURA:
 
 "Prezados,
 
-Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo corrigido, baseado no feedback da negativa].
+Solicitamos a moderação da reclamação em questão, tendo em vista que [explique o motivo objetivo corrigido, baseado no feedback].
 
 Conforme registros internos e documentação de suporte, [descrever de forma resumida os fatos corretos]. Ressaltamos que a alegação feita diverge da realidade, enquadrando-se nas hipóteses de moderação previstas no [manual aplicável específico].
 
 Dessa forma, solicitamos a adequação ou exclusão da publicação, conforme regras vigentes da plataforma."
 
-⚠️ IMPORTANTE: O texto reformulado DEVE seguir EXATAMENTE esta estrutura de 3 parágrafos. NÃO use outros formatos.
-
-5. REGRAS INQUEBRÁVEIS:
-- Não inventar fatos
-- Usar somente registros fornecidos + manuais
-- Sempre citar manual aplicável específico
-- Texto deve ser curto, objetivo e técnico
-- Pedido sempre direcionado ao RA
-- Manter tom impessoal e formal
-
-6. SAÍDA FINAL:
-Forneça APENAS o texto reformulado seguindo EXATAMENTE o modelo fixo de 3 parágrafos acima, corrigindo especificamente o motivo da negativa.
-
-⚠️ CRÍTICO: O texto DEVE começar com "Prezados," e seguir exatamente a estrutura de 3 parágrafos definida. NÃO use variações.
-
-🚫 PROIBIDO: NÃO cite os dados de entrada literalmente. Analise o conteúdo original e formule baseado na análise, não na citação dos dados.
-
-📋 DICAS CRÍTICAS PARA REFORMULAÇÃO DE MODERAÇÃO:
-
-1. CONSULTE SEMPRE OS MANUAIS DO RA:
-- Manual Geral de Moderação → regras universais (informação falsa, ofensas, duplicidade)
-- Manual de Bancos, Instituições Financeiras e Meios → regras específicas para operações financeiras, contratos, CCB, termos aceitos
-⚠️ NÃO PULE ESSA PARTE: o RA pode negar a moderação se o pedido não se apoiar nas regras deles
-
-2. VERIFIQUE OS REGISTROS INTERNOS ANTES DE ESCREVER:
-- Data da contratação ou operação
-- Status real da solicitação (ex.: quitação antecipada, reagendamento BB, restituição no eCAC)
-- Situação da chave Pix (se estava vinculada, portabilizada, ou desvinculada)
-- Evidências objetivas: prints, protocolos, comprovantes
-
-3. COMPARE A RECLAMAÇÃO COM OS FATOS:
-- O cliente alegou algo que já foi resolvido antes da abertura no RA?
-- Há omissão da solução aplicada?
-- A descrição do cliente contraria cláusulas aceitas em contrato (ex.: vínculo da chave Pix na CCB)?
-- O texto contém linguagem ofensiva ou acusação sem prova?
-
-4. NA REFORMULAÇÃO, CORRIJA ESPECIFICAMENTE:
-- O motivo da negativa identificado pelo RA
-- Analise novamente o conteúdo original (solicitação, resposta, consideração) com foco na negativa
-- Mantenha fatos reais comprovados → cite data, registro, operação
-- Aponte divergência clara → onde o conteúdo analisado erra ou omite informações
-- Base normativa → diga "conforme Manual Geral de Moderação", "conforme Cláusula 7 da CCB", etc.
-
-5. NA REDAÇÃO FINAL (TEXTO AO RA), SIGA O TOM:
-- Técnico, claro e objetivo
-- Impessoal (nada de "entendemos sua frustração")
-- Estrutura em 3 parágrafos curtos:
-  * Motivo objetivo do pedido
-  * Fatos internos que comprovam a divergência
-  * Solicitação de adequação/exclusão conforme regras do RA
-
-6. NUNCA PEÇA MODERAÇÃO POR MOTIVO FRÁGIL:
-- Não basta "não gostar" do comentário
-- Só peça moderação se:
-  * Violou regra do RA
-  * Está em desacordo com fatos comprováveis
-  * Houve solução omitida
-  * Houve quebra de diretriz contratual clara
-
-7. CITE O MANUAL/CAPÍTULO SEMPRE QUE POSSÍVEL:
-- Exemplo: "conforme previsto no Manual Geral de Moderação (item de informações falsas)"
-- Exemplo: "em linha com o Manual de Bancos, que prevê correção de informações contratuais incorretas"
-- Isso mostra base sólida e aumenta as chances de aprovação
-
-🎯 TRIPÉ DA MODERAÇÃO: registre fatos + aponte divergência + fundamente em manual/contrato
-
-IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros similares e melhorar a qualidade da reformulação de moderação.`;
+⚠️ IMPORTANTE: O texto reformulado DEVE seguir EXATAMENTE esta estrutura de 3 parágrafos. NÃO use outros formatos. NÃO cite os dados de entrada literalmente.`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -6814,29 +6887,28 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
                 messages: [
                     {
                         role: 'system',
-                        content: 'Você é um analista de Reclame Aqui, com foco em reformulação de textos de moderação negados. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
+                        content: 'Você é um analista de Reclame Aqui, com foco em reformulação de textos de moderação. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
                     },
                     {
                         role: 'user',
-                        content: prompt
+                        content: promptLegado
                     }
                 ],
                 temperature: parseFloat(envVars.OPENAI_TEMPERATURE) || 0.7,
                 max_tokens: parseInt(envVars.OPENAI_MAX_TOKENS) || 2000
             })
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             const textoReformulado = humanizarPontuacaoGerada(data.choices[0].message.content);
-            
-            // Salvar feedback para aprendizado futuro
-            addModeracaoFeedback(textoNegado, motivoParaAprendizado, textoReformulado, dadosModeracao, req.userData);
-            
+
+            addModeracaoFeedback(textoNegado, motivoNegativa, textoReformulado, dadosModeracao, req.userData);
+
             res.json({
                 success: true,
                 result: textoReformulado,
-                negativaInfo
+                negativaInfo: null
             });
         } else {
             const errorData = await response.text();
@@ -13837,7 +13909,11 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
                             // Análise FASE 2
                             motivoNegativa: (row[7] || '').toString().trim(), // Bloco 1
                             ondeErrou: (row[8] || '').toString().trim(), // Bloco 2
-                            comoCorrigir: (row[9] || '').toString().trim() // Bloco 3
+                            comoCorrigir: (row[9] || '').toString().trim(), // Bloco 3
+                            // Negativa real do RA — necessários pra rodar a análise completa com IA sob demanda
+                            textoCompletoNegativa: row.length > 15 ? (row[15] || '').toString().trim() : '', // Coluna P
+                            codigoRA: row.length > 16 ? (row[16] || '').toString().trim() : '', // Coluna Q
+                            hipoteseUtilizadaOriginal: row.length > 18 ? (row[18] || '').toString().trim() : '' // Coluna S
                         };
                         tipo = 'negada';
                         break;
@@ -13944,6 +14020,74 @@ app.get('/api/moderacao/:idModeracao', async (req, res) => {
             error: 'Erro ao obter detalhes da moderação',
             message: error.message
         });
+    }
+});
+
+// Roda a análise investigativa completa (auditoria de hipótese, divergências fato a fato, base
+// normativa dos manuais) sob demanda para um caso JÁ NEGADO — usada pelo botão "Gerar Análise
+// Completa com IA" em "Ver análise completa". Reaproveita textoCompletoNegativa e
+// hipoteseUtilizadaOriginal já salvos em "Moderações Negadas" (não pede pra colar o e-mail de novo).
+app.post('/api/moderacao/:idModeracao/analise-completa', rateLimitMiddleware, async (req, res) => {
+    try {
+        const envVars = loadEnvFile();
+        const apiKey = envVars.OPENAI_API_KEY;
+        if (!validateApiKey(apiKey)) {
+            return res.status(400).json({ success: false, error: 'Chave da API não configurada ou inválida' });
+        }
+
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({ success: false, error: 'Google Sheets não está inicializado' });
+        }
+
+        const idModeracaoNormalized = normalizarId(req.params.idModeracao);
+        const negadasData = await googleSheetsConfig.readData('Moderações Negadas!A1:T10000');
+        if (!negadasData || negadasData.length <= 1) {
+            return res.status(404).json({ success: false, error: 'Nenhuma moderação negada encontrada' });
+        }
+
+        let row = null;
+        for (let i = 1; i < negadasData.length; i++) {
+            const r = negadasData[i];
+            if (!r || r.length < 2) continue;
+            if (normalizarId(r[1]) === idModeracaoNormalized) { row = r; break; }
+        }
+        if (!row) {
+            return res.status(404).json({ success: false, error: `Moderação negada não encontrada com ID: ${req.params.idModeracao}` });
+        }
+
+        const textoNegativaRA = row.length > 15 ? (row[15] || '').toString().trim() : '';
+        if (!textoNegativaRA) {
+            return res.status(400).json({
+                success: false,
+                error: 'Esta moderação foi negada antes da captura do e-mail real do RA (registro antigo) — não há dado suficiente para rodar a análise completa.'
+            });
+        }
+
+        const dadosModeracao = {
+            solicitacaoCliente: (row[10] || '').toString().trim(),
+            respostaEmpresa: (row[11] || '').toString().trim(),
+            consideracaoFinal: (row[12] || '').toString().trim(),
+            motivoModeracao: (row[4] || '').toString().trim(),
+            hipoteseUtilizada: row.length > 18 ? (row[18] || '').toString().trim() : ''
+        };
+        const textoNegado = (row[5] || '').toString().trim();
+
+        const analise = await gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNegativaRA, envVars, apiKey });
+
+        res.json({
+            success: true,
+            auditoriaHipotese: analise.auditoriaHipotese,
+            linhaRaciocinio: analise.linhaRaciocinio,
+            textoModeracaoSugerido: analise.textoModeracao,
+            confiancaBaixa: analise.confiancaBaixa,
+            negativaInfo: analise.negativaInfo
+        });
+    } catch (error) {
+        if (error.payload) {
+            return res.status(error.payload.statusCode || 500).json(error.payload);
+        }
+        console.error('❌ Erro ao gerar análise completa da negativa:', error);
+        res.status(500).json({ success: false, error: 'Erro interno do servidor', message: error.message });
     }
 });
 

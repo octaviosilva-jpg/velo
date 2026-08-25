@@ -4260,30 +4260,6 @@ function gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCl
     return linha;
 }
 
-// Linha de raciocínio para a reformulação baseada na negativa REAL do RA (não texto livre).
-// Mostrada logo acima do novo pedido em #texto-moderacao, explicando o porquê da mudança
-// sem precisar de uma caixa secundária separada (isso é o que confundia o usuário antes).
-function gerarLinhaRaciocinioNegativaReal(info) {
-    let linha = '<div class="linha-raciocinio reformulada">';
-    linha += '<h6 class="text-warning mb-3"><i class="fas fa-redo me-2"></i>Reformulado com base na negativa real do RA:</h6>';
-    linha += '<div class="alert alert-warning border-start border-warning border-4 mb-3">';
-    linha += `<p class="mb-1"><strong>Motivo citado pelo RA:</strong> ${info.motivoOficial || '(não identificado no e-mail colado)'}${info.codigo ? ` (${info.codigo})` : ''}</p>`;
-    if (info.regraTitulo) {
-        linha += `<p class="mb-1"><strong>Regra do manual aplicada:</strong> ${info.regraTitulo}</p>`;
-    }
-    if (info.teseBateu === false) {
-        linha += '<p class="mb-0"><i class="fas fa-exchange-alt me-1"></i>A hipótese usada na tentativa anterior não batia com o motivo do RA — o pedido abaixo foi refeito com outra fundamentação.</p>';
-    } else if (info.teseBateu === true) {
-        linha += '<p class="mb-0"><i class="fas fa-check me-1"></i>A hipótese usada já era a correta — o pedido abaixo mantém a mesma tese, reforçada com mais fatos concretos.</p>';
-    } else {
-        linha += '<p class="mb-0">O pedido abaixo foi reformulado com base no motivo real informado pelo RA.</p>';
-    }
-    linha += '</div>';
-    linha += '<p class="text-muted mb-0"><i class="fas fa-arrow-down me-1"></i>Novo pedido de moderação abaixo:</p>';
-    linha += '</div>';
-    return linha;
-}
-
 // Função para gerar texto de moderação reformulado
 function gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedback) {
     let texto = '<p><strong>Texto para Moderação (Reformulado):</strong></p>';
@@ -5110,6 +5086,25 @@ async function verAnaliseCompletaNegada(moderacaoId) {
                     </div>
                 </div>
             `;
+
+            // Os 3 blocos acima são o resumo real (motivo/código/orientação), mas rasos. Botão
+            // abaixo roda a auditoria completa (divergências fato a fato, base normativa, nova
+            // tese) sob demanda — só quando o e-mail real da negativa foi capturado (pós-feature).
+            if (mod.textoCompletoNegativa) {
+                html += `
+                <div class="card mb-3 border-primary" id="card-analise-completa-ia">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-robot me-2"></i>Análise Completa com IA</h6>
+                        <button class="btn btn-light btn-sm" onclick="gerarAnaliseCompletaIA('${String(moderacaoId).replace(/'/g, "\\'")}')">
+                            <i class="fas fa-magic me-1"></i>Gerar Análise Completa
+                        </button>
+                    </div>
+                    <div class="card-body" id="analise-completa-ia-corpo">
+                        <p class="text-muted mb-0">Roda a auditoria completa (onde a tese anterior falhou, divergências cliente x empresa fato a fato, lacunas da resposta pública, nova estratégia e força da tentativa) usando a negativa real e os manuais de moderação. Clique no botão acima para gerar.</p>
+                    </div>
+                </div>
+                `;
+            }
         }
         
         // Histórico de aprendizado aplicado
@@ -5146,6 +5141,48 @@ async function verAnaliseCompletaNegada(moderacaoId) {
                 <p>${error.message || 'Erro ao carregar a análise completa da moderação negada.'}</p>
             </div>
         `;
+    }
+}
+
+// Roda a auditoria completa (IA) sobre uma moderação já negada, reaproveitando o e-mail real da
+// negativa e a hipótese original já salvos — não pede pra colar nada de novo. Chamado pelo botão
+// "Gerar Análise Completa" dentro do modal "Ver análise completa".
+async function gerarAnaliseCompletaIA(moderacaoId) {
+    const corpo = document.getElementById('analise-completa-ia-corpo');
+    if (!corpo) return;
+
+    corpo.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>
+            <p class="mt-2 mb-0 text-muted">Rodando auditoria completa (isso consulta os manuais e pode levar alguns segundos)...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`/api/moderacao/${encodeURIComponent(moderacaoId)}/analise-completa`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao gerar análise completa.');
+        }
+
+        let html = '';
+        if (data.confiancaBaixa) {
+            html += '<div class="alert alert-warning border-start border-warning border-4 mb-3"><strong><i class="fas fa-exclamation-triangle me-2"></i>Confiança baixa</strong> na nova tese — revise com atenção antes de usar.</div>';
+        }
+        html += formatarAuditoriaHipotese(data.auditoriaHipotese, data.confiancaBaixa);
+        html += formatarLinhaRaciocinioServidor(data.linhaRaciocinio);
+        html += '<hr>';
+        html += '<h6 class="text-muted mb-2"><i class="fas fa-lightbulb me-2"></i>Sugestão de novo pedido (revise antes de usar em "Reformular após Negativa"):</h6>';
+        html += formatarTextoModeracao(data.textoModeracaoSugerido);
+
+        corpo.innerHTML = html;
+    } catch (error) {
+        console.error('Erro ao gerar análise completa:', error);
+        corpo.innerHTML = `<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>${error.message || 'Erro ao gerar análise completa.'}</div>`;
     }
 }
 
@@ -5486,23 +5523,32 @@ async function processarReformulacaoAposNegativa(textoNegativaRAParam) {
         const data = await response.json();
 
         if (data.success) {
-            const info = data.negativaInfo || {};
+            // Resposta rica do servidor (auditoria completa + linha de raciocínio + pedido novo),
+            // no mesmo formato usado na geração inicial — mesma renderização, mesmas funções.
+            const auditoria = data.auditoriaHipotese || '';
+            const confiancaBaixa = !!data.confiancaBaixa;
+            const linhaRaciocinioBruta = data.linhaRaciocinio || '';
+            const textoFinalBruto = data.textoModeracao || data.result;
+
+            const elAuditoria = document.getElementById('auditoria-hipotese');
+            if (elAuditoria) elAuditoria.innerHTML = formatarAuditoriaHipotese(auditoria, confiancaBaixa);
+            window._hipoteseUtilizadaAtual = auditoria || '';
+
+            const linhaRaciocinio = document.getElementById('linha-raciocinio');
+            linhaRaciocinio.innerHTML = formatarLinhaRaciocinioServidor(linhaRaciocinioBruta);
 
             // O PEDIDO REFORMULADO (o que de fato importa) é o texto abaixo — substitui o antigo.
             const textoModeracao = document.getElementById('texto-moderacao');
-            textoModeracao.innerHTML = formatarTextoModeracao(data.result);
-
-            // Linha de raciocínio explica, logo ACIMA do pedido novo, por que ele mudou —
-            // sem caixa secundária separada nem repetir o e-mail inteiro, pra não se perder na tela.
-            const linhaRaciocinio = document.getElementById('linha-raciocinio');
-            linhaRaciocinio.innerHTML = gerarLinhaRaciocinioNegativaReal(info);
+            textoModeracao.innerHTML = formatarTextoModeracao(textoFinalBruto);
 
             // Esconde uma caixa de "Análise de Feedback" de uma ação anterior (Dar Feedback), se
             // estiver visível — não é dessa ação e só teria confundido com conteúdo desatualizado.
             const feedbackSectionAntiga = document.getElementById('feedback-moderacao');
             if (feedbackSectionAntiga) feedbackSectionAntiga.style.display = 'none';
 
-            showSuccessMessage('Pedido de moderação reformulado — confira o novo texto logo abaixo.');
+            showSuccessMessage(confiancaBaixa
+                ? 'Pedido reformulado. Atenção: a auditoria sinalizou confiança baixa na nova tese, revise antes de enviar.'
+                : 'Pedido de moderação reformulado — confira a auditoria e o novo texto logo abaixo.');
 
             // Garante que o pedido novo fique visível na tela, não só o topo do formulário.
             const resultadoDiv = document.getElementById('moderacao-resultado');
