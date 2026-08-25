@@ -9564,13 +9564,14 @@ const ESTATISTICAS_JANELA_DIAS = 90; // Mesma janela de confiabilidade usada na 
 app.get('/api/estatisticas-hoje', async (req, res) => {
     console.log('🎯 Endpoint /api/estatisticas-hoje chamado');
     try {
-        const hoje = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        const agora = new Date();
+        const hoje = new Date(agora.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
         const dia = String(hoje.getDate()).padStart(2, '0');
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
         const ano = hoje.getFullYear();
         const dataHojeBR = `${dia}/${mes}/${ano}`;
         const dataHojeISO = `${ano}-${mes}-${dia}`;
-        const lastUpdated = hoje.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const lastUpdated = agora.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
         if (cacheEstatisticasHoje.data && cacheEstatisticasHoje.dataISO === dataHojeISO && (Date.now() - cacheEstatisticasHoje.timestamp) < CACHE_ESTATISTICAS_TTL_MS) {
             const c = cacheEstatisticasHoje.data;
@@ -9613,29 +9614,55 @@ app.get('/api/estatisticas-hoje', async (req, res) => {
                     _audLerAba('Moderações Negadas')
                 ]);
 
-                // Respostas/moderações coerentes: aprovadas (curadoria interna) e criadas dentro da janela de 90 dias
+                // Respostas coerentes: aprovadas (curadoria interna) e criadas dentro da janela de 90 dias
                 respostas_coerentes = dentroDaJanela(coerentesAll).filter(statusAprovada).length;
-                moderacoes_coerentes = dentroDaJanela(modAll).filter(statusAprovada).length;
 
-                // Aceitas/Negadas: resultado real do RA, registrado dentro da janela de 90 dias (sem exigir curadoria "Aprovada" à parte)
-                moderacoes_aprovadas = dentroDaJanela(aceitasAll).length;
-                moderacoes_negadas = dentroDaJanela(negadasAll).length;
+                // Moderações: uma mesma reclamação (ID da Reclamação) pode ter várias tentativas de
+                // moderação. Agrupamos por reclamação e escolhemos a tentativa VIGENTE de cada uma:
+                // - se alguma tentativa da reclamação já tem resultado (Aceita/Negada), usa a mais
+                //   recente ENTRE AS RESOLVIDAS (o resultado real do RA tem prioridade sobre uma
+                //   tentativa mais nova ainda sem resposta);
+                // - senão, usa a tentativa "Aprovada" (efetivamente utilizada) mais recente, que conta
+                //   como pendente.
+                // Isso evita contar tentativas antigas/superadas separadamente da reclamação que já
+                // foi resolvida por uma tentativa seguinte.
+                const idsComResultado = new Map(); // ID de moderação -> 'Aceita' | 'Negada'
+                (aceitasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.set(id, 'Aceita'); });
+                (negadasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.set(id, 'Negada'); });
 
-                // Pendentes: moderações efetivamente UTILIZADAS (Status Aprovação = "Aprovada" — as demais
-                // ficam "Pendente" para sempre por serem rascunhos/tentativas descartadas, nunca chegam a ir
-                // pro RA) e CRIADAS dentro da janela de 90 dias, que ainda não têm Aceita/Negada registrada
-                // (busca o resultado em todo o histórico, não só na janela, para não perder um resultado
-                // registrado com atraso; só a moderação em si precisa ser recente para não acumular
-                // pendências de casos antigos/obsoletos que nunca serão fechados).
-                const idsComResultado = new Set();
-                (aceitasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.add(id); });
-                (negadasAll || []).forEach(r => { const id = normalizarId(r['ID da Moderação']); if (id) idsComResultado.add(id); });
-                moderacoes_pendentes = dentroDaJanela(modAll).filter(statusAprovada).filter(r => {
-                    const id = normalizarId(r['ID']);
-                    return id && !idsComResultado.has(id);
-                }).length;
+                const tentativasPorReclamacao = new Map(); // ID da Reclamação -> rows "Aprovada"
+                (modAll || []).filter(statusAprovada).forEach(r => {
+                    const idReclamacao = normalizarId(r['ID da Reclamação']);
+                    if (!idReclamacao) return;
+                    if (!tentativasPorReclamacao.has(idReclamacao)) tentativasPorReclamacao.set(idReclamacao, []);
+                    tentativasPorReclamacao.get(idReclamacao).push(r);
+                });
 
-                console.log(`📊 Estatísticas (janela ${ESTATISTICAS_JANELA_DIAS}d): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}, mod_pendentes=${moderacoes_pendentes}`);
+                const maisRecente = (candidatos) => candidatos.reduce((atual, cand) => {
+                    if (!atual) return cand;
+                    if (cand.row._data && (!atual.row._data || cand.row._data > atual.row._data)) return cand;
+                    return atual;
+                }, null);
+
+                const tentativasVigentes = [];
+                tentativasPorReclamacao.forEach((rows) => {
+                    const comResultado = rows
+                        .map(row => ({ row, resultado: idsComResultado.get(normalizarId(row['ID'])) || null }))
+                        .filter(v => v.resultado);
+                    const vigente = maisRecente(comResultado.length ? comResultado : rows.map(row => ({ row, resultado: null })));
+                    if (vigente) tentativasVigentes.push(vigente);
+                });
+
+                const tentativasVigentesNaJanela = tentativasVigentes.filter(
+                    v => v.row._data && v.row._data >= inicio && v.row._data <= fim
+                );
+
+                moderacoes_coerentes = tentativasVigentesNaJanela.length;
+                moderacoes_aprovadas = tentativasVigentesNaJanela.filter(v => v.resultado === 'Aceita').length;
+                moderacoes_negadas = tentativasVigentesNaJanela.filter(v => v.resultado === 'Negada').length;
+                moderacoes_pendentes = tentativasVigentesNaJanela.filter(v => !v.resultado).length;
+
+                console.log(`📊 Estatísticas (janela ${ESTATISTICAS_JANELA_DIAS}d, por reclamação): respostas_coerentes=${respostas_coerentes}, mod_coerentes=${moderacoes_coerentes}, mod_aprovadas=${moderacoes_aprovadas}, mod_negadas=${moderacoes_negadas}, mod_pendentes=${moderacoes_pendentes}`);
             } catch (err) {
                 if ((err.message || '').toLowerCase().includes('quota')) quotaOuErroLeitura = true;
                 console.warn('⚠️ Erro ao calcular estatísticas da planilha:', err.message);
