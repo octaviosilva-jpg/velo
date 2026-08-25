@@ -63,6 +63,15 @@
       "codigoRA": null
     },
     {
+      "id": "responsabilidade-nao-configurada",
+      "titulo": "Nao ficou demonstrado que a empresa e isenta de responsabilidade (inclusive solidaria)",
+      "oQueVerifica": "Se o conteudo publico deixa claro, de forma objetiva, que o problema NAO foi causado pela empresa e que ela nao tem responsabilidade nem solidaria sobre a situacao.",
+      "reprovaQuando": "A resposta nao demonstra de forma objetiva a nao responsabilidade da empresa; o RA usa esse motivo como catch-all quando o pedido nao se encaixa claramente em nenhuma hipotese especifica da categoria AENV.",
+      "aplicaRespostaRA": true,
+      "regraRespostaRA": "Nao basta pedir a moderacao citando a categoria AENV em tese: e preciso demonstrar, com fatos e registros concretos, exatamente por que a empresa (nem solidariamente) nao e responsavel pela situacao relatada.",
+      "codigoRA": "CO01"
+    },
+    {
       "id": "sem-clausula-contratual",
       "titulo": "Nao se apoiar em interpretacao de clausula/termos",
       "oQueVerifica": "O RA nao analisa clausulas contratuais nem termos de uso da empresa.",
