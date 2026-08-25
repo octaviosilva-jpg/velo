@@ -5,7 +5,7 @@
     "descricao": "Base normativa estruturada dos manuais de moderacao do Reclame Aqui. Conteudo extraido dos PDFs oficiais 'Manual Geral de Moderacao de Conteudo' e 'Manual de Moderacao - Bancos, Instituicoes Financeiras e Meios'. Enquanto 'hipoteses' e 'regrasAENV' estiverem vazios, a base fica INATIVA e nada e injetado nos prompts.",
     "manual": "id, nome, aplicacao, hipoteses[]",
     "hipotese": "id, titulo, categoria, status, prazoSolicitacao, acao, quandoSeAplica, criterios[], comoCitar, palavrasChave[], aplicaRespostaRA, regraRespostaRA, origem",
-    "regraAENV": "id, titulo, oQueVerifica, reprovaQuando, aplicaRespostaRA, regraRespostaRA",
+    "regraAENV": "id, titulo, oQueVerifica, reprovaQuando, aplicaRespostaRA, regraRespostaRA, codigoRA (opcional - codigo curto que o RA usa no e-mail de negativa, ex: CO06; null enquanto nao mapeado)",
     "origem": "manual-geral-oficial ou manual-bancos-oficial indicam que a hipotese foi extraida do PDF oficial correspondente."
   },
   "categoriasModeracao": [
@@ -32,7 +32,8 @@
       "oQueVerifica": "A resposta da empresa deve ser clara e objetiva sobre o problema, com elementos concretos (datas, acoes realizadas, contexto da contratacao/servico).",
       "reprovaQuando": "A resposta e generica e nao esclarece o caso (ex.: 'encaminhamos um e-mail', 'realizamos os retornos necessarios', 'entraremos em contato em breve').",
       "aplicaRespostaRA": true,
-      "regraRespostaRA": "A resposta deve esclarecer o caso de forma objetiva, com datas e acoes concretas; nunca ser generica ou apenas prometer contato futuro."
+      "regraRespostaRA": "A resposta deve esclarecer o caso de forma objetiva, com datas e acoes concretas; nunca ser generica ou apenas prometer contato futuro.",
+      "codigoRA": "CO07"
     },
     {
       "id": "sem-falha-atendimento",
@@ -40,7 +41,8 @@
       "oQueVerifica": "Se o conteudo publico indica que a empresa falhou no atendimento.",
       "reprovaQuando": "O cliente menciona dificuldade de contato, falta de retorno dos canais oficiais, ou informacao passada incorretamente pela empresa.",
       "aplicaRespostaRA": true,
-      "regraRespostaRA": "Nao admitir nem sugerir falha de atendimento, demora ou informacao incorreta dada pelos canais; demonstrar que a empresa atuou corretamente."
+      "regraRespostaRA": "Nao admitir nem sugerir falha de atendimento, demora ou informacao incorreta dada pelos canais; demonstrar que a empresa atuou corretamente.",
+      "codigoRA": "CO09"
     },
     {
       "id": "sem-divergencia",
@@ -48,7 +50,8 @@
       "oQueVerifica": "Se ha posicionamentos conflitantes entre cliente e empresa sobre um mesmo fato.",
       "reprovaQuando": "Empresa afirma algo (ex.: tentou contato, realizou procedimento) e o cliente nega; o RA nao decide quem tem razao e nega.",
       "aplicaRespostaRA": true,
-      "regraRespostaRA": "Sustentar a resposta em fatos verificaveis e registros proprios, evitando afirmacoes que o cliente possa contradizer sem prova no conteudo publico."
+      "regraRespostaRA": "Sustentar a resposta em fatos verificaveis e registros proprios, evitando afirmacoes que o cliente possa contradizer sem prova no conteudo publico.",
+      "codigoRA": "CO06"
     },
     {
       "id": "sem-analise-merito",
@@ -56,7 +59,8 @@
       "oQueVerifica": "Se a situacao esta clara e objetiva no conteudo publico, sem precisar o RA julgar quem tem razao.",
       "reprovaQuando": "A definicao do caso dependeria de o RA julgar versoes/provas (ex.: preco que mudou no carrinho, fato nao demonstravel publicamente).",
       "aplicaRespostaRA": true,
-      "regraRespostaRA": "Deixar o fato objetivo e autoevidente no proprio texto, sem depender de julgamento de versoes."
+      "regraRespostaRA": "Deixar o fato objetivo e autoevidente no proprio texto, sem depender de julgamento de versoes.",
+      "codigoRA": null
     },
     {
       "id": "sem-clausula-contratual",
@@ -64,7 +68,8 @@
       "oQueVerifica": "O RA nao analisa clausulas contratuais nem termos de uso da empresa.",
       "reprovaQuando": "A fundamentacao se apoia apenas em 'o cliente assinou o contrato/termo' ou na interpretacao de clausula.",
       "aplicaRespostaRA": true,
-      "regraRespostaRA": "Explicar a operacao por fatos e regulamentacao aplicavel (ex.: norma do Bacen), nao apenas citando que ha clausula contratual aceita."
+      "regraRespostaRA": "Explicar a operacao por fatos e regulamentacao aplicavel (ex.: norma do Bacen), nao apenas citando que ha clausula contratual aceita.",
+      "codigoRA": null
     },
     {
       "id": "problema-resolvido-nao-qualifica",
@@ -72,7 +77,8 @@
       "oQueVerifica": "Resolver a reclamacao nao descaracteriza o que a motivou.",
       "reprovaQuando": "A tese central do pedido e 'ja resolvemos', sem apontar inconsistencia/omissao do conteudo do cliente.",
       "aplicaRespostaRA": true,
-      "regraRespostaRA": "Alem de informar a solucao, evidenciar a inconsistencia ou o contexto que o cliente omitiu; nao usar 'resolvemos' como unico argumento."
+      "regraRespostaRA": "Alem de informar a solucao, evidenciar a inconsistencia ou o contexto que o cliente omitiu; nao usar 'resolvemos' como unico argumento.",
+      "codigoRA": null
     }
   ],
   "manuais": [

@@ -4766,62 +4766,126 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
         showErrorMessage('ID da moderação não encontrado. Não é possível registrar o resultado.');
         return;
     }
-    
+
     if (!resultado || (resultado !== 'Aceita' && resultado !== 'Negada')) {
         showErrorMessage('Resultado inválido. Selecione "Aceita" ou "Negada".');
         return;
     }
-    
-    // Confirmar ação
-    const confirmacao = confirm(`Deseja registrar que esta moderação foi ${resultado === 'Aceita' ? 'ACEITA' : 'NEGADA'} no Reclame Aqui?`);
-    if (!confirmacao) {
+
+    const botaoOriginal = event.target;
+
+    if (resultado === 'Aceita') {
+        const confirmacao = confirm('Deseja registrar que esta moderação foi ACEITA no Reclame Aqui?');
+        if (!confirmacao) return;
+        await executarRegistroResultado(moderacaoId, resultado, solicitacaoId, null, botaoOriginal);
         return;
     }
-    
-    // Mostrar loading
-    const btnAceita = event.target.closest('.d-flex').querySelector('.btn-success');
-    const btnNegada = event.target.closest('.d-flex').querySelector('.btn-danger');
-    const btnOriginalText = event.target.innerHTML;
-    event.target.disabled = true;
-    event.target.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
-    
+
+    // Negada: exige colar o e-mail de negativa real do RA antes de prosseguir — o sistema não
+    // adivinha mais o motivo.
+    abrirModalNegativaReal(moderacaoId, solicitacaoId, botaoOriginal);
+}
+
+// Modal obrigatório para colar o e-mail de negativa real do RA antes de registrar "Negada".
+function abrirModalNegativaReal(moderacaoId, solicitacaoId, botaoOriginal) {
+    const modalAnterior = document.getElementById('negativaRealModal');
+    if (modalAnterior) modalAnterior.remove();
+
+    const modalHtml = `
+        <div class="modal fade" id="negativaRealModal" tabindex="-1" aria-labelledby="negativaRealModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="negativaRealModalLabel">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Registrar Negativa do Reclame Aqui
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="texto-negativa-real" class="form-label">
+                            Cole aqui o e-mail de negativa completo enviado pelo Reclame Aqui: <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="texto-negativa-real" rows="8" placeholder="Cole o e-mail inteiro, incluindo o 'Motivo principal da negativa' e o código no final (ex: -CO06)..."></textarea>
+                        <div id="negativa-preview" class="mt-2"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" onclick="confirmarNegativaReal('${String(moderacaoId).replace(/'/g, "\\'")}', '${solicitacaoId}')">
+                            <i class="fas fa-check me-1"></i>Confirmar Negativa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    window._negativaRealBotaoOriginal = botaoOriginal;
+
+    const campoTexto = document.getElementById('texto-negativa-real');
+    campoTexto.addEventListener('input', function () {
+        const preview = document.getElementById('negativa-preview');
+        const matchCodigo = this.value.match(/-\s*(CO\d+)\s*$/i) || this.value.match(/[-–]\s*(CO\d+)\b/i);
+        const matchMotivo = this.value.match(/Motivo principal da negativa:\s*([^\n\r]+)/i);
+        if (matchCodigo || matchMotivo) {
+            preview.innerHTML = `<small class="text-muted"><i class="fas fa-info-circle me-1"></i>Detectado: ${matchCodigo ? matchCodigo[1].toUpperCase() : '(código não encontrado)'}${matchMotivo ? ' — ' + matchMotivo[1].trim() : ''}</small>`;
+        } else {
+            preview.innerHTML = '';
+        }
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('negativaRealModal'));
+    modal.show();
+}
+
+async function confirmarNegativaReal(moderacaoId, solicitacaoId) {
+    const textoNegativaRA = document.getElementById('texto-negativa-real').value.trim();
+    if (!textoNegativaRA) {
+        showErrorMessage('Cole o e-mail de negativa do RA antes de confirmar.');
+        return;
+    }
+
+    const modalEl = document.getElementById('negativaRealModal');
+    const modalInstance = modalEl && bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+
+    const botaoOriginal = window._negativaRealBotaoOriginal;
+    await executarRegistroResultado(moderacaoId, 'Negada', solicitacaoId, textoNegativaRA, botaoOriginal);
+}
+
+// Chamada real de gravação, compartilhada entre Aceita (sem negativa) e Negada (com o e-mail real).
+async function executarRegistroResultado(moderacaoId, resultado, solicitacaoId, textoNegativaRA, botaoOriginal) {
+    const btnOriginalText = botaoOriginal ? botaoOriginal.innerHTML : '';
+    if (botaoOriginal) {
+        botaoOriginal.disabled = true;
+        botaoOriginal.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+    }
+
     try {
-        console.log('📤 Enviando requisição para registrar resultado:', {
-            moderacaoId: moderacaoId,
-            resultado: resultado,
-            tipoId: typeof moderacaoId
-        });
-        
+        console.log('📤 Enviando requisição para registrar resultado:', { moderacaoId, resultado, temNegativaReal: !!textoNegativaRA });
+
+        const corpo = { moderacaoId, resultado };
+        if (textoNegativaRA) corpo.textoNegativaRA = textoNegativaRA;
+
         const response = await fetch('/api/registrar-resultado-moderacao', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                moderacaoId: moderacaoId,
-                resultado: resultado
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(corpo)
         });
-        
+
         const data = await response.json();
-        
         console.log('📥 Resposta do servidor:', data);
-        
+
         if (!data.success) {
             throw new Error(data.error || 'Erro ao registrar resultado da moderação');
         }
-        
-        // Atualizar a interface - recarregar as solicitações
-        const filtroDataInicio = document.getElementById('filtroDataInicio').value;
-        const filtroDataFim = document.getElementById('filtroDataFim').value;
-        const filtroTipo = document.getElementById('filtroTipo').value;
-        
+
         // Recarregar as solicitações para atualizar o resultado
         await buscarSolicitacoes();
-        
+
         // Atualizar estatísticas do dia (Mod. Aprovadas / Mod. Negadas) na planilha e no modal
         carregarEstatisticasGlobais();
-        
+
         // Re-expandir a linha que foi atualizada
         setTimeout(() => {
             const detalhesRow = document.getElementById(solicitacaoId);
@@ -4829,14 +4893,16 @@ async function registrarResultadoModeracao(moderacaoId, resultado, solicitacaoId
                 toggleDetalhesSolicitacao(solicitacaoId);
             }
         }, 500);
-        
+
         showSuccessMessage(`Resultado da moderação registrado com sucesso: ${resultado === 'Aceita' ? 'Moderação Aceita' : 'Moderação Negada'}`);
-        
+
     } catch (error) {
         console.error('Erro ao registrar resultado da moderação:', error);
         showErrorMessage(error.message || 'Erro ao registrar resultado da moderação. Tente novamente.');
-        event.target.disabled = false;
-        event.target.innerHTML = btnOriginalText;
+        if (botaoOriginal) {
+            botaoOriginal.disabled = false;
+            botaoOriginal.innerHTML = btnOriginalText;
+        }
     }
 }
 

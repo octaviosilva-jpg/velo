@@ -1158,6 +1158,51 @@ function obterRegrasAENV() {
     };
 }
 
+/** Busca uma regraAENV pelo código curto que o RA usa no e-mail de negativa (ex: "CO06"). */
+function encontrarRegraPorCodigoRA(codigo) {
+    if (!codigo) return null;
+    const { regras } = obterRegrasAENV();
+    const codigoNorm = codigo.toString().trim().toUpperCase();
+    return regras.find(r => (r.codigoRA || '').toString().trim().toUpperCase() === codigoNorm) || null;
+}
+
+/**
+ * Extrai código (ex: "CO06"), motivo oficial e regra correspondente do e-mail de negativa
+ * colado pelo agente. O formato padrão do RA é sempre:
+ * "...texto explicativo...\n\nMotivo principal da negativa: <motivo>\n\n...\n\n-CO06"
+ */
+function parseNegativaRA(textoCompleto) {
+    const texto = (textoCompleto || '').toString();
+    const matchCodigo = texto.match(/-\s*(CO\d+)\s*$/i) || texto.match(/[-–]\s*(CO\d+)\b/i);
+    const codigo = matchCodigo ? matchCodigo[1].toUpperCase() : null;
+    const matchMotivo = texto.match(/Motivo principal da negativa:\s*([^\n\r]+)/i);
+    const motivoOficial = matchMotivo ? matchMotivo[1].trim() : null;
+    const regra = codigo ? encontrarRegraPorCodigoRA(codigo) : null;
+    return {
+        codigo,
+        motivoOficial,
+        regraId: regra ? regra.id : null,
+        regraTitulo: regra ? regra.titulo : null,
+        codigoReconhecido: !!regra,
+        textoCompleto: texto.trim()
+    };
+}
+
+/**
+ * Compara a hipótese usada na tentativa original (texto livre da auditoria) com a regra
+ * que o RA citou na negativa real. Heurística por palavra-chave (a hipótese é texto livre
+ * gerado por LLM, não um ID estruturado) — não é 100% precisa, mas dá um sinal útil.
+ */
+function hipoteseBateuComRegra(hipoteseUsada, regra) {
+    if (!hipoteseUsada || !regra) return null; // desconhecido — falta dado de um dos lados
+    const hipoteseNorm = hipoteseUsada.toString().toLowerCase();
+    const termos = [regra.titulo, regra.id.replace(/-/g, ' ')]
+        .filter(Boolean)
+        .flatMap(t => t.toLowerCase().split(/\s+/))
+        .filter(p => p.length > 3);
+    return termos.some(termo => hipoteseNorm.includes(termo));
+}
+
 /** Checklist de conformidade para prompts de RESPOSTA RA. Vazio se base inativa. */
 function montarChecklistConformidadeRA(textoCaso, motivo) {
     const { regras } = obterRegrasAENV();
@@ -10539,8 +10584,8 @@ Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
 app.post('/api/registrar-resultado-moderacao', async (req, res) => {
     console.log('=== REGISTRAR RESULTADO ===', `ID: ${req.body.moderacaoId}, Resultado: ${req.body.resultado}`);
     try {
-        const { moderacaoId, resultado } = req.body;
-        
+        const { moderacaoId, resultado, textoNegativaRA } = req.body;
+
         // Validações
         if (!moderacaoId || !moderacaoId.toString().trim()) {
             return res.status(400).json({
@@ -10548,11 +10593,20 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
                 error: 'ID da moderação é obrigatório'
             });
         }
-        
+
         if (!resultado || (resultado !== 'Aceita' && resultado !== 'Negada')) {
             return res.status(400).json({
                 success: false,
                 error: 'Resultado deve ser "Aceita" ou "Negada"'
+            });
+        }
+
+        // O e-mail de negativa real do RA é obrigatório para registrar uma negativa — sem ele
+        // o sistema não tem como saber o motivo de verdade (não adivinha mais via IA).
+        if (resultado === 'Negada' && (!textoNegativaRA || !textoNegativaRA.toString().trim())) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cole o e-mail de negativa do Reclame Aqui para registrar essa moderação como Negada.'
             });
         }
         
@@ -10632,41 +10686,37 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         const consideracaoFinal = moderacaoRow[6] || '';
         const statusAprovacao = moderacaoRow[12] || '';
         const nomeSolicitante = moderacaoRow[13] || ''; // Coluna N: Nome do solicitante (antes Observações Internas)
-        
+        const hipoteseUtilizada = moderacaoRow[15] || ''; // Coluna P: Hipótese Utilizada na tentativa original
+
         // Identificar tema da moderação (pode ser extraído do motivo ou inferido)
         // Por enquanto, usar o motivo como tema, pode ser refinado depois
         const temaModeracao = motivoModeracao || 'geral';
-        
+
         console.log(`📋 ID da Reclamação extraído da planilha: "${idReclamacao}"`);
-        
+
         let bloco1 = '';
         let bloco2 = '';
         let bloco3 = '';
-        
-        // Se resultado for "Negada", gerar análise automática
+        let negativaParse = null;
+        let teseBateu = null;
+
+        // Se resultado for "Negada", extrair o motivo REAL do e-mail colado (não adivinha mais via IA)
         if (resultado === 'Negada') {
-            console.log('🔍 Gerando análise automática para moderação negada...');
-            try {
-                const analise = await analisarModeracaoNegada({
-                    textoModeracao,
-                    solicitacaoCliente,
-                    respostaEmpresa,
-                    consideracaoFinal,
-                    motivoModeracao,
-                    linhaRaciocinio
-                });
-                
-                bloco1 = analise.bloco1_motivo_negativa;
-                bloco2 = analise.bloco2_onde_errou;
-                bloco3 = analise.bloco3_como_corrigir;
-                
-                console.log('✅ Análise gerada com sucesso');
-            } catch (error) {
-                console.error('❌ Erro ao gerar análise:', error);
-                bloco1 = 'Erro ao gerar análise automática';
-                bloco2 = 'Análise não disponível';
-                bloco3 = 'Consulte os manuais do RA para orientações';
-            }
+            negativaParse = parseNegativaRA(textoNegativaRA);
+            const regra = negativaParse.regraId
+                ? { id: negativaParse.regraId, titulo: negativaParse.regraTitulo }
+                : null;
+            teseBateu = hipoteseBateuComRegra(hipoteseUtilizada, regra);
+
+            bloco1 = negativaParse.motivoOficial || negativaParse.codigo || 'Motivo não identificado no texto colado';
+            bloco2 = regra
+                ? `O RA negou citando a regra "${regra.titulo}" (código ${negativaParse.codigo}).`
+                : `O RA negou com o código ${negativaParse.codigo || 'não identificado'}, ainda não mapeado para uma regra do nosso manual.`;
+            // Reaproveita a orientação já escrita no manual pra essa regra (regraRespostaRA) em vez de uma IA adivinhar
+            const regraCompleta = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
+            bloco3 = regraCompleta?.regraRespostaRA || 'Código ainda não mapeado — consulte os manuais do RA manualmente para orientação.';
+
+            console.log('✅ Negativa real processada:', { codigo: negativaParse.codigo, regra: negativaParse.regraId, teseBateu });
         }
         
         // Salvar na página específica conforme o resultado
@@ -10762,24 +10812,46 @@ app.post('/api/registrar-resultado-moderacao', async (req, res) => {
         } else if (resultado === 'Negada') {
             // Salvar apenas na página "Moderações Negadas"
             const novaLinhaNegadas = [
-                dataHoraRegistro,                // Data do Registro
-                moderacaoIdNormalized,           // ID da Moderação (já normalizado)
-                idReclamacao,                    // ID da Reclamação
-                temaModeracao,                   // Tema
-                motivoModeracao,                 // Motivo Utilizado
-                textoModeracao,                  // Texto da Moderação Enviada
-                resultado,                       // Resultado
-                bloco1,                          // Motivo da Negativa (Bloco 1)
-                bloco2,                          // Erro Identificado (Bloco 2)
-                bloco3,                          // Orientação de Correção (Bloco 3)
-                solicitacaoCliente,              // Solicitação do Cliente
-                respostaEmpresa,                 // Resposta da Empresa
-                consideracaoFinal,               // Consideração Final
-                linhaRaciocinio,                 // Linha de Raciocínio
-                dataHoraModeracao                // Data/Hora da Moderação Original
+                dataHoraRegistro,                // [0] Data do Registro
+                moderacaoIdNormalized,           // [1] ID da Moderação (já normalizado)
+                idReclamacao,                    // [2] ID da Reclamação
+                temaModeracao,                   // [3] Tema
+                motivoModeracao,                 // [4] Motivo Utilizado
+                textoModeracao,                  // [5] Texto da Moderação Enviada
+                resultado,                       // [6] Resultado
+                bloco1,                          // [7] Motivo da Negativa (Bloco 1) — real, extraído do e-mail
+                bloco2,                          // [8] Erro Identificado (Bloco 2) — real, regra citada pelo RA
+                bloco3,                          // [9] Orientação de Correção (Bloco 3) — do próprio manual
+                solicitacaoCliente,              // [10] Solicitação do Cliente
+                respostaEmpresa,                 // [11] Resposta da Empresa
+                consideracaoFinal,               // [12] Consideração Final
+                linhaRaciocinio,                 // [13] Linha de Raciocínio
+                dataHoraModeracao,               // [14] Data/Hora da Moderação Original
+                negativaParse.textoCompleto,     // [15] Texto Completo da Negativa (e-mail colado)
+                negativaParse.codigo || '',      // [16] Código RA (ex: CO06)
+                negativaParse.regraId || '',     // [17] Regra Correspondente (id do manual, vazio se código não mapeado)
+                hipoteseUtilizada,                // [18] Hipótese Utilizada na tentativa original
+                teseBateu === null ? 'Desconhecido' : (teseBateu ? 'Sim' : 'Não') // [19] Tese Bateu com a Hipótese
             ];
-            
+
             try {
+                const cabecalhosEsperados = [
+                    'Data do Registro', 'ID da Moderação', 'ID da Reclamação', 'Tema', 'Motivo Utilizado',
+                    'Texto da Moderação Enviada', 'Resultado', 'Motivo da Negativa', 'Erro Identificado',
+                    'Orientação de Correção', 'Solicitação do Cliente', 'Resposta da Empresa', 'Consideração Final',
+                    'Linha de Raciocínio', 'Data/Hora da Moderação Original', 'Texto Completo da Negativa',
+                    'Código RA', 'Regra Correspondente', 'Hipótese Utilizada', 'Tese Bateu com a Hipótese'
+                ];
+                await googleSheetsIntegration.ensureSheetExists('Moderações Negadas', cabecalhosEsperados);
+                // A aba pode já existir com o cabeçalho antigo (15 colunas) — completa as novas (P a T) se faltarem.
+                try {
+                    const headerAtual = await googleSheetsConfig.readData('Moderações Negadas!A1:T1');
+                    if (!headerAtual || !headerAtual[0] || !headerAtual[0][19]) {
+                        await googleSheetsConfig.updateRow('Moderações Negadas!P1:T1', cabecalhosEsperados.slice(15));
+                    }
+                } catch (headerError) {
+                    console.warn('⚠️ Não foi possível garantir cabeçalhos novos de "Moderações Negadas":', headerError.message);
+                }
                 await googleSheetsConfig.appendRow('Moderações Negadas!A1', novaLinhaNegadas);
                 console.log(`✅ Moderação negada salva com sucesso na página "Moderações Negadas"`);
             } catch (error) {
