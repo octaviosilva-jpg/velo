@@ -191,20 +191,6 @@ function verificarFeedbacksDuplicados() {
     return duplicados;
 }
 
-// Calcular similaridade entre dois textos
-function calcularSimilaridade(texto1, texto2) {
-    const palavras1 = texto1.toLowerCase().split(/\s+/);
-    const palavras2 = texto2.toLowerCase().split(/\s+/);
-    
-    const set1 = new Set(palavras1);
-    const set2 = new Set(palavras2);
-    
-    const interseccao = new Set([...set1].filter(x => set2.has(x)));
-    const uniao = new Set([...set1, ...set2]);
-    
-    return interseccao.size / uniao.size;
-}
-
 // Validar qualidade dos feedbacks
 function validarQualidadeFeedbacks() {
     console.log('📊 Validando qualidade dos feedbacks...');
@@ -2467,38 +2453,6 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     return novoModelo;
 }
 
-// Obter modelos relevantes para um tipo de situação
-async function getModelosRelevantes(tipoSituacao, motivoSolicitacao) {
-    const modelos = await loadModelosRespostas();
-    const relevantes = [];
-    
-    modelos.modelos.forEach(modelo => {
-        let isRelevante = false;
-        
-        // Verificar correspondência exata de tipo de situação
-        if (modelo.tipo_situacao && modelo.tipo_situacao.toLowerCase() === tipoSituacao.toLowerCase()) {
-            isRelevante = true;
-        }
-        
-        // Verificar correspondência de motivo da solicitação
-        if (modelo.motivo_solicitacao && motivoSolicitacao) {
-            if (modelo.motivo_solicitacao.toLowerCase().includes(motivoSolicitacao.toLowerCase()) ||
-                motivoSolicitacao.toLowerCase().includes(modelo.motivo_solicitacao.toLowerCase())) {
-                isRelevante = true;
-            }
-        }
-        
-        if (isRelevante) {
-            relevantes.push(modelo);
-        }
-    });
-    
-    // Ordenar por timestamp mais recente e retornar os últimos 3
-    return relevantes
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 3);
-}
-
 // ===== FUNÇÕES PARA MODELOS DE MODERAÇÕES APROVADAS =====
 
 // Carregar modelos de moderações
@@ -2638,11 +2592,42 @@ async function addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeraca
 }
 
 // Obter modelos de moderação relevantes - VERSÃO MELHORADA
+// Converte uma linha da aba "Moderações" (obterModeracoesCoerentes, chaves = cabeçalhos da planilha)
+// para o formato usado pelo scoring de relevância abaixo.
+function mapearModeracaoCoerenteParaModelo(moderacao) {
+    return {
+        motivoModeracao: moderacao['Motivo Moderação'] || '',
+        dadosModeracao: {
+            solicitacaoCliente: moderacao['Solicitação Cliente'] || '',
+            respostaEmpresa: moderacao['Resposta Empresa'] || '',
+            consideracaoFinal: moderacao['Consideração Final'] || ''
+        },
+        textoModeracao: moderacao['Texto Moderação Reformulado'] || moderacao['Texto Moderação Anterior'] || '',
+        timestamp: moderacao['Data/Hora'] || ''
+    };
+}
+
 async function getModelosModeracaoRelevantes(motivoModeracao, dadosModeracao = null) {
-    const modelos = await loadModelosModeracoes();
+    // Fonte primária: Google Sheets (aba "Moderações", já é onde /api/save-modelo-moderacao
+    // grava de verdade). O JSON local (loadModelosModeracoes) só entra como fallback caso o
+    // Sheets esteja indisponível, já que ele não persiste de forma confiável em produção.
+    let modelosBrutos = [];
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            const moderacoesCoerentes = await googleSheetsIntegration.obterModeracoesCoerentes();
+            modelosBrutos = (moderacoesCoerentes || []).map(mapearModeracaoCoerenteParaModelo);
+        } catch (error) {
+            console.error('⚠️ Erro ao obter moderações coerentes do Google Sheets, usando fallback local:', error.message);
+        }
+    }
+    if (modelosBrutos.length === 0) {
+        const modelos = await loadModelosModeracoes();
+        modelosBrutos = modelos.modelos || [];
+    }
+
     const relevantes = [];
-    
-    modelos.modelos.forEach(modelo => {
+
+    modelosBrutos.forEach(modelo => {
         let score = 0;
         let isRelevante = false;
         
@@ -3255,23 +3240,14 @@ async function processarPadroesExistentes(tipoSituacao) {
 async function getAprendizadoTipoSituacao(tipoSituacao) {
     console.log(`🔍 getAprendizadoTipoSituacao chamada para: "${tipoSituacao}"`);
     
-    // PRIORIDADE 1: Carregar dos arquivos JSON (desenvolvimento local)
-    let feedbacksRespostas, modelosRespostas, feedbacksModeracoes, modelosModeracoes;
-    
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        console.log('🌐 Vercel detectado - usando dados em memória (sem persistência)');
-        feedbacksRespostas = feedbacksRespostasMemoria;
-        modelosRespostas = modelosRespostasMemoria;
-        feedbacksModeracoes = feedbacksModeracoesMemoria;
-        modelosModeracoes = modelosModeracoesMemoria;
-    } else {
-        console.log('💻 Desenvolvimento local - carregando dos arquivos JSON');
-        feedbacksRespostas = loadFeedbacksRespostas();
-        modelosRespostas = await loadModelosRespostas();
-        feedbacksModeracoes = loadFeedbacksModeracoes();
-        modelosModeracoes = await loadModelosModeracoes();
-    }
-    
+    // As funções load* já priorizam a memória em produção e caem para o arquivo JSON
+    // bundlado no deploy quando a memória ainda está vazia (cold start) — chamá-las
+    // direto evita voltar vazio numa instância nova só porque a memória dela está fria.
+    const feedbacksRespostas = loadFeedbacksRespostas();
+    const modelosRespostas = await loadModelosRespostas();
+    const feedbacksModeracoes = loadFeedbacksModeracoes();
+    const modelosModeracoes = await loadModelosModeracoes();
+
     console.log(`📚 Dados carregados dos arquivos JSON:`, {
         feedbacksRespostas: feedbacksRespostas?.respostas?.length || 0,
         modelosRespostas: modelosRespostas?.modelos?.length || 0,
@@ -12428,23 +12404,28 @@ app.post('/api/test-google-sheets', async (req, res) => {
         };
         
         console.log('📝 Dados de teste:', testData);
-        
+
+        let feedbackResult = null;
+        let respostaResult = null;
+
         // Tentar registrar feedback
         try {
-            const resultado = await googleSheetsIntegration.registrarFeedback(testData);
-            console.log('📝 Resultado do feedback:', resultado);
+            feedbackResult = await googleSheetsIntegration.registrarFeedback(testData);
+            console.log('📝 Resultado do feedback:', feedbackResult);
         } catch (error) {
             console.error('❌ Erro no feedback:', error.message);
+            feedbackResult = { erro: error.message };
         }
-        
+
         // Tentar registrar resposta coerente
         try {
-            const resultado = await googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData });
-            console.log('📝 Resultado da resposta:', resultado);
+            respostaResult = await googleSheetsQueue.addToQueue({ type: 'resposta_coerente', data: testData });
+            console.log('📝 Resultado da resposta:', respostaResult);
         } catch (error) {
             console.error('❌ Erro na resposta:', error.message);
+            respostaResult = { erro: error.message };
         }
-        
+
         res.json({
             success: true,
             message: 'Teste de registro concluído',
@@ -12454,14 +12435,13 @@ app.post('/api/test-google-sheets', async (req, res) => {
             },
             testData: testData
         });
-        
+
     } catch (error) {
         console.error('❌ Erro no teste do Google Sheets:', error);
         res.status(500).json({
             success: false,
             error: 'Erro no teste do Google Sheets',
-            message: error.message,
-            stack: error.stack
+            message: error.message
         });
     }
 });
