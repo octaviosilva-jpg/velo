@@ -1529,6 +1529,10 @@ function formatarTextoModeracao(texto) {
 }
 
 async function gerarModeracao() {
+    // Nova geração: qualquer negativa/hipótese de um caso carregado anteriormente não vale mais.
+    window._textoNegativaRAAtual = '';
+    window._hipoteseUtilizadaAtual = '';
+
     const idReclamacao = document.getElementById('id-reclamacao-moderacao').value.trim();
     const solicitacaoCliente = document.getElementById('solicitacao-cliente').value;
     const respostaEmpresa = document.getElementById('resposta-empresa').value;
@@ -4758,11 +4762,17 @@ function carregarModeracaoParaReformular(solicitacaoId) {
     const resultadoDiv = document.getElementById('moderacao-resultado');
     if (resultadoDiv) resultadoDiv.style.display = 'block';
 
+    // Se essa moderação já foi registrada como "Negada", o e-mail real do RA já foi colado
+    // naquele momento (fluxo do botão "Negada") — reaproveita em vez de pedir de novo.
+    window._textoNegativaRAAtual = solicitacao.textoNegativaRA || '';
+
     const modalEl = document.getElementById('modalSolicitacoes');
     const modalInstance = modalEl && bootstrap.Modal.getInstance(modalEl);
     if (modalInstance) modalInstance.hide();
 
-    showSuccessMessage('Moderação carregada. Use "Reformular após Negativa" para reformular com base no motivo real.');
+    showSuccessMessage(window._textoNegativaRAAtual
+        ? 'Moderação carregada com a negativa já registrada. Clique em "Reformular após Negativa" para reformular direto.'
+        : 'Moderação carregada. Use "Reformular após Negativa" para reformular com base no motivo real.');
 }
 
 // Função para registrar resultado da moderação
@@ -5326,6 +5336,13 @@ function reformularAposNegativa() {
         return;
     }
 
+    // Essa moderação já foi marcada "Negada" com o e-mail real colado naquele momento —
+    // reaproveita em vez de pedir de novo (o dado já foi capturado uma vez).
+    if (window._textoNegativaRAAtual) {
+        processarReformulacaoAposNegativa(window._textoNegativaRAAtual);
+        return;
+    }
+
     // Mostrar modal exigindo o e-mail real de negativa do RA — o sistema não adivinha mais o motivo.
     const modalHtml = `
         <div class="modal fade" id="negativaModal" tabindex="-1" aria-labelledby="negativaModalLabel" aria-hidden="true">
@@ -5391,18 +5408,25 @@ function reformularAposNegativa() {
     modal.show();
 }
 
-// Função para processar reformulação após negativa
-async function processarReformulacaoAposNegativa() {
-    const textoNegativaRA = document.getElementById('texto-negativa-reformular').value.trim();
+// Função para processar reformulação após negativa. Se textoNegativaRAParam vier preenchido
+// (negativa já registrada anteriormente para essa moderação), pula o modal e reaproveita direto.
+async function processarReformulacaoAposNegativa(textoNegativaRAParam) {
+    const reaproveitando = !!textoNegativaRAParam;
+    const textoNegativaRA = reaproveitando
+        ? textoNegativaRAParam
+        : document.getElementById('texto-negativa-reformular').value.trim();
 
     if (!textoNegativaRA) {
         showErrorMessage('Cole o e-mail de negativa do RA antes de reformular.');
         return;
     }
 
-    // Fechar modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('negativaModal'));
-    modal.hide();
+    // Fechar modal, se houver um aberto (não existe quando a negativa já foi reaproveitada)
+    const modalEl = document.getElementById('negativaModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
 
     // Mostrar loading
     showLoadingMessage('Reformulando solicitação de moderação com base na negativa real do RA...');
@@ -5455,18 +5479,26 @@ async function processarReformulacaoAposNegativa() {
             const feedbackSection = document.getElementById('feedback-moderacao');
             feedbackSection.style.display = 'block';
 
-            // Atualizar conteúdo do feedback
+            // Atualizar conteúdo do feedback — usa o resumo estruturado que o servidor extraiu do
+            // e-mail (não reexibe o e-mail inteiro de novo, ele já foi visto ao registrar a negativa).
             const feedbackContent = feedbackSection.querySelector('.response-box');
             if (feedbackContent) {
+                const info = data.negativaInfo || {};
+                let resumoTese = '';
+                if (info.teseBateu === false) {
+                    resumoTese = '<p class="mb-0"><i class="fas fa-exchange-alt me-1"></i>A hipótese usada antes não batia com o motivo do RA — a tese foi trocada.</p>';
+                } else if (info.teseBateu === true) {
+                    resumoTese = '<p class="mb-0"><i class="fas fa-check me-1"></i>A hipótese usada antes já era a correta — o texto foi reforçado com mais fatos.</p>';
+                }
                 feedbackContent.innerHTML = `
                     <div class="alert alert-warning border-start border-warning border-4">
                         <h6 class="alert-heading">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             Reformulação Realizada
                         </h6>
-                        <p class="mb-2"><strong>E-mail de negativa do RA:</strong></p>
-                        <pre style="white-space: pre-wrap; word-wrap: break-word;">${textoNegativaRA}</pre>
-                        <p class="mb-0">A solicitação foi reformulada com base no motivo real citado pelo Reclame Aqui.</p>
+                        <p class="mb-1"><strong>Motivo citado pelo RA:</strong> ${info.motivoOficial || '(não identificado no e-mail)'}${info.codigo ? ` (${info.codigo})` : ''}</p>
+                        ${info.regraTitulo ? `<p class="mb-1"><strong>Regra do manual:</strong> ${info.regraTitulo}</p>` : ''}
+                        ${resumoTese}
                     </div>
                 `;
             }

@@ -6642,6 +6642,7 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
 
         let blocoNegativaReal = '';
         let motivoParaAprendizado = motivoNegativa || '';
+        let negativaInfo = null; // resumo estruturado devolvido ao front, pra não precisar reexibir o e-mail inteiro
 
         if (textoNegativaRA) {
             const negativaParse = parseNegativaRA(textoNegativaRA);
@@ -6650,6 +6651,12 @@ app.post('/api/reformulate-moderation', rateLimitMiddleware, async (req, res) =>
             const teseBateu = hipoteseBateuComRegra(hipoteseUtilizada, regra);
 
             motivoParaAprendizado = negativaParse.motivoOficial || `Código ${negativaParse.codigo || 'não identificado'}`;
+            negativaInfo = {
+                motivoOficial: negativaParse.motivoOficial || '',
+                codigo: negativaParse.codigo || '',
+                regraTitulo: regra ? regra.titulo : '',
+                teseBateu
+            };
 
             blocoNegativaReal = '\n📌 NEGATIVA REAL DO RA (extraída do e-mail colado pelo agente, não é suposição):\n';
             blocoNegativaReal += `- Motivo oficial citado pelo RA: ${negativaParse.motivoOficial || '(não encontrado no texto colado)'}\n`;
@@ -6828,7 +6835,8 @@ IMPORTANTE: Use o conhecimento dos feedbacks anteriores para evitar erros simila
             
             res.json({
                 success: true,
-                result: textoReformulado
+                result: textoReformulado,
+                negativaInfo
             });
         } else {
             const errorData = await response.text();
@@ -7461,10 +7469,14 @@ app.get('/api/solicitacoes', async (req, res) => {
                                 const idModeracao = row[1] ? row[1].toString().trim() : ''; // Coluna B: ID da Moderação
                                 const dataRegistro = row[0] ? row[0].toString().trim() : ''; // Coluna A: Data do Registro
                                 
+                                // Coluna P (índice 15): Texto Completo da Negativa — o e-mail real colado pelo agente,
+                                // reaproveitado depois no botão "Reformular após Negativa" sem pedir de novo.
+                                const textoCompletoNegativa = row[15] ? row[15].toString().trim() : '';
+
                                 if (idModeracao) {
                                     const idNormalized = idModeracao.replace(/\s+/g, '');
                                     if (!resultadosMap.has(idNormalized)) {
-                                        resultadosMap.set(idNormalized, { resultado: 'Negada', dataRegistro });
+                                        resultadosMap.set(idNormalized, { resultado: 'Negada', dataRegistro, textoCompletoNegativa });
                                     } else {
                                         const existente = resultadosMap.get(idNormalized);
                                         if (dataRegistro && existente.dataRegistro) {
@@ -7472,7 +7484,7 @@ app.get('/api/solicitacoes', async (req, res) => {
                                                 const dataNova = new Date(dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
                                                 const dataExistente = new Date(existente.dataRegistro.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
                                                 if (dataNova > dataExistente) {
-                                                    resultadosMap.set(idNormalized, { resultado: 'Negada', dataRegistro });
+                                                    resultadosMap.set(idNormalized, { resultado: 'Negada', dataRegistro, textoCompletoNegativa });
                                                 }
                                             } catch (e) {
                                                 // Se não conseguir comparar, manter o existente
@@ -7554,7 +7566,8 @@ app.get('/api/solicitacoes', async (req, res) => {
                             consideracaoFinal: moderacao['Consideração Final'] || moderacao.consideracaoFinal || '',
                             status: moderacao['Status Aprovação'] || moderacao.Status || 'Aprovada',
                             resultadoModeracao: resultadoModeracao, // Resultado da página "Resultados da Moderação"
-                            hipoteseUtilizada: (moderacao[15] || moderacao['Hipótese Utilizada'] || '').toString().trim() // Coluna P
+                            hipoteseUtilizada: (moderacao[15] || moderacao['Hipótese Utilizada'] || '').toString().trim(), // Coluna P
+                            textoNegativaRA: resultadoEncontrado ? (resultadoEncontrado.textoCompletoNegativa || '') : '' // E-mail real já registrado, se "Negada"
                         });
                     });
                     
