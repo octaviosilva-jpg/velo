@@ -4260,6 +4260,30 @@ function gerarLinhaRaciocinioModeracaoReformulada(motivoModeracao, solicitacaoCl
     return linha;
 }
 
+// Linha de raciocínio para a reformulação baseada na negativa REAL do RA (não texto livre).
+// Mostrada logo acima do novo pedido em #texto-moderacao, explicando o porquê da mudança
+// sem precisar de uma caixa secundária separada (isso é o que confundia o usuário antes).
+function gerarLinhaRaciocinioNegativaReal(info) {
+    let linha = '<div class="linha-raciocinio reformulada">';
+    linha += '<h6 class="text-warning mb-3"><i class="fas fa-redo me-2"></i>Reformulado com base na negativa real do RA:</h6>';
+    linha += '<div class="alert alert-warning border-start border-warning border-4 mb-3">';
+    linha += `<p class="mb-1"><strong>Motivo citado pelo RA:</strong> ${info.motivoOficial || '(não identificado no e-mail colado)'}${info.codigo ? ` (${info.codigo})` : ''}</p>`;
+    if (info.regraTitulo) {
+        linha += `<p class="mb-1"><strong>Regra do manual aplicada:</strong> ${info.regraTitulo}</p>`;
+    }
+    if (info.teseBateu === false) {
+        linha += '<p class="mb-0"><i class="fas fa-exchange-alt me-1"></i>A hipótese usada na tentativa anterior não batia com o motivo do RA — o pedido abaixo foi refeito com outra fundamentação.</p>';
+    } else if (info.teseBateu === true) {
+        linha += '<p class="mb-0"><i class="fas fa-check me-1"></i>A hipótese usada já era a correta — o pedido abaixo mantém a mesma tese, reforçada com mais fatos concretos.</p>';
+    } else {
+        linha += '<p class="mb-0">O pedido abaixo foi reformulado com base no motivo real informado pelo RA.</p>';
+    }
+    linha += '</div>';
+    linha += '<p class="text-muted mb-0"><i class="fas fa-arrow-down me-1"></i>Novo pedido de moderação abaixo:</p>';
+    linha += '</div>';
+    return linha;
+}
+
 // Função para gerar texto de moderação reformulado
 function gerarTextoModeracaoReformulado(motivoModeracao, consideracaoFinal, feedback) {
     let texto = '<p><strong>Texto para Moderação (Reformulado):</strong></p>';
@@ -5462,48 +5486,27 @@ async function processarReformulacaoAposNegativa(textoNegativaRAParam) {
         const data = await response.json();
 
         if (data.success) {
-            // Atualizar o texto de moderação com a versão reformulada
+            const info = data.negativaInfo || {};
+
+            // O PEDIDO REFORMULADO (o que de fato importa) é o texto abaixo — substitui o antigo.
             const textoModeracao = document.getElementById('texto-moderacao');
-            textoModeracao.innerHTML = data.result;
+            textoModeracao.innerHTML = formatarTextoModeracao(data.result);
 
-            // Atualizar linha de raciocínio para indicar reformulação
+            // Linha de raciocínio explica, logo ACIMA do pedido novo, por que ele mudou —
+            // sem caixa secundária separada nem repetir o e-mail inteiro, pra não se perder na tela.
             const linhaRaciocinio = document.getElementById('linha-raciocinio');
-            linhaRaciocinio.innerHTML = gerarLinhaRaciocinioModeracaoReformulada(
-                motivoModeracao,
-                solicitacaoCliente,
-                respostaEmpresa,
-                textoNegativaRA
-            );
+            linhaRaciocinio.innerHTML = gerarLinhaRaciocinioNegativaReal(info);
 
-            // Mostrar seção de feedback
-            const feedbackSection = document.getElementById('feedback-moderacao');
-            feedbackSection.style.display = 'block';
+            // Esconde uma caixa de "Análise de Feedback" de uma ação anterior (Dar Feedback), se
+            // estiver visível — não é dessa ação e só teria confundido com conteúdo desatualizado.
+            const feedbackSectionAntiga = document.getElementById('feedback-moderacao');
+            if (feedbackSectionAntiga) feedbackSectionAntiga.style.display = 'none';
 
-            // Atualizar conteúdo do feedback — usa o resumo estruturado que o servidor extraiu do
-            // e-mail (não reexibe o e-mail inteiro de novo, ele já foi visto ao registrar a negativa).
-            const feedbackContent = feedbackSection.querySelector('.response-box');
-            if (feedbackContent) {
-                const info = data.negativaInfo || {};
-                let resumoTese = '';
-                if (info.teseBateu === false) {
-                    resumoTese = '<p class="mb-0"><i class="fas fa-exchange-alt me-1"></i>A hipótese usada antes não batia com o motivo do RA — a tese foi trocada.</p>';
-                } else if (info.teseBateu === true) {
-                    resumoTese = '<p class="mb-0"><i class="fas fa-check me-1"></i>A hipótese usada antes já era a correta — o texto foi reforçado com mais fatos.</p>';
-                }
-                feedbackContent.innerHTML = `
-                    <div class="alert alert-warning border-start border-warning border-4">
-                        <h6 class="alert-heading">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Reformulação Realizada
-                        </h6>
-                        <p class="mb-1"><strong>Motivo citado pelo RA:</strong> ${info.motivoOficial || '(não identificado no e-mail)'}${info.codigo ? ` (${info.codigo})` : ''}</p>
-                        ${info.regraTitulo ? `<p class="mb-1"><strong>Regra do manual:</strong> ${info.regraTitulo}</p>` : ''}
-                        ${resumoTese}
-                    </div>
-                `;
-            }
+            showSuccessMessage('Pedido de moderação reformulado — confira o novo texto logo abaixo.');
 
-            showSuccessMessage('Solicitação de moderação reformulada com sucesso!');
+            // Garante que o pedido novo fique visível na tela, não só o topo do formulário.
+            const resultadoDiv = document.getElementById('moderacao-resultado');
+            if (resultadoDiv) resultadoDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             // Limpar modal
             setTimeout(() => {
