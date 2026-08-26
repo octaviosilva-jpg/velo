@@ -2390,6 +2390,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
     // Registrar APENAS a nova resposta no Google Sheets (não toda a fila)
     if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
         try {
+            const resumoExecutivo = await gerarResumoExecutivoIA(dadosFormulario.texto_cliente);
             const respostaData = {
                 id: novoModelo.id,
                 tipo: 'resposta',
@@ -2398,6 +2399,7 @@ async function addModeloResposta(dadosFormulario, respostaAprovada, userData = n
                 respostaAprovada: novoModelo.respostaAprovada || 'N/A',
                 dadosFormulario: novoModelo.dadosFormulario || {},
                 timestamp: novoModelo.timestamp,
+                resumoExecutivo,
                 userProfile: novoModelo.userData ? `${novoModelo.userData.nome} (${novoModelo.userData.email})` : 'N/A',
                 userName: novoModelo.userData?.nome || 'N/A',
                 userEmail: novoModelo.userData?.email || 'N/A'
@@ -3949,6 +3951,51 @@ function resolverChaveOpenAI(envVars) {
     }
 
     return { apiKey: null, envVars: vars };
+}
+
+/**
+ * Resumo executivo de 1 frase pra coluna "Detalhes" da tabela de solicitações — não é
+ * trecho truncado do texto original, é uma síntese tipo "o cliente deseja a exclusão dos
+ * seus dados". Best-effort: sem chave, texto vazio ou qualquer erro de API retorna '' e
+ * quem chama segue o fluxo normal (o registro no Sheets nunca fica bloqueado por isso).
+ */
+async function gerarResumoExecutivoIA(textoBase) {
+    const texto = (textoBase || '').toString().trim();
+    if (!texto) return '';
+    try {
+        const { apiKey } = resolverChaveOpenAI();
+        if (!apiKey) return '';
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Você resume reclamações de clientes em UMA frase curta e direta, em português, na terceira pessoa, no formato "O cliente [verbo] [do que se trata]". Exemplos: "O cliente deseja a exclusão dos seus dados.", "O cliente informa que os juros cobrados são abusivos.", "O cliente contesta a cobrança de uma parcela já paga." Não use aspas, não repita o texto original, não adicione explicações — responda só com a frase.'
+                    },
+                    { role: 'user', content: texto.slice(0, 3000) }
+                ],
+                temperature: 0.3,
+                max_tokens: 80
+            })
+        });
+
+        if (!response.ok) {
+            console.warn('⚠️ Resumo executivo (IA) respondeu com erro HTTP', response.status, '— seguindo sem ele');
+            return '';
+        }
+        const data = await response.json();
+        return (data.choices?.[0]?.message?.content || '').trim();
+    } catch (error) {
+        console.warn('⚠️ Resumo executivo (IA) falhou, seguindo sem ele:', error.message);
+        return '';
+    }
 }
 
 function carregarEnvVarsDeArquivosLocais() {
@@ -7218,6 +7265,7 @@ app.get('/api/solicitacoes', async (req, res) => {
                             solucaoImplementada: resposta['Solução Implementada'] || resposta.solucaoImplementada || '',
                             historicoAtendimento: resposta['Histórico Atendimento'] || resposta.historicoAtendimento || '',
                             observacoesInternas: resposta['Observações Internas'] || resposta.observacoesInternas || '',
+                            resumoExecutivo: (resposta[12] || resposta['Resumo Executivo'] || '').toString().trim(), // Coluna M — síntese gerada por IA
                             status: resposta['Status Aprovação'] || resposta.Status || 'Aprovada'
                         });
                     });
@@ -7393,7 +7441,8 @@ app.get('/api/solicitacoes', async (req, res) => {
                             hipoteseUtilizada: (moderacao[15] || moderacao['Hipótese Utilizada'] || '').toString().trim(), // Coluna P
                             textoNegativaRA: resultadoEncontrado ? (resultadoEncontrado.textoCompletoNegativa || '') : '', // E-mail real já registrado, se "Negada"
                             numeroTentativa: numeroTentativa, // Coluna Q — 1 = tentativa original, 2+ = reformulação encadeada
-                            idModeracaoAnterior: idModeracaoAnterior // Coluna R — id da tentativa que esta reformula (vazio na 1ª)
+                            idModeracaoAnterior: idModeracaoAnterior, // Coluna R — id da tentativa que esta reformula (vazio na 1ª)
+                            resumoExecutivo: (moderacao[18] || moderacao['Resumo Executivo'] || '').toString().trim() // Coluna S — síntese gerada por IA
                         });
                     });
                     
@@ -10258,10 +10307,11 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
 
         // Salvar como modelo de moderação aprovada
         const modelo = await addModeloModeracao(dadosModeracao, linhaRaciocinio, textoModeracao);
-        
+
         // Registrar no Google Sheets (SEMPRE TENTAR - auto-inicialização dentro da função)
         if (googleSheetsIntegration) {
             console.log('📋 Tentando registrar moderação coerente no Google Sheets...');
+            const resumoExecutivo = await gerarResumoExecutivoIA(dadosModeracao?.solicitacaoCliente);
             const moderacaoData = {
                 id: modelo.id,
                 idReclamacao: idReclamacao, // ID da Reclamação para rastreabilidade (coluna M da planilha)
@@ -10273,6 +10323,7 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
                 textoFinal: textoModeracao,
                 numeroTentativa: numeroTentativa,
                 idModeracaoAnterior: idModeracaoAnteriorTrim || '',
+                resumoExecutivo,
                 userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
                 userName: req.userData?.nome || 'N/A',
                 userEmail: req.userData?.email || 'N/A'

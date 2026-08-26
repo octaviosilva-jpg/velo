@@ -4272,10 +4272,15 @@ async function buscarSolicitacoes() {
                         ? '<span class="badge bg-success">Aprovada</span>'
                         : '<span class="badge bg-secondary">' + (solicitacao.status || 'N/A') + '</span>';
 
-                    // Resumo do atendimento: motivo + o que o cliente reclamou + o que foi resolvido.
+                    // Resumo executivo: motivo + síntese de 1 frase do que o cliente quer (gerada por IA
+                    // no momento em que a resposta foi salva) + o que foi resolvido. Registros antigos,
+                    // salvos antes desse recurso existir, caem no fallback de trecho truncado entre aspas.
+                    const resumoTexto = solicitacao.resumoExecutivo
+                        ? solicitacao.resumoExecutivo
+                        : (solicitacao.textoCliente ? `"${truncar(solicitacao.textoCliente, 110)}"` : 'N/A');
                     const detalhesResumo = `
                         <strong>${solicitacao.tipoSolicitacao || 'N/A'}</strong><br>
-                        <span class="text-muted">"${truncar(solicitacao.textoCliente, 110) || 'N/A'}"</span>
+                        <span class="${solicitacao.resumoExecutivo ? 'text-dark' : 'text-muted'}">${resumoTexto}</span>
                         ${solicitacao.solucaoImplementada ? `<br><span class="text-success"><i class="fas fa-check-circle me-1"></i>${truncar(solicitacao.solucaoImplementada, 100)}</span>` : ''}
                     `;
 
@@ -4346,9 +4351,20 @@ async function buscarSolicitacoes() {
                     const ultimaTentativa = grupo.itens[grupo.itens.length - 1];
                     const temMultiplasTentativas = grupo.itens.length > 1;
 
-                    const statusBadge = ultimaTentativa.resultadoModeracao === 'Aceita'
+                    // Se QUALQUER tentativa do grupo foi aceita, o card resumido mostra "Aceita" —
+                    // mesmo que não seja a mais recente. Isso é seguro porque uma reformulação de
+                    // verdade nunca parte de uma tentativa já aceita (o botão "Carregar pra
+                    // Reformular" só aparece quando resultadoModeracao !== 'Aceita'); "Aceita seguida
+                    // de Negada" só acontece em pares antigos sem vínculo (idModeracaoAnterior vazio —
+                    // duas submissões independentes pra mesma reclamação, de antes desse recurso
+                    // existir), onde a mais recente NÃO é uma correção da anterior e não deveria
+                    // esconder que o caso já foi resolvido a favor.
+                    const tentativaAceita = grupo.itens.find(item => item.resultadoModeracao === 'Aceita');
+                    const tentativaParaStatus = tentativaAceita || ultimaTentativa;
+
+                    const statusBadge = tentativaParaStatus.resultadoModeracao === 'Aceita'
                         ? '<span class="badge bg-success">Aceita</span>'
-                        : ultimaTentativa.resultadoModeracao === 'Negada'
+                        : tentativaParaStatus.resultadoModeracao === 'Negada'
                             ? '<span class="badge bg-danger">Negada</span>'
                             : '<span class="badge bg-secondary">Aguardando resultado</span>';
 
@@ -4356,11 +4372,18 @@ async function buscarSolicitacoes() {
                         ? `<span class="badge bg-warning">Moderação</span> <span class="badge bg-info text-dark">${grupo.itens.length} tentativas</span>`
                         : '<span class="badge bg-warning">Moderação</span>';
 
-                    // Resumo do atendimento: motivo + o que o cliente reclamou + a resposta que a empresa deu.
+                    // Resumo executivo: motivo + síntese de 1 frase do que o cliente reclamou (gerada por
+                    // IA ao marcar a moderação como coerente) + o que foi pedido à RA. Usa a mesma
+                    // tentativa do status acima (a aceita, se houver) — pra não mostrar um resumo de uma
+                    // tentativa diferente da que o badge de status está descrevendo. Registros antigos,
+                    // salvos antes desse recurso existir, caem no fallback de trecho truncado entre aspas.
+                    const resumoTexto = tentativaParaStatus.resumoExecutivo
+                        ? tentativaParaStatus.resumoExecutivo
+                        : (tentativaParaStatus.solicitacaoCliente ? `"${truncar(tentativaParaStatus.solicitacaoCliente, 110)}"` : 'N/A');
                     const detalhesResumo = `
-                        <strong>${ultimaTentativa.motivoModeracao || 'N/A'}</strong><br>
-                        <span class="text-muted">"${truncar(ultimaTentativa.solicitacaoCliente, 110) || 'N/A'}"</span>
-                        ${ultimaTentativa.respostaEmpresa && ultimaTentativa.respostaEmpresa !== 'N/A' ? `<br><span class="text-info"><i class="fas fa-reply me-1"></i>${truncar(ultimaTentativa.respostaEmpresa, 100)}</span>` : ''}
+                        <strong>${tentativaParaStatus.motivoModeracao || 'N/A'}</strong><br>
+                        <span class="${tentativaParaStatus.resumoExecutivo ? 'text-dark' : 'text-muted'}">${resumoTexto}</span>
+                        ${tentativaParaStatus.textoModeracao && tentativaParaStatus.textoModeracao !== 'N/A' ? `<br><span class="text-primary"><i class="fas fa-gavel me-1"></i>Pedido: ${truncar(tentativaParaStatus.textoModeracao, 90)}</span>` : ''}
                     `;
 
                     const blocosTentativas = grupo.itens.map((solicitacao, i) => {
@@ -4377,7 +4400,13 @@ async function buscarSolicitacoes() {
                         // numeroTentativa (com empate resolvido por ordem cronológica, JS sort é estável)
                         // já deixa o array na ordem certa — a posição em si é o rótulo certo.
                         const numero = i + 1;
-                        const ordinalLabel = numero === 1 ? '1ª tentativa' : `${numero}ª tentativa (Reformulação)`;
+                        // "(Reformulação)" só quando existe de fato o vínculo com a tentativa anterior
+                        // (idModeracaoAnterior preenchido) — pares antigos sem esse vínculo (2 submissões
+                        // independentes que coincidem no ID da reclamação, de antes desse recurso existir)
+                        // não foram reformulados de verdade, então rotular como tal seria enganoso.
+                        const ordinalLabel = numero === 1
+                            ? '1ª tentativa'
+                            : (solicitacao.idModeracaoAnterior ? `${numero}ª tentativa (Reformulação)` : `${numero}ª tentativa`);
                         const tentativaStatusBadge = solicitacao.resultadoModeracao === 'Aceita'
                             ? '<span class="badge bg-success">✅ Aceita</span>'
                             : solicitacao.resultadoModeracao === 'Negada'

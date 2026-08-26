@@ -579,6 +579,18 @@ class GoogleSheetsIntegration {
             const userProfile = respostaData.userProfile || 
                 (respostaData.userEmail ? `${respostaData.userName || 'Usuário'} (${respostaData.userEmail})` : 'N/A');
 
+            // Garantir o cabeçalho da coluna M (índice 12) — Resumo Executivo. Best-effort:
+            // se a planilha ainda não tiver esse cabeçalho, escreve uma vez; não bloqueia o salvamento.
+            try {
+                const headerData = await googleSheetsConfig.readData('Respostas Coerentes!A1:M1');
+                const headerAtual = headerData && headerData[0] ? headerData[0][12] : null;
+                if (!headerAtual) {
+                    await googleSheetsConfig.updateRow('Respostas Coerentes!M1', ['Resumo Executivo']);
+                }
+            } catch (error) {
+                console.warn('⚠️ Não foi possível garantir o cabeçalho da coluna M (Resumo Executivo):', error.message);
+            }
+
             const row = [
                 new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Data/Hora
                 respostaData.id || '', // Coluna B: ID
@@ -591,7 +603,8 @@ class GoogleSheetsIntegration {
                 respostaData.dadosFormulario?.historico_atendimento || '', // Coluna I: Histórico Atendimento
                 respostaData.dadosFormulario?.tipo_solicitacao || respostaData.tipoSituacao || '', // Coluna J: Tipo de Situação
                 'Aprovada', // Coluna K: Status Aprovação
-                respostaData.dadosFormulario?.nome_solicitante || respostaData.dadosFormulario?.observacoes_internas || '' // Coluna L: Nome do solicitante
+                respostaData.dadosFormulario?.nome_solicitante || respostaData.dadosFormulario?.observacoes_internas || '', // Coluna L: Nome do solicitante
+                respostaData.resumoExecutivo || '' // Coluna M: Resumo Executivo (síntese gerada por IA, ex.: "O cliente deseja a exclusão dos seus dados.")
             ];
 
             await googleSheetsConfig.appendRow('Respostas Coerentes!A:Z', row);
@@ -768,6 +781,15 @@ class GoogleSheetsIntegration {
                 }
             }
 
+            // Garantir o cabeçalho da coluna S (índice 18) — Resumo Executivo. Mesmo padrão best-effort.
+            if (!headersAtuais || !headersAtuais[18]) {
+                try {
+                    await googleSheetsConfig.updateRow('Moderações!S1', ['Resumo Executivo']);
+                } catch (error) {
+                    console.warn('⚠️ Não foi possível garantir o cabeçalho da coluna S (Resumo Executivo):', error.message);
+                }
+            }
+
             // Criar perfil do usuário para a coluna ID
             const userProfile = moderacaoData.userProfile || 
                 (moderacaoData.userEmail ? `${moderacaoData.userName || 'Usuário'} (${moderacaoData.userEmail})` : 'N/A');
@@ -794,7 +816,8 @@ class GoogleSheetsIntegration {
                 '', // [14] Resultado da Moderação (vazio até ser preenchido pelo agente ao marcar Aceita/Negada)
                 moderacaoData.auditoriaHipotese || '', // [15] Hipótese Utilizada (auditoria interna que embasou o pedido)
                 moderacaoData.numeroTentativa || 1, // [16] Número da Tentativa (1 = original; 2+ = reformulação encadeada)
-                moderacaoData.idModeracaoAnterior || '' // [17] ID Moderação Anterior (id da tentativa que esta reformula; vazio na 1ª)
+                moderacaoData.idModeracaoAnterior || '', // [17] ID Moderação Anterior (id da tentativa que esta reformula; vazio na 1ª)
+                moderacaoData.resumoExecutivo || '' // [18] Resumo Executivo (síntese gerada por IA, ex.: "O cliente contesta a cobrança de uma parcela já paga.")
             ];
 
             // Validar que todos os dados estão nas posições corretas
@@ -825,7 +848,7 @@ class GoogleSheetsIntegration {
             }
 
             console.log('💾 Salvando moderação com Status Aprovação:', row[12], 'na coluna M (índice 12)');
-            await googleSheetsConfig.appendRow('Moderações!A:R', row); // A:R para incluir as 18 colunas (inclui Q/R de tentativa)
+            await googleSheetsConfig.appendRow('Moderações!A:S', row); // A:S para incluir as 19 colunas (inclui Q/R de tentativa e S de resumo executivo)
             console.log('✅ Moderação coerente registrada no Google Sheets com perfil do usuário:', userProfile);
             console.log('✅ Status Aprovação confirmado salvo:', row[12]);
             
