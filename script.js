@@ -4255,6 +4255,12 @@ async function buscarSolicitacoes() {
                     return { idReclamacao, itens };
                 });
 
+                // Resumo curto pra coluna "Detalhes" — trunca com reticências só quando corta de fato.
+                const truncar = (texto, tamanho) => {
+                    const t = (texto || '').toString().trim();
+                    return t.length > tamanho ? `${t.substring(0, tamanho)}...` : t;
+                };
+
                 const linhasResposta = respostas.map((solicitacao, index) => {
                     const solicitacaoId = `solicitacao-${solicitacao.tipo}-${solicitacao.id || index}`;
                     solicitacoesCache[solicitacaoId] = solicitacao;
@@ -4266,9 +4272,11 @@ async function buscarSolicitacoes() {
                         ? '<span class="badge bg-success">Aprovada</span>'
                         : '<span class="badge bg-secondary">' + (solicitacao.status || 'N/A') + '</span>';
 
+                    // Resumo do atendimento: motivo + o que o cliente reclamou + o que foi resolvido.
                     const detalhesResumo = `
-                        <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
-                        <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
+                        <strong>${solicitacao.tipoSolicitacao || 'N/A'}</strong><br>
+                        <span class="text-muted">"${truncar(solicitacao.textoCliente, 110) || 'N/A'}"</span>
+                        ${solicitacao.solucaoImplementada ? `<br><span class="text-success"><i class="fas fa-check-circle me-1"></i>${truncar(solicitacao.solucaoImplementada, 100)}</span>` : ''}
                     `;
 
                     const detalhesExpandidos = `
@@ -4348,9 +4356,11 @@ async function buscarSolicitacoes() {
                         ? `<span class="badge bg-warning">Moderação</span> <span class="badge bg-info text-dark">${grupo.itens.length} tentativas</span>`
                         : '<span class="badge bg-warning">Moderação</span>';
 
+                    // Resumo do atendimento: motivo + o que o cliente reclamou + a resposta que a empresa deu.
                     const detalhesResumo = `
-                        <strong>Motivo:</strong> ${ultimaTentativa.motivoModeracao || 'N/A'}<br>
-                        <small class="text-muted">${(ultimaTentativa.solicitacaoCliente || '').substring(0, 100)}${ultimaTentativa.solicitacaoCliente && ultimaTentativa.solicitacaoCliente.length > 100 ? '...' : ''}</small>
+                        <strong>${ultimaTentativa.motivoModeracao || 'N/A'}</strong><br>
+                        <span class="text-muted">"${truncar(ultimaTentativa.solicitacaoCliente, 110) || 'N/A'}"</span>
+                        ${ultimaTentativa.respostaEmpresa && ultimaTentativa.respostaEmpresa !== 'N/A' ? `<br><span class="text-info"><i class="fas fa-reply me-1"></i>${truncar(ultimaTentativa.respostaEmpresa, 100)}</span>` : ''}
                     `;
 
                     const blocosTentativas = grupo.itens.map((solicitacao, i) => {
