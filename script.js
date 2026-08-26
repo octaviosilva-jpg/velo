@@ -32,10 +32,6 @@ const NOME_EMPRESA = 'Velotax';
 const DOMINIO_CORPORATIVO = '@velotax.com.br';
 const SITE_EMPRESA = 'https://www.velotax.com.br';
 
-// Sistema de histórico
-let historicoStats = [];
-const HISTORICO_KEY = 'velotax_historico_stats';
-
 // Atualiza o card de Estatísticas (janela móvel de confiabilidade, vinda da planilha)
 async function carregarEstatisticasGlobais() {
     await atualizarEstatisticasNaInterface();
@@ -631,12 +627,6 @@ async function sincronizarDadosLocais() {
     }
 }
 
-// Função removida - funcionalidade obsoleta (substituída pelo modal de solicitações)
-// function visualizarModelosSalvos() { ... }
-
-// Função removida - funcionalidade obsoleta
-// function limparModelosSalvos() { ... }
-
 // Função para solicitar feedback do usuário antes da reformulação
 function solicitarFeedbackParaReformulacao(dadosAtuais, respostaAtual) {
     // Criar modal para feedback
@@ -869,33 +859,6 @@ function cancelarReformulacao() {
     }
     
     console.log('❌ Reformulação cancelada');
-}
-
-async function reformularRespostaOpenAI(dados, respostaAnterior) {
-    // Prompt específico para reformulação
-    const promptReformulacao = `${PROMPT_MASTER_OPENAI}
-
-### Dados recebidos:
-- Tipo de solicitação: ${dados.tipo_solicitacao}
-- ID da Reclamação: ${dados.id_reclamacao}
-- Reclamação do cliente: ${dados.texto_cliente}
-- Solução implementada: ${dados.solucao_implementada}
-- Histórico de atendimento: ${dados.historico_atendimento || 'Nenhum'}
-- Nome do solicitante: ${dados.nome_solicitante || 'N/A'}
-
-### Resposta anterior (incoerente):
-${respostaAnterior}
-
-### Instrução:
-A resposta anterior foi considerada incoerente. Gere uma nova resposta corrigindo os erros identificados, consultando os manuais de moderação do RA, documentos internos da ${NOME_EMPRESA}, cláusulas da CCB e mantendo clareza, tom cordial e imparcialidade.
-
-Gere a nova resposta:`;
-
-    // Simular delay da API
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Gerar resposta reformulada (melhorada)
-    return gerarRespostaReformulada(dados, respostaAnterior);
 }
 
 function gerarRespostaReformulada(dados, respostaAnterior) {
@@ -1246,109 +1209,6 @@ function testarFuncao() {
         console.error('❌ Erro na função de teste:', error);
         showErrorMessage('❌ Erro na função de teste: ' + error.message);
     }
-}
-
-function gerarRespostaReclameAqui(estagio, tipoSituacao, baseContratual, reclamacao, historico, solucao) {
-    let resposta = '';
-    
-    // Saudação baseada no estágio
-    const saudacoes = {
-        'primeira-resposta': '<p><strong>Prezado(a) cliente,</strong></p>',
-        'replica': '<p><strong>Prezado(a) cliente,</strong></p>',
-        'fechamento': '<p><strong>Prezado(a) cliente,</strong></p>'
-    };
-    
-    resposta += saudacoes[estagio] || saudacoes['primeira-resposta'];
-    
-    // Conteúdo baseado no tipo de situação selecionado
-    switch (tipoSituacao) {
-        case 'retirar-chave-pix':
-            resposta += '<p>Informamos que sua solicitação de retirada de chave Pix foi processada conforme solicitado.</p>';
-            resposta += '<p>O prazo para processamento é de até 2 dias úteis, conforme regulamentação do Banco Central.</p>';
-            break;
-        case 'exclusao-cadastro':
-            resposta += '<p>Sua solicitação de exclusão de cadastro foi devidamente registrada em nossos sistemas.</p>';
-            resposta += '<p>A exclusão será realizada em até 15 dias úteis, conforme previsto na LGPD.</p>';
-            break;
-        case 'exclusao-conta-celcoin':
-            resposta += '<p>Informamos que sua solicitação de exclusão da conta Celcoin foi processada.</p>';
-            resposta += '<p>O processo de exclusão será concluído em até 5 dias úteis.</p>';
-            break;
-        case 'pagamento-restituicao':
-            resposta += '<p>O pagamento de sua restituição foi processado conforme solicitado.</p>';
-            resposta += '<p>O valor será creditado em sua conta em até 3 dias úteis.</p>';
-            break;
-        case 'amortizacao':
-            resposta += '<p>Sua solicitação de amortização foi devidamente registrada.</p>';
-            resposta += '<p>O valor será aplicado conforme as condições contratuais estabelecidas.</p>';
-            break;
-        case 'calculadora':
-            resposta += '<p>Informamos que nossa calculadora está disponível em nosso site para simulações.</p>';
-            resposta += '<p>Para cálculos específicos, nossa equipe está disponível para orientações.</p>';
-            break;
-        case 'estorno-plano':
-            resposta += '<p>O estorno de seu plano foi processado conforme solicitado.</p>';
-            resposta += '<p>O valor será devolvido em até 10 dias úteis, conforme prazo estabelecido.</p>';
-            break;
-        case 'quitação':
-            resposta += '<p>Conforme solicitado, a quitação antecipada foi processada com o desconto aplicável conforme as condições contratuais.</p>';
-            break;
-        case 'outro':
-            resposta += '<p>Sua solicitação foi devidamente registrada em nossos sistemas.</p>';
-            resposta += '<p>Nossa equipe está analisando o caso e entrará em contato em breve.</p>';
-            break;
-        default:
-            resposta += '<p>Sua solicitação foi devidamente registrada em nossos sistemas.</p>';
-            resposta += '<p>Nossa equipe está analisando o caso e entrará em contato em breve.</p>';
-            break;
-    }
-    
-    // Se há histórico de atendimento
-    if (historico.trim()) {
-        resposta += '<p>Conforme já havíamos encaminhado anteriormente, ';
-        resposta += historico.toLowerCase() + '.</p>';
-    }
-    
-    // Se há solução implementada
-    if (solucao.trim()) {
-        resposta += '<p>' + solucao + '.</p>';
-    } else if (estagio === 'primeira-resposta') {
-        resposta += '<p>Agradecemos seu contato e lamentamos pelo transtorno causado.</p>';
-        resposta += '<p>Nossa equipe está analisando sua solicitação e tomaremos as medidas necessárias para resolver a situação.</p>';
-    }
-    
-    // Fechamento baseado no estágio
-    if (estagio === 'fechamento') {
-        resposta += '<p>Consideramos este assunto encerrado e agradecemos sua compreensão.</p>';
-    }
-    
-    resposta += '<p>Seguimos à disposição para ajudar.</p>';
-    
-    return resposta;
-}
-
-// Função para copiar resposta editada
-function copiarRespostaEditada() {
-    const textoEditavel = document.getElementById('texto-editavel').value;
-    
-    if (!textoEditavel || (typeof textoEditavel === 'string' && !textoEditavel.trim())) {
-        showErrorMessage('Não há texto para copiar.');
-        return;
-    }
-    
-    navigator.clipboard.writeText(textoEditavel).then(() => {
-        showSuccessMessage('Resposta editada copiada para a área de transferência!');
-    }).catch(() => {
-        showErrorMessage('Erro ao copiar texto.');
-    });
-}
-
-// Função para limpar edição
-function limparEdicao() {
-    document.getElementById('texto-editavel').value = '';
-    document.getElementById('edicao-rapida').style.display = 'none';
-    document.getElementById('resposta-ra').style.display = 'none';
-    showSuccessMessage('Edição limpa com sucesso!');
 }
 
 // ===== FUNÇÕES DE MODERAÇÃO =====
@@ -2637,12 +2497,6 @@ function isNaTetoJustificativa(valor) {
     );
 }
 
-function humanizarCampoJustificativa(valor) {
-    const limpo = stripMarkdownJustificativa(valor);
-    if (isNaTetoJustificativa(limpo)) return JUSTIFICATIVA_TEXTO_TETO;
-    return limpo;
-}
-
 function valorCampoFinalJustificativa(key, valor) {
     const limpo = stripMarkdownJustificativa(valor);
     if (JUSTIFICATIVA_CAMPOS_HUMANIZAR_TETO.has(key) && isNaTetoJustificativa(limpo)) {
@@ -3281,119 +3135,6 @@ function atualizarRespostaRevisadaNaInterface(novaResposta) {
     }
 }
 
-// Função para separar os blocos da resposta de revisão
-function separarBlocosRevisao(resposta) {
-    if (!resposta) return { linhaRaciocinio: '', textoRevisado: '' };
-    
-    // Procurar por marcadores que indicam os blocos
-    const marcadores = [
-        '(1) LINHA DE RACIOCÍNIO INTERNA',
-        '(2) TEXTO REVISADO',
-        'LINHA DE RACIOCÍNIO INTERNA',
-        'TEXTO REVISADO',
-        '1. LINHA DE RACIOCÍNIO INTERNA',
-        '2. TEXTO REVISADO'
-    ];
-    
-    let linhaRaciocinio = '';
-    let textoRevisado = '';
-    
-    // Tentar separar por marcadores
-    for (let i = 0; i < marcadores.length; i += 2) {
-        const marcador1 = marcadores[i];
-        const marcador2 = marcadores[i + 1];
-        
-        const index1 = resposta.indexOf(marcador1);
-        const index2 = resposta.indexOf(marcador2);
-        
-        if (index1 !== -1 && index2 !== -1) {
-            linhaRaciocinio = resposta.substring(index1 + marcador1.length, index2).trim();
-            textoRevisado = resposta.substring(index2 + marcador2.length).trim();
-            break;
-        }
-    }
-    
-    // Se não encontrou os marcadores, tentar separar por quebras de linha
-    if (!linhaRaciocinio && !textoRevisado) {
-        const linhas = resposta.split('\n');
-        let encontrouPrimeiro = false;
-        
-        for (let i = 0; i < linhas.length; i++) {
-            const linha = linhas[i].trim();
-            if (linha.includes('LINHA DE RACIOCÍNIO') || linha.includes('raciocínio')) {
-                encontrouPrimeiro = true;
-                continue;
-            }
-            if (linha.includes('TEXTO REVISADO') || linha.includes('revisado')) {
-                encontrouPrimeiro = false;
-                continue;
-            }
-            
-            if (encontrouPrimeiro) {
-                linhaRaciocinio += linha + '\n';
-            } else {
-                textoRevisado += linha + '\n';
-            }
-        }
-    }
-    
-    return {
-        linhaRaciocinio: linhaRaciocinio.trim(),
-        textoRevisado: textoRevisado.trim()
-    };
-}
-
-// Função para formatar a linha de raciocínio da revisão
-function formatarLinhaRaciocinioRevisao(linhaRaciocinio) {
-    if (!linhaRaciocinio) return '';
-    
-    let linha = '<div class="linha-raciocinio revisao">';
-    linha += '<h6 class="text-info mb-3"><i class="fas fa-brain me-2"></i>Linha de Raciocínio da Revisão:</h6>';
-    
-    // Formatar o conteúdo da linha de raciocínio
-    let conteudoFormatado = linhaRaciocinio
-        .replace(/\n\n/g, '</p><p>')  // Dupla quebra de linha = novo parágrafo
-        .replace(/\n/g, '<br>')       // Quebra simples = <br>
-        .replace(/^/, '<p>')          // Iniciar com <p>
-        .replace(/$/, '</p>');        // Terminar com </p>
-    
-    // Destacar elementos importantes
-    conteudoFormatado = conteudoFormatado
-        .replace(/Padronização/gi, '<strong class="text-primary">Padronização</strong>')
-        .replace(/Clareza/gi, '<strong class="text-success">Clareza</strong>')
-        .replace(/Compliance/gi, '<strong class="text-warning">Compliance</strong>')
-        .replace(/Estrutura/gi, '<strong class="text-info">Estrutura</strong>')
-        .replace(/LGPD/gi, '<strong class="text-danger">LGPD</strong>')
-        .replace(/CCB/gi, '<strong class="text-secondary">CCB</strong>');
-    
-    linha += '<div class="alert alert-light border-start border-info border-4">';
-    linha += conteudoFormatado;
-    linha += '</div>';
-    linha += '</div>';
-    
-    return linha;
-}
-
-// Função para formatar o texto revisado
-function formatarTextoRevisado(texto) {
-    if (!texto) return '';
-    
-    // Quebrar o texto em parágrafos baseado em quebras de linha
-    let textoFormatado = texto
-        .replace(/\n\n/g, '</p><p>')  // Dupla quebra de linha = novo parágrafo
-        .replace(/\n/g, '<br>')       // Quebra simples = <br>
-        .replace(/^/, '<p>')          // Iniciar com <p>
-        .replace(/$/, '</p>');        // Terminar com </p>
-    
-    // Destacar frases importantes
-    textoFormatado = textoFormatado
-        .replace(/Prezado\(a\)/g, '<strong>Prezado(a)</strong>')
-        .replace(/Atenciosamente/g, '<strong>Atenciosamente</strong>')
-        .replace(new RegExp(`Equipe ${NOME_EMPRESA}`, 'g'), `<strong>Equipe ${NOME_EMPRESA}</strong>`);
-    
-    return textoFormatado;
-}
-
 
 // ===== FUNÇÕES DE E-MAIL =====
 
@@ -3808,51 +3549,6 @@ function copiarDetalhamentoReclamacoes() {
     }).catch(() => {
         showErrorMessage('Erro ao copiar detalhamento.');
     });
-}
-
-// ===== FUNÇÕES DE MODERAÇÃO DE NOTAS =====
-
-function gerarModeracaoNotas() {
-    const avaliacao = document.getElementById('avaliacao-cliente').value;
-    const solucaoRealizada = document.getElementById('solucao-realizada').value;
-    const inconsistencias = document.getElementById('inconsistencias').value;
-    
-    if (!avaliacao.trim() || !solucaoRealizada.trim()) {
-        showErrorMessage('Por favor, preencha a avaliação do cliente e a solução realizada.');
-        return;
-    }
-    
-    const moderacao = gerarSolicitacaoModeracaoNotas(avaliacao, solucaoRealizada, inconsistencias);
-    
-    document.getElementById('moderacao-notas-content').innerHTML = moderacao;
-    document.getElementById('moderacao-notas-resultado').style.display = 'block';
-    
-    showSuccessMessage('Solicitação de moderação de notas gerada com sucesso!');
-}
-
-function gerarSolicitacaoModeracaoNotas(avaliacao, solucaoRealizada, inconsistencias) {
-    let moderacao = '<p><strong>Solicitação de Moderação de Notas</strong></p>';
-    
-    moderacao += '<p>Prezados,</p>';
-    moderacao += '<p>Solicitamos a moderação da avaliação acima pelos seguintes motivos:</p>';
-    
-    moderacao += '<p><strong>Avaliação do Cliente:</strong></p>';
-    moderacao += `<p>${avaliacao}</p>`;
-    
-    moderacao += '<p><strong>Solução Realmente Realizada:</strong></p>';
-    moderacao += `<p>${solucaoRealizada}</p>`;
-    
-    if (inconsistencias.trim()) {
-        moderacao += '<p><strong>Inconsistências Identificadas:</strong></p>';
-        moderacao += `<p>${inconsistencias}</p>`;
-    }
-    
-    moderacao += '<p>A nota atribuída não condiz com a solução real implementada pela empresa.</p>';
-    moderacao += '<p>Solicitamos a anulação da avaliação para não prejudicar nossa reputação.</p>';
-    
-    moderacao += '<p>Agradecemos a atenção.</p>';
-    
-    return moderacao;
 }
 
 // ===== FUNÇÕES AUXILIARES =====
@@ -4305,68 +4001,6 @@ function updateStats() {
     document.querySelectorAll('.stat-value')[0].textContent = stats.respostasHoje;
     document.querySelectorAll('.stat-value')[1].textContent = stats.moderacoes;
 }
-
-// ===== SISTEMA DE HISTÓRICO =====
-
-// Carregar histórico do localStorage
-function carregarHistorico() {
-    try {
-        const historicoSalvo = localStorage.getItem(HISTORICO_KEY);
-        if (historicoSalvo) {
-            historicoStats = JSON.parse(historicoSalvo);
-        }
-    } catch (error) {
-        console.error('Erro ao carregar histórico:', error);
-        historicoStats = [];
-    }
-}
-
-// Salvar histórico no localStorage
-function salvarHistorico() {
-    try {
-        localStorage.setItem(HISTORICO_KEY, JSON.stringify(historicoStats));
-    } catch (error) {
-        console.error('Erro ao salvar histórico:', error);
-    }
-}
-
-// Adicionar entrada ao histórico
-function adicionarAoHistorico(tipo, quantidade = 1) {
-    const hoje = new Date();
-    const dataHoje = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
-    
-    // Verificar se já existe entrada para hoje
-    let entradaHoje = historicoStats.find(entrada => entrada.data === dataHoje);
-    
-    if (entradaHoje) {
-        // Atualizar entrada existente
-        entradaHoje[tipo] = (entradaHoje[tipo] || 0) + quantidade;
-        entradaHoje.ultimaAtualizacao = hoje.toISOString();
-    } else {
-        // Criar nova entrada
-        entradaHoje = {
-            data: dataHoje,
-            respostas: tipo === 'respostas' ? quantidade : 0,
-            moderacoes: tipo === 'moderacoes' ? quantidade : 0,
-            ultimaAtualizacao: hoje.toISOString()
-        };
-        historicoStats.unshift(entradaHoje);
-    }
-    
-    // Manter apenas os últimos 30 dias
-    if (historicoStats.length > 30) {
-        historicoStats = historicoStats.slice(0, 30);
-    }
-    
-    salvarHistorico();
-}
-
-// Exibir histórico
-// Funções removidas - funcionalidade obsoleta (histórico removido)
-// function exibirHistorico() { ... }
-// async function carregarHistoricoDoServidor() { ... }
-// function exibirHistoricoServidor(historicoServidor) { ... }
-// function toggleHistorico() { ... }
 
 // Sincronizar estatísticas com Google Sheets
 async function sincronizarEstatisticasComPlanilha() {
@@ -5505,8 +5139,6 @@ window.velotaxBot = {
     copiarResposta,
     verHistorico,
     fecharHistorico,
-    // toggleHistorico, // Removido - funcionalidade obsoleta
-    // visualizarModelosSalvos, // Removido - funcionalidade obsoleta
     testarFuncao,
     avaliarResposta,
     avaliarModeracao,

@@ -1519,34 +1519,6 @@ function extrairNomeCliente(textoReclamacao) {
     return null;
 }
 
-// Extrair nome do agente da resposta pública (cliente NÃO é inferido — usar nome_solicitante).
-function extrairNomesDaRespostaPublica(respostaPublica) {
-    const out = { nomeCliente: null, nomeAgente: null };
-    if (!respostaPublica || typeof respostaPublica !== 'string') return out;
-    const texto = respostaPublica.trim();
-
-    // Nome do agente: "Sou [Nome], analista" (ou legado: especialista/atendente)
-    const matchAgente = texto.match(/Sou\s+(?:(?:o|a)\s+)?([^,]+),\s*(?:analista|especialista|atendente)/i);
-    if (matchAgente && matchAgente[1]) {
-        const nome = matchAgente[1].trim();
-        if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'agente') {
-            out.nomeAgente = nome;
-        }
-    }
-    // Fallback: assinatura "Atenciosamente,\nNome"
-    if (!out.nomeAgente) {
-        const matchAssinatura = texto.match(/Atenciosamente,?\s*\n\s*([^\n]+?)\s*\n\s*Equipe/i);
-        if (matchAssinatura && matchAssinatura[1]) {
-            const nome = matchAssinatura[1].trim();
-            if (nome.length <= 60 && !/^\d+$/.test(nome) && nome.toLowerCase() !== 'agente') {
-                out.nomeAgente = nome;
-            }
-        }
-    }
-
-    return out;
-}
-
 /** Remove saudação, apresentação, contatos e assinatura — retorna só o miolo para aprendizado/cópia. */
 function extrairMioloRespostaRA(respostaTexto) {
     if (!respostaTexto || typeof respostaTexto !== 'string') return respostaTexto || '';
@@ -2211,41 +2183,6 @@ async function carregarFeedbacksRelevantesDaPlanilha(tipoSolicitacao) {
     }
 }
 
-// ===== FUNÇÕES PARA CARREGAR MODELOS DA PLANILHA =====
-
-// Carregar modelos da planilha para aprendizado (função antiga - mantida para compatibilidade)
-async function carregarModelosDaPlanilha(tipoSolicitacao) {
-    if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
-        console.log('⚠️ Google Sheets não está ativo. Não é possível carregar modelos da planilha.');
-        return [];
-    }
-
-    try {
-        console.log(`📚 Carregando modelos da planilha para: ${tipoSolicitacao}`);
-        
-        // Usar a integração do Google Sheets em vez de acessar diretamente
-        const todosModelos = await googleSheetsIntegration.obterModelosRespostas();
-        
-        if (!todosModelos || todosModelos.length === 0) {
-            console.log('📚 Nenhum modelo encontrado na planilha');
-            return [];
-        }
-        
-        // Filtrar modelos relevantes para o tipo de solicitação
-        const modelos = todosModelos.filter(modelo => {
-            const tipoSituacao = modelo['Tipo Solicitação'] || modelo.tipo_situacao || '';
-            return tipoSituacao.toLowerCase().includes(tipoSolicitacao.toLowerCase());
-        });
-        
-        console.log(`✅ Carregados ${modelos.length} modelos relevantes da planilha`);
-        return modelos;
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar modelos da planilha:', error.message);
-        return [];
-    }
-}
-
 // ===== FUNÇÕES PARA MODELOS DE RESPOSTAS APROVADAS =====
 
 // Carregar modelos de respostas
@@ -2775,119 +2712,6 @@ async function getModelosModeracaoRelevantes(motivoModeracao, dadosModeracao = n
             return new Date(b.timestamp) - new Date(a.timestamp);
         })
         .slice(0, 5); // Aumentar para 5 modelos mais relevantes
-}
-
-// ===== FUNÇÕES PARA APRENDIZADO DIRETO NO SCRIPT DE FORMULAÇÃO =====
-
-// Processar aprendizado obrigatório antes da geração de respostas
-async function processarAprendizadoObrigatorio(dadosFormulario) {
-    console.log('🎓 PROCESSAMENTO OBRIGATÓRIO DE APRENDIZADO INICIADO');
-    console.log('📋 Dados recebidos:', {
-        tipo_solicitacao: dadosFormulario.tipo_solicitacao,
-        motivo_solicitacao: dadosFormulario.motivo_solicitacao
-    });
-    
-    // 1. Carregar aprendizado da PLANILHA (não da memória)
-    console.log('🧠 SISTEMA DE APRENDIZADO: Carregando dados da PLANILHA...');
-    let aprendizadoScript = null;
-    
-    try {
-        // Tentar carregar da planilha primeiro
-        aprendizadoScript = await carregarDadosAprendizadoCompleto(dadosFormulario.tipo_solicitacao);
-        console.log('✅ Aprendizado carregado da PLANILHA:', {
-            modelosCoerentes: aprendizadoScript?.modelosCoerentes?.length || 0,
-            feedbacksRelevantes: aprendizadoScript?.feedbacksRelevantes?.length || 0,
-            fonte: aprendizadoScript?.fonte || 'desconhecida'
-        });
-    } catch (error) {
-        console.log('⚠️ Erro ao carregar da planilha, usando fallback local:', error.message);
-        // Fallback para dados locais se a planilha falhar
-        aprendizadoScript = await carregarDadosAprendizadoLocal(dadosFormulario.tipo_solicitacao);
-        console.log('✅ Aprendizado carregado do FALLBACK LOCAL:', {
-            modelosCoerentes: aprendizadoScript?.modelosCoerentes?.length || 0,
-            feedbacksRelevantes: aprendizadoScript?.feedbacksRelevantes?.length || 0,
-            fonte: aprendizadoScript?.fonte || 'local'
-        });
-    }
-    
-    // 2. Verificar se há feedbacks contrários a cláusulas
-    const temFeedbackContrario = aprendizadoScript?.feedbacksRelevantes?.some(fb => 
-        (fb.feedback || fb.Feedback || '').toLowerCase().includes('não cite') || 
-        (fb.feedback || fb.Feedback || '').toLowerCase().includes('nao cite') ||
-        (fb.feedback || fb.Feedback || '').toLowerCase().includes('não use') ||
-        (fb.feedback || fb.Feedback || '').toLowerCase().includes('nao use')
-    );
-    
-    // 3. Processar padrões se necessário (apenas se não tiver dados da planilha)
-    if (aprendizadoScript?.fonte === 'local' && aprendizadoScript?.feedbacksRelevantes?.length > 0) {
-        console.log('🔍 Identificando padrões automaticamente...');
-        await processarPadroesExistentes(dadosFormulario.tipo_solicitacao);
-        // Recarregar aprendizado após identificar padrões
-        const aprendizadoAtualizado = await getAprendizadoTipoSituacao(dadosFormulario.tipo_solicitacao);
-        if (aprendizadoScript) {
-            aprendizadoScript.padroesIdentificados = aprendizadoAtualizado.padroesIdentificados;
-            aprendizadoScript.clausulasUsadas = aprendizadoAtualizado.clausulasUsadas;
-        }
-    }
-    
-    // 4. Construir instruções de aprendizado
-    let instrucoesAprendizado = '';
-    
-    if (aprendizadoScript?.feedbacksRelevantes?.length > 0 || aprendizadoScript?.modelosCoerentes?.length > 0 || aprendizadoScript?.padroesIdentificados?.length > 0) {
-        console.log('✅ APLICANDO APRENDIZADO OBRIGATÓRIO!');
-        
-        instrucoesAprendizado = '\n\n🎓 INSTRUÇÕES OBRIGATÓRIAS DE APRENDIZADO (BASEADAS EM FEEDBACKS REAIS):\n';
-        instrucoesAprendizado += `Baseado em ${aprendizadoScript.feedbacksRelevantes?.length || 0} feedbacks e ${aprendizadoScript.modelosCoerentes?.length || 0} respostas aprovadas para "${dadosFormulario.tipo_solicitacao}":\n\n`;
-        
-        // Adicionar padrões identificados
-        if (aprendizadoScript?.padroesIdentificados?.length > 0) {
-            instrucoesAprendizado += '📋 PADRÕES IDENTIFICADOS (APLICAR QUANDO COMPATÍVEIS COM A SOLUÇÃO IMPLEMENTADA DESTE CASO):\n';
-            aprendizadoScript?.padroesIdentificados?.forEach((padrao, index) => {
-                instrucoesAprendizado += `${index + 1}. ${padrao}\n`;
-            });
-            instrucoesAprendizado += '\n';
-        }
-        
-        // Adicionar cláusulas APENAS se não houver feedbacks contrários
-        if (aprendizadoScript?.clausulasUsadas?.length > 0 && !temFeedbackContrario) {
-            instrucoesAprendizado += '⚖️ CLÁUSULAS CCB APLICÁVEIS:\n';
-            aprendizadoScript?.clausulasUsadas?.forEach(clausula => {
-                instrucoesAprendizado += `• ${clausula}\n`;
-            });
-            instrucoesAprendizado += '\n';
-        } else if (temFeedbackContrario) {
-            console.log('⚠️ Feedback contrário detectado - NÃO incluindo cláusulas CCB');
-            instrucoesAprendizado += '⚠️ ATENÇÃO: NÃO cite cláusulas da CCB conforme feedbacks anteriores!\n\n';
-        }
-
-        instrucoesAprendizado += '⚠️ ALINHAMENTO: LGPD, CDC, CCB ou cláusulas contratuais só devem aparecer na resposta se constarem na solução implementada deste caso ou forem indispensáveis para descrever o que já foi feito; não acrescente normas por hábito.\n\n';
-        
-        // Adicionar feedbacks críticos (ERROS A EVITAR)
-        if (aprendizadoScript?.feedbacks?.length > 0) {
-            instrucoesAprendizado += '❌ ERROS CRÍTICOS A EVITAR (BASEADOS EM FEEDBACKS REAIS):\n';
-            instrucoesAprendizado += 'IMPORTANTE: Estes são erros reais identificados pelo operador. NUNCA repita:\n\n';
-            aprendizadoScript?.feedbacks?.slice(-5).forEach((fb, index) => {
-                instrucoesAprendizado += `${index + 1}. ❌ ERRO: "${fb.feedback}"\n`;
-                instrucoesAprendizado += `   ✅ CORREÇÃO: "${fb.respostaReformulada.substring(0, 200)}..."\n\n`;
-            });
-        }
-        
-        // Adicionar respostas aprovadas (MODELOS A SEGUIR)
-        if (aprendizadoScript?.respostasCoerentes?.length > 0) {
-            instrucoesAprendizado += '✅ MODELOS APROVADOS (SEGUIR ESTE PADRÃO):\n';
-            aprendizadoScript?.respostasCoerentes?.slice(-3).forEach((resp, index) => {
-                instrucoesAprendizado += `${index + 1}. 📋 Motivo: ${resp.motivoSolicitacao}\n`;
-                instrucoesAprendizado += `   ✅ MODELO: "${resp.respostaAprovada?.substring(0, 250) || 'N/A'}..."\n\n`;
-            });
-        }
-        
-        instrucoesAprendizado += '🎯 INSTRUÇÃO FINAL: Use este aprendizado para gerar uma resposta de alta qualidade desde o início, aplicando os padrões e evitando os erros documentados.\n';
-    } else {
-        console.log('⚠️ Nenhum aprendizado disponível para este tipo de situação');
-    }
-    
-    console.log('📊 Instruções de aprendizado construídas:', instrucoesAprendizado.length, 'caracteres');
-    return instrucoesAprendizado;
 }
 
 // Carregar aprendizado do script
@@ -4223,32 +4047,6 @@ function tratarErroOpenAI(response, errorData) {
         details: errorDetails,
         statusCode: statusCode
     };
-}
-
-// Criptografar dados sensíveis
-function encryptSensitiveData(data, key) {
-    try {
-        const cipher = crypto.createCipher('aes-256-cbc', key);
-        let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-        encrypted += cipher.final('hex');
-        return encrypted;
-    } catch (error) {
-        console.error('Erro ao criptografar dados:', error);
-        return null;
-    }
-}
-
-// Descriptografar dados sensíveis
-function decryptSensitiveData(encryptedData, key) {
-    try {
-        const decipher = crypto.createDecipher('aes-256-cbc', key);
-        let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        return JSON.parse(decrypted);
-    } catch (error) {
-        console.error('Erro ao descriptografar dados:', error);
-        return null;
-    }
 }
 
 // ===== ROTAS DE API =====
@@ -8474,42 +8272,6 @@ FORMATO DE SAÍDA OBRIGATÓRIO:
     }
 });
 
-// Função auxiliar para extrair resposta revisada do resultado da análise
-function extrairRespostaRevisadaDoResultado(resultado) {
-    if (!resultado || typeof resultado !== 'string') return '';
-    
-    // Procurar pela seção de revisão (V7: "Revisão estratégica da resposta" ou legado)
-    const marcadores = [
-        '✍️ Revisão estratégica da resposta',
-        'Revisão estratégica da resposta',
-        '✍️ Revisão de Textos (versão estratégica)',
-        'Revisão de Textos (versão estratégica)',
-        'REVISÃO DE TEXTOS',
-        'Resposta pública revisada'
-    ];
-    
-    for (const marcador of marcadores) {
-        const index = resultado.indexOf(marcador);
-        if (index !== -1) {
-            // Pegar o conteúdo após o marcador até o próximo marcador ou fim
-            let conteudo = resultado.substring(index + marcador.length).trim();
-            
-            // Remover marcadores seguintes se houver
-            const proximosMarcadores = ['🧠', '📊', '⚠️', '🎯', '🧩', '🔍', '📈'];
-            for (const proxMarcador of proximosMarcadores) {
-                const proxIndex = conteudo.indexOf(proxMarcador);
-                if (proxIndex !== -1) {
-                    conteudo = conteudo.substring(0, proxIndex).trim();
-                }
-            }
-            
-            return conteudo.trim();
-        }
-    }
-    
-    return '';
-}
-
 /**
  * Unidade de dominio — Chance de Moderação (Fase 6).
  * Ponto de entrada canonico para logica de negocio; nao conhece HTTP nem WorkflowState.
@@ -10566,151 +10328,6 @@ app.post('/api/save-modelo-moderacao', async (req, res) => {
     }
 });
 
-/**
- * Analisa uma moderação negada e gera os 3 blocos de feedback estruturado
- * @param {Object} dadosModeracao - Dados completos da moderação negada
- * @returns {Promise<Object>} Objeto com os 3 blocos de feedback
- */
-async function analisarModeracaoNegada(dadosModeracao) {
-    try {
-        const envVars = loadEnvFile();
-        const openaiApiKey = envVars.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-        
-        if (!openaiApiKey) {
-            throw new Error('OPENAI_API_KEY não configurada');
-        }
-
-        const { textoModeracao, solicitacaoCliente, respostaEmpresa, consideracaoFinal, motivoModeracao, linhaRaciocinio } = dadosModeracao;
-
-        const prompt = `
-📌 ANÁLISE DE MODERAÇÃO NEGADA PELO RECLAME AQUI
-
-Você é um analista de moderações do Reclame Aqui. Sua tarefa é analisar uma moderação que foi NEGADA e gerar feedback estruturado em 3 blocos obrigatórios.
-
-DADOS DA MODERAÇÃO NEGADA:
-- Texto da moderação enviada: ${textoModeracao}
-- Solicitação do cliente: ${solicitacaoCliente}
-- Resposta da empresa: ${respostaEmpresa}
-- Consideração final do consumidor: ${consideracaoFinal || 'N/A'}
-- Motivo de moderação utilizado: ${motivoModeracao}
-- Linha de raciocínio interna: ${linhaRaciocinio || 'N/A'}
-
-⚙️ ANÁLISE OBRIGATÓRIA (baseada nos manuais do RA):
-
-Consulte os manuais oficiais do Reclame Aqui aplicáveis:
-1. Manual Geral de Moderação
-2. Manual de Moderação – Bancos, Instituições Financeiras e Meios
-
-Verifique especificamente:
-- Presença de debate de mérito
-- Tentativa de justificar política interna
-- Enquadramento incorreto do motivo de moderação
-- Linguagem defensiva ou argumentativa
-- Falta de foco na inconsistência objetiva do relato
-- Uso incorreto de termos ou estruturas
-
-📋 SAÍDA OBRIGATÓRIA - 3 BLOCOS ESTRUTURADOS:
-
-🔴 BLOCO 1 – MOTIVO DA NEGATIVA
-Explique de forma objetiva e neutra, baseada nos manuais do RA, por que a moderação foi negada. 
-Cite o manual específico e a regra violada quando aplicável.
-Formato: Texto objetivo e técnico, sem juízo de valor.
-
-🟡 BLOCO 2 – ONDE A SOLICITAÇÃO ERROU
-Identifique claramente os erros técnicos cometidos no texto de moderação.
-Seja específico: cite trechos problemáticos, estruturas incorretas, termos inadequados.
-Formato: Lista objetiva de erros identificados, reutilizável para aprendizado.
-
-🟢 BLOCO 3 – COMO CORRIGIR
-Forneça orientações práticas e específicas para evitar os mesmos erros em futuras moderações.
-Baseie-se nos manuais do RA e nas melhores práticas.
-Formato: Orientações práticas, acionáveis e alinhadas aos manuais.
-
-⚠️ REGRAS CRÍTICAS:
-- Análise sempre técnica e normativa, nunca subjetiva
-- Baseada exclusivamente nos manuais do RA
-- Objetiva e neutra
-- Focada em erros corrigíveis
-- Reutilizável para aprendizado
-
-FORMATO DE SAÍDA (JSON):
-{
-  "bloco1_motivo_negativa": "[texto do bloco 1]",
-  "bloco2_onde_errou": "[texto do bloco 2]",
-  "bloco3_como_corrigir": "[texto do bloco 3]"
-}
-
-Gere APENAS o JSON com os 3 blocos, sem texto adicional.`;
-
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${openaiApiKey}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'Você é um analista de moderações do Reclame Aqui, com conhecimento profundo dos manuais oficiais da plataforma. Não use travessão (—) nem hífen com espaços como pausa; prefira vírgula ou ponto.'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: 2000
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.text();
-            throw new Error(`Erro na API OpenAI: ${response.status} - ${errorData}`);
-        }
-
-        const data = await response.json();
-        const content = humanizarPontuacaoGerada(data.choices[0].message.content.trim());
-
-        // Tentar extrair JSON da resposta
-        let resultado;
-        try {
-            // Remover markdown code blocks se houver
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                resultado = JSON.parse(jsonMatch[0]);
-            } else {
-                resultado = JSON.parse(content);
-            }
-        } catch (parseError) {
-            // Se não conseguir parsear como JSON, criar estrutura manual
-            console.warn('⚠️ Não foi possível parsear resposta como JSON, criando estrutura manual');
-            const linhas = content.split('\n').filter(l => l.trim());
-            resultado = {
-                bloco1_motivo_negativa: linhas.find(l => l.includes('BLOCO 1') || l.includes('MOTIVO')) || 'Análise em andamento',
-                bloco2_onde_errou: linhas.find(l => l.includes('BLOCO 2') || l.includes('ERROU')) || 'Análise em andamento',
-                bloco3_como_corrigir: linhas.find(l => l.includes('BLOCO 3') || l.includes('CORRIGIR')) || 'Análise em andamento'
-            };
-        }
-
-        return {
-            bloco1_motivo_negativa: humanizarPontuacaoGerada(String(resultado.bloco1_motivo_negativa || 'Análise não disponível')),
-            bloco2_onde_errou: humanizarPontuacaoGerada(String(resultado.bloco2_onde_errou || 'Análise não disponível')),
-            bloco3_como_corrigir: humanizarPontuacaoGerada(String(resultado.bloco3_como_corrigir || 'Análise não disponível'))
-        };
-
-    } catch (error) {
-        console.error('❌ Erro ao analisar moderação negada:', error);
-        // Retornar estrutura padrão em caso de erro
-        return {
-            bloco1_motivo_negativa: `Erro ao gerar análise automática: ${error.message}`,
-            bloco2_onde_errou: 'Análise não disponível devido a erro no processamento',
-            bloco3_como_corrigir: 'Consulte os manuais do RA para orientações de correção'
-        };
-    }
-}
-
 // Endpoint para registrar resultado da moderação (Aceita ou Negada)
 app.post('/api/registrar-resultado-moderacao', async (req, res) => {
     console.log('=== REGISTRAR RESULTADO ===', `ID: ${req.body.moderacaoId}, Resultado: ${req.body.resultado}`);
@@ -12453,43 +12070,6 @@ app.get('/api/debug-env', (req, res) => {
             success: false,
             error: 'Erro interno do servidor',
             message: error.message
-        });
-    }
-});
-
-// Endpoint para forçar inicialização do Google Sheets
-app.post('/api/force-initialize-google-sheets', async (req, res) => {
-    console.log('🎯 Endpoint /api/force-initialize-google-sheets chamado');
-    try {
-        console.log('🔄 Forçando inicialização do Google Sheets...');
-        
-        // Tentar inicializar usando o sistema de fallback
-        const success = await googleSheetsIntegration.initialize();
-        
-        if (success) {
-            console.log('✅ Google Sheets inicializado com sucesso!');
-            return res.json({
-                success: true,
-                message: 'Google Sheets inicializado com sucesso',
-                timestamp: new Date().toISOString(),
-                method: googleSheetsFallback ? googleSheetsFallback.getMethod() : 'unknown'
-            });
-        } else {
-            console.log('⚠️ Google Sheets não pôde ser inicializado');
-            return res.json({
-                success: false,
-                message: 'Google Sheets não pôde ser inicializado',
-                timestamp: new Date().toISOString(),
-                diagnostic: googleSheetsFallback ? googleSheetsFallback.getDiagnosticInfo() : null
-            });
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao forçar inicialização do Google Sheets:', error.message);
-        return res.status(500).json({
-            success: false,
-            error: error.message,
-            timestamp: new Date().toISOString()
         });
     }
 });
