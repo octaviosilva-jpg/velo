@@ -4268,7 +4268,6 @@ async function buscarSolicitacoes() {
 
                     const detalhesResumo = `
                         <strong>Tipo:</strong> ${solicitacao.tipoSolicitacao || 'N/A'}<br>
-                        <strong>ID da Reclamação:</strong> ${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}<br>
                         <small class="text-muted">${(solicitacao.textoCliente || '').substring(0, 100)}${solicitacao.textoCliente && solicitacao.textoCliente.length > 100 ? '...' : ''}</small>
                     `;
 
@@ -4318,7 +4317,7 @@ async function buscarSolicitacoes() {
                             </td>
                             <td>${solicitacao.data || 'N/A'}</td>
                             <td>${tipoBadge}</td>
-                            <td><small>${solicitacao.id || 'N/A'}</small></td>
+                            <td><small>${solicitacao.idReclamacao || solicitacao.id_reclamacao || 'N/A'}</small></td>
                             <td><small>${detalhesResumo}</small></td>
                             <td>${statusBadge}</td>
                         </tr>
