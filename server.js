@@ -14286,7 +14286,8 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
 app.post('/api/corrigir-resumo-executivo', async (req, res) => {
     console.log('🔧 Iniciando backfill de Resumo Executivo...');
     try {
-        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+        const sheetsOk = await ensureGoogleSheetsReady();
+        if (!sheetsOk) {
             return res.status(503).json({ success: false, error: 'Google Sheets não está inicializado' });
         }
         const { apiKey } = resolverChaveOpenAI();
