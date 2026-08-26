@@ -4470,7 +4470,10 @@ async function buscarSolicitacoes() {
                                 : '<span class="badge bg-secondary">⏳ Aguardando resultado</span>';
 
                         // Só a tentativa mais recente pode virar ponto de partida pra uma nova
-                        // reformulação — evita reformular em cima de uma tentativa já superada.
+                        // reformulação — evita reformular em cima de uma tentativa já superada. E se
+                        // QUALQUER tentativa do grupo já foi aceita, não faz sentido reformular mais
+                        // nada — o caso já está resolvido a favor, mesmo que uma submissão solta
+                        // posterior (sem vínculo real) tenha vindo negada depois.
                         const ehUltima = i === grupo.itens.length - 1;
 
                         return `
@@ -4481,7 +4484,7 @@ async function buscarSolicitacoes() {
                                     ${tentativaStatusBadge}
                                 </div>
                                 ` : ''}
-                                ${renderDetalhesModeracao(solicitacao, solicitacaoId, { permitirReformular: ehUltima })}
+                                ${renderDetalhesModeracao(solicitacao, solicitacaoId, { permitirReformular: ehUltima && !tentativaAceita })}
                             </div>
                         `;
                     }).join('');
