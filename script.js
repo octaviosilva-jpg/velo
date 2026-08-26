@@ -460,6 +460,34 @@ function gerarRespostaSimulada(dados) {
 
 // ===== FUNÇÕES DE AVALIAÇÃO E REFORMULAÇÃO =====
 
+// Busca registros já salvos (respostas ou moderações) pra um ID da Reclamação — usado antes de
+// salvar como coerente, pra avisar o agente se esse ID já tem algo registrado (double-click,
+// esquecimento de que já fez esse atendimento etc). Best-effort: se a checagem falhar (rede,
+// timeout), não bloqueia o fluxo — melhor deixar salvar do que travar o agente por causa disso.
+async function buscarRegistrosExistentesPorId(idReclamacao, tipo) {
+    try {
+        const response = await fetch(`/api/solicitacoes?idReclamacao=${encodeURIComponent(idReclamacao)}&tipo=${tipo}`);
+        const data = await response.json();
+        return (data.success && Array.isArray(data.solicitacoes)) ? data.solicitacoes : [];
+    } catch (error) {
+        console.warn('⚠️ Não foi possível checar duplicidade antes de salvar (seguindo sem checar):', error.message);
+        return [];
+    }
+}
+
+// Confirma com o agente antes de salvar como coerente um ID que já tem registro(s) anteriores.
+// Retorna true = pode salvar (não havia duplicidade, ou o agente confirmou mesmo assim).
+async function confirmarSalvarComDuplicidade(idReclamacao, tipo, rotuloTipo) {
+    if (!idReclamacao) return true;
+    const existentes = await buscarRegistrosExistentesPorId(idReclamacao, tipo);
+    if (existentes.length === 0) return true;
+
+    const maisRecente = existentes[existentes.length - 1];
+    const statusMaisRecente = maisRecente.resultadoModeracao || maisRecente.status || 'sem resultado registrado ainda';
+    const mensagem = `⚠️ Essa reclamação (ID ${idReclamacao}) já tem ${existentes.length === 1 ? `${rotuloTipo} salva` : `${existentes.length} ${rotuloTipo}s salvas`} anteriormente — a mais recente em ${maisRecente.data || 'data desconhecida'} (${statusMaisRecente}).\n\nSe você já atendeu esse caso antes (ou clicou 2x sem querer), cancele. Só confirme se for realmente intencional salvar de novo.`;
+    return confirm(mensagem);
+}
+
 async function avaliarResposta(tipoAvaliacao) {
     console.log('🎯 Função avaliarResposta chamada com tipo:', tipoAvaliacao);
     
@@ -486,7 +514,15 @@ async function avaliarResposta(tipoAvaliacao) {
     
     if (tipoAvaliacao === 'coerente') {
         console.log('✅ Marcando como coerente - iniciando salvamento');
-        
+
+        // Respostas não têm um fluxo de "reformulação vinculada" (isso só existe pra moderação),
+        // então qualquer ID que já tenha resposta salva é candidato a duplicidade acidental.
+        const podeSalvar = await confirmarSalvarComDuplicidade(dadosAtuais.id_reclamacao, 'respostas', 'resposta');
+        if (!podeSalvar) {
+            showErrorMessage('Salvamento cancelado.');
+            return;
+        }
+
         // Marcar como aprovada
         const itemAtual = historicoRespostas[0];
         if (itemAtual) {
@@ -3664,6 +3700,18 @@ async function avaliarModeracao(tipoAvaliacao) {
     
     if (tipoAvaliacao === 'coerente') {
         console.log('✅ Marcando como coerente - chamando salvarModeracaoComoModelo()');
+
+        // Só checa duplicidade quando NÃO é uma reformulação de verdade (essa sempre tem o
+        // vínculo com a tentativa anterior) — reformulação salvar de novo pro mesmo ID é esperado.
+        if (!window._moderacaoIdAnterior) {
+            const idReclamacaoAtual = document.getElementById('id-reclamacao-moderacao').value.trim();
+            const podeSalvar = await confirmarSalvarComDuplicidade(idReclamacaoAtual, 'moderacoes', 'moderação');
+            if (!podeSalvar) {
+                showErrorMessage('Salvamento cancelado.');
+                return;
+            }
+        }
+
         // Marcar como aprovada e salvar como modelo
         await salvarModeracaoComoModelo();
         
