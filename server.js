@@ -14278,6 +14278,87 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
     }
 });
 
+// Endpoint de manutenção pontual (uso único): restaura registros de "Moderações Aceitas" que
+// foram apagados por engano durante a limpeza de duplicidade abaixo — uma corrida concorrente
+// (múltiplas chamadas simultâneas do endpoint de limpeza) removeu 23 linhas além das 22
+// confirmadas com o usuário. Lista de IDs fixa e explícita (não recalculada dinamicamente), pra
+// não repetir o mesmo tipo de erro. Lê o conteúdo original de volta da aba "Backup Temp"
+// (colada pelo usuário a partir de uma versão anterior do documento, via Histórico de Versões
+// do Google Sheets — vem com uma coluna extra de número de linha na frente, que é removida
+// aqui) e reinsere em "Moderações Aceitas". Ao final, apaga a aba "Backup Temp".
+app.post('/api/restaurar-aceitas-backup', async (req, res) => {
+    console.log('🔧 Iniciando restauração de registros apagados por engano...');
+    try {
+        const sheetsOk = await ensureGoogleSheetsReady();
+        if (!sheetsOk) {
+            return res.status(503).json({ success: false, error: 'Google Sheets não está inicializado' });
+        }
+
+        const IDS_PARA_RESTAURAR = [
+            // 1ª tentativa (registro de aceite legítimo, removido por engano)
+            '1774355081196', '1775829433136', '1776453861954', '1782475121689',
+            '1783961116936', '1785878904040', '1787065386711', '1787081325951',
+            // Casos não relacionados à limpeza, dano colateral da corrida concorrente
+            '1774905265874', '1776884154720', '1778348046380', '1781448704111',
+            '1782133138273', '1782495427140', '1784203294856', '1784550631826',
+            '1783429991505', '1778178214319', '1783949063431', '1781288156946',
+            '1781189299377', '1784725170710', '1782841549994'
+        ];
+
+        const norm = (v) => (v || '').toString().trim().replace(/\s+/g, '');
+
+        const backupRaw = await googleSheetsConfig.readData('Backup Temp !A1:Q1000');
+        const backup = backupRaw.slice(1).map(r => r.slice(1)); // remove a coluna artefato (número de linha)
+
+        const atualRaw = await googleSheetsConfig.readData('Moderações Aceitas!A1:P100000');
+        const idsAtuais = new Set(atualRaw.slice(1).map(r => norm(r[1])));
+
+        const restauradas = [];
+        const jaPresentes = [];
+        const naoEncontradas = [];
+
+        for (const id of IDS_PARA_RESTAURAR) {
+            if (idsAtuais.has(id)) { jaPresentes.push(id); continue; }
+            const linha = backup.find(r => norm(r[1]) === id);
+            if (!linha) { naoEncontradas.push(id); continue; }
+            await googleSheetsConfig.appendRow('Moderações Aceitas!A:P', linha);
+            restauradas.push(id);
+            await new Promise(r => setTimeout(r, 350));
+        }
+
+        // Apagar a aba temporária de backup, agora que os dados já foram recuperados dela
+        let backupApagado = false;
+        try {
+            const sheets = googleSheetsConfig.getSheets();
+            const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+            const meta = await sheets.spreadsheets.get({ spreadsheetId });
+            const abaBackup = meta.data.sheets.find(s => s.properties.title === 'Backup Temp ');
+            if (abaBackup) {
+                await sheets.spreadsheets.batchUpdate({
+                    spreadsheetId,
+                    resource: { requests: [{ deleteSheet: { sheetId: abaBackup.properties.sheetId } }] }
+                });
+                backupApagado = true;
+            }
+        } catch (e) {
+            console.warn('⚠️ Não foi possível apagar a aba "Backup Temp":', e.message);
+        }
+
+        console.log(`✅ Restauração concluída: ${restauradas.length} restauradas, ${jaPresentes.length} já presentes, ${naoEncontradas.length} não encontradas no backup`);
+        res.json({
+            success: true,
+            restauradas,
+            totalRestauradas: restauradas.length,
+            jaPresentes,
+            naoEncontradas,
+            backupApagado
+        });
+    } catch (error) {
+        console.error('❌ Erro na restauração:', error);
+        res.status(500).json({ success: false, error: 'Erro na restauração', message: error.message });
+    }
+});
+
 // Endpoint de manutenção pontual: remove tentativas de moderação "sobrando" — reclamações cuja
 // 1ª tentativa (mais antiga) já foi registrada como Aceita, mas que têm uma 2ª+ tentativa solta
 // (sem vínculo real de reformulação, idModeracaoAnterior vazio) — quase sempre criada por
