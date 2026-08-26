@@ -14278,6 +14278,112 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
     }
 });
 
+// Endpoint de manutenção pontual: preenche o "Resumo Executivo" (síntese de 1 frase gerada
+// por IA) das linhas dos últimos `diasJanela` dias (padrão 90) que ainda não têm esse campo,
+// em "Respostas Coerentes" (coluna M) e "Moderações" (coluna S, só Aprovada e sem Feedback —
+// mesmo filtro que /api/solicitacoes usa pra decidir o que exibir). Idempotente: só escreve
+// em células vazias, então pode ser chamado de novo sem duplicar/sobrescrever nada.
+app.post('/api/corrigir-resumo-executivo', async (req, res) => {
+    console.log('🔧 Iniciando backfill de Resumo Executivo...');
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return res.status(503).json({ success: false, error: 'Google Sheets não está inicializado' });
+        }
+        const { apiKey } = resolverChaveOpenAI();
+        if (!apiKey) {
+            return res.status(400).json({ success: false, error: 'OPENAI_API_KEY não configurada' });
+        }
+
+        const diasJanela = parseInt(req.body?.diasJanela, 10) || 90;
+        const cutoff = Date.now() - diasJanela * 24 * 60 * 60 * 1000;
+        const sheets = googleSheetsConfig.getSheets();
+        const spreadsheetId = googleSheetsConfig.getSpreadsheetId();
+
+        async function processarEmLotes(itens, concorrencia, worker) {
+            const resultados = [];
+            let cursor = 0;
+            async function trabalhador() {
+                while (cursor < itens.length) {
+                    const i = cursor++;
+                    resultados[i] = await worker(itens[i], i);
+                }
+            }
+            await Promise.all(Array.from({ length: Math.min(concorrencia, itens.length) }, trabalhador));
+            return resultados;
+        }
+
+        // ---- Respostas Coerentes (coluna M, índice 12) ----
+        const rc = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Respostas Coerentes!A1:M10000' });
+        const rcRows = rc.data.values || [];
+        const rcAlvos = [];
+        for (let i = 1; i < rcRows.length; i++) {
+            const row = rcRows[i];
+            if (!row || !row[1]) continue;
+            const idNum = Number(row[1]);
+            if (!Number.isFinite(idNum) || idNum < cutoff) continue;
+            const status = (row[10] || '').toString().trim();
+            if (status && status !== 'Aprovada') continue;
+            const textoCliente = (row[3] || '').toString().trim();
+            if (!textoCliente) continue;
+            if ((row[12] || '').toString().trim()) continue;
+            rcAlvos.push({ linha: i + 1, texto: textoCliente });
+        }
+        let rcGravadas = 0;
+        if (rcAlvos.length) {
+            const rcRequests = [];
+            await processarEmLotes(rcAlvos, 5, async (alvo) => {
+                const resumo = await gerarResumoExecutivoIA(alvo.texto);
+                if (resumo) rcRequests.push({ range: `Respostas Coerentes!M${alvo.linha}`, values: [[resumo]] });
+            });
+            if (rcRequests.length) {
+                await sheets.spreadsheets.values.batchUpdate({ spreadsheetId, requestBody: { valueInputOption: 'RAW', data: rcRequests } });
+                rcGravadas = rcRequests.length;
+            }
+        }
+
+        // ---- Moderações (coluna S, índice 18) — só Aprovada + sem Feedback ----
+        const md = await sheets.spreadsheets.values.get({ spreadsheetId, range: 'Moderações!A1:S10000' });
+        const mdRows = md.data.values || [];
+        const mdAlvos = [];
+        for (let i = 1; i < mdRows.length; i++) {
+            const row = mdRows[i];
+            if (!row || !row[1]) continue;
+            const idNum = Number(row[1]);
+            if (!Number.isFinite(idNum) || idNum < cutoff) continue;
+            const status = (row[12] || '').toString().trim().toLowerCase();
+            if (status !== 'aprovada') continue;
+            if ((row[9] || '').toString().trim()) continue;
+            const solicitacaoCliente = (row[4] || '').toString().trim();
+            if (!solicitacaoCliente) continue;
+            if ((row[18] || '').toString().trim()) continue;
+            mdAlvos.push({ linha: i + 1, texto: solicitacaoCliente });
+        }
+        let mdGravadas = 0;
+        if (mdAlvos.length) {
+            const mdRequests = [];
+            await processarEmLotes(mdAlvos, 5, async (alvo) => {
+                const resumo = await gerarResumoExecutivoIA(alvo.texto);
+                if (resumo) mdRequests.push({ range: `Moderações!S${alvo.linha}`, values: [[resumo]] });
+            });
+            if (mdRequests.length) {
+                await sheets.spreadsheets.values.batchUpdate({ spreadsheetId, requestBody: { valueInputOption: 'RAW', data: mdRequests } });
+                mdGravadas = mdRequests.length;
+            }
+        }
+
+        console.log(`✅ Backfill de Resumo Executivo concluído: ${rcGravadas}/${rcAlvos.length} respostas, ${mdGravadas}/${mdAlvos.length} moderações`);
+        res.json({
+            success: true,
+            diasJanela,
+            respostasCoerentes: { elegiveis: rcAlvos.length, gravadas: rcGravadas },
+            moderacoes: { elegiveis: mdAlvos.length, gravadas: mdGravadas }
+        });
+    } catch (error) {
+        console.error('❌ Erro no backfill de Resumo Executivo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ===== RELATÓRIO DE RECLAMAÇÕES (RECLAME AQUI) =====
 
 async function chamarOpenAIRelatorioReclamacoes(apiKey, envVars, systemPrompt, userPrompt, maxTokens = 2500) {
