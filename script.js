@@ -477,14 +477,17 @@ async function buscarRegistrosExistentesPorId(idReclamacao, tipo) {
 
 // Confirma com o agente antes de salvar como coerente um ID que já tem registro(s) anteriores.
 // Retorna true = pode salvar (não havia duplicidade, ou o agente confirmou mesmo assim).
-async function confirmarSalvarComDuplicidade(idReclamacao, tipo, rotuloTipo) {
+async function confirmarSalvarComDuplicidade(idReclamacao, tipo, rotuloTipoSingular, rotuloTipoPlural) {
     if (!idReclamacao) return true;
     const existentes = await buscarRegistrosExistentesPorId(idReclamacao, tipo);
     if (existentes.length === 0) return true;
 
     const maisRecente = existentes[existentes.length - 1];
     const statusMaisRecente = maisRecente.resultadoModeracao || maisRecente.status || 'sem resultado registrado ainda';
-    const mensagem = `⚠️ Essa reclamação (ID ${idReclamacao}) já tem ${existentes.length === 1 ? `${rotuloTipo} salva` : `${existentes.length} ${rotuloTipo}s salvas`} anteriormente — a mais recente em ${maisRecente.data || 'data desconhecida'} (${statusMaisRecente}).\n\nSe você já atendeu esse caso antes (ou clicou 2x sem querer), cancele. Só confirme se for realmente intencional salvar de novo.`;
+    const descricaoQuantidade = existentes.length === 1
+        ? `${rotuloTipoSingular} salva`
+        : `${existentes.length} ${rotuloTipoPlural} salvas`;
+    const mensagem = `⚠️ Essa reclamação (ID ${idReclamacao}) já tem ${descricaoQuantidade} anteriormente — a mais recente em ${maisRecente.data || 'data desconhecida'} (${statusMaisRecente}).\n\nSe você já atendeu esse caso antes (ou clicou 2x sem querer), cancele. Só confirme se for realmente intencional salvar de novo.`;
     return confirm(mensagem);
 }
 
@@ -517,7 +520,7 @@ async function avaliarResposta(tipoAvaliacao) {
 
         // Respostas não têm um fluxo de "reformulação vinculada" (isso só existe pra moderação),
         // então qualquer ID que já tenha resposta salva é candidato a duplicidade acidental.
-        const podeSalvar = await confirmarSalvarComDuplicidade(dadosAtuais.id_reclamacao, 'respostas', 'resposta');
+        const podeSalvar = await confirmarSalvarComDuplicidade(dadosAtuais.id_reclamacao, 'respostas', 'resposta', 'respostas');
         if (!podeSalvar) {
             showErrorMessage('Salvamento cancelado.');
             return;
@@ -3705,7 +3708,7 @@ async function avaliarModeracao(tipoAvaliacao) {
         // vínculo com a tentativa anterior) — reformulação salvar de novo pro mesmo ID é esperado.
         if (!window._moderacaoIdAnterior) {
             const idReclamacaoAtual = document.getElementById('id-reclamacao-moderacao').value.trim();
-            const podeSalvar = await confirmarSalvarComDuplicidade(idReclamacaoAtual, 'moderacoes', 'moderação');
+            const podeSalvar = await confirmarSalvarComDuplicidade(idReclamacaoAtual, 'moderacoes', 'moderação', 'moderações');
             if (!podeSalvar) {
                 showErrorMessage('Salvamento cancelado.');
                 return;
