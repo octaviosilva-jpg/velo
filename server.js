@@ -1759,6 +1759,12 @@ function gerarContextoEspecifico(tipoSolicitacao) {
 - Análise de elegibilidade e processamento apenas conforme registrado
 - Custos e prazos com transparência factual, sem valores ou prazos inventados`,
 
+        'antecipacao-salario': `
+🔹 ANTECIPAÇÃO DE SALÁRIO:
+- Descreva a operação e etapas com base na solução implementada
+- Análise de elegibilidade e processamento apenas conforme registrado
+- Custos e prazos com transparência factual, sem valores ou prazos inventados`,
+
         'aplicativo': `
 🔹 APLICATIVO:
 - Esclareça o que foi feito no app conforme a solução implementada
@@ -8864,7 +8870,7 @@ function _audRowsToObjects(data) {
 }
 
 const _AUD_TIPOS_NOVOS = new Set([
-    'antecipacao', 'antecipacao-2026', 'aplicativo', 'conta-celcoin',
+    'antecipacao', 'antecipacao-2026', 'antecipacao-salario', 'aplicativo', 'conta-celcoin',
     'credito-ao-trabalhador', 'clube-velotax', 'emprestimo-pessoal', 'seguros',
     'incoerente', 'em-cobranca', 'veloprime', 'divida-prescrita', 'juros-abusivos'
 ]);
