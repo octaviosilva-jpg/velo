@@ -4426,17 +4426,19 @@ async function buscarSolicitacoes() {
                         ? `<span class="badge bg-warning">Moderação</span> <span class="badge bg-info text-dark">${grupo.itens.length} tentativas</span>`
                         : '<span class="badge bg-warning">Moderação</span>';
 
-                    // Resumo executivo: motivo + síntese de 1 frase do que o cliente reclamou (gerada por
-                    // IA ao marcar a moderação como coerente) + o que foi pedido à RA. Usa a mesma
-                    // tentativa do status acima (a aceita, se houver) — pra não mostrar um resumo de uma
-                    // tentativa diferente da que o badge de status está descrevendo. Registros antigos,
-                    // salvos antes desse recurso existir, caem no fallback de trecho truncado entre aspas.
+                    // Resumo executivo: síntese de 1 frase do que o cliente reclamou (gerada por IA ao
+                    // marcar a moderação como coerente) + o que foi pedido à RA. Usa a mesma tentativa
+                    // do status acima (a aceita, se houver) — pra não mostrar um resumo de uma tentativa
+                    // diferente da que o badge de status está descrevendo. Registros antigos, salvos
+                    // antes desse recurso existir, caem no fallback de trecho truncado entre aspas.
+                    // Motivo da Moderação (categoria AENV escolhida no formulário, ex.: "não violou o
+                    // direito") não entra aqui — é quase sempre o mesmo valor, não ajuda a diferenciar
+                    // um caso do outro (mesmo pedido do usuário: só o resumo já cobre o que interessa).
                     const resumoTexto = tentativaParaStatus.resumoExecutivo
                         ? tentativaParaStatus.resumoExecutivo
                         : (tentativaParaStatus.solicitacaoCliente ? `"${truncar(tentativaParaStatus.solicitacaoCliente, 110)}"` : 'N/A');
                     const detalhesResumo = `
-                        <strong>${tentativaParaStatus.motivoModeracao || 'N/A'}</strong><br>
-                        <span class="${tentativaParaStatus.resumoExecutivo ? 'text-dark' : 'text-muted'}">${resumoTexto}</span>
+                        <span class="${tentativaParaStatus.resumoExecutivo ? 'text-dark fw-bold' : 'text-muted'}">${resumoTexto}</span>
                         ${tentativaParaStatus.textoModeracao && tentativaParaStatus.textoModeracao !== 'N/A' ? `<br><span class="text-primary"><i class="fas fa-gavel me-1"></i>Pedido: ${truncar(tentativaParaStatus.textoModeracao, 90)}</span>` : ''}
                     `;
 
