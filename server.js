@@ -14278,6 +14278,106 @@ app.post('/api/corrigir-moderacoes', async (req, res) => {
     }
 });
 
+// Endpoint de manutenção pontual: remove tentativas de moderação "sobrando" — reclamações cuja
+// 1ª tentativa (mais antiga) já foi registrada como Aceita, mas que têm uma 2ª+ tentativa solta
+// (sem vínculo real de reformulação, idModeracaoAnterior vazio) — quase sempre criada por
+// duplo-clique/esquecimento segundos ou minutos depois da 1ª, confirmado caso a caso com o
+// usuário antes de implementar (2026-08-26): o registro do resultado real (Aceita/Negada) nunca
+// é causado pela existência da 2ª tentativa, são ações independentes no sistema. Apaga as
+// tentativas extras de "Moderações" e seus registros correspondentes em "Moderações
+// Aceitas"/"Moderações Negadas" (se existirem). A 1ª tentativa nunca é tocada. Idempotente:
+// rodar de novo não acha mais nada (exige 2+ tentativas Aprovadas pro mesmo ID com a 1ª aceita).
+app.post('/api/limpar-duplicidade-aceita', async (req, res) => {
+    console.log('🧹 Iniciando limpeza de tentativas duplicadas (1ª já aceita)...');
+    try {
+        const sheetsOk = await ensureGoogleSheetsReady();
+        if (!sheetsOk) {
+            return res.status(503).json({ success: false, error: 'Google Sheets não está inicializado' });
+        }
+
+        const norm = (v) => (v || '').toString().trim().replace(/\s+/g, '');
+        const parseDataBR = (s) => {
+            const m = (s || '').toString().match(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/);
+            if (!m) return null;
+            return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+        };
+
+        const modRaw = await googleSheetsConfig.readData('Moderações!A1:S100000');
+        const mod = modRaw.slice(1).map((row, i) => ({ row, sheetRow: i + 2 }));
+        const aceitasRaw = await googleSheetsConfig.readData('Moderações Aceitas!A1:P100000');
+        const aceitas = aceitasRaw.slice(1).map((row, i) => ({ row, sheetRow: i + 2 }));
+        const negadasRaw = await googleSheetsConfig.readData('Moderações Negadas!A1:V100000');
+        const negadas = negadasRaw.slice(1).map((row, i) => ({ row, sheetRow: i + 2 }));
+
+        const resultadoPorId = new Map();
+        aceitas.forEach(x => { const id = norm(x.row[1]); if (id) resultadoPorId.set(id, 'Aceita'); });
+        negadas.forEach(x => { const id = norm(x.row[1]); if (id) resultadoPorId.set(id, 'Negada'); });
+
+        const aprovadas = mod.filter(x => (x.row[12] || '').toString().trim() === 'Aprovada');
+        const grupos = new Map();
+        aprovadas.forEach(x => {
+            const idReclamacao = norm(x.row[2]);
+            if (!idReclamacao) return;
+            if (!grupos.has(idReclamacao)) grupos.set(idReclamacao, []);
+            grupos.get(idReclamacao).push(x);
+        });
+
+        const linhasModeracoesParaApagar = [];
+        const linhasAceitasParaApagar = [];
+        const linhasNegadasParaApagar = [];
+        const resumo = [];
+
+        grupos.forEach((rows, idReclamacao) => {
+            if (rows.length < 2) return;
+            rows.sort((a, b) => (parseDataBR(a.row[0]) || 0) - (parseDataBR(b.row[0]) || 0));
+            const primeira = rows[0];
+            const idPrimeira = norm(primeira.row[1]);
+            if (resultadoPorId.get(idPrimeira) !== 'Aceita') return;
+
+            const idsRemovidos = [];
+            rows.slice(1).forEach(x => {
+                const idModeracao = norm(x.row[1]);
+                linhasModeracoesParaApagar.push(x.sheetRow);
+                idsRemovidos.push(idModeracao);
+                const aceitaMatch = aceitas.find(a => norm(a.row[1]) === idModeracao);
+                if (aceitaMatch) linhasAceitasParaApagar.push(aceitaMatch.sheetRow);
+                const negadaMatch = negadas.find(n => norm(n.row[1]) === idModeracao);
+                if (negadaMatch) linhasNegadasParaApagar.push(negadaMatch.sheetRow);
+            });
+            resumo.push({ idReclamacao, idPrimeiraTentativaMantida: idPrimeira, tentativasRemovidas: idsRemovidos });
+        });
+
+        async function apagarLinhas(sheetName, linhas) {
+            const ordenadas = [...new Set(linhas)].sort((a, b) => b - a);
+            for (const linha of ordenadas) {
+                await googleSheetsConfig.deleteRow(sheetName, linha);
+                await new Promise(r => setTimeout(r, 350));
+            }
+            return ordenadas.length;
+        }
+
+        const apagouNegadas = await apagarLinhas('Moderações Negadas', linhasNegadasParaApagar);
+        const apagouAceitas = await apagarLinhas('Moderações Aceitas', linhasAceitasParaApagar);
+        const apagouModeracoes = await apagarLinhas('Moderações', linhasModeracoesParaApagar);
+
+        console.log(`✅ Limpeza concluída: ${resumo.length} reclamações, ${apagouModeracoes} linhas de Moderações, ${apagouAceitas} de Aceitas, ${apagouNegadas} de Negadas`);
+        res.json({
+            success: true,
+            reclamacoesAfetadas: resumo.length,
+            linhasApagadas: {
+                moderacoes: apagouModeracoes,
+                aceitas: apagouAceitas,
+                negadas: apagouNegadas
+            },
+            detalhes: resumo
+        });
+
+    } catch (error) {
+        console.error('❌ Erro na limpeza de duplicidade:', error);
+        res.status(500).json({ success: false, error: 'Erro na limpeza de duplicidade', message: error.message });
+    }
+});
+
 // Endpoint de manutenção pontual: preenche o "Resumo Executivo" (síntese de 1 frase gerada
 // por IA) das linhas dos últimos `diasJanela` dias (padrão 90) que ainda não têm esse campo,
 // em "Respostas Coerentes" (coluna M) e "Moderações" (coluna S, só Aprovada e sem Feedback —
