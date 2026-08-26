@@ -478,7 +478,10 @@ async function buscarRegistrosExistentesPorId(idReclamacao, tipo) {
 // Confirma com o agente antes de salvar como coerente um ID que já tem registro(s) anteriores.
 // Retorna true = pode salvar (não havia duplicidade, ou o agente confirmou mesmo assim).
 async function confirmarSalvarComDuplicidade(idReclamacao, tipo, rotuloTipoSingular, rotuloTipoPlural) {
-    if (!idReclamacao) return true;
+    // Só reclamações reais do RA (só números) entram na checagem — em "Respostas RA" o campo
+    // às vezes recebe um valor genérico tipo "esclarecimento" pra casos sem reclamação de
+    // verdade, e isso se repete centenas de vezes de propósito (não é duplicidade acidental).
+    if (!idReclamacao || !/^\d+$/.test(idReclamacao.trim())) return true;
     const existentes = await buscarRegistrosExistentesPorId(idReclamacao, tipo);
     if (existentes.length === 0) return true;
 
