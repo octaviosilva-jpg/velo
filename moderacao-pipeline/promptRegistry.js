@@ -14,6 +14,9 @@ const crypto = require('crypto');
  *  - redacao-reformulacao@v1: redacao@v2 + negativa real do RA (motivo/codigo/diretriz oficial)
  *    como contexto obrigatorio — exige citar o motivo da negativa anterior e refuta-lo
  *    explicitamente antes de reforcar a hipotese (JSON). NAO reabre decisao.
+ *  - redacao@v3: redacao@v2 + criterios especificos do manual (quandoSeAplica/criterios[]) para a
+ *    hipotese selecionada — exige demonstrar, criterio por criterio, que o caso satisfaz a
+ *    hipotese, em vez de so citar o nome da categoria (JSON). NAO reabre decisao.
  *
  * Os builders recebem blocos ja renderizados (manualBloco, universoHipoteses,
  * aprendizadoBloco) via ctx para manter baixo acoplamento com o server.js.
@@ -439,6 +442,71 @@ const REGISTRY = {
                 '  "texto_final": "Prezada equipe de moderacao do Reclame Aqui,\\n\\nSolicitamos a reanalise... (refutacao do motivo + fundamentacao) ...\\n\\nDiante do exposto, solicitamos o provimento desta reanalise."',
                 '}'
             ].join('\n');
+            return { system, user };
+        }
+    },
+
+    // Variante de redacao@v2 que recebe os CRITERIOS ESPECIFICOS do manual (quandoSeAplica +
+    // criterios[]) para a hipotese ja decidida — a DECISAO ve esses criterios (via manualBloco),
+    // mas hipotese_selecionada so carrega id/titulo/manual/comoCitar, entao REDACAO v2 nunca
+    // recebe os criterios em si e acaba citando a categoria de forma generica em vez de demonstrar
+    // criterio por criterio que o caso se enquadra. Baseado na mesma analise de calibracao de
+    // 2026-09-08 que gerou redacao-reformulacao@v1 (mesmo padrao: citar a base normativa
+    // especifica, nao so o rotulo, fortalece o pedido).
+    'redacao@v3': {
+        id: 'redacao',
+        version: 'v3',
+        responseFormat: 'json_object',
+        build(ctx = {}) {
+            const ch = ctx.criteriosHipotese || {};
+            const system = 'PRIORIDADE MAXIMA: O texto NAO representa uma manifestacao da empresa ao consumidor. Representa '
+                + 'EXCLUSIVAMENTE a fundamentacao utilizada pela empresa para solicitar a moderacao da reclamacao perante a equipe '
+                + 'de moderacao do Reclame Aqui. '
+                + 'Voce redige um DOCUMENTO DE FUNDAMENTACAO dirigido ao analista/equipe de moderacao do Reclame Aqui; o consumidor '
+                + 'NAO e interlocutor. A hipotese JA foi decidida e e IMUTAVEL: NAO a reavalie, NAO reinterprete os fatos, NAO '
+                + 'escolha outra hipotese. E PROIBIDO qualquer linguagem de atendimento ao cliente: nao responda ao consumidor, nao '
+                + 'agradeca pela reclamacao, nao peca desculpas, nao oriente o consumidor a entrar em contato com a empresa, nao se '
+                + 'coloque a disposicao. Nao use travessao nem hifen com espacos como pausa; prefira virgula ou ponto. Responda SOMENTE com JSON valido.';
+            const linhasCriterios = [
+                ch.quandoSeAplica ? `- Quando esta hipotese se aplica, segundo o manual: ${ch.quandoSeAplica}` : null,
+                Array.isArray(ch.criterios) && ch.criterios.length
+                    ? `- Criterios especificos que o manual exige pra essa hipotese: ${ch.criterios.join(' | ')}`
+                    : null
+            ].filter(l => l !== null);
+            const user = [
+                'HIPOTESE DEFINITIVA (imutavel):',
+                JSON.stringify(ctx.hipoteseSelecionada || {}, null, 2),
+                `\nJUSTIFICATIVA DA DECISAO: ${ctx.justificativa || ''}`,
+                '\nTRECHOS QUE SUSTENTAM:',
+                JSON.stringify(ctx.trechosSustentam || [], null, 2),
+                '\nANALISE HOLISTICA DA DECISAO (para embasar a relacao logica com os fatos):',
+                JSON.stringify(ctx.analiseDecisao || {}, null, 2),
+                '',
+                linhasCriterios.length ? '📖 BASE NORMATIVA ESPECIFICA DESTA HIPOTESE (cite e demonstre CADA item abaixo, nao so o nome da categoria):' : null,
+                ...linhasCriterios,
+                '',
+                'TEXTOS CRUS (para citar trechos, sem copiar dados pessoais):',
+                `- Solicitacao: ${ctx.solicitacao || ''}`,
+                `- Resposta: ${ctx.resposta || ''}`,
+                `- Consideracao final: ${ctx.consideracao || '(nao informada)'}`,
+                '',
+                ctx.aprendizadoBloco ? `REFERENCIA DE ESTILO (apenas tom/estrutura, NAO muda os fatos):\n${ctx.aprendizadoBloco}\n` : '',
+                'INSTRUCOES DE REDACAO:',
+                '- A saudacao inicial deve ser dirigida a EQUIPE DE MODERACAO do Reclame Aqui (ex.: "Prezada equipe de moderacao do Reclame Aqui,"), NUNCA ao cliente.',
+                '- Estrutura obrigatoria do texto_final:',
+                '  (1) justificar por que o caso se enquadra no Manual de Moderacao (citando a hipotese/como citar);',
+                '  (2) SE HOUVER "BASE NORMATIVA ESPECIFICA" acima, demonstrar EXPLICITAMENTE, com trecho literal dos TEXTOS CRUS, que CADA criterio/condicao listado e satisfeito pelo caso — nao basta nomear a categoria, prove item por item;',
+                '  (3) demonstrar a relacao entre a reclamacao, a resposta publica da empresa e a consideracao final do consumidor;',
+                '  (4) concluir solicitando EXPLICITAMENTE a moderacao (ex.: "Solicitamos a moderacao...").',
+                '- FUNDAMENTACAO VINCULADA A HIPOTESE: demonstre POR QUE a reclamacao, a resposta publica e a consideracao final justificam ESPECIFICAMENTE a hipotese selecionada. Nao basta citar a hipotese; construa a relacao logica entre os fatos do caso e o enquadramento. Evite afirmacoes genericas como "O caso se enquadra em X" sem demonstrar o porque.',
+                '- PROIBIDO usar linguagem de atendimento, por exemplo: "Agradecemos por utilizar nossa plataforma", "Entendemos sua frustracao/seu transtorno", "Lamentamos", "Pedimos desculpas", "Esperamos que sua questao seja resolvida", "Estamos a disposicao", "Caso ainda tenha duvidas", "Entre em contato conosco", "Recomendamos que entre em contato", "Prezado cliente". (Observacao: "Entendemos que a reclamacao se enquadra..." e permitido, pois e argumentacao dirigida ao moderador.)',
+                '',
+                'Retorne EXATAMENTE este JSON (sem texto adicional):',
+                '{',
+                '  "linha_raciocinio": "explicacao interna do processo, consequencia da hipotese decidida",',
+                '  "texto_final": "Prezada equipe de moderacao do Reclame Aqui,\\n\\n... (fundamentacao em paragrafos, com os criterios do manual demonstrados um a um) ...\\n\\nDiante do exposto, solicitamos a moderacao."',
+                '}'
+            ].filter(l => l !== null).join('\n');
             return { system, user };
         }
     }

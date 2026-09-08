@@ -1167,6 +1167,28 @@ function encontrarRegraPorCodigoRA(codigo) {
 }
 
 /**
+ * Busca a hipótese completa (com quandoSeAplica/criterios[], não só id/titulo/comoCitar) nos
+ * manuais pelo id OU título retornado por hipotese_selecionada da DECISAO. Usada pelo passo de
+ * Redação fortalecida (ver executarPipelineModeracaoV2Fortalecida) pra recuperar os critérios
+ * específicos que a DECISAO já viu mas que não sobrevivem no contrato de saída dela.
+ */
+function encontrarHipotesePorId(idOuTitulo) {
+    if (!idOuTitulo) return null;
+    const base = carregarManuaisModeracao();
+    if (!base) return null;
+    const alvo = idOuTitulo.toString().trim().toLowerCase();
+    for (const manual of base.manuais || []) {
+        if (!Array.isArray(manual.hipoteses)) continue;
+        const achada = manual.hipoteses.find(h =>
+            (h.id || '').toString().trim().toLowerCase() === alvo ||
+            (h.titulo || '').toString().trim().toLowerCase() === alvo
+        );
+        if (achada) return { ...achada, manualNome: manual.nome };
+    }
+    return null;
+}
+
+/**
  * Extrai código (ex: "CO06"), motivo oficial e regra correspondente do e-mail de negativa
  * colado pelo agente. O formato padrão do RA é sempre:
  * "...texto explicativo...\n\nMotivo principal da negativa: <motivo>\n\n...\n\n-CO06"
@@ -4724,6 +4746,98 @@ async function executarPipelineModeracaoV2({ idReclamacao, dadosModeracao, envVa
     };
 }
 
+/**
+ * Variante ADITIVA de executarPipelineModeracaoV2: mesmo comportamento, mas usa
+ * runPipelineV2Fortalecida (REDACAO_FORTALECIDA em vez de REDACAO v2) e passa um deps extra,
+ * buildCriteriosHipotese, que busca nos manuais os criterios especificos (quandoSeAplica/
+ * criterios[]) da hipotese que a DECISAO ja escolheu — informacao que a DECISAO ve mas que se
+ * perde no contrato hipotese_selecionada (so id/titulo/manual/comoCitar) antes de chegar na
+ * Redacao. executarPipelineModeracaoV2 (acima) continua intocada; esta so roda quando o wiring
+ * (rota /api/generate-moderation) optar por ela via flag MODERACAO_REDACAO_FORTALECIDA_V2.
+ */
+async function executarPipelineModeracaoV2Fortalecida({ idReclamacao, dadosModeracao, envVars, apiKey, req }) {
+    const { runPipelineV2Fortalecida } = require('./moderacao-pipeline');
+    const sol = dadosModeracao.solicitacaoCliente || '';
+    const resp = dadosModeracao.respostaEmpresa || '';
+    const cons = dadosModeracao.consideracaoFinal || '';
+    const motivo = dadosModeracao.motivoModeracao || '';
+
+    const deps = {
+        apiKey,
+        confLimiar: parseFloat(envVars.MODERACAO_CONF_LIMIAR) || 0.6,
+        buildManualBloco: async () => montarBlocoManuaisModeracao(`${sol}\n${resp}\n${cons}`, motivo),
+        buildUniversoHipoteses: async () => montarListaHipotesesAuditoria(),
+        buildCriteriosHipotese: async (state) => {
+            const hip = state?.hipoteseSelecionada;
+            const alvo = hip && (hip.id || hip.titulo);
+            const achada = alvo ? encontrarHipotesePorId(alvo) : null;
+            if (!achada) return {};
+            return { quandoSeAplica: achada.quandoSeAplica || '', criterios: Array.isArray(achada.criterios) ? achada.criterios : [] };
+        },
+        buildAprendizado: async () => {
+            try {
+                const modelos = await getModelosModeracaoRelevantes(motivo, dadosModeracao);
+                if (modelos && typeof modelos.textoReferencia === 'string' && modelos.textoReferencia) return modelos.textoReferencia;
+                const lista = Array.isArray(modelos) ? modelos : (modelos && modelos.modelos) || [];
+                if (Array.isArray(lista) && lista.length) {
+                    return lista.slice(0, 2).map(m => m.textoModeracao || m.texto || m.textoFinal || '').filter(Boolean).join('\n---\n');
+                }
+            } catch (_) { /* referencia e opcional */ }
+            return '';
+        },
+        appendSheetSummary: async (resumo) => {
+            if (googleSheetsIntegration && typeof googleSheetsIntegration.registrarModeracaoWorkflow === 'function') {
+                return googleSheetsIntegration.registrarModeracaoWorkflow(resumo);
+            }
+        }
+    };
+
+    const { mapped } = await runPipelineV2Fortalecida({ idReclamacao: idReclamacao.trim(), dadosModeracao }, deps);
+
+    const moderacaoId = Date.now();
+
+    if (googleSheetsIntegration && googleSheetsIntegration.isActive()) {
+        try {
+            await googleSheetsIntegration.registrarModeracaoCoerente({
+                id: moderacaoId,
+                idReclamacao: idReclamacao.trim(),
+                tipo: 'moderacao',
+                dadosModeracao,
+                auditoriaHipotese: mapped.auditoriaHipotese,
+                linhaRaciocinio: mapped.linhaRaciocinio,
+                textoModeracao: mapped.textoModeracao,
+                textoFinal: mapped.textoModeracao,
+                userProfile: req.userData ? `${req.userData.nome} (${req.userData.email})` : 'N/A',
+                userName: req.userData?.nome || 'N/A',
+                userEmail: req.userData?.email || 'N/A'
+            });
+        } catch (e) {
+            console.error('❌ [PipelineV2Fortalecida] Falha ao salvar moderação inicial (nao bloqueante):', e.message);
+        }
+    }
+
+    await incrementarEstatisticaGlobal('moderacoes_geradas');
+
+    return {
+        success: true,
+        result: mapped.result,
+        confiancaBaixa: mapped.confiancaBaixa,
+        auditoriaHipotese: mapped.auditoriaHipotese,
+        linhaRaciocinio: mapped.linhaRaciocinio,
+        textoModeracao: mapped.textoModeracao,
+        moderacaoId,
+        aprendizadoPositivoAplicado: false,
+        aprendizadoNegativoAplicado: false,
+        pesoModeloPrincipal: null,
+        quantidadeAceites: null,
+        mensagem: mapped.confiancaBaixa
+            ? 'Atenção: a auditoria interna sinalizou confiança baixa na hipótese — revise a aderência antes de enviar.'
+            : null,
+        pipelineVersion: 'v2-fortalecida',
+        executionId: mapped.executionId
+    };
+}
+
 app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
     try {
         const envVars = loadEnvFile();
@@ -4765,10 +4879,16 @@ app.post('/api/generate-moderation', rateLimitMiddleware, async (req, res) => {
         // Default OFF: quando MODERACAO_PIPELINE_V2!=true, o fluxo V1 abaixo roda intacto.
         // Em QUALQUER erro do V2, faz fallback transparente para a V1.
         const pipelineV2Enabled = String(envVars.MODERACAO_PIPELINE_V2 || process.env.MODERACAO_PIPELINE_V2 || '').toLowerCase() === 'true';
+        // Flag aditiva (default desligada): quando 'true', a redacao da 1a tentativa passa a
+        // demonstrar criterio por criterio do manual pra hipotese escolhida, em vez de so citar a
+        // categoria (ver analise de calibracao 2026-09-08). Com a flag desligada, comportamento
+        // identico ao anterior (executarPipelineModeracaoV2).
+        const redacaoFortalecidaEnabled = String(envVars.MODERACAO_REDACAO_FORTALECIDA_V2 || process.env.MODERACAO_REDACAO_FORTALECIDA_V2 || '').toLowerCase() === 'true';
         if (pipelineV2Enabled) {
             try {
                 console.log('🧪 [PipelineV2] MODERACAO_PIPELINE_V2=on — executando pipeline de 3 chamadas');
-                const payloadV2 = await executarPipelineModeracaoV2({ idReclamacao, dadosModeracao, envVars, apiKey, req });
+                const executarV2 = redacaoFortalecidaEnabled ? executarPipelineModeracaoV2Fortalecida : executarPipelineModeracaoV2;
+                const payloadV2 = await executarV2({ idReclamacao, dadosModeracao, envVars, apiKey, req });
                 return res.json(payloadV2);
             } catch (e) {
                 console.error('❌ [PipelineV2] Erro — usando fallback para o pipeline V1:', e.message);

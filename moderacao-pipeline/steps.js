@@ -244,6 +244,45 @@ const REDACAO_REFORMULACAO = {
     }
 };
 
+// Variante ADITIVA de REDACAO para a geracao NORMAL (1a tentativa): mesmo contrato de escrita
+// (linhaRaciocinio/textoFinal), mas buildCtx tambem busca os criterios especificos do manual
+// (quandoSeAplica/criterios[]) pra hipotese ja escolhida via deps.buildCriteriosHipotese, e usa
+// promptRef 'redacao@v3' que EXIGE demonstrar criterio por criterio, nao so citar a categoria.
+// REDACAO (v2) continua intocada e e o padrao; esta so e usada quando explicitamente selecionada
+// pelo wiring (ver moderacao-pipeline/orchestratorFortalecida.js e a flag
+// MODERACAO_REDACAO_FORTALECIDA_V2).
+const REDACAO_FORTALECIDA = {
+    id: 'REDACAO_FORTALECIDA',
+    node: NODES.REDACAO,
+    etapas: [ETAPAS.E6_RACIOCINIO, ETAPAS.E7_TEXTO],
+    promptRef: 'redacao@v3',
+    actor: 'llm',
+    writes: ['linhaRaciocinio', 'textoFinal'],
+    model: (deps) => deps.models?.redacao || DEFAULTS.models.redacao,
+    temperature: (deps) => num(deps.temperatures?.redacao, DEFAULTS.temperatures.redacao),
+    maxTokens: (deps) => deps.maxTokens?.redacao || DEFAULTS.maxTokens.redacao,
+    async buildCtx(state, deps) {
+        return {
+            hipoteseSelecionada: state.hipoteseSelecionada,
+            justificativa: state.justificativa,
+            trechosSustentam: state.trechosSustentam,
+            analiseDecisao: state.analiseDecisao,
+            solicitacao: state.entradasCruas.solicitacao,
+            resposta: state.entradasCruas.resposta,
+            consideracao: state.entradasCruas.consideracao,
+            aprendizadoBloco: deps.buildAprendizado ? await deps.buildAprendizado(state) : '',
+            criteriosHipotese: deps.buildCriteriosHipotese ? await deps.buildCriteriosHipotese(state) : {}
+        };
+    },
+    toPartial(parsed) {
+        parsed = parsed || {};
+        return {
+            linhaRaciocinio: parsed.linha_raciocinio || '',
+            textoFinal: parsed.texto_final || ''
+        };
+    }
+};
+
 function num(v, def) {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return Number.isFinite(n) ? n : def;
@@ -251,9 +290,11 @@ function num(v, def) {
 
 module.exports = {
     COMPREENSAO, DECISAO, REDACAO, DECISAO_REFORMULACAO,
-    // Export aditivo — nao integra STEPS_REFORMULACAO (intocado); usado so pelo orchestrator
-    // paralelo opcional (orchestratorReformulacaoV2.js) atras de flag propria.
+    // Exports aditivos — nao integram STEPS/STEPS_REFORMULACAO (intocados); usados so pelos
+    // orchestrators paralelos opcionais (orchestratorReformulacaoV2.js, orchestratorFortalecida.js)
+    // atras de flag propria cada um.
     REDACAO_REFORMULACAO,
+    REDACAO_FORTALECIDA,
     STEPS: [COMPREENSAO, DECISAO, REDACAO],
     STEPS_REFORMULACAO: [COMPREENSAO, DECISAO_REFORMULACAO, REDACAO]
 };

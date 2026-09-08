@@ -20,6 +20,7 @@
 const { createWorkflowState, serialize } = require('./workflowState');
 const orchestrator = require('./orchestrator');
 const orchestratorReformulacaoV2 = require('./orchestratorReformulacaoV2');
+const orchestratorFortalecida = require('./orchestratorFortalecida');
 const persistence = require('./persistence');
 const resultMapper = require('./resultMapper');
 const constants = require('./constants');
@@ -118,8 +119,43 @@ async function runReformulacaoV2Melhorada(input = {}, deps = {}) {
     return { mapped, state: serialize(state), persistResult };
 }
 
+/**
+ * Variante ADITIVA de runPipelineV2: mesmo contrato de entrada/saida, mas usa
+ * orchestratorFortalecida.runPipelineFortalecida (REDACAO_FORTALECIDA em vez de REDACAO) — exige
+ * demonstrar criterio por criterio do manual pra hipotese escolhida, em vez de so citar a
+ * categoria. runPipelineV2 (acima) continua intocada e e o caminho padrao em producao; esta so e
+ * chamada pelo wiring quando explicitamente selecionada (ver flag
+ * MODERACAO_REDACAO_FORTALECIDA_V2 em server.js / executarPipelineModeracaoV2Fortalecida). Ver
+ * moderacao-pipeline/orchestratorFortalecida.js para a motivacao.
+ */
+async function runPipelineV2Fortalecida(input = {}, deps = {}) {
+    const dados = input.dadosModeracao || {};
+    const state = createWorkflowState({
+        idReclamacao: input.idReclamacao,
+        entradasCruas: {
+            solicitacao: dados.solicitacaoCliente || '',
+            resposta: dados.respostaEmpresa || '',
+            consideracao: dados.consideracaoFinal || '',
+            motivoHint: dados.motivoModeracao || ''
+        }
+    });
+
+    await orchestratorFortalecida.runPipelineFortalecida(state, deps);
+
+    let persistResult = null;
+    try {
+        persistResult = await persistence.persistWorkflow(state, deps);
+    } catch (e) {
+        console.error('[pipelineV2/fortalecida] persistencia falhou (nao bloqueante):', e.message);
+    }
+
+    const mapped = resultMapper.mapToLegacyContract(state, { confLimiar: deps.confLimiar });
+    return { mapped, state: serialize(state), persistResult };
+}
+
 module.exports = {
     runPipelineV2,
+    runPipelineV2Fortalecida,
     runReformulacaoV2,
     runReformulacaoV2Melhorada,
     constants,
@@ -127,6 +163,7 @@ module.exports = {
     createWorkflowState,
     orchestrator,
     orchestratorReformulacaoV2,
+    orchestratorFortalecida,
     persistence,
     resultMapper
 };
