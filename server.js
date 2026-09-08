@@ -6499,7 +6499,13 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
  * /api/moderacao/:idModeracao/analise-completa (fluxo somente-leitura, sobre um caso já negado).
  */
 async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNegativaRA, envVars, apiKey, idReclamacao }) {
-    const { runReformulacaoV2 } = require('./moderacao-pipeline');
+    const { runReformulacaoV2, runReformulacaoV2Melhorada } = require('./moderacao-pipeline');
+    // Flag aditiva (default desligada): quando 'true', a redacao da reformulacao passa a citar e
+    // refutar explicitamente o motivo/codigo da negativa recebida (ver analise de calibracao
+    // 2026-09-08). Com a flag desligada, comportamento identico ao anterior (runReformulacaoV2).
+    const executarReformulacao = String(envVars.MODERACAO_REFORMULACAO_REDACAO_V2 || process.env.MODERACAO_REFORMULACAO_REDACAO_V2 || '').toLowerCase() === 'true'
+        ? runReformulacaoV2Melhorada
+        : runReformulacaoV2;
 
     const negativaParse = parseNegativaRA(textoNegativaRA);
     const regra = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
@@ -6548,7 +6554,7 @@ async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNe
 
     let mapped;
     try {
-        const resultado = await runReformulacaoV2({ idReclamacao, dadosModeracao: dc, negativaReal }, deps);
+        const resultado = await executarReformulacao({ idReclamacao, dadosModeracao: dc, negativaReal }, deps);
         mapped = resultado.mapped;
     } catch (e) {
         const err = new Error(e.message || 'Erro ao gerar análise de reformulação');

@@ -11,6 +11,9 @@ const crypto = require('crypto');
  *    anterior) — diagnostica onde a tentativa anterior falhou e decide manter ou trocar de tese
  *    (JSON). NAO redige.
  *  - redacao@v1: redigir linha de raciocinio + texto final (JSON). NAO reabre decisao.
+ *  - redacao-reformulacao@v1: redacao@v2 + negativa real do RA (motivo/codigo/diretriz oficial)
+ *    como contexto obrigatorio — exige citar o motivo da negativa anterior e refuta-lo
+ *    explicitamente antes de reforcar a hipotese (JSON). NAO reabre decisao.
  *
  * Os builders recebem blocos ja renderizados (manualBloco, universoHipoteses,
  * aprendizadoBloco) via ctx para manter baixo acoplamento com o server.js.
@@ -369,6 +372,71 @@ const REGISTRY = {
                 '{',
                 '  "linha_raciocinio": "explicacao interna do processo, consequencia da hipotese decidida",',
                 '  "texto_final": "Prezada equipe de moderacao do Reclame Aqui,\\n\\n... (fundamentacao em paragrafos) ...\\n\\nDiante do exposto, solicitamos a moderacao."',
+                '}'
+            ].join('\n');
+            return { system, user };
+        }
+    },
+
+    // Variante de redacao@v2 para REFORMULACAO apos negativa real do RA. Diferenca central: recebe
+    // negativaReal (motivo/codigo/diretriz oficial de correcao) e EXIGE que o texto cite e refute
+    // esse motivo especifico antes de reforcar a hipotese — em vez de apenas reafirmar a tese sob
+    // um rotulo novo. Baseado em casos reais onde a reformulacao que citou o motivo da negativa e
+    // aplicou a diretriz oficial de correcao foi aceita, contra tentativas que so trocaram o rotulo
+    // da hipotese sem enderecar o motivo (ver analise de calibracao de 2026-09-08).
+    'redacao-reformulacao@v1': {
+        id: 'redacao',
+        version: 'reformulacao-v1',
+        responseFormat: 'json_object',
+        build(ctx = {}) {
+            const nr = ctx.negativaReal || {};
+            const system = 'PRIORIDADE MAXIMA: O texto NAO representa uma manifestacao da empresa ao consumidor. Representa '
+                + 'EXCLUSIVAMENTE a fundamentacao utilizada pela empresa para PEDIR A REANALISE de uma moderacao JA NEGADA '
+                + 'perante a equipe de moderacao do Reclame Aqui. '
+                + 'Voce redige um DOCUMENTO DE REFUTACAO dirigido ao analista/equipe de moderacao do Reclame Aqui; o consumidor '
+                + 'NAO e interlocutor. A hipotese JA foi decidida e e IMUTAVEL: NAO a reavalie, NAO reinterprete os fatos, NAO '
+                + 'escolha outra hipotese. Isto NAO E uma redacao nova do zero: e uma REFUTACAO formal do motivo especifico pelo '
+                + 'qual o pedido anterior foi negado. Nunca redija como se fosse a primeira tentativa. E PROIBIDO qualquer '
+                + 'linguagem de atendimento ao cliente: nao responda ao consumidor, nao agradeca pela reclamacao, nao peca '
+                + 'desculpas, nao oriente o consumidor a entrar em contato com a empresa, nao se coloque a disposicao. Nao use '
+                + 'travessao nem hifen com espacos como pausa; prefira virgula ou ponto. Responda SOMENTE com JSON valido.';
+            const linhasNegativa = [
+                '📌 NEGATIVA RECEBIDA (motivo pelo qual o pedido anterior foi negado — cite isto no texto):',
+                `- Motivo oficial citado pelo RA: ${nr.motivoOficial || '(nao encontrado no texto colado)'}`,
+                `- Codigo RA: ${nr.codigo || 'nao identificado'}`,
+                nr.regraOrientacao ? `- DIRETRIZ OFICIAL PARA CORRIGIR este motivo especifico: ${nr.regraOrientacao}` : null,
+                nr.regraReprovaQuando ? `- Esse motivo reprova quando: ${nr.regraReprovaQuando}` : null
+            ].filter(l => l !== null);
+            const user = [
+                'HIPOTESE DEFINITIVA (imutavel):',
+                JSON.stringify(ctx.hipoteseSelecionada || {}, null, 2),
+                `\nJUSTIFICATIVA DA DECISAO: ${ctx.justificativa || ''}`,
+                '\nTRECHOS QUE SUSTENTAM:',
+                JSON.stringify(ctx.trechosSustentam || [], null, 2),
+                '\nANALISE HOLISTICA DA DECISAO (para embasar a relacao logica com os fatos):',
+                JSON.stringify(ctx.analiseDecisao || {}, null, 2),
+                '',
+                ...linhasNegativa,
+                '',
+                'TEXTOS CRUS (para citar trechos, sem copiar dados pessoais):',
+                `- Solicitacao: ${ctx.solicitacao || ''}`,
+                `- Resposta: ${ctx.resposta || ''}`,
+                `- Consideracao final: ${ctx.consideracao || '(nao informada)'}`,
+                '',
+                ctx.aprendizadoBloco ? `REFERENCIA DE ESTILO (apenas tom/estrutura, NAO muda os fatos):\n${ctx.aprendizadoBloco}\n` : '',
+                'INSTRUCOES DE REDACAO (ESTRUTURA OBRIGATORIA — diferente da 1a tentativa):',
+                '- A saudacao inicial deve ser dirigida a EQUIPE DE MODERACAO do Reclame Aqui (ex.: "Prezada equipe de moderacao do Reclame Aqui,"), NUNCA ao cliente.',
+                '- (1) Cite EXPLICITAMENTE que este e um pedido de reanalise, referenciando o motivo/codigo da negativa anterior (ex.: "Solicitamos a reanalise do pedido de moderacao, anteriormente indeferido sob a justificativa [codigo] [motivo].").',
+                '- (2) REFUTE esse motivo especifico de forma direta, aplicando a DIRETRIZ OFICIAL PARA CORRIGIR mostrada acima quando disponivel — sustente com fatos verificaveis e trechos literais dos TEXTOS CRUS que o analista do RA nao possa contestar. Nao basta dizer que o motivo nao se aplica; demonstre com evidencia concreta por que nao se aplica a ESTE caso.',
+                '- (3) SO DEPOIS de refutar o motivo, reforce por que a hipotese selecionada se sustenta, ligando reclamacao, resposta publica e consideracao final.',
+                '- (4) Conclua solicitando EXPLICITAMENTE a reanalise/moderacao (ex.: "Diante do exposto, solicitamos o provimento desta reanalise.").',
+                '- Prefira estrutura enumerada (1., 2., 3.) quando houver mais de um ponto a refutar — isso facilita a leitura pelo analista do RA.',
+                '- PROIBIDO usar linguagem de atendimento, por exemplo: "Agradecemos por utilizar nossa plataforma", "Entendemos sua frustracao/seu transtorno", "Lamentamos", "Pedimos desculpas", "Esperamos que sua questao seja resolvida", "Estamos a disposicao", "Caso ainda tenha duvidas", "Entre em contato conosco", "Recomendamos que entre em contato", "Prezado cliente".',
+                '',
+                'Retorne EXATAMENTE este JSON (sem texto adicional):',
+                '{',
+                '  "linha_raciocinio": "explicacao interna do processo: como o motivo da negativa foi refutado e por que a hipotese se sustenta",',
+                '  "texto_final": "Prezada equipe de moderacao do Reclame Aqui,\\n\\nSolicitamos a reanalise... (refutacao do motivo + fundamentacao) ...\\n\\nDiante do exposto, solicitamos o provimento desta reanalise."',
                 '}'
             ].join('\n');
             return { system, user };

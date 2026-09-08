@@ -206,6 +206,44 @@ const REDACAO = {
     }
 };
 
+// Variante ADITIVA de REDACAO para reformulacao apos negativa real do RA: mesmo contrato de
+// escrita (linhaRaciocinio/textoFinal), mas buildCtx tambem passa negativaReal (motivo/codigo/
+// diretriz oficial) para o prompt, e usa promptRef 'redacao-reformulacao@v1' que EXIGE citar e
+// refutar esse motivo especifico antes de reforcar a hipotese. REDACAO (v2) continua intocada e
+// e a padrao para geracao normal; esta so e usada quando explicitamente selecionada pelo wiring
+// (ver moderacao-pipeline/orchestratorReformulacaoV2.js e a flag MODERACAO_REFORMULACAO_REDACAO_V2).
+const REDACAO_REFORMULACAO = {
+    id: 'REDACAO_REFORMULACAO',
+    node: NODES.REDACAO,
+    etapas: [ETAPAS.E6_RACIOCINIO, ETAPAS.E7_TEXTO],
+    promptRef: 'redacao-reformulacao@v1',
+    actor: 'llm',
+    writes: ['linhaRaciocinio', 'textoFinal'],
+    model: (deps) => deps.models?.redacao || DEFAULTS.models.redacao,
+    temperature: (deps) => num(deps.temperatures?.redacao, DEFAULTS.temperatures.redacao),
+    maxTokens: (deps) => deps.maxTokens?.redacao || DEFAULTS.maxTokens.redacao,
+    async buildCtx(state, deps) {
+        return {
+            hipoteseSelecionada: state.hipoteseSelecionada,
+            justificativa: state.justificativa,
+            trechosSustentam: state.trechosSustentam,
+            analiseDecisao: state.analiseDecisao,
+            solicitacao: state.entradasCruas.solicitacao,
+            resposta: state.entradasCruas.resposta,
+            consideracao: state.entradasCruas.consideracao,
+            aprendizadoBloco: deps.buildAprendizado ? await deps.buildAprendizado(state) : '',
+            negativaReal: state.negativaReal || {}
+        };
+    },
+    toPartial(parsed) {
+        parsed = parsed || {};
+        return {
+            linhaRaciocinio: parsed.linha_raciocinio || '',
+            textoFinal: parsed.texto_final || ''
+        };
+    }
+};
+
 function num(v, def) {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return Number.isFinite(n) ? n : def;
@@ -213,6 +251,9 @@ function num(v, def) {
 
 module.exports = {
     COMPREENSAO, DECISAO, REDACAO, DECISAO_REFORMULACAO,
+    // Export aditivo — nao integra STEPS_REFORMULACAO (intocado); usado so pelo orchestrator
+    // paralelo opcional (orchestratorReformulacaoV2.js) atras de flag propria.
+    REDACAO_REFORMULACAO,
     STEPS: [COMPREENSAO, DECISAO, REDACAO],
     STEPS_REFORMULACAO: [COMPREENSAO, DECISAO_REFORMULACAO, REDACAO]
 };
