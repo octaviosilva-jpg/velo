@@ -9905,9 +9905,13 @@ async function _testeLocalizarLinhasPorId(nomeAba, colunaIndice, idAlvo) {
 async function _testeGravarEApagarComSeguranca({ nomeSistema, nomeAba, colunaIndiceId, idTeste, gravar }) {
     try {
         const linhasAntesEscrita = await _testeContarLinhas(nomeAba);
-        await gravar();
+        const retornoGravar = await gravar();
         const linhasDepoisEscrita = await _testeContarLinhas(nomeAba);
         const escritaOk = linhasDepoisEscrita >= linhasAntesEscrita + 1;
+        // registrarModeracaoCoerente/registrarRespostaCoerente retornam false (sem lançar exceção)
+        // quando a API do Sheets nega a escrita (quota/erro) — captura isso explicitamente pra não
+        // depender de garimpar log depois.
+        const chamadaRetornouFalse = retornoGravar === false;
 
         const localizadas = await _testeLocalizarLinhasPorId(nomeAba, colunaIndiceId, idTeste);
 
@@ -9917,6 +9921,11 @@ async function _testeGravarEApagarComSeguranca({ nomeSistema, nomeAba, colunaInd
                 caso: `${nomeSistema} — ID de teste ${idTeste}`,
                 checks: [
                     { ok: escritaOk, label: `[${nomeSistema}] Linha de teste apareceu em "${nomeAba}"`, detalhe: `${linhasAntesEscrita} → ${linhasDepoisEscrita} linhas` },
+                    {
+                        ok: !chamadaRetornouFalse,
+                        label: `[${nomeSistema}] Chamada de gravação retornou sucesso`,
+                        detalhe: chamadaRetornouFalse ? 'retornou false — provável quota/erro do Google Sheets (ver logs da Vercel)' : ''
+                    },
                     { ok: false, label: `[${nomeSistema}] Linha de teste localizada pelo ID pra confirmar e limpar`, detalhe: 'não encontrada — nada foi apagado' }
                 ]
             };
@@ -9982,12 +9991,11 @@ async function _testeGravarEApagarComSeguranca({ nomeSistema, nomeAba, colunaInd
  * contagem de linhas antes/depois como cinto de segurança extra (ver _testeGravarEApagarComSeguranca).
  * Só roda para os sub-testes que tiveram sucesso na geração (sem texto gerado não há o que gravar).
  */
-// PAUSADO 2026-09-09: apos ligar, apareceu uma celula orfa nao explicada em "Moderacoes" (R631,
-// só a coluna "ID Moderação Anterior" preenchida, resto da linha vazio — nenhuma escrita completa
-// foi encontrada em lugar nenhum via busca na planilha, entao a origem exata ainda nao esta clara).
-// Pausado por seguranca ate investigar a fundo; os outros 3 testes (somente leitura) continuam
-// rodando normalmente. Reativar só depois de entender a causa raiz.
-const REGISTRO_NA_PLANILHA_ATIVO = false;
+// Reativado 2026-09-09 pra testar de novo com diagnostico melhor (ver chamadaRetornouFalse em
+// _testeGravarEApagarComSeguranca): suspeita e quota/rate-limit do Google Sheets API, ja que
+// muitas chamadas seguidas foram feitas nesta sessao. Se o problema persistir com o novo
+// diagnostico, os checks vao apontar exatamente "retornou false" em vez de silencio ambiguo.
+const REGISTRO_NA_PLANILHA_ATIVO = true;
 
 async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, respostaAprendizado }) {
     if (!REGISTRO_NA_PLANILHA_ATIVO) {
