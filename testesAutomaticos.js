@@ -12,7 +12,7 @@
 const DESTINATARIOS_PADRAO = [
     'casos.especiais@velotax.com.br',
     'Emerson.jose@velotax.com.br',
-    'octavio.silva@velotax.com.br'
+    'tavin.ramalho@gmail.com'
 ];
 
 function parseDestinatarios(raw) {
