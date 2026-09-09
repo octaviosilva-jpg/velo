@@ -47,50 +47,35 @@ function piorStatus(statuses) {
     return 'ok';
 }
 
-function truncar(texto, max = 900) {
-    const t = String(texto || '').trim();
-    if (t.length <= max) return t;
-    return t.slice(0, max) + '… (truncado)';
-}
-
 function escapeHtml(s) {
     return String(s || '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Relatorio EXECUTIVO: uma linha por funcionalidade + uma linha por checagem, sem trechos de
+// texto gerado (isso fica disponivel sob demanda via GET /api/cron/teste-automatico?detalhado=1).
 function formatarSecaoTexto(titulo, teste) {
-    const linhas = [`${STATUS_EMOJI[teste.status] || ''} ${titulo} — ${STATUS_LABEL[teste.status] || teste.status}`];
-    if (teste.caso) linhas.push(`Caso testado: ${teste.caso}`);
-    if (teste.resumo) linhas.push(teste.resumo);
+    const linhas = [`${STATUS_EMOJI[teste.status] || ''} ${titulo} — ${STATUS_LABEL[teste.status] || teste.status}${teste.caso ? ' (' + teste.caso + ')' : ''}`];
     if (Array.isArray(teste.checks) && teste.checks.length) {
-        linhas.push('Checagens:');
-        teste.checks.forEach(c => linhas.push(`  ${c.ok ? 'OK' : 'FALHOU'} — ${c.label}${c.detalhe ? ' (' + c.detalhe + ')' : ''}`));
+        teste.checks.forEach(c => linhas.push(`   ${c.ok ? '✓' : '✗'} ${c.label}${c.detalhe ? ' — ' + c.detalhe : ''}`));
     }
-    if (teste.erro) linhas.push(`Erro: ${teste.erro}`);
-    if (teste.amostraOutputGerado) linhas.push(`\nTrecho gerado agora:\n"${truncar(teste.amostraOutputGerado, 500)}"`);
-    if (teste.amostraOutputReal) linhas.push(`\nTrecho real (referência histórica):\n"${truncar(teste.amostraOutputReal, 500)}"`);
+    if (teste.resumo) linhas.push(`   • ${teste.resumo}`);
+    if (teste.erro) linhas.push(`   ✗ Erro: ${teste.erro}`);
     return linhas.join('\n');
 }
 
 function formatarSecaoHtml(titulo, teste) {
     const cor = { ok: '#1a7f37', alerta: '#9a6700', erro: '#cf222e', sem_dados: '#57606a' }[teste.status] || '#333';
-    let html = `<h3 style="margin-bottom:4px;">${STATUS_EMOJI[teste.status] || ''} ${escapeHtml(titulo)} — <span style="color:${cor};">${STATUS_LABEL[teste.status] || teste.status}</span></h3>`;
-    if (teste.caso) html += `<p style="margin:2px 0;"><strong>Caso testado:</strong> ${escapeHtml(teste.caso)}</p>`;
-    if (teste.resumo) html += `<p style="margin:2px 0;">${escapeHtml(teste.resumo)}</p>`;
+    let html = `<p style="margin:6px 0 2px;"><strong>${STATUS_EMOJI[teste.status] || ''} ${escapeHtml(titulo)}</strong> — <span style="color:${cor};">${STATUS_LABEL[teste.status] || teste.status}</span>${teste.caso ? ` <span style="color:#57606a;">(${escapeHtml(teste.caso)})</span>` : ''}</p>`;
     if (Array.isArray(teste.checks) && teste.checks.length) {
-        html += '<ul style="margin:4px 0;">';
+        html += '<ul style="margin:2px 0 4px;padding-left:20px;">';
         teste.checks.forEach(c => {
             html += `<li>${c.ok ? '✅' : '❌'} ${escapeHtml(c.label)}${c.detalhe ? ' — <em>' + escapeHtml(c.detalhe) + '</em>' : ''}</li>`;
         });
         html += '</ul>';
     }
+    if (teste.resumo) html += `<p style="margin:2px 0;color:#57606a;">${escapeHtml(teste.resumo)}</p>`;
     if (teste.erro) html += `<p style="color:#cf222e;margin:2px 0;"><strong>Erro:</strong> ${escapeHtml(teste.erro)}</p>`;
-    if (teste.amostraOutputGerado) {
-        html += `<p style="margin:8px 0 2px;"><strong>Trecho gerado agora:</strong></p><pre style="white-space:pre-wrap;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:8px;font-size:12px;">${escapeHtml(truncar(teste.amostraOutputGerado, 500))}</pre>`;
-    }
-    if (teste.amostraOutputReal) {
-        html += `<p style="margin:8px 0 2px;"><strong>Trecho real (referência histórica):</strong></p><pre style="white-space:pre-wrap;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:8px;font-size:12px;">${escapeHtml(truncar(teste.amostraOutputReal, 500))}</pre>`;
-    }
     return html;
 }
 

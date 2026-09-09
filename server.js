@@ -9648,6 +9648,8 @@ async function _testeRodarModeracaoPrimeiraTentativa(envVars, apiKey) {
         const { mapped, state } = await runPipelineV2Fortalecida({ idReclamacao, dadosModeracao }, deps);
         const val = validarTextoModeracao(mapped.textoModeracao || '');
         const hipoteseObtida = state?.hipoteseSelecionada?.titulo || state?.hipoteseSelecionada?.id || '';
+        const refsUsados = (state?.artefatos || []).map(a => a.ref).filter(Boolean);
+        const refRedacaoEsperado = 'redacao@v3';
 
         const checks = [
             { ok: !!mapped.textoModeracao, label: 'Texto final gerado' },
@@ -9656,7 +9658,12 @@ async function _testeRodarModeracaoPrimeiraTentativa(envVars, apiKey) {
                 label: 'Validação estrutural (sem linguagem de atendimento + pedido de moderação explícito)',
                 detalhe: val.ok ? '' : [...(val.linguagemAtendimento || []), ...((val.marcadoresPedido || []).length === 0 ? ['sem marcador de pedido'] : [])].join('; ')
             },
-            { ok: !mapped.confiancaBaixa, label: 'Confiança da auditoria acima do limiar', detalhe: mapped.confiancaBaixa ? `confiança=${mapped.confianca}` : '' }
+            { ok: !mapped.confiancaBaixa, label: 'Confiança da auditoria acima do limiar', detalhe: mapped.confiancaBaixa ? `confiança=${mapped.confianca}` : '' },
+            {
+                ok: refsUsados.includes(refRedacaoEsperado),
+                label: `Pipeline usou a versão de prompt esperada (${refRedacaoEsperado})`,
+                detalhe: refsUsados.join(', ')
+            }
         ];
         const status = checks.every(c => c.ok) ? 'ok' : 'alerta';
 
@@ -9747,10 +9754,17 @@ async function _testeRodarReformulacao(envVars, apiKey) {
         const codigo = negativaReal.codigo;
         const citouCodigo = codigo ? textoGerado.toLowerCase().includes(codigo.toLowerCase()) : null;
         const hipoteseObtida = state?.hipoteseSelecionada?.titulo || state?.hipoteseSelecionada?.id || '';
+        const refsUsados = (state?.artefatos || []).map(a => a.ref).filter(Boolean);
+        const refRedacaoEsperado = executarReformulacao === runReformulacaoV2Melhorada ? 'redacao-reformulacao@v1' : 'redacao@v2';
 
         const checks = [
             { ok: !!textoGerado, label: 'Texto de reformulação gerado' },
-            { ok: val.ok, label: 'Validação estrutural (sem linguagem de atendimento + pedido de reanálise)' }
+            { ok: val.ok, label: 'Validação estrutural (sem linguagem de atendimento + pedido de reanálise)' },
+            {
+                ok: refsUsados.includes(refRedacaoEsperado),
+                label: `Pipeline usou a versão de prompt esperada (${refRedacaoEsperado})`,
+                detalhe: refsUsados.join(', ')
+            }
         ];
         if (citouCodigo !== null) {
             checks.push({ ok: citouCodigo, label: `Cita o código/motivo da negativa recebida (${codigo})` });
@@ -9825,6 +9839,7 @@ async function _testeRodarRespostaAprendizado(envVars, apiKey) {
         );
 
         const textoGerado = pevResult.respostaPublica || '';
+        const pipelineModeUsado = pevResult.state?.pipelineMode || '';
         const checks = [
             { ok: !!textoGerado, label: 'Resposta gerada com sucesso' },
             {
@@ -9832,7 +9847,8 @@ async function _testeRodarRespostaAprendizado(envVars, apiKey) {
                 label: 'Sistema de aprendizado encontrou modelos coerentes para este tipo de situação',
                 detalhe: `${dadosPlanilha?.modelosCoerentes?.length || 0} modelo(s), ${dadosPlanilha?.feedbacksRelevantes?.length || 0} feedback(s)`
             },
-            { ok: !pevResult.usedFallback, label: 'Pipeline PEV concluiu sem cair no fallback', detalhe: pevResult.usedFallback ? 'usedFallback=true' : '' }
+            { ok: !pevResult.usedFallback, label: 'Pipeline PEV concluiu sem cair no fallback', detalhe: pevResult.usedFallback ? 'usedFallback=true' : '' },
+            { ok: pipelineModeUsado === 'pev', label: 'Rodou no pipeline esperado (Plan-and-Execute / PEV)', detalhe: pipelineModeUsado || 'não identificado' }
         ];
         const status = checks.every(c => c.ok) ? 'ok' : 'alerta';
 
