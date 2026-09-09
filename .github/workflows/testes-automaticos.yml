@@ -1,0 +1,41 @@
+name: Testes automáticos VeloBot RA
+
+# Dispara o endpoint /api/cron/teste-automatico 3x/dia (horário de Brasília, UTC-3 fixo, sem
+# horário de verão). Usa GitHub Actions em vez do cron da Vercel de propósito: cron com múltiplos
+# horários por dia normalmente exige plano Pro da Vercel; assim fica gratuito independente do
+# plano. O endpoint roda os testes (só leitura, não grava nada na planilha) e envia o relatório
+# por e-mail; este workflow só dispara a chamada HTTP e falha visivelmente se o teste não rodar.
+on:
+  schedule:
+    - cron: '30 12 * * *'  # 09:30 BRT
+    - cron: '30 16 * * *'  # 13:30 BRT
+    - cron: '30 20 * * *'  # 17:30 BRT
+  workflow_dispatch:
+    inputs:
+      horario:
+        description: 'Rótulo do horário (só pra identificar no relatório/log)'
+        required: false
+        default: 'manual'
+
+jobs:
+  disparar-teste:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Definir rótulo do horário
+        id: horario
+        run: |
+          case "${{ github.event.schedule }}" in
+            '30 12 * * *') echo "label=09:30" >> "$GITHUB_OUTPUT" ;;
+            '30 16 * * *') echo "label=13:30" >> "$GITHUB_OUTPUT" ;;
+            '30 20 * * *') echo "label=17:30" >> "$GITHUB_OUTPUT" ;;
+            *) echo "label=${{ github.event.inputs.horario || 'manual' }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Chamar /api/cron/teste-automatico
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BASE_URL: ${{ vars.VELOBOT_BASE_URL || 'https://velotax-bot-v2.vercel.app' }}
+        run: |
+          curl -fsS --max-time 280 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/teste-automatico?horario=${{ steps.horario.outputs.label }}"

@@ -9574,6 +9574,359 @@ app.get('/api/lembrete-marcacoes/preview', async (req, res) => {
     }
 });
 
+// ============================================================================
+// TESTES AUTOMÁTICOS PERIÓDICOS (moderação 1ª tentativa, reformulação, resposta
+// + aprendizado). 100% aditivo: só LÊ dados reais da planilha e chama os pipelines
+// diretamente (sem passar appendSheetSummary / sem chamar as rotinas que gravam
+// "Moderações"/"Respostas Coerentes"), então nenhuma execução destes testes grava
+// nada na planilha. Relatório é só por e-mail (ver testesAutomaticos.js).
+// Disparado externamente (GitHub Actions, não cron da Vercel — ver
+// .github/workflows/testes-automaticos.yml) para não depender do plano Pro da Vercel.
+// ============================================================================
+
+/** Rotaciona deterministicamente qual caso real usar a cada execução, sem precisar
+ * gravar estado em lugar nenhum: o "balde" de tempo muda a cada 6h, cobrindo casos
+ * diferentes ao longo dos dias sem repetir sempre o mesmo. */
+function _testeEscolherCasoRotativo(lista) {
+    if (!Array.isArray(lista) || lista.length === 0) return null;
+    const bucket = Math.floor(Date.now() / (1000 * 60 * 60 * 6));
+    return lista[bucket % lista.length];
+}
+
+async function _testeRodarModeracaoPrimeiraTentativa(envVars, apiKey) {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return { status: 'sem_dados', resumo: 'Google Sheets indisponível — teste não executado.' };
+        }
+        const data = await googleSheetsConfig.readData('Moderações Aceitas!A1:P5000');
+        if (!data || data.length <= 1) {
+            return { status: 'sem_dados', resumo: 'Nenhuma moderação aceita registrada ainda em "Moderações Aceitas".' };
+        }
+        const linhas = data.slice(1).filter(r => r && (r[2] || '').toString().trim() && (r[7] || '').toString().trim());
+        if (!linhas.length) return { status: 'sem_dados', resumo: 'Nenhuma linha utilizável em "Moderações Aceitas".' };
+        const row = _testeEscolherCasoRotativo(linhas.slice(-40));
+
+        const dadosModeracao = {
+            solicitacaoCliente: (row[7] || '').toString().trim(),
+            respostaEmpresa: (row[8] || '').toString().trim(),
+            consideracaoFinal: (row[9] || '').toString().trim(),
+            motivoModeracao: (row[4] || '').toString().trim()
+        };
+        const idReclamacao = (row[2] || '').toString().trim();
+        const textoRealAceito = (row[5] || '').toString().trim();
+        const sol = dadosModeracao.solicitacaoCliente, resp = dadosModeracao.respostaEmpresa,
+            cons = dadosModeracao.consideracaoFinal, motivo = dadosModeracao.motivoModeracao;
+
+        const { runPipelineV2Fortalecida } = require('./moderacao-pipeline');
+        const { validarTextoModeracao } = require('./moderacao-pipeline/redacaoValidator');
+
+        const deps = {
+            apiKey,
+            confLimiar: parseFloat(envVars.MODERACAO_CONF_LIMIAR) || 0.6,
+            buildManualBloco: async () => montarBlocoManuaisModeracao(`${sol}\n${resp}\n${cons}`, motivo),
+            buildUniversoHipoteses: async () => montarListaHipotesesAuditoria(),
+            buildCriteriosHipotese: async (state) => {
+                const hip = state?.hipoteseSelecionada;
+                const alvo = hip && (hip.id || hip.titulo);
+                const achada = alvo ? encontrarHipotesePorId(alvo) : null;
+                if (!achada) return {};
+                return { quandoSeAplica: achada.quandoSeAplica || '', criterios: Array.isArray(achada.criterios) ? achada.criterios : [] };
+            },
+            buildAprendizado: async () => {
+                try {
+                    const modelos = await getModelosModeracaoRelevantes(motivo, dadosModeracao);
+                    const lista = Array.isArray(modelos) ? modelos : (modelos && modelos.modelos) || [];
+                    if (Array.isArray(lista) && lista.length) {
+                        return lista.slice(0, 2).map(m => m.textoModeracao || m.texto || m.textoFinal || '').filter(Boolean).join('\n---\n');
+                    }
+                } catch (_) { /* referencia e opcional */ }
+                return '';
+            }
+            // sem appendSheetSummary de proposito: este teste nao deve gravar nada na planilha.
+        };
+
+        const { mapped, state } = await runPipelineV2Fortalecida({ idReclamacao, dadosModeracao }, deps);
+        const val = validarTextoModeracao(mapped.textoModeracao || '');
+        const hipoteseObtida = state?.hipoteseSelecionada?.titulo || state?.hipoteseSelecionada?.id || '';
+
+        const checks = [
+            { ok: !!mapped.textoModeracao, label: 'Texto final gerado' },
+            {
+                ok: val.ok,
+                label: 'Validação estrutural (sem linguagem de atendimento + pedido de moderação explícito)',
+                detalhe: val.ok ? '' : [...(val.linguagemAtendimento || []), ...((val.marcadoresPedido || []).length === 0 ? ['sem marcador de pedido'] : [])].join('; ')
+            },
+            { ok: !mapped.confiancaBaixa, label: 'Confiança da auditoria acima do limiar', detalhe: mapped.confiancaBaixa ? `confiança=${mapped.confianca}` : '' }
+        ];
+        const status = checks.every(c => c.ok) ? 'ok' : 'alerta';
+
+        return {
+            status,
+            caso: `Reclamação ${idReclamacao} (motivo utilizado originalmente: ${motivo || 'N/A'})`,
+            resumo: `Hipótese obtida agora: "${hipoteseObtida || 'N/A'}".`,
+            checks,
+            amostraOutputGerado: mapped.textoModeracao,
+            amostraOutputReal: textoRealAceito
+        };
+    } catch (e) {
+        console.error('❌ [Teste automático] moderação 1ª tentativa falhou:', e);
+        return { status: 'erro', erro: e.message };
+    }
+}
+
+async function _testeRodarReformulacao(envVars, apiKey) {
+    try {
+        if (!googleSheetsConfig || !googleSheetsConfig.isInitialized()) {
+            return { status: 'sem_dados', resumo: 'Google Sheets indisponível — teste não executado.' };
+        }
+        const data = await googleSheetsConfig.readData('Moderações Negadas!A1:T10000');
+        if (!data || data.length <= 1) {
+            return { status: 'sem_dados', resumo: 'Nenhuma moderação negada registrada ainda.' };
+        }
+        const linhas = data.slice(1).filter(r => r && r.length > 15 && (r[15] || '').toString().trim() && (r[10] || '').toString().trim());
+        if (!linhas.length) {
+            return { status: 'sem_dados', resumo: 'Nenhum registro em "Moderações Negadas" com o e-mail real do RA capturado (necessário pra reformulação).' };
+        }
+        const row = _testeEscolherCasoRotativo(linhas.slice(-40));
+
+        const dadosModeracao = {
+            solicitacaoCliente: (row[10] || '').toString().trim(),
+            respostaEmpresa: (row[11] || '').toString().trim(),
+            consideracaoFinal: (row[12] || '').toString().trim(),
+            motivoModeracao: (row[4] || '').toString().trim(),
+            hipoteseUtilizada: row.length > 18 ? (row[18] || '').toString().trim() : ''
+        };
+        const textoNegativaRA = (row[15] || '').toString().trim();
+        const idReclamacao = (row[2] || '').toString().trim();
+        const textoNegado = (row[5] || '').toString().trim();
+
+        const negativaParse = parseNegativaRA(textoNegativaRA);
+        const regra = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
+        const teseBateu = hipoteseBateuComRegra(dadosModeracao.hipoteseUtilizada, regra);
+        const negativaReal = {
+            motivoOficial: negativaParse.motivoOficial || '',
+            codigo: negativaParse.codigo || '',
+            regraTitulo: regra ? regra.titulo : '',
+            regraOQueVerifica: regra ? regra.oQueVerifica : '',
+            regraReprovaQuando: regra ? regra.reprovaQuando : '',
+            regraOrientacao: regra ? regra.regraRespostaRA : '',
+            hipoteseAnterior: dadosModeracao.hipoteseUtilizada,
+            teseBateu
+        };
+
+        const { runReformulacaoV2, runReformulacaoV2Melhorada } = require('./moderacao-pipeline');
+        const { validarTextoModeracao } = require('./moderacao-pipeline/redacaoValidator');
+        const executarReformulacao = String(envVars.MODERACAO_REFORMULACAO_REDACAO_V2 || process.env.MODERACAO_REFORMULACAO_REDACAO_V2 || '').toLowerCase() === 'true'
+            ? runReformulacaoV2Melhorada
+            : runReformulacaoV2;
+
+        const sol = dadosModeracao.solicitacaoCliente, resp = dadosModeracao.respostaEmpresa,
+            cons = dadosModeracao.consideracaoFinal, motivo = dadosModeracao.motivoModeracao;
+        const motivoParaAprendizado = negativaParse.motivoOficial || `Código ${negativaParse.codigo || 'não identificado'}`;
+
+        const deps = {
+            apiKey,
+            confLimiar: parseFloat(envVars.MODERACAO_CONF_LIMIAR) || 0.6,
+            buildManualBloco: async () => montarBlocoManuaisModeracao(`${sol} ${resp} ${cons}`, motivo),
+            buildUniversoHipoteses: async () => montarListaHipotesesAuditoria(),
+            buildAprendizado: async () => {
+                try {
+                    const feedbacksRelevantes = getRelevantFeedbacks('moderacao', { motivoNegativa: motivoParaAprendizado });
+                    if (feedbacksRelevantes.length > 0) {
+                        return feedbacksRelevantes.slice(0, 3).map(fb => fb.textoReformulado).filter(Boolean).join('\n---\n');
+                    }
+                } catch (_) { /* referencia e opcional */ }
+                return '';
+            }
+            // sem appendSheetSummary de proposito: este teste nao deve gravar nada na planilha.
+        };
+
+        const { mapped, state } = await executarReformulacao({ idReclamacao, dadosModeracao, negativaReal }, deps);
+        const val = validarTextoModeracao(mapped.textoModeracao || '');
+        const textoGerado = mapped.textoModeracao || '';
+        const codigo = negativaReal.codigo;
+        const citouCodigo = codigo ? textoGerado.toLowerCase().includes(codigo.toLowerCase()) : null;
+        const hipoteseObtida = state?.hipoteseSelecionada?.titulo || state?.hipoteseSelecionada?.id || '';
+
+        const checks = [
+            { ok: !!textoGerado, label: 'Texto de reformulação gerado' },
+            { ok: val.ok, label: 'Validação estrutural (sem linguagem de atendimento + pedido de reanálise)' }
+        ];
+        if (citouCodigo !== null) {
+            checks.push({ ok: citouCodigo, label: `Cita o código/motivo da negativa recebida (${codigo})` });
+        }
+        const status = checks.every(c => c.ok) ? 'ok' : 'alerta';
+
+        return {
+            status,
+            caso: `Reclamação ${idReclamacao} — negada por ${negativaReal.codigo || 'código não identificado'} (${negativaReal.motivoOficial || 'motivo não identificado'})`,
+            resumo: `Força da nova tentativa avaliada pela auditoria: ${mapped.forcaDaTentativa || 'N/A'}. Hipótese: ${hipoteseObtida || 'N/A'}.`,
+            checks,
+            amostraOutputGerado: textoGerado,
+            amostraOutputReal: textoNegado
+        };
+    } catch (e) {
+        console.error('❌ [Teste automático] reformulação falhou:', e);
+        return { status: 'erro', erro: e.message };
+    }
+}
+
+async function _testeRodarRespostaAprendizado(envVars, apiKey) {
+    try {
+        if (!googleSheetsIntegration || !googleSheetsIntegration.isActive()) {
+            return { status: 'sem_dados', resumo: 'Google Sheets indisponível — teste não executado.' };
+        }
+        const todosModelos = await googleSheetsIntegration.obterModelosRespostas();
+        const elegiveis = (todosModelos || []).filter(m => {
+            const resp = (m['Resposta Aprovada'] || '').toString().trim();
+            const tipo = (m['Tipo Solicitação'] || '').toString().trim();
+            const cliente = (m['Texto Cliente'] || '').toString().trim();
+            return resp && tipo && cliente;
+        });
+        if (!elegiveis.length) return { status: 'sem_dados', resumo: 'Nenhum registro utilizável em "Respostas Coerentes".' };
+        const modelo = _testeEscolherCasoRotativo(elegiveis.slice(-40));
+
+        const idReclamacao = (modelo['ID da Reclamação'] || '').toString().trim();
+        const dadosFormulario = {
+            id_reclamacao: idReclamacao,
+            tipo_solicitacao: (modelo['Tipo Solicitação'] || '').toString().trim(),
+            motivo_solicitacao: (modelo['Tipo de Situação'] || '').toString().trim(),
+            solucao_implementada: (modelo['Solução Implementada'] || '').toString().trim(),
+            texto_cliente: (modelo['Texto Cliente'] || '').toString().trim(),
+            historico_atendimento: (modelo['Histórico Atendimento'] || '').toString().trim(),
+            nome_solicitante: 'Teste Automático'
+        };
+        const respostaReal = (modelo['Resposta Aprovada'] || '').toString().trim();
+
+        // Checagem de saude do aprendizado independente da geracao em si.
+        const dadosPlanilha = await carregarDadosAprendizadoCompleto(dadosFormulario.tipo_solicitacao);
+        const aprendizadoSaudavel = (dadosPlanilha?.modelosCoerentes?.length || 0) > 0;
+
+        const conhecimentoProdutos = obterConhecimentoProdutos(dadosFormulario);
+        const respostaPipeline = require('./resposta-pipeline');
+        const userDataTeste = { nome: 'Teste Automático', email: 'teste-automatico@velotax.com.br' };
+        // PEV_CHANCE_MODERACAO_ENABLED desligado so pro teste: mede resposta+aprendizado sem
+        // disparar a sub-rotina de "chance de moderacao" (outra feature, custo de IA a mais).
+        const envVarsTeste = { ...envVars, PEV_CHANCE_MODERACAO_ENABLED: 'false' };
+
+        const pevResult = await respostaPipeline.runPlanExec(
+            { dadosFormulario, dadosPlanilha, conhecimentoProdutos, envVars: envVarsTeste, userData: userDataTeste },
+            {
+                apiKey,
+                envVars: envVarsTeste,
+                userData: userDataTeste,
+                executarChanceModeracao,
+                montarChecklistConformidadeRA,
+                montarTextoFallbackRespostaRA,
+                obterConhecimentoProdutos,
+                gerarScriptPadraoResposta,
+                reformularComConhecimento
+            }
+        );
+
+        const textoGerado = pevResult.respostaPublica || '';
+        const checks = [
+            { ok: !!textoGerado, label: 'Resposta gerada com sucesso' },
+            {
+                ok: aprendizadoSaudavel,
+                label: 'Sistema de aprendizado encontrou modelos coerentes para este tipo de situação',
+                detalhe: `${dadosPlanilha?.modelosCoerentes?.length || 0} modelo(s), ${dadosPlanilha?.feedbacksRelevantes?.length || 0} feedback(s)`
+            },
+            { ok: !pevResult.usedFallback, label: 'Pipeline PEV concluiu sem cair no fallback', detalhe: pevResult.usedFallback ? 'usedFallback=true' : '' }
+        ];
+        const status = checks.every(c => c.ok) ? 'ok' : 'alerta';
+
+        return {
+            status,
+            caso: `Reclamação ${idReclamacao || 'N/A'} — tipo "${dadosFormulario.tipo_solicitacao}"`,
+            resumo: `Aprendizado aplicado: ${dadosPlanilha?.modelosCoerentes?.length || 0} modelo(s) coerente(s) + ${dadosPlanilha?.feedbacksRelevantes?.length || 0} feedback(s).`,
+            checks,
+            amostraOutputGerado: textoGerado,
+            amostraOutputReal: respostaReal
+        };
+    } catch (e) {
+        console.error('❌ [Teste automático] resposta + aprendizado falhou:', e);
+        return { status: 'erro', erro: e.message };
+    }
+}
+
+async function rodarTestesAutomaticosCompletos(horario) {
+    const inicio = Date.now();
+    const envVars = loadEnvFile();
+    const apiKey = envVars.OPENAI_API_KEY;
+    const testesAutomaticos = require('./testesAutomaticos');
+
+    const flagLigada = (nome) => String(envVars[nome] || process.env[nome] || '').toLowerCase() === 'true';
+    const saudeGeral = {
+        flags: {
+            MODERACAO_PIPELINE_V2: flagLigada('MODERACAO_PIPELINE_V2'),
+            MODERACAO_REFORMULACAO_REDACAO_V2: flagLigada('MODERACAO_REFORMULACAO_REDACAO_V2'),
+            MODERACAO_REDACAO_FORTALECIDA_V2: flagLigada('MODERACAO_REDACAO_FORTALECIDA_V2')
+        },
+        erros: []
+    };
+
+    if (!validateApiKey(apiKey)) {
+        saudeGeral.erros.push('OPENAI_API_KEY ausente ou inválida — testes não executados.');
+        const resultado = { horario, timestampISO: new Date().toISOString(), duracaoMs: Date.now() - inicio, saudeGeral, testes: {} };
+        const envio = await testesAutomaticos.enviarRelatorioTestes(resultado);
+        return { resultado, envio };
+    }
+
+    const sheetsOk = await ensureGoogleSheetsReady();
+    if (!sheetsOk) saudeGeral.erros.push('Google Sheets indisponível no momento do teste.');
+
+    const [moderacaoPrimeira, reformulacao, respostaAprendizado] = await Promise.all([
+        _testeRodarModeracaoPrimeiraTentativa(envVars, apiKey),
+        _testeRodarReformulacao(envVars, apiKey),
+        _testeRodarRespostaAprendizado(envVars, apiKey)
+    ]);
+
+    const resultado = {
+        horario,
+        timestampISO: new Date().toISOString(),
+        duracaoMs: Date.now() - inicio,
+        saudeGeral,
+        testes: { moderacaoPrimeira, reformulacao, respostaAprendizado }
+    };
+
+    const envio = await testesAutomaticos.enviarRelatorioTestes(resultado);
+    return { resultado, envio };
+}
+
+/**
+ * Disparado externamente (GitHub Actions, 3x/dia — 9:30, 13:30 e 17:30 BRT) via HTTP.
+ * Protegido por CRON_SECRET, mesmo padrão de /api/cron/lembrete-marcacoes.
+ * Roda os 3 testes (só leitura) e envia o relatório por e-mail; não grava nada na planilha.
+ */
+app.get('/api/cron/teste-automatico', async (req, res) => {
+    const secret = process.env.CRON_SECRET || '';
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : (req.query.secret || '');
+    if (!secret || token !== secret) {
+        return res.status(401).json({ success: false, error: 'Não autorizado' });
+    }
+    try {
+        const horario = (req.query.horario || 'manual').toString();
+        const { resultado, envio } = await rodarTestesAutomaticosCompletos(horario);
+        res.json({
+            success: true,
+            horario,
+            duracaoMs: resultado.duracaoMs,
+            saudeGeral: resultado.saudeGeral,
+            statusPorTeste: {
+                moderacaoPrimeira: resultado.testes.moderacaoPrimeira?.status,
+                reformulacao: resultado.testes.reformulacao?.status,
+                respostaAprendizado: resultado.testes.respostaAprendizado?.status
+            },
+            envio: { enviado: envio.enviado, motivo: envio.motivo, destinatarios: envio.destinatarios, statusGeral: envio.statusGeral }
+        });
+    } catch (e) {
+        console.error('❌ Cron teste-automatico:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 /**
  * Cron Vercel — lembrete por e-mail quando há dias sem marcação.
  * Protegido por CRON_SECRET (header Authorization: Bearer … ou ?secret=).

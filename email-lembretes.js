@@ -429,5 +429,9 @@ module.exports = {
     enviarTesteTodosNiveis,
     lerEstadoUltimoEnvio,
     NIVEIS_DIAS,
-    CONFIG_SHEET
+    CONFIG_SHEET,
+    // Exports aditivos — reaproveitados por testesAutomaticos.js pra nao duplicar a logica de
+    // envio (SMTP/Resend). Nao mudam nada do comportamento existente deste arquivo.
+    enviarViaResend,
+    enviarViaSmtp
 };
