@@ -25,7 +25,18 @@ const { runNode } = require('./orchestrator');
 const ws = require('./workflowState');
 const { buildEvidenceMap } = require('./evidenceMap');
 const { validate } = require('./validationGate');
+const { verificarElegibilidadeHipotese } = require('./hipoteseElegibilidade');
 const { STEPS_REFORMULACAO, REDACAO_REFORMULACAO } = require('./steps');
+
+/** Combina o gate padrao com a checagem extra de elegibilidade de hipotese (ver
+ * hipoteseElegibilidade.js) sem alterar validationGate.js. */
+function validateComElegibilidade(state, opts) {
+    const gate = validate(state, opts);
+    if (!gate.ok) return gate;
+    const elegibilidade = verificarElegibilidadeHipotese(state);
+    if (!elegibilidade.ok) return { ok: false, target: gate.target, reasons: [elegibilidade.motivo] };
+    return gate;
+}
 
 function rebuildEvidenceMap(state) {
     const evidenceMap = buildEvidenceMap({
@@ -64,7 +75,7 @@ async function runPipelineReformulacaoV2Melhorada(state, deps = {}) {
     await runNode(state, decisao, deps);
 
     rebuildEvidenceMap(state);
-    let gate = validate(state, { confLimiar });
+    let gate = validateComElegibilidade(state, { confLimiar });
     ws.logDecision(state, {
         node: NODES.GATE, actor: ACTORS.CODIGO, event: 'gate.check',
         reason: gate.ok ? 'ok' : gate.reasons.join('; '), confDepois: state.confianca
@@ -81,7 +92,7 @@ async function runPipelineReformulacaoV2Melhorada(state, deps = {}) {
         });
         await runNode(state, decisao, deps);
         rebuildEvidenceMap(state);
-        gate = validate(state, { confLimiar });
+        gate = validateComElegibilidade(state, { confLimiar });
         ws.logDecision(state, {
             node: NODES.GATE, actor: ACTORS.CODIGO, event: 'gate.recheck',
             reason: gate.ok ? 'ok' : gate.reasons.join('; '), confDepois: state.confianca
