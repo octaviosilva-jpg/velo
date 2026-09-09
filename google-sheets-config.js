@@ -155,7 +155,7 @@ class GoogleSheetsConfig {
             };
 
             const response = await sheets.spreadsheets.values.append(request);
-            console.log('✅ Linha adicionada com sucesso:', response.data.updates.updatedRows);
+            console.log('✅ Linha adicionada com sucesso:', response.data.updates.updatedRows, 'range:', response.data.updates.updatedRange);
             return response.data;
 
         } catch (error) {
