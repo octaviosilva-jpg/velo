@@ -9982,7 +9982,20 @@ async function _testeGravarEApagarComSeguranca({ nomeSistema, nomeAba, colunaInd
  * contagem de linhas antes/depois como cinto de segurança extra (ver _testeGravarEApagarComSeguranca).
  * Só roda para os sub-testes que tiveram sucesso na geração (sem texto gerado não há o que gravar).
  */
+// PAUSADO 2026-09-09: apos ligar, apareceu uma celula orfa nao explicada em "Moderacoes" (R631,
+// só a coluna "ID Moderação Anterior" preenchida, resto da linha vazio — nenhuma escrita completa
+// foi encontrada em lugar nenhum via busca na planilha, entao a origem exata ainda nao esta clara).
+// Pausado por seguranca ate investigar a fundo; os outros 3 testes (somente leitura) continuam
+// rodando normalmente. Reativar só depois de entender a causa raiz.
+const REGISTRO_NA_PLANILHA_ATIVO = false;
+
 async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, respostaAprendizado }) {
+    if (!REGISTRO_NA_PLANILHA_ATIVO) {
+        return {
+            status: 'sem_dados',
+            checks: [{ ok: false, label: 'Teste de gravação/exclusão pausado pra investigação (ver comentário no código)', detalhe: 'reativar REGISTRO_NA_PLANILHA_ATIVO em server.js' }]
+        };
+    }
     const agora = Date.now();
     const itens = [];
     const alertasCriticos = [];
