@@ -10192,7 +10192,15 @@ app.get('/api/cron/teste-automatico', async (req, res) => {
             // ?detalhado=1: inclui caso/checks/trechos gerados de cada teste (sem precisar abrir o
             // e-mail) — util pra conferencia pontual sob demanda.
             ...(detalhado ? { testes: resultado.testes } : {}),
-            envio: { enviado: envio.enviado, motivo: envio.motivo, destinatarios: envio.destinatarios, statusGeral: envio.statusGeral }
+            envio: {
+                enviado: envio.enviado,
+                motivo: envio.motivo,
+                destinatarios: envio.destinatarios,
+                statusGeral: envio.statusGeral,
+                provider: envio.provider,
+                aceitosPeloServidor: envio.aceitosPeloServidor,
+                rejeitadosPeloServidor: envio.rejeitadosPeloServidor
+            }
         });
     } catch (e) {
         console.error('❌ Cron teste-automatico:', e);
