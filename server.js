@@ -9908,6 +9908,7 @@ app.get('/api/cron/teste-automatico', async (req, res) => {
     }
     try {
         const horario = (req.query.horario || 'manual').toString();
+        const detalhado = req.query.detalhado === '1' || req.query.detalhado === 'true';
         const { resultado, envio } = await rodarTestesAutomaticosCompletos(horario);
         res.json({
             success: true,
@@ -9919,6 +9920,9 @@ app.get('/api/cron/teste-automatico', async (req, res) => {
                 reformulacao: resultado.testes.reformulacao?.status,
                 respostaAprendizado: resultado.testes.respostaAprendizado?.status
             },
+            // ?detalhado=1: inclui caso/checks/trechos gerados de cada teste (sem precisar abrir o
+            // e-mail) — util pra conferencia pontual sob demanda.
+            ...(detalhado ? { testes: resultado.testes } : {}),
             envio: { enviado: envio.enviado, motivo: envio.motivo, destinatarios: envio.destinatarios, statusGeral: envio.statusGeral }
         });
     } catch (e) {
