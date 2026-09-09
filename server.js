@@ -9673,7 +9673,9 @@ async function _testeRodarModeracaoPrimeiraTentativa(envVars, apiKey) {
             resumo: `Hipótese obtida agora: "${hipoteseObtida || 'N/A'}".`,
             checks,
             amostraOutputGerado: mapped.textoModeracao,
-            amostraOutputReal: textoRealAceito
+            amostraOutputReal: textoRealAceito,
+            // dados brutos reaproveitados pelo teste de registro na planilha (evita gerar de novo)
+            _bruto: { mapped, dadosModeracao }
         };
     } catch (e) {
         console.error('❌ [Teste automático] moderação 1ª tentativa falhou:', e);
@@ -9777,7 +9779,9 @@ async function _testeRodarReformulacao(envVars, apiKey) {
             resumo: `Força da nova tentativa avaliada pela auditoria: ${mapped.forcaDaTentativa || 'N/A'}. Hipótese: ${hipoteseObtida || 'N/A'}.`,
             checks,
             amostraOutputGerado: textoGerado,
-            amostraOutputReal: textoNegado
+            amostraOutputReal: textoNegado,
+            // dados brutos reaproveitados pelo teste de registro na planilha (evita gerar de novo)
+            _bruto: { mapped, dadosModeracao }
         };
     } catch (e) {
         console.error('❌ [Teste automático] reformulação falhou:', e);
@@ -9858,12 +9862,215 @@ async function _testeRodarRespostaAprendizado(envVars, apiKey) {
             resumo: `Aprendizado aplicado: ${dadosPlanilha?.modelosCoerentes?.length || 0} modelo(s) coerente(s) + ${dadosPlanilha?.feedbacksRelevantes?.length || 0} feedback(s).`,
             checks,
             amostraOutputGerado: textoGerado,
-            amostraOutputReal: respostaReal
+            amostraOutputReal: respostaReal,
+            // dados brutos reaproveitados pelo teste de registro na planilha (evita gerar de novo)
+            _bruto: { dadosFormulario, textoGerado }
         };
     } catch (e) {
         console.error('❌ [Teste automático] resposta + aprendizado falhou:', e);
         return { status: 'erro', erro: e.message };
     }
+}
+
+/** Conta linhas de dados (exclui cabeçalho) de uma aba, olhando só a coluna A. */
+async function _testeContarLinhas(nomeAba) {
+    const data = await googleSheetsConfig.readData(`${nomeAba}!A:A`);
+    if (!data || data.length <= 1) return 0;
+    return data.slice(1).filter(r => r && r[0] !== undefined && r[0] !== null && r[0].toString().trim() !== '').length;
+}
+
+/** Retorna os números de linha (1-based, iguais ao numero exibido no Sheets) onde a coluna
+ * indicada bate exatamente com o id procurado. */
+async function _testeLocalizarLinhasPorId(nomeAba, colunaIndice, idAlvo) {
+    const data = await googleSheetsConfig.readData(`${nomeAba}!A1:Z100000`);
+    if (!data || data.length <= 1) return [];
+    const alvo = idAlvo.toString().trim();
+    const linhas = [];
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (row && (row[colunaIndice] || '').toString().trim() === alvo) linhas.push(i + 1);
+    }
+    return linhas;
+}
+
+/**
+ * Grava uma linha de teste sintética (ID inconfundível, nunca um ID real), confirma que
+ * apareceu, apaga exatamente essa linha e confirma que a contagem voltou ao esperado.
+ * Nunca apaga por posição/índice "last row" — sempre localiza de novo pelo ID exato antes de
+ * apagar, então é seguro mesmo com escritas reais concorrentes na mesma aba. Se o ID aparecer
+ * em mais de 1 linha (nao deveria acontecer, ID e baseado em timestamp), ABORTA a exclusao por
+ * segurança e sinaliza para checagem manual — nunca apaga varias linhas automaticamente.
+ * Se a contagem cair mais do que o esperado (1) ao apagar, sinaliza alerta CRÍTICO.
+ */
+async function _testeGravarEApagarComSeguranca({ nomeSistema, nomeAba, colunaIndiceId, idTeste, gravar }) {
+    try {
+        const linhasAntesEscrita = await _testeContarLinhas(nomeAba);
+        await gravar();
+        const linhasDepoisEscrita = await _testeContarLinhas(nomeAba);
+        const escritaOk = linhasDepoisEscrita >= linhasAntesEscrita + 1;
+
+        const localizadas = await _testeLocalizarLinhasPorId(nomeAba, colunaIndiceId, idTeste);
+
+        if (localizadas.length === 0) {
+            return {
+                status: 'alerta',
+                caso: `${nomeSistema} — ID de teste ${idTeste}`,
+                checks: [
+                    { ok: escritaOk, label: `[${nomeSistema}] Linha de teste apareceu em "${nomeAba}"`, detalhe: `${linhasAntesEscrita} → ${linhasDepoisEscrita} linhas` },
+                    { ok: false, label: `[${nomeSistema}] Linha de teste localizada pelo ID pra confirmar e limpar`, detalhe: 'não encontrada — nada foi apagado' }
+                ]
+            };
+        }
+
+        if (localizadas.length > 1) {
+            return {
+                status: 'erro',
+                caso: `${nomeSistema} — ID de teste ${idTeste}`,
+                checks: [
+                    { ok: escritaOk, label: `[${nomeSistema}] Linha de teste apareceu em "${nomeAba}"`, detalhe: `${linhasAntesEscrita} → ${linhasDepoisEscrita} linhas` },
+                    { ok: false, label: `[${nomeSistema}] ID de teste é único na planilha`, detalhe: `encontrado em ${localizadas.length} linhas — exclusão automática BLOQUEADA por segurança, requer checagem manual` }
+                ],
+                alertaCritico: `"${nomeAba}": ID de teste ${idTeste} (${nomeSistema}) apareceu em ${localizadas.length} linhas — nada foi apagado automaticamente. Confira manualmente.`
+            };
+        }
+
+        const linhaAlvo = localizadas[0];
+        const linhasAntesExclusao = await _testeContarLinhas(nomeAba);
+        await googleSheetsConfig.deleteRow(nomeAba, linhaAlvo);
+        const linhasDepoisExclusao = await _testeContarLinhas(nomeAba);
+        const aindaExiste = await _testeLocalizarLinhasPorId(nomeAba, colunaIndiceId, idTeste);
+
+        const exclusaoConfirmadaPorId = aindaExiste.length === 0;
+        const quedaAlemDoEsperado = linhasDepoisExclusao < (linhasAntesExclusao - 1);
+
+        const checks = [
+            { ok: escritaOk, label: `[${nomeSistema}] Linha de teste apareceu em "${nomeAba}"`, detalhe: `${linhasAntesEscrita} → ${linhasDepoisEscrita} linhas` },
+            { ok: true, label: `[${nomeSistema}] Linha de teste localizada e conteúdo conferido antes de apagar` },
+            {
+                ok: exclusaoConfirmadaPorId,
+                label: `[${nomeSistema}] Linha de teste removida com sucesso`,
+                detalhe: exclusaoConfirmadaPorId ? '' : 'ainda encontrada pelo ID após tentar apagar — precisa apagar manualmente'
+            },
+            {
+                ok: !quedaAlemDoEsperado,
+                label: `[${nomeSistema}] Contagem de linhas bateu com o esperado ao apagar (só a linha de teste)`,
+                detalhe: `${linhasAntesExclusao} → ${linhasDepoisExclusao} linhas`
+            }
+        ];
+
+        const resultado = {
+            status: quedaAlemDoEsperado ? 'erro' : (checks.every(c => c.ok) ? 'ok' : 'alerta'),
+            caso: `${nomeSistema} — ID de teste ${idTeste}`,
+            checks
+        };
+        if (quedaAlemDoEsperado) {
+            resultado.alertaCritico = `"${nomeAba}": contagem caiu de ${linhasAntesExclusao} para ${linhasDepoisExclusao} ao apagar 1 única linha de teste (${nomeSistema}, ID ${idTeste}) — possível exclusão além do esperado. NÃO tentei corrigir automaticamente. Confira o Histórico de Versões da planilha antes de qualquer outra ação.`;
+        } else if (!exclusaoConfirmadaPorId) {
+            resultado.alertaCritico = `"${nomeAba}": sobrou a linha de teste do ID ${idTeste} (${nomeSistema}) — apague manualmente.`;
+        }
+        return resultado;
+    } catch (e) {
+        console.error(`❌ [Teste automático] registro na planilha (${nomeSistema}) falhou:`, e);
+        return { status: 'erro', caso: `${nomeSistema} — ID de teste ${idTeste}`, erro: e.message };
+    }
+}
+
+/**
+ * Testa se os 3 sistemas REALMENTE gravam corretamente na planilha (não só geram o texto):
+ * grava uma linha sintética reaproveitando o texto já gerado pelos testes de geração (evita
+ * chamadas de IA extras), confirma que apareceu certinho, e apaga em seguida — sempre com
+ * contagem de linhas antes/depois como cinto de segurança extra (ver _testeGravarEApagarComSeguranca).
+ * Só roda para os sub-testes que tiveram sucesso na geração (sem texto gerado não há o que gravar).
+ */
+async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, respostaAprendizado }) {
+    const agora = Date.now();
+    const itens = [];
+    const alertasCriticos = [];
+
+    if (moderacaoPrimeira?._bruto?.mapped?.textoModeracao) {
+        const idTeste = `99999${agora}`.slice(0, 15);
+        const { mapped, dadosModeracao } = moderacaoPrimeira._bruto;
+        const r = await _testeGravarEApagarComSeguranca({
+            nomeSistema: 'Moderação 1ª tentativa',
+            nomeAba: 'Moderações',
+            colunaIndiceId: 2,
+            idTeste,
+            gravar: () => googleSheetsIntegration.registrarModeracaoCoerente({
+                id: agora,
+                idReclamacao: idTeste,
+                tipo: 'moderacao',
+                dadosModeracao,
+                auditoriaHipotese: mapped.auditoriaHipotese || '',
+                linhaRaciocinio: mapped.linhaRaciocinio || '',
+                textoModeracao: mapped.textoModeracao,
+                textoFinal: mapped.textoModeracao,
+                statusAprovacao: 'Aprovada (TESTE AUTOMÁTICO)',
+                userProfile: 'Teste Automático', userName: 'Teste Automático', userEmail: 'teste-automatico@velotax.com.br'
+            })
+        });
+        itens.push(r);
+    } else {
+        itens.push({ status: 'sem_dados', caso: 'Moderação 1ª tentativa', resumo: 'Geração não produziu texto — registro não testado.' });
+    }
+
+    if (reformulacao?._bruto?.mapped?.textoModeracao) {
+        const idTeste = `99998${agora}`.slice(0, 15);
+        const { mapped, dadosModeracao } = reformulacao._bruto;
+        const r = await _testeGravarEApagarComSeguranca({
+            nomeSistema: 'Reformulação (2ª tentativa)',
+            nomeAba: 'Moderações',
+            colunaIndiceId: 2,
+            idTeste,
+            gravar: () => googleSheetsIntegration.registrarModeracaoCoerente({
+                id: agora + 1,
+                idReclamacao: idTeste,
+                tipo: 'moderacao',
+                dadosModeracao,
+                auditoriaHipotese: mapped.auditoriaHipotese || '',
+                linhaRaciocinio: mapped.linhaRaciocinio || '',
+                textoModeracao: mapped.textoModeracao,
+                textoFinal: mapped.textoModeracao,
+                statusAprovacao: 'Aprovada (TESTE AUTOMÁTICO)',
+                numeroTentativa: 2,
+                idModeracaoAnterior: `${idTeste}0`,
+                userProfile: 'Teste Automático', userName: 'Teste Automático', userEmail: 'teste-automatico@velotax.com.br'
+            })
+        });
+        itens.push(r);
+    } else {
+        itens.push({ status: 'sem_dados', caso: 'Reformulação (2ª tentativa)', resumo: 'Geração não produziu texto — registro não testado.' });
+    }
+
+    if (respostaAprendizado?._bruto?.textoGerado) {
+        const idTeste = `99997${agora}`.slice(0, 15);
+        const { dadosFormulario, textoGerado } = respostaAprendizado._bruto;
+        const r = await _testeGravarEApagarComSeguranca({
+            nomeSistema: 'Resposta + Aprendizado',
+            nomeAba: 'Respostas Coerentes',
+            colunaIndiceId: 6,
+            idTeste,
+            gravar: () => googleSheetsIntegration.registrarRespostaCoerente({
+                id: agora + 2,
+                tipo: 'resposta',
+                dadosFormulario: { ...dadosFormulario, id_reclamacao: idTeste },
+                respostaAprovada: textoGerado,
+                userProfile: 'Teste Automático', userName: 'Teste Automático', userEmail: 'teste-automatico@velotax.com.br'
+            })
+        });
+        itens.push(r);
+    } else {
+        itens.push({ status: 'sem_dados', caso: 'Resposta + Aprendizado', resumo: 'Geração não produziu texto — registro não testado.' });
+    }
+
+    itens.forEach(i => { if (i.alertaCritico) alertasCriticos.push(i.alertaCritico); });
+    const statusOrdem = ['erro', 'alerta', 'sem_dados', 'ok'];
+    const status = statusOrdem.find(s => itens.some(i => i.status === s)) || 'ok';
+
+    return {
+        status,
+        checks: itens.flatMap(i => i.checks || (i.erro ? [{ ok: false, label: `[${i.caso}] erro`, detalhe: i.erro }] : [{ ok: false, label: `[${i.caso}] ${i.resumo || 'sem dados'}` }])),
+        ...(alertasCriticos.length ? { alertaCritico: alertasCriticos.join(' | ') } : {})
+    };
 }
 
 async function rodarTestesAutomaticosCompletos(horario) {
@@ -9898,12 +10105,24 @@ async function rodarTestesAutomaticosCompletos(horario) {
         _testeRodarRespostaAprendizado(envVars, apiKey)
     ]);
 
+    // Roda depois dos 3 acima (nao em paralelo) pra reaproveitar o texto ja gerado por eles em
+    // vez de gerar de novo, e pra nao concorrer com as proprias escritas de teste na mesma aba.
+    const registroNaPlanilha = await _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, respostaAprendizado });
+    if (registroNaPlanilha.alertaCritico) {
+        saudeGeral.erros.push(`🚨 ${registroNaPlanilha.alertaCritico}`);
+    }
+
+    // _bruto so existia pra passar dado entre os testes acima; nao faz sentido no relatorio/JSON.
+    delete moderacaoPrimeira._bruto;
+    delete reformulacao._bruto;
+    delete respostaAprendizado._bruto;
+
     const resultado = {
         horario,
         timestampISO: new Date().toISOString(),
         duracaoMs: Date.now() - inicio,
         saudeGeral,
-        testes: { moderacaoPrimeira, reformulacao, respostaAprendizado }
+        testes: { moderacaoPrimeira, reformulacao, respostaAprendizado, registroNaPlanilha }
     };
 
     const envio = await testesAutomaticos.enviarRelatorioTestes(resultado);
@@ -9934,7 +10153,8 @@ app.get('/api/cron/teste-automatico', async (req, res) => {
             statusPorTeste: {
                 moderacaoPrimeira: resultado.testes.moderacaoPrimeira?.status,
                 reformulacao: resultado.testes.reformulacao?.status,
-                respostaAprendizado: resultado.testes.respostaAprendizado?.status
+                respostaAprendizado: resultado.testes.respostaAprendizado?.status,
+                registroNaPlanilha: resultado.testes.registroNaPlanilha?.status
             },
             // ?detalhado=1: inclui caso/checks/trechos gerados de cada teste (sem precisar abrir o
             // e-mail) — util pra conferencia pontual sob demanda.

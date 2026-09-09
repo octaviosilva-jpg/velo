@@ -87,9 +87,12 @@ function montarRelatorio(resultado) {
         resultado.saudeGeral?.erros?.length ? 'alerta' : 'ok'
     ]);
 
-    const assunto = statusGeral === 'ok'
-        ? `[VeloBot] Teste automático ${resultado.horario} — OK`
-        : `[VeloBot] Teste automático ${resultado.horario} — ${STATUS_LABEL[statusGeral]}`;
+    const temCritico = Object.values(testes).some(t => t?.alertaCritico) || (resultado.saudeGeral?.erros || []).some(e => e.includes('🚨'));
+    const assunto = temCritico
+        ? `[VeloBot] 🚨 CRÍTICO — Teste automático ${resultado.horario}`
+        : statusGeral === 'ok'
+            ? `[VeloBot] Teste automático ${resultado.horario} — OK`
+            : `[VeloBot] Teste automático ${resultado.horario} — ${STATUS_LABEL[statusGeral]}`;
 
     const flags = resultado.saudeGeral?.flags || {};
     const flagsTexto = Object.entries(flags).map(([k, v]) => `${k}=${v ? 'true' : 'false'}`).join(', ');
@@ -109,12 +112,16 @@ function montarRelatorio(resultado) {
         '=== 3) Geração de Resposta + Aprendizado ===',
         formatarSecaoTexto('Resposta + Aprendizado', testes.respostaAprendizado || { status: 'sem_dados' }),
         '',
+        '=== 4) Registro na Planilha (grava, confirma e apaga a linha de teste) ===',
+        formatarSecaoTexto('Registro na Planilha', testes.registroNaPlanilha || { status: 'sem_dados' }),
+        '',
         '—',
         'Mensagem automática gerada pelo VeloBot RA (teste periódico, não afeta dados de produção).'
     ];
     const texto = textoPartes.join('\n');
 
     const html = `
+${temCritico ? `<p style="background:#ffebe9;border:2px solid #cf222e;border-radius:6px;padding:10px;color:#cf222e;"><strong>🚨 ALERTA CRÍTICO</strong> — alguma checagem de segurança da gravação/exclusão na planilha falhou. Veja a seção 4 abaixo antes de qualquer outra ação. Nada foi corrigido automaticamente.</p>` : ''}
 <p>Relatório automático de testes — <strong>${escapeHtml(resultado.horario)}</strong> (${escapeHtml(resultado.timestampISO)})</p>
 <p><strong>Saúde geral:</strong> flags de produção → ${escapeHtml(flagsTexto || 'não verificado')}<br>
 ${resultado.saudeGeral?.erros?.length ? `<span style="color:#cf222e;">Erros de infraestrutura: ${escapeHtml(resultado.saudeGeral.erros.join('; '))}</span>` : 'Sem erros de infraestrutura.'}</p>
@@ -124,6 +131,8 @@ ${formatarSecaoHtml('1) Moderação — 1ª tentativa', testes.moderacaoPrimeira
 ${formatarSecaoHtml('2) Moderação — Reformulação (2ª tentativa)', testes.reformulacao || { status: 'sem_dados' })}
 <hr>
 ${formatarSecaoHtml('3) Geração de Resposta + Aprendizado', testes.respostaAprendizado || { status: 'sem_dados' })}
+<hr>
+${formatarSecaoHtml('4) Registro na Planilha (grava, confirma e apaga a linha de teste)', testes.registroNaPlanilha || { status: 'sem_dados' })}
 <hr>
 <p>—<br>Mensagem automática gerada pelo VeloBot RA (teste periódico, não afeta dados de produção).</p>`;
 
