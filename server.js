@@ -9996,6 +9996,13 @@ async function _testeGravarEApagarComSeguranca({ nomeSistema, nomeAba, colunaInd
 // muitas chamadas seguidas foram feitas nesta sessao. Se o problema persistir com o novo
 // diagnostico, os checks vao apontar exatamente "retornou false" em vez de silencio ambiguo.
 const REGISTRO_NA_PLANILHA_ATIVO = true;
+// "Respostas Coerentes" funcionou 2/2 (grava, confirma, apaga, contagem bate certinho). Já
+// "Moderações" reportou sucesso na 2a tentativa (registrarModeracaoCoerente retornou true,
+// descartando quota) mas a linha continua ilocalizável — algo estrutural nessa aba especifica
+// (ha uma celula orfa antiga em R631 que pode estar confundindo o INSERT_ROWS do Sheets sobre
+// onde termina a "tabela"). Pausado só para Moderacoes ate eu conseguir capturar o
+// updatedRange devolvido pela API e confirmar onde a escrita realmente cai.
+const MODERACOES_REGISTRO_ATIVO = false;
 
 async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, respostaAprendizado }) {
     if (!REGISTRO_NA_PLANILHA_ATIVO) {
@@ -10008,7 +10015,7 @@ async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, 
     const itens = [];
     const alertasCriticos = [];
 
-    if (moderacaoPrimeira?._bruto?.mapped?.textoModeracao) {
+    if (MODERACOES_REGISTRO_ATIVO && moderacaoPrimeira?._bruto?.mapped?.textoModeracao) {
         const idTeste = `99999${agora}`.slice(0, 15);
         const { mapped, dadosModeracao } = moderacaoPrimeira._bruto;
         const r = await _testeGravarEApagarComSeguranca({
@@ -10031,10 +10038,14 @@ async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, 
         });
         itens.push(r);
     } else {
-        itens.push({ status: 'sem_dados', caso: 'Moderação 1ª tentativa', resumo: 'Geração não produziu texto — registro não testado.' });
+        itens.push({
+            status: 'sem_dados',
+            caso: 'Moderação 1ª tentativa',
+            resumo: MODERACOES_REGISTRO_ATIVO ? 'Geração não produziu texto — registro não testado.' : 'Pausado pra investigação (ver MODERACOES_REGISTRO_ATIVO em server.js).'
+        });
     }
 
-    if (reformulacao?._bruto?.mapped?.textoModeracao) {
+    if (MODERACOES_REGISTRO_ATIVO && reformulacao?._bruto?.mapped?.textoModeracao) {
         const idTeste = `99998${agora}`.slice(0, 15);
         const { mapped, dadosModeracao } = reformulacao._bruto;
         const r = await _testeGravarEApagarComSeguranca({
@@ -10059,7 +10070,11 @@ async function _testeRodarRegistroNaPlanilha({ moderacaoPrimeira, reformulacao, 
         });
         itens.push(r);
     } else {
-        itens.push({ status: 'sem_dados', caso: 'Reformulação (2ª tentativa)', resumo: 'Geração não produziu texto — registro não testado.' });
+        itens.push({
+            status: 'sem_dados',
+            caso: 'Reformulação (2ª tentativa)',
+            resumo: MODERACOES_REGISTRO_ATIVO ? 'Geração não produziu texto — registro não testado.' : 'Pausado pra investigação (ver MODERACOES_REGISTRO_ATIVO em server.js).'
+        });
     }
 
     if (respostaAprendizado?._bruto?.textoGerado) {
