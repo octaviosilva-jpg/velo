@@ -10,7 +10,7 @@
  */
 
 const DESTINATARIOS_PADRAO = [
-    'casos.especiais@velotax.com.br',
+    'caroline.santiago@velotax.com.br',
     'Emerson.jose@velotax.com.br',
     'tavin.ramalho@gmail.com'
 ];
