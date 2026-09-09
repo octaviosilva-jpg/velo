@@ -195,13 +195,15 @@ async function enviarViaSmtp({ from, to, assunto, texto, html }) {
         secure: port === 465,
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
     });
-    return transporter.sendMail({
+    const info = await transporter.sendMail({
         from,
         to: to.join(', '),
         subject: assunto,
         text: texto,
         html
     });
+    console.log('📧 SMTP sendMail — accepted:', info.accepted, '| rejected:', info.rejected, '| response:', info.response);
+    return info;
 }
 
 async function lerEstadoUltimoEnvio(googleSheetsConfig) {

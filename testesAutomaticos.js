@@ -150,12 +150,26 @@ async function enviarRelatorioTestes(resultado) {
     try {
         const { enviarViaResend, enviarViaSmtp } = require('./email-lembretes');
         const payload = { from: cfg.from, to: cfg.destinatarios, assunto: msg.assunto, texto: msg.texto, html: msg.html };
+        let info = null;
         if (cfg.provider === 'resend') {
-            await enviarViaResend(payload);
+            info = await enviarViaResend(payload);
         } else {
-            await enviarViaSmtp(payload);
+            info = await enviarViaSmtp(payload);
         }
-        return { enviado: true, configurado: true, destinatarios: cfg.destinatarios, provider: cfg.provider, statusGeral: msg.statusGeral, assunto: msg.assunto };
+        // nodemailer (SMTP) informa por endereco se o servidor aceitou ou rejeitou — sem isso,
+        // um recusa parcial (ex.: 1 de 3 destinatarios) passava despercebido como "enviado: true".
+        const aceitos = info?.accepted;
+        const rejeitados = info?.rejected;
+        return {
+            enviado: true,
+            configurado: true,
+            destinatarios: cfg.destinatarios,
+            provider: cfg.provider,
+            statusGeral: msg.statusGeral,
+            assunto: msg.assunto,
+            ...(Array.isArray(aceitos) ? { aceitosPeloServidor: aceitos } : {}),
+            ...(Array.isArray(rejeitados) && rejeitados.length ? { rejeitadosPeloServidor: rejeitados } : {})
+        };
     } catch (e) {
         console.error('❌ Erro ao enviar relatório de testes automáticos:', e.message);
         return { enviado: false, motivo: 'erro no envio: ' + e.message, configurado: true, preview: msg };
