@@ -7,9 +7,11 @@ name: Testes automáticos VeloBot RA
 # por e-mail; este workflow só dispara a chamada HTTP e falha visivelmente se o teste não rodar.
 on:
   schedule:
-    - cron: '30 12 * * *'  # 09:30 BRT
-    - cron: '30 16 * * *'  # 13:30 BRT
-    - cron: '30 20 * * *'  # 17:30 BRT
+    # Minutos fora de horas/meias-horas "redondas" (evita a fila mais concorrida do GitHub
+    # Actions nesses horarios, que causou atrasos de 2-4h observados em 2026-09-09).
+    - cron: '37 12 * * *'  # ~09:37 BRT
+    - cron: '37 16 * * *'  # ~13:37 BRT
+    - cron: '37 20 * * *'  # ~17:37 BRT
   workflow_dispatch:
     inputs:
       horario:
@@ -25,9 +27,9 @@ jobs:
         id: horario
         run: |
           case "${{ github.event.schedule }}" in
-            '30 12 * * *') echo "label=09:30" >> "$GITHUB_OUTPUT" ;;
-            '30 16 * * *') echo "label=13:30" >> "$GITHUB_OUTPUT" ;;
-            '30 20 * * *') echo "label=17:30" >> "$GITHUB_OUTPUT" ;;
+            '37 12 * * *') echo "label=09:37" >> "$GITHUB_OUTPUT" ;;
+            '37 16 * * *') echo "label=13:37" >> "$GITHUB_OUTPUT" ;;
+            '37 20 * * *') echo "label=17:37" >> "$GITHUB_OUTPUT" ;;
             *) echo "label=${{ github.event.inputs.horario || 'manual' }}" >> "$GITHUB_OUTPUT" ;;
           esac
 
