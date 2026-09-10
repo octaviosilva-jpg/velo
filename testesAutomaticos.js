@@ -12,6 +12,7 @@
 const DESTINATARIOS_PADRAO = [
     'caroline.santiago@velotax.com.br',
     'Emerson.jose@velotax.com.br',
+    'camila.sousa@velotax.com.br',
     'tavin.ramalho@gmail.com'
 ];
 
