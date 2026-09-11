@@ -3768,6 +3768,42 @@ if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static('.'));
 
+// ===== ENDPOINTS DE DEBUG/DIAGNOSTICO — protegidos por segredo compartilhado (2026-09-11) =====
+// Nenhum destes e chamado pelo front-end real (conferido via grep em script.js/auth.js/
+// dashboard.html/pev-observabilidade.html) — sao ferramentas de diagnostico/reparo internas que
+// ate aqui ficavam alcancaveis por qualquer um, sem nenhuma autenticacao (um deles chegou a vazar a
+// propria credencial do Google, ver isInitialized()/isActive() em google-sheets-config.js/
+// google-sheets-integration.js). Mesmo padrao Bearer/?secret= ja usado pelos endpoints de cron
+// (CRON_SECRET), com um segredo proprio (DEBUG_API_SECRET) pra nao acoplar aos dois usos.
+const ENDPOINTS_DEBUG_PROTEGIDOS = new Set([
+    '/api/test-openai', '/api/test-openai-configured',
+    '/api/debug-aprendizado-simples', '/api/debug-aprendizado-completo',
+    '/api/google-sheets-status', '/api/google-sheets-quota-status',
+    '/api/debug-moderacoes-status', '/api/force-quota-recovery',
+    '/api/google-sheets/health', '/api/google-sheets/diagnostic',
+    '/api/google-sheets/queue-status', '/api/google-sheets/force-recovery',
+    '/api/google-sheets/test-write', '/api/google-sheets/test-read',
+    '/api/google-sheets-queue-status', '/api/force-initialize-google-sheets',
+    '/api/aprendizado-completo', '/api/debug-env', '/api/debug-google-sheets',
+    '/api/debug-aprendizado', '/api/test-google-sheets', '/api/refresh-google-sheets',
+    '/api/test-planilha-aprendizado', '/api/test-sheets-simple', '/api/sync-local-data',
+    '/api/check-memory-data', '/api/sync-vercel-to-local', '/api/test-save-coerente',
+    '/api/test-basic', '/api/test-server', '/api/test-sheets-register',
+    '/api/restaurar-aceitas-backup', '/api/limpar-duplicidade-aceita',
+    '/api/corrigir-resumo-executivo'
+]);
+
+app.use((req, res, next) => {
+    if (!ENDPOINTS_DEBUG_PROTEGIDOS.has(req.path)) return next();
+    const secret = process.env.DEBUG_API_SECRET || '';
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : (req.query.secret || '');
+    if (!secret || token !== secret) {
+        return res.status(401).json({ success: false, error: 'Não autorizado' });
+    }
+    next();
+});
+
 // Rotas específicas para servir arquivos estáticos com MIME type correto
 app.get('*.css', (req, res) => {
     res.setHeader('Content-Type', 'text/css');
