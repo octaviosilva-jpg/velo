@@ -39,7 +39,7 @@ function testPromptBuilderIncluiTextoAnterior() {
     });
     assert.ok(user.includes(TEXTO_TENTATIVA_ANTERIOR), 'user prompt deve incluir o texto literal da tentativa anterior');
     assert.ok(user.includes('TEXTO DA TENTATIVA ANTERIOR'), 'deve rotular o bloco da tentativa anterior');
-    assert.ok(system.includes('DIAGNOSTICO'), 'system deve tratar a negativa como diagnostico, nao como unico alvo');
+    assert.ok(system.toLowerCase().includes('diagnostico'), 'system deve tratar a negativa como diagnostico, nao como unico alvo');
     assert.ok(system.includes('NAO deve se limitar a contestar ou refutar'), 'system deve proibir explicitamente se limitar a refutar o motivo');
     console.log('OK [unidade] redacao-reformulacao@v2 inclui texto da tentativa anterior e trata negativa como diagnostico');
 }
@@ -52,9 +52,31 @@ function testPromptBuilderNaoAbreComCodigoComoSujeito() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({
         hipoteseSelecionada: {}, negativaReal: { motivoOficial: 'Divergência de Informações', codigo: 'CO06' }
     });
-    assert.ok(system.includes('PROIBIDO') && system.includes('sujeito da frase'), 'system deve proibir abrir o texto com o codigo/motivo como sujeito da frase');
-    assert.ok(user.includes('SEM abrir o paragrafo com o codigo/motivo'), 'instrucoes devem reforcar a proibicao de abrir citando o codigo');
-    console.log('OK [unidade] redacao-reformulacao@v2 proibe abrir o texto citando o codigo da negativa como sujeito');
+    assert.ok(system.includes('sujeito da primeira frase'), 'system deve orientar que o codigo/motivo nunca e sujeito da primeira frase');
+    assert.ok(user.includes('apresentar diretamente o enquadramento'), 'instrucoes devem orientar a abertura pelo enquadramento (framing positivo)');
+    console.log('OK [unidade] redacao-reformulacao@v2 orienta abertura pelo enquadramento, nao pelo codigo da negativa');
+}
+
+// Ajuste 2026-09-11 (4a rodada, mesmo caso 258599005 reexecutado): uma reexecucao voltou a abrir
+// citando "sob o codigo CO06" mesmo com a regra acima presente. Auditoria externa apontou 2 causas
+// plausiveis: (a) o bloco do codigo/motivo aparecia como o PRIMEIRO elemento semantico da mensagem
+// (efeito de proeminencia/priming), e (b) a instrucao continha, dentro dela mesma, o exemplo exato
+// do padrao proibido ("nao comece como Solicitamos a reanalise... sob o codigo X, que indicou..."),
+// o que pode reforcar em vez de suprimir o padrao (mesmo fenomeno de "nao pense num elefante rosa").
+// Fix: mover o bloco pro final da mensagem (depois de reclamacao/resposta/consideracao final) e
+// reescrever a instrucao em tom positivo, sem repetir o padrao proibido como exemplo. Confirma as
+// duas mudancas.
+function testPromptBuilderNegativaVemDepoisDosTextosCrusSemExemploNegativo() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({
+        hipoteseSelecionada: {}, negativaReal: { motivoOficial: 'Divergência de Informações', codigo: 'CO06' }
+    });
+    const idxConsideracaoFinal = user.indexOf('Consideracao final:');
+    const idxContextoReanalise = user.indexOf('CONTEXTO DA REANALISE');
+    assert.ok(idxConsideracaoFinal > -1 && idxContextoReanalise > -1, 'ambos os blocos devem existir no prompt');
+    assert.ok(idxContextoReanalise > idxConsideracaoFinal, 'CONTEXTO DA REANALISE (codigo/motivo) deve vir DEPOIS dos textos crus, nao antes (evita efeito de proeminencia)');
+    assert.ok(!system.includes('Solicitamos a reanalise da moderacao negada sob o codigo X'), 'system NAO deve repetir o exemplo literal do padrao proibido (pode reforcar em vez de suprimir)');
+    assert.ok(!user.includes('nao comece com "Solicitamos a reanalise'), 'instrucoes NAO devem repetir o exemplo literal do padrao proibido');
+    console.log('OK [unidade] CONTEXTO DA REANALISE vem depois dos textos crus e o prompt nao repete o exemplo do padrao proibido');
 }
 
 function testPromptBuilderProibeDefenderEmpresa() {
@@ -129,7 +151,7 @@ function makeMock() {
             });
         }
         if (sys.includes('DOCUMENTO DE REANALISE') || sys.includes('DOCUMENTO DE REFUTACAO')) {
-            const holistica = sys.includes('DIAGNOSTICO');
+            const holistica = sys.includes('DOCUMENTO DE REANALISE');
             return jsonResp({
                 linha_raciocinio: holistica ? 'reavaliacao holistica mock' : 'refutacao mock',
                 ...(holistica ? { houve_ganho_material: true } : {}),
@@ -216,6 +238,7 @@ async function testPipelineV1ContinuaIntocado() {
     testPromptBuilderIncluiTextoAnterior();
     testPromptBuilderSemTextoAnteriorNaoQuebra();
     testPromptBuilderNaoAbreComCodigoComoSujeito();
+    testPromptBuilderNegativaVemDepoisDosTextosCrusSemExemploNegativo();
     testPromptBuilderProibeDefenderEmpresa();
     testPromptBuilderConsideracaoFinalCondicional();
     testPromptBuilderNaoTrataAlegacaoComoFatoComprovado();

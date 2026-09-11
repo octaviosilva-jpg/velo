@@ -506,12 +506,12 @@ const REGISTRY = {
                 + 'perante a equipe de moderacao do Reclame Aqui. '
                 + 'Voce redige um DOCUMENTO DE REANALISE dirigido ao analista/equipe de moderacao do Reclame Aqui; o consumidor '
                 + 'NAO e interlocutor. A hipotese JA foi decidida e e IMUTAVEL: NAO a reavalie, NAO reinterprete os fatos, NAO '
-                + 'escolha outra hipotese. IMPORTANTE: a negativa recebida (motivo/codigo abaixo) e APENAS um DIAGNOSTICO da '
-                + 'deficiencia do pedido anterior — o novo pedido NAO deve se limitar a contestar ou refutar esse motivo '
-                + 'especifico, e NAO deve abrir o texto citando o codigo/motivo da negativa como sujeito da frase (PROIBIDO '
-                + 'comecar como "Solicitamos a reanalise da moderacao negada sob o codigo X, que indicou..."); se for citar o '
-                + 'codigo, faca isso de forma breve e subordinada, so para rastreabilidade — o assunto do paragrafo de abertura '
-                + 'e o enquadramento na hipotese, nao a negativa. Depois de identificar a deficiencia apontada pela negativa, '
+                + 'escolha outra hipotese. IMPORTANTE: o codigo/motivo da negativa (ver CONTEXTO DA REANALISE, mais abaixo) e '
+                + 'APENAS um metadado de diagnostico da deficiencia do pedido anterior — o novo pedido NAO deve se limitar a '
+                + 'contestar ou refutar esse motivo especifico. A abertura do texto deve apresentar diretamente o enquadramento '
+                + 'da reclamacao na hipotese definitiva e fundamenta-lo pelos fatos do caso; o codigo/motivo, se mencionado, '
+                + 'aparece de forma breve e subordinada, nunca como sujeito da primeira frase. Depois de identificar a '
+                + 'deficiencia apontada pela negativa, '
                 + 'REAVALIE INTEGRALMENTE a reclamacao, a resposta publica e o enquadramento na hipotese do manual, produzindo '
                 + 'uma fundamentacao MATERIALMENTE MAIS FORTE que a tentativa anterior — nao apenas uma defesa pontual do mesmo '
                 + 'argumento sob palavras diferentes. O texto tambem NAO deve soar como uma defesa da empresa: EVITE expressoes '
@@ -530,8 +530,15 @@ const REGISTRY = {
                 + 'responda ao consumidor, nao agradeca pela reclamacao, nao peca desculpas, nao oriente o consumidor a entrar '
                 + 'em contato com a empresa, nao se coloque a disposicao. Nao use travessao nem hifen com espacos como pausa; '
                 + 'prefira virgula ou ponto. Responda SOMENTE com JSON valido.';
+            // Rotulado como metadado de diagnostico (nao "negativa recebida") e posicionado DEPOIS
+            // dos textos crus de proposito (2026-09-11, 4a rodada de auditoria): colocar o
+            // codigo/motivo como o PRIMEIRO elemento semantico que o modelo ve (antes ainda da
+            // reclamacao/resposta) criava um efeito de proeminencia/priming que competia com a
+            // proibicao textual de abrir citando o codigo — mesmo sem contradicao logica entre as
+            // regras, o caso real 258599005 mostrou o modelo voltando a abrir com "sob o codigo
+            // CO06" em uma reexecucao. Mover pro final e reformular o rotulo reduz essa competicao.
             const linhasNegativa = [
-                '📌 NEGATIVA RECEBIDA (use como DIAGNOSTICO da deficiencia — NAO e o unico ponto a responder):',
+                'CONTEXTO DA REANALISE (metadados de diagnostico do processo anterior — NAO e o assunto do texto a escrever):',
                 `- Motivo oficial citado pelo RA: ${nr.motivoOficial || '(nao encontrado no texto colado)'}`,
                 `- Codigo RA: ${nr.codigo || 'nao identificado'}`,
                 nr.regraOrientacao ? `- DIRETRIZ OFICIAL PARA CORRIGIR este motivo especifico: ${nr.regraOrientacao}` : null,
@@ -546,8 +553,6 @@ const REGISTRY = {
                 '\nANALISE HOLISTICA DA DECISAO (para embasar a relacao logica com os fatos):',
                 JSON.stringify(ctx.analiseDecisao || {}, null, 2),
                 '',
-                ...linhasNegativa,
-                '',
                 '📄 TEXTO DA TENTATIVA ANTERIOR (o que ja foi dito e foi negado — identifique o que NAO foi suficientemente explorado nele):',
                 nr.textoAnteriorModeracao ? nr.textoAnteriorModeracao : '(texto da tentativa anterior nao disponivel)',
                 '',
@@ -556,10 +561,12 @@ const REGISTRY = {
                 `- Resposta: ${ctx.resposta || ''}`,
                 `- Consideracao final: ${ctx.consideracao || '(nao informada)'}`,
                 '',
+                ...linhasNegativa,
+                '',
                 ctx.aprendizadoBloco ? `REFERENCIA DE ESTILO (apenas tom/estrutura, NAO muda os fatos):\n${ctx.aprendizadoBloco}\n` : '',
                 'INSTRUCOES DE REDACAO (ESTRUTURA OBRIGATORIA — reavaliacao holistica, diferente da 1a tentativa e diferente de uma mera refutacao):',
                 '- A saudacao inicial deve ser dirigida a EQUIPE DE MODERACAO do Reclame Aqui (ex.: "Prezada equipe de moderacao do Reclame Aqui,"), NUNCA ao cliente.',
-                '- (1) Cite que isto e um pedido de reanalise SEM abrir o paragrafo com o codigo/motivo da negativa como sujeito da frase (nao comece com "Solicitamos a reanalise... sob o codigo X, que indicou..."); o assunto da abertura e o enquadramento na hipotese, nao a negativa. Se citar o codigo, faca de forma breve e subordinada, so pra rastreabilidade.',
+                '- (1) A abertura deve apresentar diretamente o enquadramento da reclamacao na hipotese definitiva e, em seguida, fundamenta-lo pelos fatos do caso. O codigo e o motivo da negativa (ver CONTEXTO DA REANALISE) sao apenas metadados de diagnostico do processo anterior — se mencionados, devem aparecer de forma breve e subordinada, nunca como sujeito da primeira frase.',
                 '- (2) Reavalie de forma integral: reclamacao (fatos e pedido do consumidor) e resposta publica da empresa — usando trechos literais dos TEXTOS CRUS que a TENTATIVA ANTERIOR ainda nao tenha citado, quando existirem.',
                 '- (3) Avalie sempre se a CONSIDERACAO FINAL do consumidor contem um fato ou alegacao NOVA (ex.: uma orientacao ou promessa diferente da que consta na resposta publica). Se so reiterar insatisfacao sem fato novo, nao precisa aborda-la explicitamente. Se houver alegacao nova, verifique se ela pode alterar ou entrar em conflito com o enquadramento — mas NUNCA trate a alegacao do consumidor como fato comprovado (proibido afirmar "nao apresenta novos fatos" quando ha uma alegacao nao verificada; em vez disso, reconheca a alegacao e explique que ela nao vem acompanhada, no conteudo disponivel, de elementos que confirmem alterar o enquadramento).',
                 '- (4) Construa uma fundamentacao materialmente mais forte que a anterior: e PROIBIDO repetir os mesmos argumentos da tentativa anterior so com palavras diferentes, e e PROIBIDO redigir como se estivesse defendendo a empresa (nada de "isso justifica"/"a empresa esclareceu" como argumento principal) — demonstre com fatos por que o caso se enquadra na hipotese.',
