@@ -1,17 +1,16 @@
 name: Testes automáticos VeloBot RA
 
-# Dispara o endpoint /api/cron/teste-automatico 3x/dia (horário de Brasília, UTC-3 fixo, sem
-# horário de verão). Usa GitHub Actions em vez do cron da Vercel de propósito: cron com múltiplos
-# horários por dia normalmente exige plano Pro da Vercel; assim fica gratuito independente do
-# plano. O endpoint roda os testes (só leitura, não grava nada na planilha) e envia o relatório
-# por e-mail; este workflow só dispara a chamada HTTP e falha visivelmente se o teste não rodar.
+# Dispara o endpoint /api/cron/teste-automatico 1x/dia, de manhã cedo (horário de Brasília, UTC-3
+# fixo, sem horário de verão). Usa GitHub Actions em vez do cron da Vercel por continuar gratuito
+# independente do plano. O endpoint roda os testes (só leitura, não grava nada na planilha) e envia
+# o relatório por e-mail; este workflow só dispara a chamada HTTP e falha visivelmente se o teste
+# não rodar.
 on:
   schedule:
-    # Minutos fora de horas/meias-horas "redondas" (evita a fila mais concorrida do GitHub
-    # Actions nesses horarios, que causou atrasos de 2-4h observados em 2026-09-09).
-    - cron: '37 12 * * *'  # ~09:37 BRT
-    - cron: '37 16 * * *'  # ~13:37 BRT
-    - cron: '37 20 * * *'  # ~17:37 BRT
+    # 1x/dia, cedo de manha (pedido do usuario em 2026-09-11 — antes rodava 3x/dia). Minuto fora de
+    # hora/meia-hora "redonda" de proposito (evita a fila mais concorrida do GitHub Actions nesses
+    # horarios, que causou atrasos de 2-4h observados em 2026-09-09).
+    - cron: '7 9 * * *'  # ~06:07 BRT
   workflow_dispatch:
     inputs:
       horario:
@@ -27,9 +26,7 @@ jobs:
         id: horario
         run: |
           case "${{ github.event.schedule }}" in
-            '37 12 * * *') echo "label=09:37" >> "$GITHUB_OUTPUT" ;;
-            '37 16 * * *') echo "label=13:37" >> "$GITHUB_OUTPUT" ;;
-            '37 20 * * *') echo "label=17:37" >> "$GITHUB_OUTPUT" ;;
+            '7 9 * * *') echo "label=06:07" >> "$GITHUB_OUTPUT" ;;
             *) echo "label=${{ github.event.inputs.horario || 'manual' }}" >> "$GITHUB_OUTPUT" ;;
           esac
 
