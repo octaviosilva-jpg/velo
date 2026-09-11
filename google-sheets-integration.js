@@ -156,7 +156,10 @@ class GoogleSheetsIntegration {
      */
     isActive() {
         // Google Sheets habilitado para Vercel com Service Account
-        return this.initialized && googleSheetsConfig.isInitialized();
+        // Coagido pra boolean de proposito (mesmo motivo de google-sheets-config.js#isInitialized):
+        // "&&" sem coercao pode devolver o objeto de credencial em vez de true/false, e varios
+        // endpoints devolvem isActive() direto no JSON de resposta.
+        return !!(this.initialized && googleSheetsConfig.isInitialized());
     }
 
     /**

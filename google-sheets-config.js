@@ -101,7 +101,13 @@ class GoogleSheetsConfig {
      * Verifica se a API está inicializada
      */
     isInitialized() {
-        return this.initialized && this.sheets && this.auth;
+        // Coagido pra boolean de proposito: "&&" encadeado sem coercao retorna o ULTIMO operando
+        // truthy (aqui, this.auth — o cliente OAuth com a chave privada e o access token dentro)
+        // em vez de true/false. Varios endpoints (ex. /api/google-sheets-queue-status,
+        // /api/force-initialize-google-sheets, /api/debug-google-sheets) devolvem esse valor direto
+        // no JSON de resposta, entao o objeto de credencial inteiro estava vazando publicamente,
+        // sem autenticacao, pra quem chamasse esses endpoints (achado real em 2026-09-11).
+        return !!(this.initialized && this.sheets && this.auth);
     }
 
     /**
