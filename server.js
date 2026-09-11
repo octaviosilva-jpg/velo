@@ -6720,10 +6720,11 @@ async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNe
         }
     };
 
-    let mapped;
+    let mapped, state;
     try {
         const resultado = await executarReformulacao({ idReclamacao, dadosModeracao: dc, negativaReal }, deps);
         mapped = resultado.mapped;
+        state = resultado.state;
     } catch (e) {
         const err = new Error(e.message || 'Erro ao gerar análise de reformulação');
         err.payload = { success: false, statusCode: 500, error: 'Erro ao gerar análise de reformulação', message: e.message };
@@ -6740,6 +6741,9 @@ async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNe
         ondeATentativaAnteriorFalhou: mapped.ondeATentativaAnteriorFalhou,
         forcaDaTentativa: mapped.forcaDaTentativa,
         forcaJustificativa: mapped.forcaJustificativa,
+        // Sinal de observabilidade (so preenchido pela reformulacao holistica v2; undefined nas
+        // outras variantes) — ver moderacao-pipeline/steps.js REDACAO_REFORMULACAO_HOLISTICA.
+        houveGanhoMaterial: state && typeof state.houveGanhoMaterial === 'boolean' ? state.houveGanhoMaterial : null,
         negativaInfo: {
             motivoOficial: negativaParse.motivoOficial || '',
             codigo: negativaParse.codigo || '',
@@ -14557,6 +14561,7 @@ app.post('/api/moderacao/:idModeracao/analise-completa', rateLimitMiddleware, as
             ondeATentativaAnteriorFalhou: analise.ondeATentativaAnteriorFalhou,
             forcaDaTentativa: analise.forcaDaTentativa,
             forcaJustificativa: analise.forcaJustificativa,
+            houveGanhoMaterial: analise.houveGanhoMaterial,
             avisoNaoReenviar: analise.forcaDaTentativa === 'fraca'
         });
     } catch (error) {
