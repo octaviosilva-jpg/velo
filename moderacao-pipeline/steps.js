@@ -258,7 +258,10 @@ const REDACAO_REFORMULACAO_HOLISTICA = {
     etapas: [ETAPAS.E6_RACIOCINIO, ETAPAS.E7_TEXTO],
     promptRef: 'redacao-reformulacao@v2',
     actor: 'llm',
-    writes: ['linhaRaciocinio', 'textoFinal'],
+    // houveGanhoMaterial (2026-09-11, 3a rodada de auditoria externa): sinal de observabilidade —
+    // nao controla a geracao, so permite medir depois (fora deste arquivo) taxa de aceite quando a
+    // IA realmente identificou ganho material vs. quando so reescreveu com estilo melhor.
+    writes: ['linhaRaciocinio', 'textoFinal', 'houveGanhoMaterial'],
     model: (deps) => deps.models?.redacao || DEFAULTS.models.redacao,
     temperature: (deps) => num(deps.temperatures?.redacao, DEFAULTS.temperatures.redacao),
     maxTokens: (deps) => deps.maxTokens?.redacao || DEFAULTS.maxTokens.redacao,
@@ -279,7 +282,8 @@ const REDACAO_REFORMULACAO_HOLISTICA = {
         parsed = parsed || {};
         return {
             linhaRaciocinio: parsed.linha_raciocinio || '',
-            textoFinal: parsed.texto_final || ''
+            textoFinal: parsed.texto_final || '',
+            houveGanhoMaterial: parsed.houve_ganho_material === true
         };
     }
 };

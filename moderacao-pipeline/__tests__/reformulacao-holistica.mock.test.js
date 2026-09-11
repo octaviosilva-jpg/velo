@@ -132,6 +132,7 @@ function makeMock() {
             const holistica = sys.includes('DIAGNOSTICO');
             return jsonResp({
                 linha_raciocinio: holistica ? 'reavaliacao holistica mock' : 'refutacao mock',
+                ...(holistica ? { houve_ganho_material: true } : {}),
                 texto_final: 'Prezada equipe de moderacao do Reclame Aqui,\n\nSolicitamos a reanalise...\n\nDiante do exposto, solicitamos o provimento desta reanalise.'
             });
         }
@@ -165,7 +166,25 @@ async function testPipelineHolisticaUsaPromptRefCorreto() {
     assert.ok(state.textoFinal && state.textoFinal.length > 0, 'deve gerar texto final');
     const refsUsados = (state.artefatos || []).map(a => a.ref).filter(Boolean);
     assert.ok(refsUsados.includes('redacao-reformulacao@v2'), `deve usar redacao-reformulacao@v2, usou: ${refsUsados.join(', ')}`);
-    console.log(`OK [integracao-holistica] pipeline usou promptRef correto (${refsUsados.join(', ')})`);
+    assert.strictEqual(state.houveGanhoMaterial, true, 'deve propagar houve_ganho_material do parsed pro state (sinal de observabilidade, 2026-09-11 rodada 3)');
+    console.log(`OK [integracao-holistica] pipeline usou promptRef correto (${refsUsados.join(', ')}) e propagou houveGanhoMaterial`);
+}
+
+// Ajuste 2026-09-11 (3), mesma sequencia de auditoria: "houve_ganho_material" e so um sinal de
+// observabilidade (nao controla a geracao) pra medir depois taxa de aceite quando a IA realmente
+// achou ganho material vs. quando so reescreveu com estilo melhor. Confirma que falta na resposta
+// da IA vira false (nunca undefined/erro) e que o prompt explica a regra de quando marcar true.
+function testPromptBuilderExplicaRegraDoGanhoMaterial() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
+    assert.ok(user.includes('houve_ganho_material') && user.includes('Melhorias so de tom, clareza, organizacao ou estilo NAO contam como ganho material'), 'instrucoes devem explicar quando houve_ganho_material e true vs false');
+    console.log('OK [unidade] redacao-reformulacao@v2 explica a regra de quando houve_ganho_material e true');
+}
+
+function testToPartialDefaultFalseSemCampo() {
+    const { REDACAO_REFORMULACAO_HOLISTICA } = require('../steps');
+    const partial = REDACAO_REFORMULACAO_HOLISTICA.toPartial({ linha_raciocinio: 'x', texto_final: 'y' });
+    assert.strictEqual(partial.houveGanhoMaterial, false, 'sem houve_ganho_material na resposta da IA, deve assumir false (nunca undefined)');
+    console.log('OK [unidade] toPartial assume houveGanhoMaterial=false quando a IA nao retorna o campo');
 }
 
 async function testPipelineV1ContinuaIntocado() {
@@ -200,6 +219,8 @@ async function testPipelineV1ContinuaIntocado() {
     testPromptBuilderProibeDefenderEmpresa();
     testPromptBuilderConsideracaoFinalCondicional();
     testPromptBuilderNaoTrataAlegacaoComoFatoComprovado();
+    testPromptBuilderExplicaRegraDoGanhoMaterial();
+    testToPartialDefaultFalseSemCampo();
     await testPipelineHolisticaUsaPromptRefCorreto();
     await testPipelineV1ContinuaIntocado();
     console.log('TODOS OS CENARIOS PASSARAM');

@@ -482,6 +482,19 @@ const REGISTRY = {
     // uma afirmacao mais forte do que os dados permitem. Regra ajustada: sempre avaliar se ha
     // alegacao nova, e se houver, reconhece-la sem trata-la como fato comprovado (em vez de negar
     // que ela existe).
+    //
+    // Ajuste 2026-09-11 (3) — mesma auditoria, rodada 3, sobre uma proposta maior (reestruturar
+    // linha_raciocinio + texto_final num objeto com 5 sub-campos "diagnostico_reformulacao"):
+    // contestei que a causa raiz fosse "ordem dos campos" (linha_raciocinio ja vem antes de
+    // texto_final na geracao sequencial do JSON), e que a regra "texto_final so pode usar o que
+    // estiver no diagnostico" nao e fiscalizavel sem outra chamada de IA. Convergimos numa versao
+    // mais enxuta: reforcar linha_raciocinio (comparar explicitamente com a tentativa anterior,
+    // identificar pontos omitidos/mal explorados/incorretos, e ter permissao EXPLICITA pra concluir
+    // que nao ha falha material, proibido inventar deficiencia so pra justificar a reformulacao) e
+    // adicionar so 1 campo novo, houve_ganho_material (booleano), como sinal de observabilidade pra
+    // medir depois taxa de aceite — nao como controle da geracao. Regra do booleano: true somente
+    // quando a mudanca elimina deficiencia real / responde elemento ignorado / reduz divergencia /
+    // torna o enquadramento mais sustentavel; melhoria so de estilo/tom nao conta.
     'redacao-reformulacao@v2': {
         id: 'redacao',
         version: 'reformulacao-v2-holistica',
@@ -554,10 +567,13 @@ const REGISTRY = {
                 '- (6) Conclua solicitando EXPLICITAMENTE a reanalise/moderacao (ex.: "Diante do exposto, solicitamos o provimento desta reanalise.").',
                 '- Prefira estrutura enumerada (1., 2., 3.) quando houver mais de um ponto a apresentar — isso facilita a leitura pelo analista do RA.',
                 '- PROIBIDO usar linguagem de atendimento, por exemplo: "Agradecemos por utilizar nossa plataforma", "Entendemos sua frustracao/seu transtorno", "Lamentamos", "Pedimos desculpas", "Esperamos que sua questao seja resolvida", "Estamos a disposicao", "Caso ainda tenha duvidas", "Entre em contato conosco", "Recomendamos que entre em contato", "Prezado cliente".',
+                '- DIAGNOSTICO OBRIGATORIO pro campo linha_raciocinio: antes de escrever o texto final, compare EXPLICITAMENTE com a TENTATIVA ANTERIOR e identifique concretamente pontos que ficaram omitidos, mal explorados ou incorretos nela. E PROIBIDO inventar uma deficiencia so pra justificar a reformulacao — se a tentativa anterior ja estiver materialmente adequada num ponto, reconheca isso explicitamente em vez de forcar uma diferenca que nao existe.',
+                '- Preencha houve_ganho_material com true SOMENTE quando a nova redacao identificar e incorporar uma mudanca que elimina uma deficiencia real, responde um elemento relevante antes ignorado, reduz uma divergencia ou torna o enquadramento substancialmente mais sustentavel. Melhorias so de tom, clareza, organizacao ou estilo NAO contam como ganho material — nesses casos, retorne false.',
                 '',
                 'Retorne EXATAMENTE este JSON (sem texto adicional):',
                 '{',
-                '  "linha_raciocinio": "explicacao interna: qual deficiencia a negativa diagnosticou, o que a tentativa anterior nao explorou, e o que foi incorporado agora",',
+                '  "linha_raciocinio": "diagnostico concreto: compare com a tentativa anterior e identifique pontos omitidos/mal explorados/incorretos nela (ou reconheca que ja estava adequada, sem inventar deficiencia), e explique o que foi incorporado agora",',
+                '  "houve_ganho_material": true,',
                 '  "texto_final": "Prezada equipe de moderacao do Reclame Aqui,\\n\\nSolicitamos a reanalise... (reavaliacao holistica + fundamentacao ampliada) ...\\n\\nDiante do exposto, solicitamos o provimento desta reanalise."',
                 '}'
             ].join('\n');
