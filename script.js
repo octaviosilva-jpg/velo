@@ -4105,17 +4105,36 @@ function inicializarHistorico() {
 function abrirModalSolicitacoes() {
     const modal = new bootstrap.Modal(document.getElementById('modalSolicitacoes'));
     modal.show();
-    
+
     // Definir data padrão (últimos 30 dias)
     const hoje = new Date();
     const dataFim = hoje.toISOString().split('T')[0];
     const dataInicio = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
+
     document.getElementById('filtroDataInicio').value = dataInicio;
     document.getElementById('filtroDataFim').value = dataFim;
     document.getElementById('filtroTipo').value = 'todas';
-    
+
     // Buscar solicitações automaticamente
+    buscarSolicitacoes();
+}
+
+// Atalho a partir do card "Pendentes de Resultado" nas estatísticas: abre o mesmo modal já
+// filtrado só nas moderações sem Aceita/Negada, na mesma janela de 90 dias usada pra contar o
+// número no card (ver ESTATISTICAS_JANELA_DIAS em server.js) — evita ter que caçar o ID manualmente
+// pra depois puxar o resultado do e-mail e preencher.
+function abrirModalSolicitacoesPendentes() {
+    const modal = new bootstrap.Modal(document.getElementById('modalSolicitacoes'));
+    modal.show();
+
+    const hoje = new Date();
+    const dataFim = hoje.toISOString().split('T')[0];
+    const dataInicio = new Date(hoje.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    document.getElementById('filtroDataInicio').value = dataInicio;
+    document.getElementById('filtroDataFim').value = dataFim;
+    document.getElementById('filtroTipo').value = 'pendentes';
+
     buscarSolicitacoes();
 }
 
@@ -4129,8 +4148,13 @@ async function buscarSolicitacoes() {
     const dataInicio = document.getElementById('filtroDataInicio').value;
     const dataFim = document.getElementById('filtroDataFim').value;
     const idReclamacao = (document.getElementById('filtroIdReclamacaoModal').value || '').trim();
-    const tipo = document.getElementById('filtroTipo').value;
-    
+    const tipoSelecionado = document.getElementById('filtroTipo').value;
+    // "pendentes" é um filtro só do front — a API não conhece esse valor, então pedimos
+    // "moderacoes" pra ela e filtramos os grupos sem resultado depois de montá-los (mesma
+    // lógica de tentativaParaStatus usada pra pintar o badge de cada card).
+    const somentePendentes = tipoSelecionado === 'pendentes';
+    const tipo = somentePendentes ? 'moderacoes' : tipoSelecionado;
+
     const tabela = document.getElementById('tabelaSolicitacoes');
     const infoDiv = document.getElementById('infoSolicitacoes');
     const textoInfo = document.getElementById('textoInfoSolicitacoes');
@@ -4304,10 +4328,21 @@ async function buscarSolicitacoes() {
                     if (!gruposModeracaoMap.has(chave)) gruposModeracaoMap.set(chave, []);
                     gruposModeracaoMap.get(chave).push(solicitacao);
                 });
-                const gruposModeracao = Array.from(gruposModeracaoMap.entries()).map(([idReclamacao, itens]) => {
+                let gruposModeracao = Array.from(gruposModeracaoMap.entries()).map(([idReclamacao, itens]) => {
                     itens.sort((a, b) => (a.numeroTentativa || 1) - (b.numeroTentativa || 1));
                     return { idReclamacao, itens };
                 });
+
+                // Mesmo critério usado abaixo pra pintar o badge de status do card: a tentativa
+                // aceita (se alguma tentativa do grupo foi aceita) ou, senão, a mais recente. Um
+                // grupo é "pendente" quando essa tentativa de referência ainda não tem Aceita/Negada.
+                if (somentePendentes) {
+                    gruposModeracao = gruposModeracao.filter(grupo => {
+                        const tentativaAceita = grupo.itens.find(item => item.resultadoModeracao === 'Aceita');
+                        const tentativaParaStatus = tentativaAceita || grupo.itens[grupo.itens.length - 1];
+                        return tentativaParaStatus.resultadoModeracao !== 'Aceita' && tentativaParaStatus.resultadoModeracao !== 'Negada';
+                    });
+                }
 
                 // Resumo curto pra coluna "Detalhes" — trunca com reticências só quando corta de fato.
                 const truncar = (texto, tamanho) => {
@@ -4512,7 +4547,22 @@ async function buscarSolicitacoes() {
                     `;
                 });
 
-                tabela.innerHTML = linhasResposta.join('') + linhasModeracao.join('');
+                if (somentePendentes) {
+                    textoInfo.textContent = `${gruposModeracao.length} reclamação(ões) com moderação pendente de resultado no período selecionado`;
+                }
+
+                if (linhasResposta.length === 0 && linhasModeracao.length === 0) {
+                    tabela.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">
+                                <i class="fas fa-inbox me-2"></i>
+                                ${somentePendentes ? 'Nenhuma moderação pendente de resultado no período selecionado.' : 'Nenhuma solicitação encontrada para o período selecionado.'}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tabela.innerHTML = linhasResposta.join('') + linhasModeracao.join('');
+                }
             }
         } else {
             throw new Error(data.error || 'Erro ao buscar solicitações');

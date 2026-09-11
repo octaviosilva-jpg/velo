@@ -466,6 +466,20 @@ header {
     color: #198754;
 }
 
+.stat-item-clickable {
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.15s ease, border-color 0.3s ease;
+}
+
+.stat-item-clickable:hover {
+    background-color: rgba(220, 53, 69, 0.08);
+}
+
+.stat-label-link {
+    text-decoration: underline dotted;
+}
+
 /* Histórico */
 .historico-content {
     max-height: 300px;

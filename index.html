@@ -269,8 +269,8 @@
                                 <span class="stat-label">Mod. Negadas</span>
                                 <span class="stat-value" data-stat="moderacoes_negadas">0</span>
                             </div>
-                            <div class="stat-item" title="Moderações dos últimos 90 dias sem resultado (Aceita/Negada) registrado">
-                                <span class="stat-label">Pendentes de Resultado</span>
+                            <div class="stat-item stat-item-clickable" onclick="abrirModalSolicitacoesPendentes()" title="Moderações dos últimos 90 dias sem resultado (Aceita/Negada) registrado — clique para localizar">
+                                <span class="stat-label stat-label-link">Pendentes de Resultado</span>
                                 <span class="stat-value text-danger fw-bold" data-stat="moderacoes_pendentes">0</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-1">
@@ -1017,6 +1017,7 @@
                                 <option value="todas">Todas</option>
                                 <option value="respostas">Respostas</option>
                                 <option value="moderacoes">Moderações</option>
+                                <option value="pendentes">Pendentes de Resultado</option>
                             </select>
                         </div>
                         <div class="col-md-4 d-flex align-items-end gap-2">
