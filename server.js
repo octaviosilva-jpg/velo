@@ -6619,13 +6619,20 @@ ${dadosFormulario.texto_cliente || 'N/A'}`;
  * /api/moderacao/:idModeracao/analise-completa (fluxo somente-leitura, sobre um caso já negado).
  */
 async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNegativaRA, envVars, apiKey, idReclamacao }) {
-    const { runReformulacaoV2, runReformulacaoV2Melhorada } = require('./moderacao-pipeline');
-    // Flag aditiva (default desligada): quando 'true', a redacao da reformulacao passa a citar e
-    // refutar explicitamente o motivo/codigo da negativa recebida (ver analise de calibracao
-    // 2026-09-08). Com a flag desligada, comportamento identico ao anterior (runReformulacaoV2).
-    const executarReformulacao = String(envVars.MODERACAO_REFORMULACAO_REDACAO_V2 || process.env.MODERACAO_REFORMULACAO_REDACAO_V2 || '').toLowerCase() === 'true'
-        ? runReformulacaoV2Melhorada
-        : runReformulacaoV2;
+    const { runReformulacaoV2, runReformulacaoV2Melhorada, runReformulacaoHolistica } = require('./moderacao-pipeline');
+    // Flags aditivas (default desligadas), verificadas nesta ordem (a mais nova tem prioridade se
+    // ambas estiverem ligadas por engano):
+    //  - MODERACAO_REFORMULACAO_HOLISTICA_V2 (2026-09-10): reavalia reclamacao/resposta/consideracao/
+    //    hipotese por inteiro, usando a negativa so como diagnostico da deficiencia (nao como unico
+    //    alvo do texto) — ver moderacao-pipeline/orchestratorReformulacaoHolistica.js.
+    //  - MODERACAO_REFORMULACAO_REDACAO_V2 (2026-09-08): cita e refuta explicitamente o motivo/
+    //    codigo da negativa recebida antes de reforcar a hipotese.
+    // Com as duas desligadas, comportamento identico ao anterior (runReformulacaoV2).
+    const usarHolistica = String(envVars.MODERACAO_REFORMULACAO_HOLISTICA_V2 || process.env.MODERACAO_REFORMULACAO_HOLISTICA_V2 || '').toLowerCase() === 'true';
+    const usarMelhorada = String(envVars.MODERACAO_REFORMULACAO_REDACAO_V2 || process.env.MODERACAO_REFORMULACAO_REDACAO_V2 || '').toLowerCase() === 'true';
+    const executarReformulacao = usarHolistica
+        ? runReformulacaoHolistica
+        : (usarMelhorada ? runReformulacaoV2Melhorada : runReformulacaoV2);
 
     const negativaParse = parseNegativaRA(textoNegativaRA);
     const regra = negativaParse.regraId ? encontrarRegraPorCodigoRA(negativaParse.codigo) : null;
@@ -6642,7 +6649,12 @@ async function gerarAnaliseReformulacaoIA({ dadosModeracao, textoNegado, textoNe
         regraReprovaQuando: regra ? regra.reprovaQuando : '',
         regraOrientacao: regra ? regra.regraRespostaRA : '',
         hipoteseAnterior: hipoteseUtilizada,
-        teseBateu
+        teseBateu,
+        // Texto da tentativa que foi negada — usado pela reformulacao holistica (redacao-
+        // reformulacao@v2) pra comparar com os textos crus e achar o que ficou de fora dela.
+        // Campo novo e opcional: prompts anteriores (v1) nao o leem, entao nao muda o comportamento
+        // deles.
+        textoAnteriorModeracao: textoNegado || ''
     };
 
     // Mesmo wiring (deps) usado pelo pipeline V2 de geração inicial (executarPipelineModeracaoV2):
@@ -9720,7 +9732,10 @@ async function _testeRodarReformulacao(envVars, apiKey) {
             regraReprovaQuando: regra ? regra.reprovaQuando : '',
             regraOrientacao: regra ? regra.regraRespostaRA : '',
             hipoteseAnterior: dadosModeracao.hipoteseUtilizada,
-            teseBateu
+            teseBateu,
+            // Ver gerarAnaliseReformulacaoIA: mesmo campo novo/opcional, so consumido por
+            // redacao-reformulacao@v2 (reformulacao holistica).
+            textoAnteriorModeracao: textoNegado || ''
         };
 
         const { runReformulacaoV2, runReformulacaoV2Melhorada } = require('./moderacao-pipeline');

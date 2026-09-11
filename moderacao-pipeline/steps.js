@@ -244,6 +244,46 @@ const REDACAO_REFORMULACAO = {
     }
 };
 
+// Variante ADITIVA de REDACAO_REFORMULACAO com reavaliacao HOLISTICA (2026-09-10): mesmo contrato
+// de escrita e mesmo buildCtx (inclusive negativaReal, que agora tambem carrega
+// textoAnteriorModeracao quando o wiring fornece), mas usa promptRef 'redacao-reformulacao@v2' —
+// trata a negativa como diagnostico da deficiencia em vez de unico alvo do texto e exige reavaliar
+// reclamacao/resposta/consideracao/hipotese por inteiro. Ver moderacao-pipeline/promptRegistry.js
+// para a motivacao (analise do caso real 258450515). REDACAO_REFORMULACAO (v1, acima) continua
+// intocada; esta so e usada pelo wiring que optar explicitamente por ela (ver
+// orchestratorReformulacaoHolistica.js).
+const REDACAO_REFORMULACAO_HOLISTICA = {
+    id: 'REDACAO_REFORMULACAO_HOLISTICA',
+    node: NODES.REDACAO,
+    etapas: [ETAPAS.E6_RACIOCINIO, ETAPAS.E7_TEXTO],
+    promptRef: 'redacao-reformulacao@v2',
+    actor: 'llm',
+    writes: ['linhaRaciocinio', 'textoFinal'],
+    model: (deps) => deps.models?.redacao || DEFAULTS.models.redacao,
+    temperature: (deps) => num(deps.temperatures?.redacao, DEFAULTS.temperatures.redacao),
+    maxTokens: (deps) => deps.maxTokens?.redacao || DEFAULTS.maxTokens.redacao,
+    async buildCtx(state, deps) {
+        return {
+            hipoteseSelecionada: state.hipoteseSelecionada,
+            justificativa: state.justificativa,
+            trechosSustentam: state.trechosSustentam,
+            analiseDecisao: state.analiseDecisao,
+            solicitacao: state.entradasCruas.solicitacao,
+            resposta: state.entradasCruas.resposta,
+            consideracao: state.entradasCruas.consideracao,
+            aprendizadoBloco: deps.buildAprendizado ? await deps.buildAprendizado(state) : '',
+            negativaReal: state.negativaReal || {}
+        };
+    },
+    toPartial(parsed) {
+        parsed = parsed || {};
+        return {
+            linhaRaciocinio: parsed.linha_raciocinio || '',
+            textoFinal: parsed.texto_final || ''
+        };
+    }
+};
+
 // Variante ADITIVA de REDACAO para a geracao NORMAL (1a tentativa): mesmo contrato de escrita
 // (linhaRaciocinio/textoFinal), mas buildCtx tambem busca os criterios especificos do manual
 // (quandoSeAplica/criterios[]) pra hipotese ja escolhida via deps.buildCriteriosHipotese, e usa
@@ -294,6 +334,7 @@ module.exports = {
     // orchestrators paralelos opcionais (orchestratorReformulacaoV2.js, orchestratorFortalecida.js)
     // atras de flag propria cada um.
     REDACAO_REFORMULACAO,
+    REDACAO_REFORMULACAO_HOLISTICA,
     REDACAO_FORTALECIDA,
     STEPS: [COMPREENSAO, DECISAO, REDACAO],
     STEPS_REFORMULACAO: [COMPREENSAO, DECISAO_REFORMULACAO, REDACAO]

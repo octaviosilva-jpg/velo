@@ -20,6 +20,7 @@
 const { createWorkflowState, serialize } = require('./workflowState');
 const orchestrator = require('./orchestrator');
 const orchestratorReformulacaoV2 = require('./orchestratorReformulacaoV2');
+const orchestratorReformulacaoHolistica = require('./orchestratorReformulacaoHolistica');
 const orchestratorFortalecida = require('./orchestratorFortalecida');
 const persistence = require('./persistence');
 const resultMapper = require('./resultMapper');
@@ -120,6 +121,42 @@ async function runReformulacaoV2Melhorada(input = {}, deps = {}) {
 }
 
 /**
+ * Variante ADITIVA de runReformulacaoV2, irma de runReformulacaoV2Melhorada: mesmo contrato de
+ * entrada/saida, mas usa orchestratorReformulacaoHolistica.runPipelineReformulacaoHolistica
+ * (REDACAO_REFORMULACAO_HOLISTICA em vez de REDACAO_REFORMULACAO) — trata a negativa como
+ * diagnostico da deficiencia em vez de unico alvo do texto, reavaliando reclamacao/resposta/
+ * consideracao/hipotese por inteiro. runReformulacaoV2 e runReformulacaoV2Melhorada continuam
+ * intocadas; esta so e chamada pelo wiring quando explicitamente selecionada (ver flag
+ * MODERACAO_REFORMULACAO_HOLISTICA_V2 em server.js / gerarAnaliseReformulacaoIA). Ver
+ * moderacao-pipeline/orchestratorReformulacaoHolistica.js para a motivacao (caso real 258450515).
+ */
+async function runReformulacaoHolistica(input = {}, deps = {}) {
+    const dados = input.dadosModeracao || {};
+    const state = createWorkflowState({
+        idReclamacao: input.idReclamacao,
+        entradasCruas: {
+            solicitacao: dados.solicitacaoCliente || '',
+            resposta: dados.respostaEmpresa || '',
+            consideracao: dados.consideracaoFinal || '',
+            motivoHint: dados.motivoModeracao || ''
+        },
+        negativaReal: input.negativaReal || null
+    });
+
+    await orchestratorReformulacaoHolistica.runPipelineReformulacaoHolistica(state, deps);
+
+    let persistResult = null;
+    try {
+        persistResult = await persistence.persistWorkflow(state, deps);
+    } catch (e) {
+        console.error('[pipelineV2/reformulacaoHolistica] persistencia falhou (nao bloqueante):', e.message);
+    }
+
+    const mapped = resultMapper.mapReformulacaoToLegacyContract(state, { confLimiar: deps.confLimiar });
+    return { mapped, state: serialize(state), persistResult };
+}
+
+/**
  * Variante ADITIVA de runPipelineV2: mesmo contrato de entrada/saida, mas usa
  * orchestratorFortalecida.runPipelineFortalecida (REDACAO_FORTALECIDA em vez de REDACAO) — exige
  * demonstrar criterio por criterio do manual pra hipotese escolhida, em vez de so citar a
@@ -158,11 +195,13 @@ module.exports = {
     runPipelineV2Fortalecida,
     runReformulacaoV2,
     runReformulacaoV2Melhorada,
+    runReformulacaoHolistica,
     constants,
     // reexports uteis para testes/harness
     createWorkflowState,
     orchestrator,
     orchestratorReformulacaoV2,
+    orchestratorReformulacaoHolistica,
     orchestratorFortalecida,
     persistence,
     resultMapper
