@@ -518,12 +518,14 @@ const REGISTRY = {
                 + 'que validem a posicao da empresa como se fossem o proprio argumento (ex.: "isso justifica", "a empresa '
                 + 'esclareceu", "o produto e experimental, portanto..."); apresente os fatos da reclamacao/resposta e demonstre '
                 + 'objetivamente por que eles se enquadram na hipotese do manual — o foco e o enquadramento da reclamacao, nao a '
-                + 'correcao da empresa. Avalie sempre se a CONSIDERACAO FINAL do consumidor contem um fato ou alegacao NOVA; se '
-                + 'so reiterar insatisfacao sem fato novo, NAO precisa aborda-la. Se houver alegacao nova, verifique se ela pode '
-                + 'alterar ou entrar em conflito com o enquadramento — mas NUNCA trate a alegacao do consumidor como fato '
-                + 'comprovado (proibido afirmar algo como "nao apresenta novos fatos" quando ha uma alegacao nao verificada; em '
-                + 'vez disso, reconheca a alegacao e explique que ela nao vem acompanhada, no conteudo disponivel, de elementos '
-                + 'que confirmem alterar o enquadramento). Voce recebe o TEXTO DA TENTATIVA ANTERIOR: compare-o com '
+                + 'correcao da empresa. Avalie sempre se a CONSIDERACAO FINAL contem uma ALEGACAO NOVA — considere nova qualquer '
+                + 'informacao factual ou relato sobre o ocorrido que NAO esteja na reclamacao nem na resposta publica (ex.: "fui '
+                + 'orientado a aguardar uma atualizacao do aplicativo"), mesmo apresentada de forma breve junto de uma '
+                + 'manifestacao de insatisfacao; NAO conta como alegacao nova so reiterar insatisfacao sem informacao sobre o '
+                + 'ocorrido (ex.: "continuo insatisfeito e a empresa nao resolveu meu problema"). Se houver alegacao nova, '
+                + 'reconheca-a sem trata-la como fato comprovado e avalie se ela pode alterar ou entrar em conflito com o '
+                + 'enquadramento (proibido afirmar "nao apresenta novos fatos" quando ha alegacao nova, mesmo que voce conclua '
+                + 'que ela nao muda o enquadramento). Voce recebe o TEXTO DA TENTATIVA ANTERIOR: compare-o com '
                 + 'os TEXTOS CRUS antes de escrever e incorpore fatos/trechos que ela nao explorou. O novo pedido deve '
                 + 'demonstrar novamente, de forma completa, por que a publicacao se enquadra na hipotese escolhida. Nunca '
                 + 'redija como se fosse a primeira tentativa. E PROIBIDO qualquer linguagem de atendimento ao cliente: nao '
@@ -568,7 +570,7 @@ const REGISTRY = {
                 '- A saudacao inicial deve ser dirigida a EQUIPE DE MODERACAO do Reclame Aqui (ex.: "Prezada equipe de moderacao do Reclame Aqui,"), NUNCA ao cliente.',
                 '- (1) A abertura deve apresentar diretamente o enquadramento da reclamacao na hipotese definitiva e, em seguida, fundamenta-lo pelos fatos do caso. O codigo e o motivo da negativa (ver CONTEXTO DA REANALISE) sao apenas metadados de diagnostico do processo anterior — se mencionados, devem aparecer de forma breve e subordinada, nunca como sujeito da primeira frase.',
                 '- (2) Reavalie de forma integral: reclamacao (fatos e pedido do consumidor) e resposta publica da empresa — usando trechos literais dos TEXTOS CRUS que a TENTATIVA ANTERIOR ainda nao tenha citado, quando existirem.',
-                '- (3) Avalie sempre se a CONSIDERACAO FINAL do consumidor contem um fato ou alegacao NOVA (ex.: uma orientacao ou promessa diferente da que consta na resposta publica). Se so reiterar insatisfacao sem fato novo, nao precisa aborda-la explicitamente. Se houver alegacao nova, verifique se ela pode alterar ou entrar em conflito com o enquadramento — mas NUNCA trate a alegacao do consumidor como fato comprovado (proibido afirmar "nao apresenta novos fatos" quando ha uma alegacao nao verificada; em vez disso, reconheca a alegacao e explique que ela nao vem acompanhada, no conteudo disponivel, de elementos que confirmem alterar o enquadramento).',
+                '- (3) Avalie sempre se a CONSIDERACAO FINAL contem uma ALEGACAO NOVA: considere nova qualquer informacao factual ou relato sobre o ocorrido que NAO esteja na reclamacao nem na resposta publica, mesmo apresentada de forma breve ou junto de uma manifestacao de insatisfacao. Exemplos de alegacao nova: "fui orientado a aguardar uma atualizacao do aplicativo", "o atendimento informou que o valor seria corrigido ate amanha". NAO e alegacao nova: "continuo insatisfeito e a empresa nao resolveu meu problema" (so reitera insatisfacao, sem informacao nova sobre o ocorrido). Se houver alegacao nova, reconheca-a sem trata-la como fato comprovado e avalie se ela pode alterar ou entrar em conflito com o enquadramento (proibido afirmar "nao apresenta novos fatos" quando ha uma alegacao nova, mesmo que voce conclua que ela nao muda o enquadramento); se so reiterar insatisfacao sem informacao nova, nao precisa aborda-la explicitamente.',
                 '- (4) Construa uma fundamentacao materialmente mais forte que a anterior: e PROIBIDO repetir os mesmos argumentos da tentativa anterior so com palavras diferentes, e e PROIBIDO redigir como se estivesse defendendo a empresa (nada de "isso justifica"/"a empresa esclareceu" como argumento principal) — demonstre com fatos por que o caso se enquadra na hipotese.',
                 '- (5) Demonstre novamente, de forma completa, por que a hipotese selecionada se sustenta a luz dessa reavaliacao ampliada — nao apenas que o motivo da negativa nao se aplica.',
                 '- (6) Conclua solicitando EXPLICITAMENTE a reanalise/moderacao (ex.: "Diante do exposto, solicitamos o provimento desta reanalise.").',

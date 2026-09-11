@@ -100,9 +100,24 @@ function testPromptBuilderConsideracaoFinalCondicional() {
 // comprovado.
 function testPromptBuilderNaoTrataAlegacaoComoFatoComprovado() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
-    assert.ok(system.includes('NUNCA trate a alegacao do consumidor como fato comprovado'), 'system deve proibir tratar a alegacao do consumidor como fato comprovado');
-    assert.ok(user.includes('NUNCA trate a alegacao do consumidor como fato comprovado'), 'instrucoes devem proibir tratar a alegacao do consumidor como fato comprovado');
+    assert.ok(system.includes('sem trata-la como fato comprovado'), 'system deve proibir tratar a alegacao do consumidor como fato comprovado');
+    assert.ok(user.includes('reconheca-a sem trata-la como fato comprovado'), 'instrucoes devem proibir tratar a alegacao do consumidor como fato comprovado');
     console.log('OK [unidade] redacao-reformulacao@v2 proibe afirmar que uma alegacao nao verificada "nao e fato novo"');
+}
+
+// Ajuste 2026-09-11 (5a rodada, mesmo caso 258599005 reexecutado apos o fix de ordenacao): a
+// abertura parou de citar CO06 (confirma o fix da rodada 4), mas a consideracao final ("aguardar
+// atualizacao do app") continuou sendo descartada como "sem novos fatos" — nao por a instrucao ser
+// ignorada, mas porque o modelo nao classificava esse tipo de relato como "alegacao nova" (
+// prioridade semantica pro argumento explicito da reclamacao principal). Fix: regra de alegacao
+// nova ganhou definicao operacional (informacao factual/relato sobre o ocorrido ausente da
+// reclamacao/resposta) + exemplos contrastantes concretos (alegacao nova vs. so reiterar
+// insatisfacao), em vez de deixar a classificacao inteiramente a criterio do modelo.
+function testPromptBuilderDefineAlegacaoNovaComExemplosContrastantes() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
+    assert.ok(system.includes('aguardar uma atualizacao do aplicativo') && system.includes('continuo insatisfeito'), 'system deve dar exemplo positivo E negativo de alegacao nova');
+    assert.ok(user.includes('aguardar uma atualizacao do aplicativo') && user.includes('continuo insatisfeito'), 'instrucoes devem dar exemplo positivo E negativo de alegacao nova');
+    console.log('OK [unidade] redacao-reformulacao@v2 define alegacao nova com exemplos contrastantes concretos');
 }
 
 function testPromptBuilderSemTextoAnteriorNaoQuebra() {
@@ -242,6 +257,7 @@ async function testPipelineV1ContinuaIntocado() {
     testPromptBuilderProibeDefenderEmpresa();
     testPromptBuilderConsideracaoFinalCondicional();
     testPromptBuilderNaoTrataAlegacaoComoFatoComprovado();
+    testPromptBuilderDefineAlegacaoNovaComExemplosContrastantes();
     testPromptBuilderExplicaRegraDoGanhoMaterial();
     testToPartialDefaultFalseSemCampo();
     await testPipelineHolisticaUsaPromptRefCorreto();
