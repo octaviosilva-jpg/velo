@@ -44,6 +44,33 @@ function testPromptBuilderIncluiTextoAnterior() {
     console.log('OK [unidade] redacao-reformulacao@v2 inclui texto da tentativa anterior e trata negativa como diagnostico');
 }
 
+// Ajuste 2026-09-11 (caso real 258599005, negado por CO06) — auditoria externa achou 3 falhas
+// concretas na v2 original: abria citando o codigo como sujeito, redigia como defesa da empresa, e
+// ignorava a consideracao final mesmo quando trazia fato novo. Confirma que as 3 regras corretivas
+// estao presentes no prompt (nao valida geracao real, isso exigiria chamada paga).
+function testPromptBuilderNaoAbreComCodigoComoSujeito() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({
+        hipoteseSelecionada: {}, negativaReal: { motivoOficial: 'Divergência de Informações', codigo: 'CO06' }
+    });
+    assert.ok(system.includes('PROIBIDO') && system.includes('sujeito da frase'), 'system deve proibir abrir o texto com o codigo/motivo como sujeito da frase');
+    assert.ok(user.includes('SEM abrir o paragrafo com o codigo/motivo'), 'instrucoes devem reforcar a proibicao de abrir citando o codigo');
+    console.log('OK [unidade] redacao-reformulacao@v2 proibe abrir o texto citando o codigo da negativa como sujeito');
+}
+
+function testPromptBuilderProibeDefenderEmpresa() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
+    assert.ok(system.includes('nao deve soar como uma defesa da empresa') || system.includes('NAO deve soar como uma defesa'), 'system deve proibir tom de defesa da empresa');
+    assert.ok(user.includes('PROIBIDO redigir como se estivesse defendendo a empresa'), 'instrucoes devem proibir redigir como defesa da empresa');
+    console.log('OK [unidade] redacao-reformulacao@v2 proibe redigir como defesa da empresa');
+}
+
+function testPromptBuilderConsideracaoFinalCondicional() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
+    assert.ok(system.includes('CONSIDERACAO FINAL') && system.includes('NOVA'), 'system deve condicionar a consideracao final a fato/informacao nova');
+    assert.ok(user.includes('SOMENTE se ela trouxer um fato'), 'instrucoes devem tornar a consideracao final condicional a fato novo');
+    console.log('OK [unidade] redacao-reformulacao@v2 torna a consideracao final condicional a fato novo (nao obrigatoria sempre)');
+}
+
 function testPromptBuilderSemTextoAnteriorNaoQuebra() {
     const { user } = REGISTRY['redacao-reformulacao@v2'].build({
         hipoteseSelecionada: {}, negativaReal: {}
@@ -157,6 +184,9 @@ async function testPipelineV1ContinuaIntocado() {
 (async () => {
     testPromptBuilderIncluiTextoAnterior();
     testPromptBuilderSemTextoAnteriorNaoQuebra();
+    testPromptBuilderNaoAbreComCodigoComoSujeito();
+    testPromptBuilderProibeDefenderEmpresa();
+    testPromptBuilderConsideracaoFinalCondicional();
     await testPipelineHolisticaUsaPromptRefCorreto();
     await testPipelineV1ContinuaIntocado();
     console.log('TODOS OS CENARIOS PASSARAM');

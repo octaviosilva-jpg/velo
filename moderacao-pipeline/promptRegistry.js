@@ -461,6 +461,18 @@ const REGISTRY = {
     // recebe negativaReal.textoAnteriorModeracao (o texto da tentativa que foi negada) e exige
     // reavaliar reclamacao+resposta+consideracao final+hipotese por inteiro, comparando com a
     // tentativa anterior pra achar o que ficou de fora, em vez de so refutar o motivo da negativa.
+    //
+    // Ajuste 2026-09-11 (mesmo dia do deploy inicial, achado num caso real em producao com a flag ja
+    // ligada — reclamacao 258599005, negada por CO06): auditoria externa (revisao cruzada via outro
+    // LLM sobre o par reclamacao/resposta/negativa/segunda-tentativa real) encontrou 3 falhas na v2
+    // original: (1) o texto abria citando "sob o codigo CO06" como sujeito da frase, o que ainda lia
+    // como recurso administrativo em vez de reenquadramento; (2) o texto "virava advogado da
+    // empresa" (frases como "isso justifica a variacao", "a empresa esclareceu" como o proprio
+    // argumento) em vez de demonstrar objetivamente o enquadramento na hipotese; (3) ignorava por
+    // completo a consideracao final mesmo quando ela trazia um fato novo relevante (aqui, "pediram
+    // pra eu aguardar atualizacao do app"). Adicionadas 3 regras explicitas pra cada falha: nao abrir
+    // com o codigo como sujeito, nao redigir como defesa da empresa, e so abordar a consideracao
+    // final quando ela trouxer fato/alegacao NOVA (nao quando so reitera insatisfacao).
     'redacao-reformulacao@v2': {
         id: 'redacao',
         version: 'reformulacao-v2-holistica',
@@ -474,16 +486,25 @@ const REGISTRY = {
                 + 'NAO e interlocutor. A hipotese JA foi decidida e e IMUTAVEL: NAO a reavalie, NAO reinterprete os fatos, NAO '
                 + 'escolha outra hipotese. IMPORTANTE: a negativa recebida (motivo/codigo abaixo) e APENAS um DIAGNOSTICO da '
                 + 'deficiencia do pedido anterior — o novo pedido NAO deve se limitar a contestar ou refutar esse motivo '
-                + 'especifico. Depois de identificar a deficiencia apontada pela negativa, REAVALIE INTEGRALMENTE a reclamacao, '
-                + 'a resposta publica, a consideracao final do consumidor e o enquadramento na hipotese do manual, produzindo uma '
-                + 'fundamentacao MATERIALMENTE MAIS FORTE que a tentativa anterior — nao apenas uma defesa pontual do mesmo '
-                + 'argumento sob palavras diferentes. Voce recebe o TEXTO DA TENTATIVA ANTERIOR: compare-o com os TEXTOS CRUS '
-                + 'antes de escrever e incorpore fatos/trechos que ela nao explorou. O novo pedido deve demonstrar novamente, de '
-                + 'forma completa, por que a publicacao se enquadra na hipotese escolhida. Nunca redija como se fosse a primeira '
-                + 'tentativa. E PROIBIDO qualquer linguagem de atendimento ao cliente: nao responda ao consumidor, nao agradeca '
-                + 'pela reclamacao, nao peca desculpas, nao oriente o consumidor a entrar em contato com a empresa, nao se '
-                + 'coloque a disposicao. Nao use travessao nem hifen com espacos como pausa; prefira virgula ou ponto. Responda '
-                + 'SOMENTE com JSON valido.';
+                + 'especifico, e NAO deve abrir o texto citando o codigo/motivo da negativa como sujeito da frase (PROIBIDO '
+                + 'comecar como "Solicitamos a reanalise da moderacao negada sob o codigo X, que indicou..."); se for citar o '
+                + 'codigo, faca isso de forma breve e subordinada, so para rastreabilidade — o assunto do paragrafo de abertura '
+                + 'e o enquadramento na hipotese, nao a negativa. Depois de identificar a deficiencia apontada pela negativa, '
+                + 'REAVALIE INTEGRALMENTE a reclamacao, a resposta publica e o enquadramento na hipotese do manual, produzindo '
+                + 'uma fundamentacao MATERIALMENTE MAIS FORTE que a tentativa anterior — nao apenas uma defesa pontual do mesmo '
+                + 'argumento sob palavras diferentes. O texto tambem NAO deve soar como uma defesa da empresa: EVITE expressoes '
+                + 'que validem a posicao da empresa como se fossem o proprio argumento (ex.: "isso justifica", "a empresa '
+                + 'esclareceu", "o produto e experimental, portanto..."); apresente os fatos da reclamacao/resposta e demonstre '
+                + 'objetivamente por que eles se enquadram na hipotese do manual — o foco e o enquadramento da reclamacao, nao a '
+                + 'correcao da empresa. Aborde a CONSIDERACAO FINAL do consumidor somente se ela trouxer um fato, alegacao ou '
+                + 'informacao NOVA com potencial de mudar o enquadramento ou explicar a negativa; se ela so reiterar '
+                + 'insatisfacao sem fato novo, NAO precisa aborda-la. Voce recebe o TEXTO DA TENTATIVA ANTERIOR: compare-o com '
+                + 'os TEXTOS CRUS antes de escrever e incorpore fatos/trechos que ela nao explorou. O novo pedido deve '
+                + 'demonstrar novamente, de forma completa, por que a publicacao se enquadra na hipotese escolhida. Nunca '
+                + 'redija como se fosse a primeira tentativa. E PROIBIDO qualquer linguagem de atendimento ao cliente: nao '
+                + 'responda ao consumidor, nao agradeca pela reclamacao, nao peca desculpas, nao oriente o consumidor a entrar '
+                + 'em contato com a empresa, nao se coloque a disposicao. Nao use travessao nem hifen com espacos como pausa; '
+                + 'prefira virgula ou ponto. Responda SOMENTE com JSON valido.';
             const linhasNegativa = [
                 '📌 NEGATIVA RECEBIDA (use como DIAGNOSTICO da deficiencia — NAO e o unico ponto a responder):',
                 `- Motivo oficial citado pelo RA: ${nr.motivoOficial || '(nao encontrado no texto colado)'}`,
@@ -513,11 +534,12 @@ const REGISTRY = {
                 ctx.aprendizadoBloco ? `REFERENCIA DE ESTILO (apenas tom/estrutura, NAO muda os fatos):\n${ctx.aprendizadoBloco}\n` : '',
                 'INSTRUCOES DE REDACAO (ESTRUTURA OBRIGATORIA — reavaliacao holistica, diferente da 1a tentativa e diferente de uma mera refutacao):',
                 '- A saudacao inicial deve ser dirigida a EQUIPE DE MODERACAO do Reclame Aqui (ex.: "Prezada equipe de moderacao do Reclame Aqui,"), NUNCA ao cliente.',
-                '- (1) Cite que este e um pedido de reanalise, referenciando o motivo/codigo da negativa anterior como o DIAGNOSTICO do que precisou melhorar (nao como o unico assunto do texto).',
-                '- (2) Reavalie de forma integral: reclamacao (fatos e pedido do consumidor), resposta publica da empresa, consideracao final e o enquadramento na hipotese do manual — usando trechos literais dos TEXTOS CRUS que a TENTATIVA ANTERIOR ainda nao tenha citado, quando existirem.',
-                '- (3) Construa uma fundamentacao materialmente mais forte que a anterior: e PROIBIDO repetir os mesmos argumentos da tentativa anterior so com palavras diferentes; incorpore fatos, evidencias ou trechos que a tentativa anterior deixou de explorar.',
-                '- (4) Demonstre novamente, de forma completa, por que a hipotese selecionada se sustenta a luz dessa reavaliacao ampliada — nao apenas que o motivo da negativa nao se aplica.',
-                '- (5) Conclua solicitando EXPLICITAMENTE a reanalise/moderacao (ex.: "Diante do exposto, solicitamos o provimento desta reanalise.").',
+                '- (1) Cite que isto e um pedido de reanalise SEM abrir o paragrafo com o codigo/motivo da negativa como sujeito da frase (nao comece com "Solicitamos a reanalise... sob o codigo X, que indicou..."); o assunto da abertura e o enquadramento na hipotese, nao a negativa. Se citar o codigo, faca de forma breve e subordinada, so pra rastreabilidade.',
+                '- (2) Reavalie de forma integral: reclamacao (fatos e pedido do consumidor) e resposta publica da empresa — usando trechos literais dos TEXTOS CRUS que a TENTATIVA ANTERIOR ainda nao tenha citado, quando existirem.',
+                '- (3) Aborde a CONSIDERACAO FINAL do consumidor SOMENTE se ela trouxer um fato, alegacao ou informacao NOVA com potencial de mudar o enquadramento ou explicar a negativa (ex.: uma orientacao ou promessa diferente da que consta na resposta publica). Se ela so reiterar insatisfacao sem fato novo, nao precisa aborda-la explicitamente.',
+                '- (4) Construa uma fundamentacao materialmente mais forte que a anterior: e PROIBIDO repetir os mesmos argumentos da tentativa anterior so com palavras diferentes, e e PROIBIDO redigir como se estivesse defendendo a empresa (nada de "isso justifica"/"a empresa esclareceu" como argumento principal) — demonstre com fatos por que o caso se enquadra na hipotese.',
+                '- (5) Demonstre novamente, de forma completa, por que a hipotese selecionada se sustenta a luz dessa reavaliacao ampliada — nao apenas que o motivo da negativa nao se aplica.',
+                '- (6) Conclua solicitando EXPLICITAMENTE a reanalise/moderacao (ex.: "Diante do exposto, solicitamos o provimento desta reanalise.").',
                 '- Prefira estrutura enumerada (1., 2., 3.) quando houver mais de um ponto a apresentar — isso facilita a leitura pelo analista do RA.',
                 '- PROIBIDO usar linguagem de atendimento, por exemplo: "Agradecemos por utilizar nossa plataforma", "Entendemos sua frustracao/seu transtorno", "Lamentamos", "Pedimos desculpas", "Esperamos que sua questao seja resolvida", "Estamos a disposicao", "Caso ainda tenha duvidas", "Entre em contato conosco", "Recomendamos que entre em contato", "Prezado cliente".',
                 '',
