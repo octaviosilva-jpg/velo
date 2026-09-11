@@ -67,8 +67,20 @@ function testPromptBuilderProibeDefenderEmpresa() {
 function testPromptBuilderConsideracaoFinalCondicional() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
     assert.ok(system.includes('CONSIDERACAO FINAL') && system.includes('NOVA'), 'system deve condicionar a consideracao final a fato/informacao nova');
-    assert.ok(user.includes('SOMENTE se ela trouxer um fato'), 'instrucoes devem tornar a consideracao final condicional a fato novo');
+    assert.ok(user.includes('Avalie sempre se a CONSIDERACAO FINAL'), 'instrucoes devem mandar sempre avaliar se ha alegacao nova (nao pular direto pra "sim/nao" sem checar)');
     console.log('OK [unidade] redacao-reformulacao@v2 torna a consideracao final condicional a fato novo (nao obrigatoria sempre)');
+}
+
+// Ajuste 2026-09-11 (2), mesmo caso real 258599005 rodado de novo apos o primeiro fix: a nota subiu
+// de 3/10 pra 7/10, mas a auditoria achou que o texto afirmava "nao ha novos fatos" quando na
+// verdade havia uma ALEGACAO nova nao verificada ("aguardar atualizacao do app") — afirmacao mais
+// forte do que os dados permitem. Confirma que o prompt agora probe tratar alegacao como fato
+// comprovado.
+function testPromptBuilderNaoTrataAlegacaoComoFatoComprovado() {
+    const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
+    assert.ok(system.includes('NUNCA trate a alegacao do consumidor como fato comprovado'), 'system deve proibir tratar a alegacao do consumidor como fato comprovado');
+    assert.ok(user.includes('NUNCA trate a alegacao do consumidor como fato comprovado'), 'instrucoes devem proibir tratar a alegacao do consumidor como fato comprovado');
+    console.log('OK [unidade] redacao-reformulacao@v2 proibe afirmar que uma alegacao nao verificada "nao e fato novo"');
 }
 
 function testPromptBuilderSemTextoAnteriorNaoQuebra() {
@@ -187,6 +199,7 @@ async function testPipelineV1ContinuaIntocado() {
     testPromptBuilderNaoAbreComCodigoComoSujeito();
     testPromptBuilderProibeDefenderEmpresa();
     testPromptBuilderConsideracaoFinalCondicional();
+    testPromptBuilderNaoTrataAlegacaoComoFatoComprovado();
     await testPipelineHolisticaUsaPromptRefCorreto();
     await testPipelineV1ContinuaIntocado();
     console.log('TODOS OS CENARIOS PASSARAM');
