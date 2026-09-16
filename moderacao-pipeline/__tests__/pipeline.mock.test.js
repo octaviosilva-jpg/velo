@@ -48,7 +48,7 @@ function makeMock({ confPrimeira }) {
                 ]
             });
         }
-        if (sys.includes('AUDITOR de moderacao')) {
+        if (sys.includes('AUDITOR de moderação')) {
             decisaoCount++;
             const confianca = decisaoCount === 1 ? confPrimeira : 0.9;
             return jsonResp({
@@ -70,7 +70,7 @@ function makeMock({ confPrimeira }) {
                 confianca
             });
         }
-        if (sys.includes('DOCUMENTO DE FUNDAMENTACAO')) {
+        if (sys.includes('DOCUMENTO DE FUNDAMENTAÇÃO')) {
             return jsonResp({
                 linha_raciocinio: 'Auditoria confirmou AENV com base no vinculo contratual.',
                 texto_final: 'Prezada equipe de moderacao do Reclame Aqui,\n\nEntendemos que a reclamacao se enquadra na hipotese prevista no Manual, conforme o Manual de Moderacao.\n\nA resposta publica e a consideracao final confirmam o vinculo contratual.\n\nDiante do exposto, solicitamos a moderacao da reclamacao.'
@@ -122,7 +122,7 @@ async function cenario(nome, confPrimeira, esperaBackedge) {
     assert.ok(mapped.result.includes('(1) AUDITORIA DA HIPÓTESE'), 'result tem bloco 1');
     assert.ok(mapped.result.includes('(2) LINHA DE RACIOCÍNIO INTERNA'), 'result tem bloco 2');
     assert.ok(mapped.result.includes('(3) TEXTO FINAL DE MODERAÇÃO'), 'result tem bloco 3');
-    assert.ok(mapped.result.includes('Nucleo da reclamacao'), 'bloco 1 inclui nucleo da reclamacao');
+    assert.ok(mapped.result.includes('Núcleo da reclamação'), 'bloco 1 inclui nucleo da reclamacao');
     assert.ok(mapped.result.includes('Conflitos avaliados'), 'bloco 1 inclui conflitos avaliados');
 
     console.log(`OK [${nome}] backedges=${backedges} conf=${state.confianca} confiancaBaixa=${mapped.confiancaBaixa}`);

@@ -54,7 +54,7 @@ function makeMock() {
             });
         }
 
-        if (sys.includes('JA FOI NEGADO')) {
+        if (sys.includes('JÁ FOI NEGADO')) {
             return jsonResp({
                 analise_holistica: {
                     nucleo_reclamacao: 'Divergencia sobre informacao previa dos juros',
@@ -73,13 +73,13 @@ function makeMock() {
             });
         }
 
-        if (sys.includes('DOCUMENTO DE REFUTACAO')) {
+        if (sys.includes('DOCUMENTO DE REFUTAÇÃO')) {
             // Confere que o contexto da negativa real chegou ATE A REDACAO (o gap corrigido:
             // REDACAO v2 nunca recebia isso).
             assert.ok(user.includes('CO06'), 'prompt de redacao-reformulacao deve conter o codigo da negativa');
             assert.ok(user.includes('Divergência de Informações') || user.includes('Divergencia de Informacoes'), 'prompt deve conter o motivo oficial da negativa');
             assert.ok(user.includes('Sustentar a resposta em fatos verificaveis'), 'prompt deve conter a diretriz oficial de correcao (regraOrientacao)');
-            assert.ok(user.includes('ESTRUTURA OBRIGATORIA'), 'prompt deve instruir a estrutura de refutacao, nao redacao do zero');
+            assert.ok(user.includes('ESTRUTURA OBRIGATÓRIA'), 'prompt deve instruir a estrutura de refutacao, nao redacao do zero');
 
             return jsonResp({
                 linha_raciocinio: 'Refutei diretamente o motivo CO06 (divergencia de informacoes) citando o contrato assinado eletronicamente como fato verificavel, depois reforcei a hipotese de inadimplencia/juros.',

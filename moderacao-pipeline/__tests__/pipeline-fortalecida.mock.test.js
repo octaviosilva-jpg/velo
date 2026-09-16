@@ -53,7 +53,7 @@ function makeMock() {
             });
         }
 
-        if (sys.includes('AUDITOR de moderacao')) {
+        if (sys.includes('AUDITOR de moderação')) {
             return jsonResp({
                 analise_holistica: {
                     nucleo_reclamacao: 'Cliente contesta a nao liberacao de credito',
@@ -69,10 +69,10 @@ function makeMock() {
             });
         }
 
-        if (sys.includes('DOCUMENTO DE FUNDAMENTACAO')) {
+        if (sys.includes('DOCUMENTO DE FUNDAMENTAÇÃO')) {
             // Confere que os criterios especificos da hipotese chegaram no prompt (o gap corrigido:
             // REDACAO v2 nunca recebia isso, so o comoCitar generico).
-            assert.ok(user.includes('BASE NORMATIVA ESPECIFICA'), 'prompt de redacao@v3 deve ter a secao de base normativa especifica');
+            assert.ok(user.includes('BASE NORMATIVA ESPECÍFICA'), 'prompt de redacao@v3 deve ter a secao de base normativa especifica');
             assert.ok(user.includes('A aprovacao depende exclusivamente do perfil'), 'prompt deve conter o criterio especifico da hipotese');
             assert.ok(user.includes('Cliente reclama por nao conseguir contratar'), 'prompt deve conter o quandoSeAplica da hipotese');
 

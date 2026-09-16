@@ -19,14 +19,14 @@ const ctx = {
 
 const rendered = promptRegistry.render('decisao@v3', ctx);
 
-assert.ok(rendered.user.includes('PONDERACAO DE INSUMOS CONCORRENTES'), 'bloco de ponderacao presente');
-assert.ok(rendered.user.includes('principal base para a analise dos fatos'), 'redacao consolidada textos crus');
-assert.ok(rendered.user.includes('objeto central da reclamacao e explica a controversia'), 'criterio consolidado conflito principal');
+assert.ok(rendered.user.includes('PONDERAÇÃO DE INSUMOS CONCORRENTES'), 'bloco de ponderacao presente');
+assert.ok(rendered.user.includes('principal base para a análise dos fatos'), 'redacao consolidada textos crus');
+assert.ok(rendered.user.includes('objeto central da reclamação e explica a controvérsia'), 'criterio consolidado conflito principal');
 assert.ok(!rendered.user.includes('origem da insatisfacao'), 'nao usa redacao antiga origem insatisfacao');
 assert.ok(!rendered.user.includes('fonte primaria de evidencia'), 'nao usa redacao antiga fonte evidencia');
 assert.strictEqual(rendered.version, 'v3');
 
 const v2 = promptRegistry.render('decisao@v2', ctx);
-assert.ok(!v2.user.includes('PONDERACAO DE INSUMOS CONCORRENTES'), 'v2 sem bloco de ponderacao');
+assert.ok(!v2.user.includes('PONDERAÇÃO DE INSUMOS CONCORRENTES'), 'v2 sem bloco de ponderacao');
 
 console.log('OK [decisao-v3.prompt] bloco consolidado renderizado corretamente');

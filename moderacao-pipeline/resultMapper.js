@@ -11,31 +11,31 @@ const { DEFAULTS } = require('./constants');
  */
 function construirAuditoria(state) {
     const hip = state.hipoteseSelecionada || {};
-    const hipTitulo = typeof hip === 'object' ? (hip.titulo || hip.id || '(nao definida)') : hip;
+    const hipTitulo = typeof hip === 'object' ? (hip.titulo || hip.id || '(não definida)') : hip;
     const linhas = [];
-    linhas.push(`Hipotese selecionada: ${hipTitulo}`);
+    linhas.push(`Hipótese selecionada: ${hipTitulo}`);
     if (hip && typeof hip === 'object' && hip.comoCitar) linhas.push(`Como citar: ${hip.comoCitar}`);
     if (state.justificativa) linhas.push(`Justificativa: ${state.justificativa}`);
-    if (state.confianca != null) linhas.push(`Confianca: ${state.confianca}`);
+    if (state.confianca != null) linhas.push(`Confiança: ${state.confianca}`);
     if (state.conflitoPrincipal) linhas.push(`Conflito principal: ${state.conflitoPrincipal}`);
 
     const ad = state.analiseDecisao;
     if (ad && typeof ad === 'object') {
-        if (ad.nucleoReclamacao) linhas.push(`Nucleo da reclamacao: ${ad.nucleoReclamacao}`);
+        if (ad.nucleoReclamacao) linhas.push(`Núcleo da reclamação: ${ad.nucleoReclamacao}`);
         if (Array.isArray(ad.conflitos) && ad.conflitos.length) {
             linhas.push('Conflitos avaliados:');
             ad.conflitos.forEach((c, i) => {
                 const resp = c.respondidoPelaEmpresa === true ? 'respondido'
-                    : (c.respondidoPelaEmpresa === false ? 'nao respondido' : String(c.respondidoPelaEmpresa || 'n/a'));
-                linhas.push(`  ${i + 1}. [${c.tipo || 'secundario'}] ${c.conflito} - ${resp}${c.evidencia ? ` (evidencia: ${c.evidencia})` : ''}`);
+                    : (c.respondidoPelaEmpresa === false ? 'não respondido' : String(c.respondidoPelaEmpresa || 'n/a'));
+                linhas.push(`  ${i + 1}. [${c.tipo || 'secundario'}] ${c.conflito} - ${resp}${c.evidencia ? ` (evidência: ${c.evidencia})` : ''}`);
             });
         }
-        if (ad.leituraConsideracaoFinal) linhas.push(`Leitura da consideracao final: ${ad.leituraConsideracaoFinal}`);
+        if (ad.leituraConsideracaoFinal) linhas.push(`Leitura da consideração final: ${ad.leituraConsideracaoFinal}`);
     }
 
     if (Array.isArray(state.hipotesesDescartadas) && state.hipotesesDescartadas.length) {
         linhas.push('');
-        linhas.push('Hipoteses descartadas:');
+        linhas.push('Hipóteses descartadas:');
         state.hipotesesDescartadas.forEach((h, i) => {
             linhas.push(`  ${i + 1}. ${h.hipotese} (score: ${h.score != null ? h.score : 'n/a'}) - ${h.motivoDescarte || ''}`);
         });
@@ -49,7 +49,7 @@ function mapToLegacyContract(state, { confLimiar = DEFAULTS.confLimiar } = {}) {
     const textoModeracao = state.textoFinal || '';
     const confiancaBaixa = typeof state.confianca === 'number' ? state.confianca < confLimiar : false;
 
-    const alerta = confiancaBaixa ? '\n\n⚠️ Confianca baixa: revise a aderencia da hipotese antes de enviar.' : '';
+    const alerta = confiancaBaixa ? '\n\n⚠️ Confiança baixa: revise a aderência da hipótese antes de enviar.' : '';
 
     // Reproduz os 3 blocos com os marcadores esperados por separarBlocosModeracao.
     const result = [

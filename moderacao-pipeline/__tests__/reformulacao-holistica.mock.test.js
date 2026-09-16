@@ -39,8 +39,8 @@ function testPromptBuilderIncluiTextoAnterior() {
     });
     assert.ok(user.includes(TEXTO_TENTATIVA_ANTERIOR), 'user prompt deve incluir o texto literal da tentativa anterior');
     assert.ok(user.includes('TEXTO DA TENTATIVA ANTERIOR'), 'deve rotular o bloco da tentativa anterior');
-    assert.ok(system.toLowerCase().includes('diagnostico'), 'system deve tratar a negativa como diagnostico, nao como unico alvo');
-    assert.ok(system.includes('NAO deve se limitar a contestar ou refutar'), 'system deve proibir explicitamente se limitar a refutar o motivo');
+    assert.ok(system.toLowerCase().includes('diagnóstico'), 'system deve tratar a negativa como diagnostico, nao como unico alvo');
+    assert.ok(system.includes('NÃO deve se limitar a contestar ou refutar'), 'system deve proibir explicitamente se limitar a refutar o motivo');
     console.log('OK [unidade] redacao-reformulacao@v2 inclui texto da tentativa anterior e trata negativa como diagnostico');
 }
 
@@ -70,8 +70,8 @@ function testPromptBuilderNegativaVemDepoisDosTextosCrusSemExemploNegativo() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({
         hipoteseSelecionada: {}, negativaReal: { motivoOficial: 'Divergência de Informações', codigo: 'CO06' }
     });
-    const idxConsideracaoFinal = user.indexOf('Consideracao final:');
-    const idxContextoReanalise = user.indexOf('CONTEXTO DA REANALISE');
+    const idxConsideracaoFinal = user.indexOf('Consideração final:');
+    const idxContextoReanalise = user.indexOf('CONTEXTO DA REANÁLISE');
     assert.ok(idxConsideracaoFinal > -1 && idxContextoReanalise > -1, 'ambos os blocos devem existir no prompt');
     assert.ok(idxContextoReanalise > idxConsideracaoFinal, 'CONTEXTO DA REANALISE (codigo/motivo) deve vir DEPOIS dos textos crus, nao antes (evita efeito de proeminencia)');
     assert.ok(!system.includes('Solicitamos a reanalise da moderacao negada sob o codigo X'), 'system NAO deve repetir o exemplo literal do padrao proibido (pode reforcar em vez de suprimir)');
@@ -81,15 +81,15 @@ function testPromptBuilderNegativaVemDepoisDosTextosCrusSemExemploNegativo() {
 
 function testPromptBuilderProibeDefenderEmpresa() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
-    assert.ok(system.includes('nao deve soar como uma defesa da empresa') || system.includes('NAO deve soar como uma defesa'), 'system deve proibir tom de defesa da empresa');
+    assert.ok(system.includes('não deve soar como uma defesa da empresa') || system.includes('NÃO deve soar como uma defesa'), 'system deve proibir tom de defesa da empresa');
     assert.ok(user.includes('PROIBIDO redigir como se estivesse defendendo a empresa'), 'instrucoes devem proibir redigir como defesa da empresa');
     console.log('OK [unidade] redacao-reformulacao@v2 proibe redigir como defesa da empresa');
 }
 
 function testPromptBuilderConsideracaoFinalCondicional() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
-    assert.ok(system.includes('CONSIDERACAO FINAL') && system.includes('NOVA'), 'system deve condicionar a consideracao final a fato/informacao nova');
-    assert.ok(user.includes('Avalie sempre se a CONSIDERACAO FINAL'), 'instrucoes devem mandar sempre avaliar se ha alegacao nova (nao pular direto pra "sim/nao" sem checar)');
+    assert.ok(system.includes('CONSIDERAÇÃO FINAL') && system.includes('NOVA'), 'system deve condicionar a consideracao final a fato/informacao nova');
+    assert.ok(user.includes('Avalie sempre se a CONSIDERAÇÃO FINAL'), 'instrucoes devem mandar sempre avaliar se ha alegacao nova (nao pular direto pra "sim/nao" sem checar)');
     console.log('OK [unidade] redacao-reformulacao@v2 torna a consideracao final condicional a fato novo (nao obrigatoria sempre)');
 }
 
@@ -100,8 +100,8 @@ function testPromptBuilderConsideracaoFinalCondicional() {
 // comprovado.
 function testPromptBuilderNaoTrataAlegacaoComoFatoComprovado() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
-    assert.ok(system.includes('sem trata-la como fato comprovado'), 'system deve proibir tratar a alegacao do consumidor como fato comprovado');
-    assert.ok(user.includes('reconheca-a sem trata-la como fato comprovado'), 'instrucoes devem proibir tratar a alegacao do consumidor como fato comprovado');
+    assert.ok(system.includes('sem tratá-la como fato comprovado'), 'system deve proibir tratar a alegacao do consumidor como fato comprovado');
+    assert.ok(user.includes('reconheça-a sem tratá-la como fato comprovado'), 'instrucoes devem proibir tratar a alegacao do consumidor como fato comprovado');
     console.log('OK [unidade] redacao-reformulacao@v2 proibe afirmar que uma alegacao nao verificada "nao e fato novo"');
 }
 
@@ -115,8 +115,8 @@ function testPromptBuilderNaoTrataAlegacaoComoFatoComprovado() {
 // insatisfacao), em vez de deixar a classificacao inteiramente a criterio do modelo.
 function testPromptBuilderDefineAlegacaoNovaComExemplosContrastantes() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
-    assert.ok(system.includes('aguardar uma atualizacao do aplicativo') && system.includes('continuo insatisfeito'), 'system deve dar exemplo positivo E negativo de alegacao nova');
-    assert.ok(user.includes('aguardar uma atualizacao do aplicativo') && user.includes('continuo insatisfeito'), 'instrucoes devem dar exemplo positivo E negativo de alegacao nova');
+    assert.ok(system.includes('aguardar uma atualização do aplicativo') && system.includes('continuo insatisfeito'), 'system deve dar exemplo positivo E negativo de alegacao nova');
+    assert.ok(user.includes('aguardar uma atualização do aplicativo') && user.includes('continuo insatisfeito'), 'instrucoes devem dar exemplo positivo E negativo de alegacao nova');
     console.log('OK [unidade] redacao-reformulacao@v2 define alegacao nova com exemplos contrastantes concretos');
 }
 
@@ -124,7 +124,7 @@ function testPromptBuilderSemTextoAnteriorNaoQuebra() {
     const { user } = REGISTRY['redacao-reformulacao@v2'].build({
         hipoteseSelecionada: {}, negativaReal: {}
     });
-    assert.ok(user.includes('nao disponivel'), 'sem textoAnteriorModeracao deve cair no fallback, sem quebrar');
+    assert.ok(user.includes('não disponível'), 'sem textoAnteriorModeracao deve cair no fallback, sem quebrar');
     console.log('OK [unidade] redacao-reformulacao@v2 tolera negativaReal sem textoAnteriorModeracao');
 }
 
@@ -150,7 +150,7 @@ function makeMock() {
                 cobertura_resposta: [{ alegacao: 'Cliente contesta juros sobre antecipacao de IR', respondido: true, tipo: 'direto', trechoResposta: 'Empresa explica encargos por inadimplencia' }]
             });
         }
-        if (sys.includes('AUDITOR de moderacao') || sys.includes('auditoria adversarial') || sys.includes('reanalisar')) {
+        if (sys.includes('AUDITOR de moderação') || sys.includes('auditoria adversarial') || sys.includes('reanalisar')) {
             return jsonResp({
                 analise_holistica: {
                     nucleo_reclamacao: 'Cliente contesta juros sobre antecipacao de IR',
@@ -165,8 +165,8 @@ function makeMock() {
                 manteve_tese: true
             });
         }
-        if (sys.includes('DOCUMENTO DE REANALISE') || sys.includes('DOCUMENTO DE REFUTACAO')) {
-            const holistica = sys.includes('DOCUMENTO DE REANALISE');
+        if (sys.includes('DOCUMENTO DE REANÁLISE') || sys.includes('DOCUMENTO DE REFUTAÇÃO')) {
+            const holistica = sys.includes('DOCUMENTO DE REANÁLISE');
             return jsonResp({
                 linha_raciocinio: holistica ? 'reavaliacao holistica mock' : 'refutacao mock',
                 ...(holistica ? { houve_ganho_material: true } : {}),
@@ -213,7 +213,7 @@ async function testPipelineHolisticaUsaPromptRefCorreto() {
 // da IA vira false (nunca undefined/erro) e que o prompt explica a regra de quando marcar true.
 function testPromptBuilderExplicaRegraDoGanhoMaterial() {
     const { system, user } = REGISTRY['redacao-reformulacao@v2'].build({ hipoteseSelecionada: {}, negativaReal: {} });
-    assert.ok(user.includes('houve_ganho_material') && user.includes('Melhorias so de tom, clareza, organizacao ou estilo NAO contam como ganho material'), 'instrucoes devem explicar quando houve_ganho_material e true vs false');
+    assert.ok(user.includes('houve_ganho_material') && user.includes('Melhorias só de tom, clareza, organização ou estilo NÃO contam como ganho material'), 'instrucoes devem explicar quando houve_ganho_material e true vs false');
     console.log('OK [unidade] redacao-reformulacao@v2 explica a regra de quando houve_ganho_material e true');
 }
 

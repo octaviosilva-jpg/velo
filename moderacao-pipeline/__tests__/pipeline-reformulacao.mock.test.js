@@ -50,12 +50,12 @@ function makeMock() {
             });
         }
 
-        if (sys.includes('JA FOI NEGADO')) {
+        if (sys.includes('JÁ FOI NEGADO')) {
             // Confere que o contexto da negativa real chegou no prompt renderizado.
             assert.ok(user.includes('CO06'), 'prompt de decisao-reformulacao deve conter o codigo da negativa');
             assert.ok(user.includes('hipotese-fraca-anterior'), 'prompt deve conter a hipotese anterior');
             assert.ok(user.includes('esbarra na regra AENV'), 'teseBateu=false deve gerar o sinal de troca de tese');
-            assert.ok(user.includes('CRITERIO DE VALIDACAO'), 'prompt deve deixar claro que a regra AENV nao e uma hipotese selecionavel');
+            assert.ok(user.includes('CRITÉRIO DE VALIDAÇÃO'), 'prompt deve deixar claro que a regra AENV nao e uma hipotese selecionavel');
 
             // A hipotese selecionada e um item real do UNIVERSO DE HIPOTESES (Manual de Bancos),
             // NUNCA o titulo da regra AENV citada pelo RA (essa e so o criterio de validacao).
@@ -81,7 +81,7 @@ function makeMock() {
             });
         }
 
-        if (sys.includes('DOCUMENTO DE FUNDAMENTACAO')) {
+        if (sys.includes('DOCUMENTO DE FUNDAMENTAÇÃO')) {
             return jsonResp({
                 linha_raciocinio: 'Auditoria de reformulacao trocou a tese para inadimplencia/juros informados em contrato, aderente ao motivo real da negativa.',
                 texto_final: 'Prezada equipe de moderacao do Reclame Aqui,\n\nEntendemos que a reclamacao se enquadra na hipotese prevista no Manual de Bancos sobre cliente que questiona juros informados em contrato.\n\nA resposta publica demonstra de forma objetiva o envio do contrato com os juros informados, o que afasta a divergencia apontada.\n\nDiante do exposto, solicitamos a moderacao da reclamacao.'

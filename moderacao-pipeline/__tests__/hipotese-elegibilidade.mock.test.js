@@ -64,7 +64,7 @@ function makeMockQueSempreEscolheOutraEmpresa() {
                 cobertura_resposta: [{ alegacao: 'Cliente contratou seguro via Velotax em parceria com terceiro', respondido: true, tipo: 'direto', trechoResposta: 'Empresa explica a cobertura do seguro' }]
             });
         }
-        if (sys.includes('AUDITOR de moderacao')) {
+        if (sys.includes('AUDITOR de moderação')) {
             decisaoCount++;
             // 1a chamada: erra do mesmo jeito que o caso real (hipotese incompativel com resposta publica).
             // 2a chamada (apos backedge): "corrige", escolhendo outra hipotese.
@@ -84,7 +84,7 @@ function makeMockQueSempreEscolheOutraEmpresa() {
                 confianca: 0.9
             });
         }
-        if (sys.includes('DOCUMENTO DE FUNDAMENTACAO')) {
+        if (sys.includes('DOCUMENTO DE FUNDAMENTAÇÃO')) {
             return jsonResp({
                 linha_raciocinio: 'Raciocinio mock',
                 texto_final: 'Prezada equipe de moderacao do Reclame Aqui,\n\nFundamentacao mock.\n\nDiante do exposto, solicitamos a moderacao.'
