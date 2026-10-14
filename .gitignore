@@ -125,3 +125,6 @@ data/pev_observability/
 # Pipeline V2 - regressao (casos reais e saidas contem dados do cliente)
 moderacao-pipeline/regression/out/
 moderacao-pipeline/regression/casos.json
+
+# Claude Code - preferencias pessoais locais (nao commitar)
+.claude/settings.local.json
